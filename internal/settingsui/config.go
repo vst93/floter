@@ -305,6 +305,13 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 			}
 		}
 		prefix := integration.ID + "\x00"
+		// Enter can validate a stored value without creating live text.
+		// Retire that field's error independently when its schema disappears.
+		for key := range a.configFieldErrors {
+			if strings.HasPrefix(key, prefix) && !fields[strings.TrimPrefix(key, prefix)] {
+				delete(a.configFieldErrors, key)
+			}
+		}
 		for key := range a.configListScrolls {
 			if strings.HasPrefix(key, prefix) && !active[strings.TrimPrefix(key, prefix)] {
 				delete(a.configListScrolls, key)

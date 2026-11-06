@@ -1,0 +1,23 @@
+=== RUN   TestGroupRefreshRemovedTextRetiresValidation
+=== RUN   TestGroupRefreshRemovedTextRetiresValidation/light
+    grouprefresh_test.go:162: text-remove retained removed field error
+    grouprefresh_test.go:168: text-remove resurrected validation before interaction
+=== RUN   TestGroupRefreshRemovedTextRetiresValidation/dark
+    grouprefresh_test.go:162: text-remove retained removed field error
+    grouprefresh_test.go:168: text-remove resurrected validation before interaction
+--- FAIL: TestGroupRefreshRemovedTextRetiresValidation (0.04s)
+    --- FAIL: TestGroupRefreshRemovedTextRetiresValidation/light (0.03s)
+    --- FAIL: TestGroupRefreshRemovedTextRetiresValidation/dark (0.01s)
+=== RUN   TestGroupRefreshRemovedNumberRetiresValidation
+=== RUN   TestGroupRefreshRemovedNumberRetiresValidation/light
+    grouprefresh_test.go:162: number-remove retained removed field error
+    grouprefresh_test.go:168: number-remove resurrected validation before interaction
+=== RUN   TestGroupRefreshRemovedNumberRetiresValidation/dark
+    grouprefresh_test.go:162: number-remove retained removed field error
+    grouprefresh_test.go:168: number-remove resurrected validation before interaction
+--- FAIL: TestGroupRefreshRemovedNumberRetiresValidation (0.02s)
+    --- FAIL: TestGroupRefreshRemovedNumberRetiresValidation/light (0.01s)
+    --- FAIL: TestGroupRefreshRemovedNumberRetiresValidation/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.060s
+FAIL

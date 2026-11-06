@@ -74,6 +74,29 @@ func checkGroupRefreshEditor(t *testing.T, kind plugincfg.Kind, move bool) {
 					t.Errorf("preserved edit did not commit to its own field: %v, %d", sheet.Values, calls)
 				}
 			}
+			// Merge back into one card, remove the leading group, rename the
+			// heading, then undo. Layout changes must not erase editor history.
+			for i := range sheet.Schema.Fields {
+				sheet.Schema.Fields[i].Section = "合并配置"
+			}
+			tt.Frame()
+			if !tt.Focused(field.Label) {
+				t.Error("group merge lost focus")
+			}
+			sheet.Schema.Fields = []plugincfg.Field{field}
+			tt.Frame()
+			if !tt.Focused(field.Label) {
+				t.Error("removing leading fields lost focus")
+			}
+			tt.Key(ui.Cmd, ui.KeyZ)
+			tt.Frame()
+			wantUndo := "/old"
+			if move {
+				wantUndo = "5"
+			}
+			if got := refreshRead(tt); got != wantUndo {
+				t.Errorf("group change lost undo: %q, want %q", got, wantUndo)
+			}
 		})
 	}
 }
@@ -136,4 +159,54 @@ func TestGroupRefreshTextRelaxationClearsValidation(t *testing.T) {
 
 func TestGroupRefreshNumberRelaxationClearsValidation(t *testing.T) {
 	checkGroupRefreshValidation(t, true, true)
+}
+
+func checkGroupRefreshRemovedError(t *testing.T, number bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			limit, length := 10.0, 3
+			field := ConfigField{Key: "value", Label: "配置值", Type: "text", MaxLength: &length}
+			value, name := any("too long"), "text-remove"
+			if number {
+				field.Type, field.Maximum, value, name = "number", &limit, 25.0, "number-remove"
+			}
+			in := Integration{ID: "local.removal", Config: []ConfigField{field}, ConfigValues: map[string]any{"value": value}}
+			a, tt := configIdentityFrame(t, dark, &in)
+			configIdentityFocus(t, tt, field.Label)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if a.configFieldProblem(in, field) == "" {
+				t.Fatal("Enter did not establish validation")
+			}
+			in.Config = nil
+			tt.Frame()
+			if a.configFieldProblem(in, field) != "" {
+				t.Errorf("%s retained removed field error", name)
+			}
+			in.Config = []ConfigField{field}
+			tt.Frame()
+			groupRefreshDump(t, tt, name, dark)
+			if a.configFieldProblem(in, field) != "" {
+				t.Errorf("%s resurrected validation before interaction", name)
+			}
+			if a.configDirty(in, a.draft(in)) || a.draft(in).values[field.Key] != value {
+				t.Error("removal changed stored draft value")
+			}
+			// Its next explicit validation still rejects the actual invalid value.
+			configIdentityFocus(t, tt, field.Label)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if a.configFieldProblem(in, field) == "" {
+				t.Error("new Enter no longer validates")
+			}
+		})
+	}
+}
+
+func TestGroupRefreshRemovedTextRetiresValidation(t *testing.T) {
+	checkGroupRefreshRemovedError(t, false)
+}
+func TestGroupRefreshRemovedNumberRetiresValidation(t *testing.T) {
+	checkGroupRefreshRemovedError(t, true)
 }

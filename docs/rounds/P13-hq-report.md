@@ -37,3 +37,10 @@
 6. 存量数字按 Enter 报错后放宽范围，仍显示旧错误 → 同上覆盖数字 → 深浅放宽后旧句退出，不触发写回。
 
 第三批相关 80 PASS / 0 FAIL、settingsui vet 净。M3 原文 `text-relax retains obsolete validation: "outside its allowed length"` 与 `number-relax retains obsolete validation: "outside its allowed range"`；两文件日志留存，MD5 还原 OK、touch 复跑。V/B/S 0/0/0。
+
+7. 文本只按 Enter 验证、从未输入，移除再加回字段时旧长度错误复活 → 错误按字段存在性独立清理，不依赖 live 草稿 → 重加不显示旧校验；下一次 Enter 仍正确拒绝非法值。
+8. 数字同样移除重加后复活旧范围错误 → 同一清理路径覆盖数字 → 重加静息、下一次 Enter 正常验证，stored/draft 值均未改。
+
+M4 原文 `text-remove retained removed field error`、`text-remove resurrected validation before interaction`、数字对应两句；深浅均红。MD5 还原 OK、touch 后复跑。第四批 **108 PASS / 0 FAIL**、settingsui vet 净。补查分组合并、移除前置字段、改标题及 Ctrl+Z，沿用前两条测试，不计额外修复。
+
+第一遍看图：文本上半帧 /old、下半帧 /local；数字上半帧 5、下半帧 1e；文本外部纠正后红框与长度错误消失、焦点蓝边保留；数字约束放宽后相同 25 不再背着范围错误。高度变少来自错误行退出，既有高度链与槽尺寸未改。
