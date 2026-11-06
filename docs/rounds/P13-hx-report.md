@@ -47,3 +47,12 @@ M2 回注旧条件八场景红：`discard question survived changed owner condit
 M3 回注旧条件八场景红：`disable question survived changed disabled condition`、`disable question revived when broken condition returned`、`invalid disable question swallowed Escape: close=0`。MD5 恢复 OK，touch 后相关 230 PASS / 0 FAIL，包 vet 净；旧 V/B/S 0/0/0。
 
 最初整包运行编译的是尚未校正的输入夹具，最终仅两条新测试的八场景失败（Token 未命中）；原 B 测试均无失败。校正后的相关测试已绿，最终普通/verbose 全量将使用最终代码重跑，不把该次失败计作成功。
+
+第三批 f3970015 已提交推送。
+
+### 第四批：组件卸载条件与未提交选择
+
+7. 现象：组件卸载浮层打开后目标变 orphan；浮层虽隐藏，Escape 被吞，恢复登记后旧浮层连同已取消的 Tool data 勾选复活。改动：未派发时撤浮层、旧错误与未提交的勾选草稿。验证：真实 Click/Tab/Space 打开浮层并取消一项，深浅 × 返回/退出四场景；问题和草稿都退役，卸载调用 0 次。
+8. 现象：npm 包刷新成普通本地链接，已经不走组件卸载，但旧浮层还允许选择数据类别。改动：按 componentizedRemoval 当前条件撤不再适用的浮层及草稿。验证：相同四场景；恢复 npm 后旧浮层不复活，Escape 正常退出。
+
+M4 回注旧条件八场景红：`uninstall question survived changed kind condition`、`invalid dialog retained abandoned component choices`、`uninstall question revived when orphan condition returned`、`invalid uninstall question swallowed Escape: close=0`。MD5 恢复 OK，touch 后相关 **247 PASS / 0 FAIL**，包 vet 净。包含额外六场景：停用/移除/组件卸载已派发时刷新不取消 busy，迟到失败仍可读、调用恰好 1 次。旧 V/B/S 0/0/0，无新增 Skip。

@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"errors"
 	"image/png"
 	"os"
 	"testing"
@@ -85,6 +86,13 @@ func checkNoticeCondition(t *testing.T, kind, change string) {
 					if !tt.HasText(copy.UninstallHostConfig) {
 						t.Fatal("component dialog did not open")
 					}
+					if err := tt.Click(copy.UninstallToolData); err != nil {
+						t.Fatal(err)
+					}
+					tt.Frame()
+					if a.uninstallDraft[in.ID].RemoveToolData {
+						t.Fatal("component checkbox did not change")
+					}
 				}
 				if !a.anyConfirmOpen() {
 					t.Fatal("question did not open")
@@ -111,6 +119,11 @@ func checkNoticeCondition(t *testing.T, kind, change string) {
 				tt.Frame()
 				if a.anyConfirmOpen() {
 					t.Errorf("%s question survived changed %s condition", kind, change)
+				}
+				if kind == "uninstall" {
+					if _, exists := a.uninstallDraft[in.ID]; exists {
+						t.Error("invalid dialog retained abandoned component choices")
+					}
 				}
 				if escape {
 					tt.Key(0, ui.KeyEscape)
@@ -167,3 +180,67 @@ func TestNoticeConditionRemoveOrphan(t *testing.T) { checkNoticeCondition(t, "re
 
 func TestNoticeConditionDisableDisabled(t *testing.T) { checkNoticeCondition(t, "disable", "disabled") }
 func TestNoticeConditionDisableBroken(t *testing.T)   { checkNoticeCondition(t, "disable", "broken") }
+
+func TestNoticeConditionUninstallOrphan(t *testing.T) { checkNoticeCondition(t, "uninstall", "orphan") }
+func TestNoticeConditionUninstallKind(t *testing.T)   { checkNoticeCondition(t, "uninstall", "kind") }
+
+func TestNoticeConditionRefreshKeepsInFlightAnswers(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, kind := range []string{"disable", "remove", "uninstall"} {
+			t.Run(appearanceName(dark)+"/"+kind, func(t *testing.T) {
+				a := noticeApp(t, dark)
+				in := Integration{ID: "local", Name: "Workspace Tools", Enabled: true, Running: true, RuntimeAvailable: true, DistributionSource: "local"}
+				if kind == "uninstall" {
+					in.DistributionSource = "npm"
+				}
+				original := in
+				a.Integrations = func() []Integration { return []Integration{in} }
+				var finish func(error)
+				calls := 0
+				a.Actions.SetIntegrationEnabled = func(_ string, _ bool, done func(error)) { calls++; finish = done }
+				a.Actions.UninstallIntegration = func(_, _, _ string, done func(error)) { calls++; finish = done }
+				a.Actions.UninstallComponents = func(_, _, _ string, _ UninstallComponents, done func(error)) { calls++; finish = done }
+				tt := noticeExitPage(t, a, dark)
+				opener := a.copy().IntegrationsEnable
+				if kind != "disable" {
+					opener = in.removalLabel(a.copy())
+				}
+				if err := tt.Click(opener); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				tt.Frame()
+				for i := 0; i < map[bool]int{false: 1, true: 2}[kind == "uninstall"]; i++ {
+					tt.Key(0, ui.KeyTab)
+					tt.Frame()
+					tt.Key(0, ui.KeySpace)
+					tt.Frame()
+					tt.Frame()
+				}
+				if calls != 1 || finish == nil {
+					t.Fatal("answer did not dispatch exactly once")
+				}
+				switch kind {
+				case "disable":
+					in.Enabled, in.Broken = false, true
+				case "remove":
+					in.Orphan = true
+				case "uninstall":
+					in.DistributionSource = "local"
+				}
+				tt.Frame()
+				tt.Frame()
+				if !a.anyConfirmOpen() || !a.rowBusy(in.ID) {
+					t.Fatal("condition refresh cancelled an in-flight answer")
+				}
+				in = original
+				finish(errors.New("retry after refresh"))
+				tt.Frame()
+				tt.Frame()
+				if !tt.HasText("retry after refresh") || a.rowBusy(in.ID) || calls != 1 {
+					t.Fatal("late result lost its failure or dispatched twice")
+				}
+			})
+		}
+	}
+}

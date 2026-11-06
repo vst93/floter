@@ -2,9 +2,9 @@ package settingsui
 
 import "github.com/egoist/mygo/ui"
 
-// Questions belong to an installed target. A refresh can remove that target
-// without going through the question's answer. Retire the invisible question
-// before routing Escape; leave any in-flight operation to its own callback.
+// Questions belong to an installed target and the conditions that made the
+// question applicable. A refresh can withdraw either without an answer.
+// Retire invalid questions before Escape; keep in-flight work with its callback.
 func (a *App) retireMissingConfirmations() {
 	if a.Integrations == nil || !a.anyConfirmOpen() {
 		return
@@ -26,6 +26,11 @@ func (a *App) retireMissingConfirmations() {
 			delete(a.disableConfirm, in.ID)
 			delete(a.disableConfirmAt, in.ID)
 			delete(a.disableError, in.ID)
+		}
+		if !a.uninstallBusy[in.ID] && (in.Orphan || !in.componentizedRemoval()) {
+			delete(a.uninstallOpen, in.ID)
+			a.resetUninstallDraft(in.ID)
+			delete(a.uninstallError, in.ID)
 		}
 	}
 	for id := range a.disableConfirm {
