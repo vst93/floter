@@ -1,0 +1,23 @@
+internal/settingsui/noticefocus.go: OK
+=== RUN   TestMissingOutletRecheck
+=== RUN   TestMissingOutletRecheck/light/entry
+=== RUN   TestMissingOutletRecheck/light/elsewhere
+=== RUN   TestMissingOutletRecheck/dark/entry
+=== RUN   TestMissingOutletRecheck/dark/elsewhere
+--- PASS: TestMissingOutletRecheck (0.12s)
+    --- PASS: TestMissingOutletRecheck/light/entry (0.06s)
+    --- PASS: TestMissingOutletRecheck/light/elsewhere (0.02s)
+    --- PASS: TestMissingOutletRecheck/dark/entry (0.02s)
+    --- PASS: TestMissingOutletRecheck/dark/elsewhere (0.02s)
+=== RUN   TestMissingOutletReconnect
+=== RUN   TestMissingOutletReconnect/light/entry
+=== RUN   TestMissingOutletReconnect/light/elsewhere
+=== RUN   TestMissingOutletReconnect/dark/entry
+=== RUN   TestMissingOutletReconnect/dark/elsewhere
+--- PASS: TestMissingOutletReconnect (0.08s)
+    --- PASS: TestMissingOutletReconnect/light/entry (0.02s)
+    --- PASS: TestMissingOutletReconnect/light/elsewhere (0.02s)
+    --- PASS: TestMissingOutletReconnect/dark/entry (0.02s)
+    --- PASS: TestMissingOutletReconnect/dark/elsewhere (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.205s

@@ -27,3 +27,10 @@
 V/B/S 旧断言修改 0/0/0，无新增 Skip。全量基线运行中，不提前填写 PASS。
 
 第一批相关 **268 PASS / 0 FAIL**、settingsui vet 退出 0。开盘全量实测 **4322 PASS / 0 FAIL / 2937 测试函数**。M1 撤销 save/discard 的交接后四个深浅 entry 场景红，elsewhere 保持；原串如上。恢复后 MD5 核验与 touch 复验随日志落盘。浅色原图对照已目视：空态不变，右上返回键从没有焦点变为完整蓝色 2px 环，并出现原有快捷键提示。
+
+## 第二批：修复入口
+
+3. 现象：Recheck 在飞时整个损坏工具行消失，键盘滞留在不可见按钮；同 ID 回来后旧按钮重新持焦。改动：列表差分也退役 repair 的焦点句柄，将持焦入口交给返回键。验证：真实 Space → 列表变空 → 同 ID 重现 → 延迟失败；旧串 `missing repair row lost keyboard outlet "Close settings"`，不重派 Recheck。
+4. 现象：系统拥有的工具 Reconnect 在飞时退场，同样丢失当前可用出口。改动：连接修复和重新检查共享既有 repair 焦点归属，两个入口均在行消失时归还。验证：运行时不可用 → Reconnect → 消失/重现 → 延迟失败；旧串 `missing reconnect row lost keyboard outlet "Close settings"`，主动移焦对照不受影响。
+
+第一批 **a7d619df** 已推送，MD5 还原后 touch 复验 **10 PASS**。第二批相关 **278 PASS / 0 FAIL**、包 vet 净；M2 撤销 repair 交接后四个深浅 entry 红，elsewhere 全绿。还原、touch 复验与图片随本批落盘。V/B/S 旧断言仍为 0/0/0。

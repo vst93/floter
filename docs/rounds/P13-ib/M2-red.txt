@@ -1,0 +1,43 @@
+=== RUN   TestMissingOutletRecheck
+=== RUN   TestMissingOutletRecheck/light/entry
+    missingoutlet_test.go:167: missing repair row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:176: returning repair ID reclaimed abandoned focus
+    missingoutlet_test.go:183: late repair result stole keyboard focus
+    missingoutlet_test.go:194: missing repair outlet cannot close settings: 0
+    missingoutlet_test.go:198: return or callback repeated the operation
+=== RUN   TestMissingOutletRecheck/light/elsewhere
+=== RUN   TestMissingOutletRecheck/dark/entry
+    missingoutlet_test.go:167: missing repair row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:176: returning repair ID reclaimed abandoned focus
+    missingoutlet_test.go:183: late repair result stole keyboard focus
+    missingoutlet_test.go:194: missing repair outlet cannot close settings: 0
+    missingoutlet_test.go:198: return or callback repeated the operation
+=== RUN   TestMissingOutletRecheck/dark/elsewhere
+--- FAIL: TestMissingOutletRecheck (0.35s)
+    --- FAIL: TestMissingOutletRecheck/light/entry (0.21s)
+    --- PASS: TestMissingOutletRecheck/light/elsewhere (0.04s)
+    --- FAIL: TestMissingOutletRecheck/dark/entry (0.05s)
+    --- PASS: TestMissingOutletRecheck/dark/elsewhere (0.05s)
+=== RUN   TestMissingOutletReconnect
+=== RUN   TestMissingOutletReconnect/light/entry
+    missingoutlet_test.go:167: missing reconnect row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:176: returning reconnect ID reclaimed abandoned focus
+    missingoutlet_test.go:183: late reconnect result stole keyboard focus
+    missingoutlet_test.go:194: missing reconnect outlet cannot close settings: 0
+    missingoutlet_test.go:198: return or callback repeated the operation
+=== RUN   TestMissingOutletReconnect/light/elsewhere
+=== RUN   TestMissingOutletReconnect/dark/entry
+    missingoutlet_test.go:167: missing reconnect row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:176: returning reconnect ID reclaimed abandoned focus
+    missingoutlet_test.go:183: late reconnect result stole keyboard focus
+    missingoutlet_test.go:194: missing reconnect outlet cannot close settings: 0
+    missingoutlet_test.go:198: return or callback repeated the operation
+=== RUN   TestMissingOutletReconnect/dark/elsewhere
+--- FAIL: TestMissingOutletReconnect (0.18s)
+    --- FAIL: TestMissingOutletReconnect/light/entry (0.04s)
+    --- PASS: TestMissingOutletReconnect/light/elsewhere (0.04s)
+    --- FAIL: TestMissingOutletReconnect/dark/entry (0.04s)
+    --- PASS: TestMissingOutletReconnect/dark/elsewhere (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.533s
+FAIL

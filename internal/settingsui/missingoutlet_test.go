@@ -204,3 +204,6 @@ func checkMissingOutlet(t *testing.T, kind string) {
 
 func TestMissingOutletSave(t *testing.T)    { checkMissingOutlet(t, "save") }
 func TestMissingOutletDiscard(t *testing.T) { checkMissingOutlet(t, "discard") }
+
+func TestMissingOutletRecheck(t *testing.T)   { checkMissingOutlet(t, "repair") }
+func TestMissingOutletReconnect(t *testing.T) { checkMissingOutlet(t, "reconnect") }

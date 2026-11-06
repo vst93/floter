@@ -17,7 +17,7 @@ func (a *App) restoreMissingNoticeFocus(c *ui.Context, integrations []Integratio
 		if present[id] {
 			continue
 		}
-		for _, kind := range []string{"save", "discard"} {
+		for _, kind := range []string{"save", "discard", "repair"} {
 			focus := a.noticeFocus(c, id, kind)
 			focus.restore(c, false, c.Resolve(*noticeExit(c)))
 			*focus = noticeFocusState{}
