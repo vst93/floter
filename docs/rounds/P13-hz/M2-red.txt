@@ -1,0 +1,31 @@
+=== RUN   TestNoticeOutletDiscardSchema
+=== RUN   TestNoticeOutletDiscardSchema/light/answer
+    noticeoutlet_test.go:170: retired discard-schema lost available keyboard outlet "Check"
+    noticeoutlet_test.go:188: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardSchema/light/elsewhere
+=== RUN   TestNoticeOutletDiscardSchema/dark/answer
+    noticeoutlet_test.go:170: retired discard-schema lost available keyboard outlet "Check"
+    noticeoutlet_test.go:188: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardSchema/dark/elsewhere
+--- FAIL: TestNoticeOutletDiscardSchema (0.72s)
+    --- FAIL: TestNoticeOutletDiscardSchema/light/answer (0.14s)
+    --- PASS: TestNoticeOutletDiscardSchema/light/elsewhere (0.24s)
+    --- FAIL: TestNoticeOutletDiscardSchema/dark/answer (0.10s)
+    --- PASS: TestNoticeOutletDiscardSchema/dark/elsewhere (0.24s)
+=== RUN   TestNoticeOutletDiscardUnavailable
+=== RUN   TestNoticeOutletDiscardUnavailable/light/answer
+    noticeoutlet_test.go:170: retired discard-unopenable lost available keyboard outlet "Check"
+    noticeoutlet_test.go:188: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardUnavailable/light/elsewhere
+=== RUN   TestNoticeOutletDiscardUnavailable/dark/answer
+    noticeoutlet_test.go:170: retired discard-unopenable lost available keyboard outlet "Check"
+    noticeoutlet_test.go:188: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardUnavailable/dark/elsewhere
+--- FAIL: TestNoticeOutletDiscardUnavailable (0.77s)
+    --- FAIL: TestNoticeOutletDiscardUnavailable/light/answer (0.13s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/light/elsewhere (0.25s)
+    --- FAIL: TestNoticeOutletDiscardUnavailable/dark/answer (0.13s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/dark/elsewhere (0.25s)
+FAIL
+FAIL	floter/internal/settingsui	1.487s
+FAIL

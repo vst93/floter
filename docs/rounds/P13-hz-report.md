@@ -25,3 +25,10 @@
 不抢焦点对照采用真实 Shift+Tab 移到页头 Close，再刷新后保持 Close 并用 Space 退出一次；页头 tooltip 可以先消费 Escape，此处不把它误判成确认吞键。侧栏点击/Tab 探针未得到持焦状态，夹具改用明确可聚焦的页头出口。早期 mutation 还原测试被上述夹具失败阻断，修正后重新完整跑 M1，不把早期结果计作通过。
 
 第一批相关 199 PASS / 0 FAIL，settingsui vet 净。M1 回注旧 settingsui.go 后四条答案内场景红：`retired discard-owner lost available keyboard outlet "Open configuration"` / `retired discard-orphan lost available keyboard outlet "Adopt"`；还原 MD5 OK、touch 后 199 PASS（含本轮 10 PASS）。旧 V/B/S 0/0/0。
+
+第一批 0fe3891c。第二批：
+
+3. 现象：配置 schema 清空，丢弃问题退场、Configure 消失，Check 未接键盘。改动：非 host 配置分支在没有有效配置入口时交接给可用 Check。验证：深浅真实编辑/提问/刷新，焦点与 Space 派发 Check 一次，破坏操作/保存 0 次。
+4. 现象：owner 变 tool 但没有 openCommand，只剩禁用配置入口；丢弃答案焦点悬空。改动：只返回可用配置入口，无入口时同样交接 Check。验证：深浅 Check 持焦、Space 一次，edited 草稿保留，禁用配置不派发；两项均有页头已持焦的不抢焦点对照。
+
+规格修正：settingsui.go:1065 明确侧栏为 click-only，不能作为兜底而改其键盘模型；后四项无可用同行出口时转交已有页头 Close。此次属于退场后恢复出口，不改变任何键位。

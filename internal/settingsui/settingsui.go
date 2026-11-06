@@ -2938,7 +2938,6 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// disabled when the provider declared no `openCommand`, exactly as
 			// the reference's `disabled={!configuration.openPlan}` did.
 			discardOpener = a.configOpenToolRow(c, copy, integration)
-			a.noticeFocus(c, integration.ID, "discard").restore(c, a.configDiscard[integration.ID], discardOpener)
 		}
 
 		// Only the commands the provider's descriptor declared are *commands* to
@@ -3173,6 +3172,14 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		})
 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
 			a.startToggle(integration.ID, enabled)
+		}
+		if !configOwnerIsHost(integration) {
+			// The old form can disappear while its discard answer owns focus.
+			// A tool without an editor still has the row's diagnostic outlet.
+			if !discardOpener.Valid() && !busy {
+				discardOpener = checkOpener
+			}
+			a.noticeFocus(c, integration.ID, "discard").restore(c, a.configDiscard[integration.ID], discardOpener)
 		}
 		if !disableOpener.Valid() && integration.Broken {
 			disableOpener = checkOpener

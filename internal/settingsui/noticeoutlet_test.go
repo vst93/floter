@@ -206,3 +206,6 @@ func checkNoticeOutlet(t *testing.T, kind, change string) {
 
 func TestNoticeOutletDiscardOwner(t *testing.T)  { checkNoticeOutlet(t, "discard", "owner") }
 func TestNoticeOutletDiscardOrphan(t *testing.T) { checkNoticeOutlet(t, "discard", "orphan") }
+
+func TestNoticeOutletDiscardSchema(t *testing.T)      { checkNoticeOutlet(t, "discard", "schema") }
+func TestNoticeOutletDiscardUnavailable(t *testing.T) { checkNoticeOutlet(t, "discard", "unopenable") }
