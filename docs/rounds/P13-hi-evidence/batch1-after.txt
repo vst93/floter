@@ -1,0 +1,66 @@
+=== RUN   TestConfigDefaultsClearOnlyRestoredFieldErrors
+--- PASS: TestConfigDefaultsClearOnlyRestoredFieldErrors (0.35s)
+=== RUN   TestConfigDefaultsKeepsANoDefaultFieldHalfTyped
+--- PASS: TestConfigDefaultsKeepsANoDefaultFieldHalfTyped (0.21s)
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/light
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/dark
+--- PASS: TestConfigIdentityReorderingKeepsTheActiveField (0.02s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/light (0.01s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/dark (0.01s)
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/light
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/dark
+--- PASS: TestConfigIdentityErrorUsesCurrentLanguage (0.06s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/light (0.04s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/dark (0.01s)
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/light
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/dark
+--- PASS: TestConfigIdentityHistoryBelongsToTheIntegration (0.03s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/light (0.02s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/dark (0.02s)
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/light
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/dark
+--- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues (0.03s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/light (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/dark (0.01s)
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.04s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.03s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.01s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.04s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.02s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.02s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.03s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.04s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.02s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput (0.08s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/light (0.05s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/dark (0.03s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresUndo (0.09s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/light (0.04s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	1.041s

@@ -1,0 +1,224 @@
+=== RUN   TestChoiceIdentityMultiKeyboard
+=== RUN   TestChoiceIdentityMultiKeyboard/light
+=== RUN   TestChoiceIdentityMultiKeyboard/dark
+--- PASS: TestChoiceIdentityMultiKeyboard (0.11s)
+    --- PASS: TestChoiceIdentityMultiKeyboard/light (0.11s)
+    --- PASS: TestChoiceIdentityMultiKeyboard/dark (0.00s)
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption/light
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption/dark
+--- PASS: TestChoiceIdentityMultiFocusFollowsOption (0.01s)
+    --- PASS: TestChoiceIdentityMultiFocusFollowsOption/light (0.01s)
+    --- PASS: TestChoiceIdentityMultiFocusFollowsOption/dark (0.00s)
+=== RUN   TestChoiceIdentityPluginCheckboxFocus
+=== RUN   TestChoiceIdentityPluginCheckboxFocus/light
+=== RUN   TestChoiceIdentityPluginCheckboxFocus/dark
+--- PASS: TestChoiceIdentityPluginCheckboxFocus (0.05s)
+    --- PASS: TestChoiceIdentityPluginCheckboxFocus/light (0.05s)
+    --- PASS: TestChoiceIdentityPluginCheckboxFocus/dark (0.00s)
+=== RUN   TestChoiceIdentityUnknownSelectValue
+=== RUN   TestChoiceIdentityUnknownSelectValue/light
+=== RUN   TestChoiceIdentityUnknownSelectValue/dark
+--- PASS: TestChoiceIdentityUnknownSelectValue (0.01s)
+    --- PASS: TestChoiceIdentityUnknownSelectValue/light (0.01s)
+    --- PASS: TestChoiceIdentityUnknownSelectValue/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledSelect
+=== RUN   TestChoiceIdentityUnlabelledSelect/light
+=== RUN   TestChoiceIdentityUnlabelledSelect/dark
+--- PASS: TestChoiceIdentityUnlabelledSelect (0.02s)
+    --- PASS: TestChoiceIdentityUnlabelledSelect/light (0.01s)
+    --- PASS: TestChoiceIdentityUnlabelledSelect/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledRadio
+=== RUN   TestChoiceIdentityUnlabelledRadio/light
+=== RUN   TestChoiceIdentityUnlabelledRadio/dark
+--- PASS: TestChoiceIdentityUnlabelledRadio (0.02s)
+    --- PASS: TestChoiceIdentityUnlabelledRadio/light (0.01s)
+    --- PASS: TestChoiceIdentityUnlabelledRadio/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes/light
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes/dark
+--- PASS: TestChoiceIdentityUnlabelledCheckboxes (0.00s)
+    --- PASS: TestChoiceIdentityUnlabelledCheckboxes/light (0.00s)
+    --- PASS: TestChoiceIdentityUnlabelledCheckboxes/dark (0.00s)
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/light
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/dark
+--- PASS: TestChoiceIdentityMultiRangeFollowsOption (0.01s)
+    --- PASS: TestChoiceIdentityMultiRangeFollowsOption/light (0.00s)
+    --- PASS: TestChoiceIdentityMultiRangeFollowsOption/dark (0.00s)
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark
+--- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement (0.01s)
+    --- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light (0.01s)
+    --- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark (0.01s)
+=== RUN   TestChoiceRefreshUnknownExternalValue
+=== RUN   TestChoiceRefreshUnknownExternalValue/light
+=== RUN   TestChoiceRefreshUnknownExternalValue/dark
+--- PASS: TestChoiceRefreshUnknownExternalValue (0.04s)
+    --- PASS: TestChoiceRefreshUnknownExternalValue/light (0.02s)
+    --- PASS: TestChoiceRefreshUnknownExternalValue/dark (0.02s)
+=== RUN   TestChoiceRefreshBothValuesRemoved
+=== RUN   TestChoiceRefreshBothValuesRemoved/light
+=== RUN   TestChoiceRefreshBothValuesRemoved/dark
+--- PASS: TestChoiceRefreshBothValuesRemoved (0.03s)
+    --- PASS: TestChoiceRefreshBothValuesRemoved/light (0.01s)
+    --- PASS: TestChoiceRefreshBothValuesRemoved/dark (0.01s)
+=== RUN   TestChoiceRefreshSelectLifetimesAreIndependent
+=== RUN   TestChoiceRefreshSelectLifetimesAreIndependent/light
+=== RUN   TestChoiceRefreshSelectLifetimesAreIndependent/dark
+--- PASS: TestChoiceRefreshSelectLifetimesAreIndependent (0.01s)
+    --- PASS: TestChoiceRefreshSelectLifetimesAreIndependent/light (0.00s)
+    --- PASS: TestChoiceRefreshSelectLifetimesAreIndependent/dark (0.00s)
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/light
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/dark
+--- PASS: TestChoiceRefreshRemovedAnchorStaysRetired (0.01s)
+    --- PASS: TestChoiceRefreshRemovedAnchorStaysRetired/light (0.01s)
+    --- PASS: TestChoiceRefreshRemovedAnchorStaysRetired/dark (0.01s)
+=== RUN   TestChoiceRefreshLongPluginCheckbox
+=== RUN   TestChoiceRefreshLongPluginCheckbox/light
+=== RUN   TestChoiceRefreshLongPluginCheckbox/dark
+--- PASS: TestChoiceRefreshLongPluginCheckbox (0.01s)
+    --- PASS: TestChoiceRefreshLongPluginCheckbox/light (0.00s)
+    --- PASS: TestChoiceRefreshLongPluginCheckbox/dark (0.00s)
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus/light
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus/dark
+--- PASS: TestChoiceRefreshRadioReorderKeepsFocus (0.01s)
+    --- PASS: TestChoiceRefreshRadioReorderKeepsFocus/light (0.01s)
+    --- PASS: TestChoiceRefreshRadioReorderKeepsFocus/dark (0.01s)
+=== RUN   TestChoiceRefreshRadioRemovedFocus
+=== RUN   TestChoiceRefreshRadioRemovedFocus/light
+=== RUN   TestChoiceRefreshRadioRemovedFocus/dark
+--- PASS: TestChoiceRefreshRadioRemovedFocus (0.01s)
+    --- PASS: TestChoiceRefreshRadioRemovedFocus/light (0.01s)
+    --- PASS: TestChoiceRefreshRadioRemovedFocus/dark (0.01s)
+=== RUN   TestChoiceRefreshRadioLongLabel
+=== RUN   TestChoiceRefreshRadioLongLabel/light
+=== RUN   TestChoiceRefreshRadioLongLabel/dark
+--- PASS: TestChoiceRefreshRadioLongLabel (0.01s)
+    --- PASS: TestChoiceRefreshRadioLongLabel/light (0.01s)
+    --- PASS: TestChoiceRefreshRadioLongLabel/dark (0.01s)
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible/light
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible/dark
+--- PASS: TestChoiceRefreshMultiMovedFocusVisible (0.01s)
+    --- PASS: TestChoiceRefreshMultiMovedFocusVisible/light (0.01s)
+    --- PASS: TestChoiceRefreshMultiMovedFocusVisible/dark (0.01s)
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/light
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/dark
+--- PASS: TestConfigIdentityReorderingKeepsTheActiveField (0.01s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/light (0.01s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/dark (0.00s)
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/light
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/dark
+--- PASS: TestConfigIdentityErrorUsesCurrentLanguage (0.03s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/light (0.03s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/dark (0.00s)
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/light
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/dark
+--- PASS: TestConfigIdentityHistoryBelongsToTheIntegration (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/light (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/dark (0.01s)
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/light
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/dark
+--- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/light (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/dark (0.01s)
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.01s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.01s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.00s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.02s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.01s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.00s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.00s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange (0.03s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/light (0.01s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/dark (0.01s)
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange (0.04s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/light (0.02s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark (0.02s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput (0.03s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/light (0.02s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/dark (0.01s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresUndo (0.03s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/light (0.01s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/dark (0.01s)
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/light
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshNumberBoundsUpdateError (0.03s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/light (0.01s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/dark (0.01s)
+=== RUN   TestSchemaRefreshTextBoundsUpdateError
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/light
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshTextBoundsUpdateError (0.03s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/light (0.01s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/dark (0.01s)
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor/light
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor/dark
+--- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor (0.03s)
+    --- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor/light (0.01s)
+    --- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor/dark (0.01s)
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/light
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/dark
+--- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft (0.04s)
+    --- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft/light (0.02s)
+    --- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft/dark (0.02s)
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape/light
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape/dark
+--- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape (0.04s)
+    --- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape/light (0.02s)
+    --- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape/dark (0.02s)
+=== RUN   TestSelectAvailabilityEmptyOptions
+=== RUN   TestSelectAvailabilityEmptyOptions/light
+=== RUN   TestSelectAvailabilityEmptyOptions/dark
+--- PASS: TestSelectAvailabilityEmptyOptions (0.02s)
+    --- PASS: TestSelectAvailabilityEmptyOptions/light (0.01s)
+    --- PASS: TestSelectAvailabilityEmptyOptions/dark (0.01s)
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu/light
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu/dark
+--- PASS: TestSelectAvailabilityLockClosesOpenMenu (0.02s)
+    --- PASS: TestSelectAvailabilityLockClosesOpenMenu/light (0.01s)
+    --- PASS: TestSelectAvailabilityLockClosesOpenMenu/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.845s

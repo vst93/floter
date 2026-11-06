@@ -1,0 +1,19 @@
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor/light
+    schemarefresh_test.go:252: removed field resurrected a stale range: [文件 应用 书签]
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor/dark
+    schemarefresh_test.go:252: removed field resurrected a stale range: [文件 应用 书签]
+--- FAIL: TestSchemaRefreshRemovedMultiRetiresAnchor (0.07s)
+    --- FAIL: TestSchemaRefreshRemovedMultiRetiresAnchor/light (0.05s)
+    --- FAIL: TestSchemaRefreshRemovedMultiRetiresAnchor/dark (0.02s)
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/light
+    schemarefresh_test.go:282: removed plugin field kept a draft and repainted stale text on return
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/dark
+    schemarefresh_test.go:282: removed plugin field kept a draft and repainted stale text on return
+--- FAIL: TestSchemaRefreshRemovedPluginTextRetiresDraft (0.06s)
+    --- FAIL: TestSchemaRefreshRemovedPluginTextRetiresDraft/light (0.04s)
+    --- FAIL: TestSchemaRefreshRemovedPluginTextRetiresDraft/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.140s
+FAIL

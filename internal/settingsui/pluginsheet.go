@@ -57,26 +57,31 @@ type PluginSheet struct {
 // and each section's heading and card of rows. It is drawn where the result
 // list would be — the launcher gives it the band and scrolls it.
 func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
+	if sheet.Schema == nil {
+		return
+	}
 	// Removed fields cannot run their blur cleanup. Prune editor drafts before
-	// painting, including when the schema is empty or the plugin is replaced.
+	// painting, including an empty schema. Other plugins retain their own edits.
 	active := make(map[string]plugincfg.Kind)
-	if sheet.Schema != nil {
-		for _, field := range sheet.Schema.Fields {
-			active[sheet.Schema.Plugin+"\x00"+field.Key] = field.Kind
-		}
+	prefix := sheet.Schema.Plugin + "\x00"
+	for _, field := range sheet.Schema.Fields {
+		active[prefix+field.Key] = field.Kind
 	}
 	for key := range a.pluginTextDrafts {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
 		if kind, exists := active[key]; !exists || kind != plugincfg.Text {
 			delete(a.pluginTextDrafts, key)
 		}
 	}
 	for key := range a.pluginNumberDrafts {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
 		if kind, exists := active[key]; !exists || kind != plugincfg.Number {
 			delete(a.pluginNumberDrafts, key)
 		}
-	}
-	if sheet.Schema == nil {
-		return
 	}
 	t := c.Theme()
 	tokens := a.tokens(c)

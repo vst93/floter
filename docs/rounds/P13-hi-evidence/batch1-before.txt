@@ -1,0 +1,19 @@
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/light
+    schemarefresh_test.go:37: text field inherited the number half-input or error: ["Unsaved changes" "Copy configuration" "Export configuration" "配置值" "配置值" "a number is expected" "Restore defaults" "Save configuration"]
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/dark
+    schemarefresh_test.go:37: text field inherited the number half-input or error: ["Unsaved changes" "Copy configuration" "Export configuration" "配置值" "配置值" "a number is expected" "Restore defaults" "Save configuration"]
+--- FAIL: TestSchemaRefreshConfigTypeRetiresHalfInput (0.23s)
+    --- FAIL: TestSchemaRefreshConfigTypeRetiresHalfInput/light (0.20s)
+    --- FAIL: TestSchemaRefreshConfigTypeRetiresHalfInput/dark (0.03s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/light
+    schemarefresh_test.go:64: number field inherited text undo and wrote an unrequested value: 12
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/dark
+    schemarefresh_test.go:64: number field inherited text undo and wrote an unrequested value: 12
+--- FAIL: TestSchemaRefreshConfigTypeRetiresUndo (0.05s)
+    --- FAIL: TestSchemaRefreshConfigTypeRetiresUndo/light (0.02s)
+    --- FAIL: TestSchemaRefreshConfigTypeRetiresUndo/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.292s
+FAIL

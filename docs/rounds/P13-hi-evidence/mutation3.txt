@@ -1,0 +1,11 @@
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/light
+    schemarefresh_test.go:282: removed plugin field kept a draft and repainted stale text on return
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/dark
+    schemarefresh_test.go:282: removed plugin field kept a draft and repainted stale text on return
+--- FAIL: TestSchemaRefreshRemovedPluginTextRetiresDraft (0.05s)
+    --- FAIL: TestSchemaRefreshRemovedPluginTextRetiresDraft/light (0.05s)
+    --- FAIL: TestSchemaRefreshRemovedPluginTextRetiresDraft/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.057s
+FAIL

@@ -1,0 +1,19 @@
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/light
+    schemarefresh_test.go:61: retired text kind kept its unsent draft for the next text field
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/dark
+    schemarefresh_test.go:61: retired text kind kept its unsent draft for the next text field
+--- FAIL: TestSchemaRefreshPluginTextRetiresOnTypeChange (0.11s)
+    --- FAIL: TestSchemaRefreshPluginTextRetiresOnTypeChange/light (0.10s)
+    --- FAIL: TestSchemaRefreshPluginTextRetiresOnTypeChange/dark (0.01s)
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/light
+    schemarefresh_test.go:96: retired number kind kept its half-input for the next number field
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark
+    schemarefresh_test.go:96: retired number kind kept its half-input for the next number field
+--- FAIL: TestSchemaRefreshPluginNumberRetiresOnTypeChange (0.03s)
+    --- FAIL: TestSchemaRefreshPluginNumberRetiresOnTypeChange/light (0.02s)
+    --- FAIL: TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.140s
+FAIL

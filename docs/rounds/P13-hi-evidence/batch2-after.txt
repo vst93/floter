@@ -1,0 +1,58 @@
+=== RUN   TestConfigDefaultsClearOnlyRestoredFieldErrors
+--- PASS: TestConfigDefaultsClearOnlyRestoredFieldErrors (0.26s)
+=== RUN   TestConfigDefaultsKeepsANoDefaultFieldHalfTyped
+--- PASS: TestConfigDefaultsKeepsANoDefaultFieldHalfTyped (0.13s)
+=== RUN   TestTheConfigFieldValidatesAsTheUserTypes
+--- PASS: TestTheConfigFieldValidatesAsTheUserTypes (0.23s)
+=== RUN   TestAnOutOfRangeFieldWearsTheDangerStroke
+--- PASS: TestAnOutOfRangeFieldWearsTheDangerStroke (0.16s)
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/light
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/dark
+--- PASS: TestConfigIdentityReorderingKeepsTheActiveField (0.01s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/light (0.01s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/dark (0.01s)
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/light
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/dark
+--- PASS: TestConfigIdentityErrorUsesCurrentLanguage (0.02s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/light (0.02s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/dark (0.00s)
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/light
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/dark
+--- PASS: TestConfigIdentityHistoryBelongsToTheIntegration (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/light (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/dark (0.01s)
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/light
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/dark
+--- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues (0.02s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/light (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/dark (0.01s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput (0.03s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/light (0.02s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/dark (0.01s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresUndo (0.03s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/light (0.01s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/dark (0.01s)
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/light
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshNumberBoundsUpdateError (0.03s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/light (0.01s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/dark (0.01s)
+=== RUN   TestSchemaRefreshTextBoundsUpdateError
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/light
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshTextBoundsUpdateError (0.03s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/light (0.01s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.975s

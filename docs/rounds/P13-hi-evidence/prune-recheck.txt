@@ -1,0 +1,76 @@
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.09s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.08s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.00s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.00s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.00s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.00s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.00s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.01s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.00s)
+=== RUN   TestPluginNumberDraftDoesNotBleedAcrossPlugins
+--- PASS: TestPluginNumberDraftDoesNotBleedAcrossPlugins (0.01s)
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange (0.02s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/light (0.01s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/dark (0.01s)
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange (0.02s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/light (0.01s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark (0.01s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput (0.05s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/light (0.04s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/dark (0.01s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresUndo (0.02s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/light (0.01s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/dark (0.01s)
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/light
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshNumberBoundsUpdateError (0.02s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/light (0.01s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/dark (0.01s)
+=== RUN   TestSchemaRefreshTextBoundsUpdateError
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/light
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshTextBoundsUpdateError (0.02s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/light (0.01s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/dark (0.01s)
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor/light
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor/dark
+--- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor (0.02s)
+    --- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor/light (0.01s)
+    --- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor/dark (0.01s)
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/light
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/dark
+--- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft (0.02s)
+    --- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft/light (0.01s)
+    --- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.302s

@@ -1,0 +1,78 @@
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.15s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.14s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.01s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.02s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.01s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.03s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginTextInputSubmitsToItsExistingCallback
+--- PASS: TestPluginTextInputSubmitsToItsExistingCallback (0.04s)
+=== RUN   TestPluginTextRefusedWriteKeepsTheEditForRetry
+--- PASS: TestPluginTextRefusedWriteKeepsTheEditForRetry (0.02s)
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf
+--- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues (0.14s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN (0.06s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf (0.04s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf (0.04s)
+=== RUN   TestPluginNumberDraftDoesNotBleedAcrossPlugins
+--- PASS: TestPluginNumberDraftDoesNotBleedAcrossPlugins (0.01s)
+=== RUN   TestAnOutOfRangeNumberShowsWhatThePluginGot
+--- PASS: TestAnOutOfRangeNumberShowsWhatThePluginGot (0.01s)
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange (0.04s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/light (0.02s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/dark (0.02s)
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange (0.06s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/light (0.04s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark (0.02s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput (0.05s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/light (0.04s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/dark (0.02s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresUndo (0.03s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/light (0.02s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/dark (0.02s)
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/light
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshNumberBoundsUpdateError (0.04s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/light (0.02s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/dark (0.02s)
+=== RUN   TestSchemaRefreshTextBoundsUpdateError
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/light
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshTextBoundsUpdateError (0.04s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/light (0.02s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.704s
