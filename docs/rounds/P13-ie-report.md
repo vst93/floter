@@ -45,3 +45,10 @@
 定向回归 **141 PASS / 0 FAIL**，settingsui/launcher vet 退出 0。M3 四叶子实红：`changed question inherited old confirmation`、`changed action inherited old refusal`；MD5 OK、touch 复验通过。初版完整启动器夹具 Tab 留在搜索入口，未到动作，已改真实行点击；该夹具失败不算变异证据。目视深色 after：新范围说明下只剩“清理历史”首按胶囊，旧问题与取消按钮退场，无新增面。
 
 开盘全量 **4507 PASS / 0 FAIL**，起点 2cfe705d 测试函数 **2970**。基线 shell 收尾统计一度读到已新增的函数数 2974，该值不是起点；以 git grep 起点树实测 2970 为准。
+
+## 第四批（7–8）
+
+7. 现象：动作回调中更新同 key 的范围，再返回拒绝，新动作却显示旧失败。改动：返回时核对派发前动作定义，结果只归原定义。验证：真实确认点击触发回调内刷新，界面显示新范围，旧失败不进入；深浅通过。
+8. 现象：动作回调已发起新一轮确认，旧拒绝仍写进同一行；取消新问题后会露出旧失败。改动：确认记录递增代次，返回只写到原代次。验证：真实确认 → 回调重开问题 → 点击取消，旧失败不复活；执行次数严格为 1，深浅通过。
+
+M4 撤回返回归属校验后四叶子实红：`replaced action inherited callback's obsolete refusal`、`rearmed action inherited callback's obsolete refusal`；MD5 OK、touch 复验。定向回归 **147 PASS / 0 FAIL**，两包 vet 退出 0。V/B/S 0/0/0；每两项独立提交推送，不攒到轮末。

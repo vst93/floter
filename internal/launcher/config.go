@@ -32,9 +32,10 @@ type Config struct {
 	// none: that row prints the field's own failure line and disarms, the old
 	// build's `ActionControl` keeping its own `failed` state rather than
 	// borrowing the overlay's write line.
-	ActionFailed string
-	armedAction  configActionIdentity
-	failedAction configActionIdentity
+	ActionFailed     string
+	armedAction      configActionIdentity
+	failedAction     configActionIdentity
+	actionGeneration uint64
 }
 
 // An action key alone does not identify the question the user saw. Keep the
@@ -152,6 +153,7 @@ func (a *App) ArmConfig(key string) {
 	if a.config.hasAction(key) {
 		a.config.Armed = key
 		a.config.armedAction = a.config.actionIdentity(key)
+		a.config.actionGeneration++
 		if a.config.ActionFailed == key {
 			a.config.ActionFailed = ""
 		}
@@ -180,14 +182,16 @@ func (a *App) RunConfig(key string) {
 	}
 	config.Armed = ""
 	config.ActionFailed = ""
+	identity, generation := config.armedAction, config.actionGeneration
 	if a.Actions.ConfigAction == nil {
 		// Nothing was wired to run: no command was attempted, so there is
 		// nothing to report (the old build's `onRun?.()` no-op).
 		return
 	}
-	if !a.Actions.ConfigAction(config.Schema.Plugin, key) && a.config == config {
+	if !a.Actions.ConfigAction(config.Schema.Plugin, key) && a.config == config &&
+		config.actionIdentity(key) == identity && config.actionGeneration == generation {
 		config.ActionFailed = key
-		config.failedAction = config.actionIdentity(key)
+		config.failedAction = identity
 	}
 }
 
