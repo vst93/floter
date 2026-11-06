@@ -1,0 +1,23 @@
+P13-hm final gates
+Locale: LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4
+gofmt -l cmd internal: empty
+linux go vet ./...: exit 0
+linux go build ./...: exit 0
+windows go vet ./...: exit 0
+windows go build ./...: exit 0
+darwin go vet ./...: exit 0
+darwin go build ./...: exit 0
+go test -count=1 ./internal/ci after contract update: exit 0
+Baseline verbose go test -count=1 -v ./...: exit 0; 3816 PASS / 0 FAIL
+Baseline test functions: 2808
+Final test functions: 2816
+M1: two regressions red; MD5 restore OK; touch and 14 PASS
+M2: two regressions red; MD5 restore OK; touch and 32 PASS
+M3: two regressions red; MD5 restore OK; touch and 32 PASS
+M4: two regressions red; MD5 restore OK; touch and 41 PASS
+Existing test files changed: 0
+Added t.Skip: 0
+Final ordinary go test -count=1 ./...: exit 0
+Final verbose go test -count=1 -v ./...: exit 0; 3842 PASS / 0 FAIL
+PASS increase: 26
+V/B/S: 0/0/0

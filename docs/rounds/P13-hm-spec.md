@@ -21,7 +21,7 @@
 
 ## 门槛
 
-中文 locale：LC_ALL=zh_CN.UTF-8，GOMAXPROCS=4。开盘 verbose 全量正在实跑，数字按完成日志补录；前轮 3816 PASS 只作历史参考。开盘测试函数实测 2808。
+中文 locale：LC_ALL=zh_CN.UTF-8，GOMAXPROCS=4。开盘 verbose 全量实跑完整退出 0：3816 PASS / 0 FAIL；开盘测试函数实测 2808。
 
 分批执行受影响 tests / vet / diff-check；最终一轮一次 gofmt -l cmd internal、go vet ./...、GOOS=windows/darwin go vet ./...、普通与 verbose go test -count=1 ./...、linux/windows/darwin go build ./...。
 

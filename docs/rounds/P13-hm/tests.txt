@@ -1,0 +1,52 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.071s
+ok  	floter/internal/apps	0.749s
+ok  	floter/internal/browser	0.152s
+ok  	floter/internal/calc	0.026s
+ok  	floter/internal/calculator	0.112s
+ok  	floter/internal/ci	12.865s
+ok  	floter/internal/clipboard	0.257s
+ok  	floter/internal/control	0.464s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.027s
+ok  	floter/internal/drops	0.007s
+ok  	floter/internal/extensions	46.316s
+ok  	floter/internal/extensions/recommended	0.321s
+ok  	floter/internal/frameaudit	0.245s
+ok  	floter/internal/glassmap	0.057s
+ok  	floter/internal/homepath	0.019s
+ok  	floter/internal/i18n	1.721s
+ok  	floter/internal/inputtext	0.059s
+ok  	floter/internal/inventory	0.133s
+ok  	floter/internal/launcher	77.047s
+ok  	floter/internal/motion	0.166s
+ok  	floter/internal/pathid	0.060s
+ok  	floter/internal/pathlist	0.030s
+ok  	floter/internal/pinyin	0.011s
+ok  	floter/internal/plist	0.021s
+ok  	floter/internal/plugincfg	0.009s
+ok  	floter/internal/progname	0.011s
+ok  	floter/internal/progtype	0.014s
+ok  	floter/internal/scriptlang	0.006s
+ok  	floter/internal/semver	0.015s
+ok  	floter/internal/settings	4.467s
+ok  	floter/internal/settingsui	425.986s
+ok  	floter/internal/shell	71.633s
+ok  	floter/internal/shortcuts	0.038s
+ok  	floter/internal/spawn	0.174s
+ok  	floter/internal/statefile	0.014s
+ok  	floter/internal/terminalui	40.546s
+ok  	floter/internal/termsession	4.414s
+ok  	floter/internal/textlines	0.011s
+ok  	floter/internal/theme	0.109s
+ok  	floter/internal/tools	0.017s
+ok  	floter/internal/usage	0.010s
+ok  	floter/internal/valuedomain	0.010s
+ok  	floter/internal/versioning	0.010s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.005s
+--- PASS: TestWalkDesktopEntriesStopsAtTheReferenceDepth (0.00s)
+=== RUN   TestWalkDesktopEntriesVisitsOnlyDesktopFiles
+--- PASS: TestWalkDesktopEntriesVisitsOnlyDesktopFiles (0.00s)
+PASS
+ok  	floter/internal/xdg	0.008s
