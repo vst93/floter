@@ -850,12 +850,18 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		// than the loose ruled rows the old port drew. A list box reads as one
 		// control, which is what the reference's `select[multiple]` is.
 		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
+			marker := ui.Box(c).Absolute().Size(0, 0).PassThrough()
+			focus := ui.Local(marker, "option.focus", func() ui.Handle { return ui.Handle{} })
+			hadFocus := focus.FocusWithin(c)
 			box := a.configMultiselectBox(c, a.configListScroll(integration.ID, field.Key), locked, func() {
 				for index, option := range field.Options {
 					index, option := index, option
 					on := ticked[option]
 					boxChanged := false
-					labelClicked, mods := a.configOptionRow(c.Key("config.option."+option), option, &on, &boxChanged, locked, index)
+					labelClicked, mods, row := a.configOptionRow(c.Key("config.option."+option), option, &on, &boxChanged, locked, index)
+					if row.FocusWithin() {
+						row.Bind(focus)
+					}
 					if labelClicked {
 						on = !on
 						boxChanged = true
@@ -883,6 +889,15 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 					draft.values[field.Key] = tickedToValues(field.Options, ticked)
 				}
 			})
+			// A removed option leaves no keyboard position. Use the existing
+			// group as a neutral Tab origin; Space here must not tick a peer.
+			if !locked && hadFocus && !c.Resolve(*focus).Valid() {
+				box.Focus()
+			}
+			box.Label(label)
+			if box.Focused() {
+				box.Focusable()
+			}
 			return box
 		})
 	case "number":
@@ -1240,7 +1255,7 @@ func configListEdgeFace(tokens theme.Tokens, t *ui.Theme) ui.Color {
 // `select[multiple]` does. A locked box refuses every tick, the whole-row
 // `busy` the reference handed the native `select[multiple]`
 // (`disabled={disabled}`, `ExtensionsPanel.tsx:3222,3234`).
-func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *bool, locked bool, index ...int) (bool, ui.Modifiers) {
+func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *bool, locked bool, index ...int) (bool, ui.Modifiers, ui.Element) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	clicked := false
@@ -1284,7 +1299,7 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 			mods = box.ClickModifiers()
 		}
 	})
-	return clicked, mods
+	return clicked, mods, row
 }
 
 // tickedToValues is a multiselect's ticked options as the value a save writes,

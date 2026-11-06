@@ -137,6 +137,7 @@ func checkOptionExitMulti(t *testing.T, empty bool) {
 			}
 			tt.Frame()
 			optionExitDump(t, tt, name, dark)
+			if !tt.Focused("搜索来源") { t.Error("removed option did not return focus to its group") }
 			tt.Key(0, ui.KeySpace)
 			tt.Frame()
 			if a.configDirty(in, a.draft(in)) {
@@ -207,3 +208,6 @@ func checkOptionExitPlugin(t *testing.T, kind plugincfg.Kind) {
 		})
 	}
 }
+
+func TestOptionExitMultiRemoved(t *testing.T) { checkOptionExitMulti(t, false) }
+func TestOptionExitMultiEmpty(t *testing.T)   { checkOptionExitMulti(t, true) }

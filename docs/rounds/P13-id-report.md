@@ -40,3 +40,10 @@ M1 两条深浅共四个叶子实红，cp 还原后 md5sum -c 为 OK，并 touch
 4. 现象：修复忙态锁住表单后解锁，焦点同样掉出下拉。改动：同一可用性恢复链保留原键盘归属。验证：repairBusy=true → false → 原入口可操作；忙时主动移焦后恢复不抢焦。原串 `unlock refresh lost select keyboard exit`。
 
 第二批同族回归 134 PASS / 0 FAIL，包 vet 退出 0；补充主动移焦四叶子 5 PASS。M2 四叶子实红，MD5 OK、touch 后 select 新事件 17 PASS。旧 V/B/S 0/0/0。
+
+## 第三批
+
+5. 现象：多选当前焦点项被删除，Tab 跳回整个表单开头的前项。改动：用实际持焦选项的 Handle 检测退场，暂回既有列表框；该框不处理 Space，下一次 Tab 进入剩余选项。验证：前项 → 文件 → 删除文件 → Space 不写入 → Tab 应用 → Space 只勾应用。原串 `multi-removed Tab did not continue at remaining options`。
+6. 现象：选项全部清空后再恢复，Tab 同样从整表重走。改动：中性列表框只在拥有焦点时保持临时遍历位置，恢复列表不挪焦、不写值。验证：清空 → Space 无写入 → 恢复 → Tab 应用 → 正确勾选。原串 `multi-empty Tab did not continue at remaining options`。
+
+M3 撤掉退场交接后四叶子实红，MD5 OK、touch 后同族回归已完成；最终数字见 batch3.txt。无旧断言修改。

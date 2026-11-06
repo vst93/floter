@@ -1,0 +1,27 @@
+=== RUN   TestOptionExitMultiRemoved
+=== RUN   TestOptionExitMultiRemoved/light
+    optionexit_test.go:140: removed option did not return focus to its group
+    optionexit_test.go:154: multi-removed Tab did not continue at remaining options
+    optionexit_test.go:159: multi-removed cannot toggle surviving option: <nil>
+=== RUN   TestOptionExitMultiRemoved/dark
+    optionexit_test.go:140: removed option did not return focus to its group
+    optionexit_test.go:154: multi-removed Tab did not continue at remaining options
+    optionexit_test.go:159: multi-removed cannot toggle surviving option: <nil>
+--- FAIL: TestOptionExitMultiRemoved (0.25s)
+    --- FAIL: TestOptionExitMultiRemoved/light (0.24s)
+    --- FAIL: TestOptionExitMultiRemoved/dark (0.02s)
+=== RUN   TestOptionExitMultiEmpty
+=== RUN   TestOptionExitMultiEmpty/light
+    optionexit_test.go:140: removed option did not return focus to its group
+    optionexit_test.go:154: multi-empty Tab did not continue at remaining options
+    optionexit_test.go:159: multi-empty cannot toggle surviving option: <nil>
+=== RUN   TestOptionExitMultiEmpty/dark
+    optionexit_test.go:140: removed option did not return focus to its group
+    optionexit_test.go:154: multi-empty Tab did not continue at remaining options
+    optionexit_test.go:159: multi-empty cannot toggle surviving option: <nil>
+--- FAIL: TestOptionExitMultiEmpty (0.04s)
+    --- FAIL: TestOptionExitMultiEmpty/light (0.03s)
+    --- FAIL: TestOptionExitMultiEmpty/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.330s
+FAIL
