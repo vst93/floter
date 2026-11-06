@@ -189,6 +189,14 @@ func (a *App) draft(integration Integration) *configDraft {
 			}
 		}
 		if editing || hasCurrent != hasSaved || !configValuesEqual(current, saved) {
+			// Preserve the local edit, but compare it with what is stored now.
+			// Returning to the new host value must read Saved; restoring an
+			// obsolete default must remain an actual change.
+			if exists {
+				draft.saved[field.Key] = value
+			} else {
+				delete(draft.saved, field.Key)
+			}
 			continue
 		}
 		// Only a genuinely new host generation can replace an untouched
