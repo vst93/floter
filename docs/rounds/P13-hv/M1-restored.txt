@@ -1,0 +1,38 @@
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout-elsewhere
+--- PASS: TestNoticeDisableExternalExitKeepsKeyboard (0.23s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape (0.07s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape-elsewhere (0.04s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout (0.01s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout-elsewhere (0.03s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape (0.01s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape-elsewhere (0.04s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout (0.01s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout-elsewhere (0.03s)
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout-elsewhere
+--- PASS: TestNoticeRemoveExternalExitKeepsKeyboard (0.35s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape (0.05s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape-elsewhere (0.05s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout (0.03s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout-elsewhere (0.04s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape (0.05s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape-elsewhere (0.05s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout (0.03s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout-elsewhere (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.587s

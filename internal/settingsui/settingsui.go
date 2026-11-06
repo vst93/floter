@@ -2899,7 +2899,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			var opener ui.Handle
 			wasAsking := a.configDiscard[integration.ID]
 			opened := a.row(c, copy.ConfigSection, "", func() {
-				if a.actionButton(c, copy.ConfigOpen).Bind(&opener).Clicked() {
+				button := a.actionButton(c, copy.ConfigOpen).Bind(&opener)
+				a.noticeFocus(c, integration.ID, "discard").restore(c, a.configDiscard[integration.ID], button)
+				if button.Clicked() {
 					a.toggleConfig(integration.ID)
 				}
 			}, func() { a.configFields(c, copy, integration) }, func() {
@@ -3330,13 +3332,14 @@ func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration I
 // drawn under the form, and only while the question is armed *and* the draft is
 // still dirty — the reference's `detailsDiscardArmed && configDirty`.
 func (a *App) configDiscardBar(c *ui.Context, copy i18n.Settings, integration Integration) {
+	focus := a.noticeFocus(c, integration.ID, "discard")
 	band := a.noticeBand(c, true, copy.ConfigDiscardConfirm, func(cancel *ui.Element) {
 		*cancel = a.barButton(c, copy.ConfigCancel, false, false, nil, func() {
 			a.disarmConfigDiscard(integration.ID)
-		})
+		}).Bind(&focus.cancel)
 		a.barButton(c, copy.ConfigDiscard, true, false, nil, func() {
 			a.discardConfigChanges(integration.ID)
-		})
+		}).Bind(&focus.confirm)
 	})
 	// The reference's own effect puts focus on Cancel, so the first Enter or
 	// Escape answers "keep" without the pointer moving.
@@ -6899,6 +6902,11 @@ func (a *App) expireSessionClose(c *ui.Context) {
 // `stopImmediatePropagation`): the key cancels the question, it does not
 // leave the page too.
 func (a *App) anyConfirmOpen() bool {
+	for _, open := range a.configDiscard {
+		if open {
+			return true
+		}
+	}
 	for _, open := range a.disableConfirm {
 		if open {
 			return true
@@ -6919,6 +6927,9 @@ func (a *App) anyConfirmOpen() bool {
 
 // cancelConfirmations closes every open confirmation without acting on it.
 func (a *App) cancelConfirmations() {
+	for id := range a.configDiscard {
+		a.disarmConfigDiscard(id)
+	}
 	for id := range a.disableConfirm {
 		a.disableConfirm[id] = false
 	}

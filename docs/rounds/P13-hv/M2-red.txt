@@ -1,0 +1,63 @@
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-en
+    discardexit_test.go:64: discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0
+    discardexit_test.go:73: discard exit lost Configure focus
+    discardexit_test.go:79: discard question cannot reopen by keyboard
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-en
+    discardexit_test.go:64: discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-zh
+    discardexit_test.go:64: discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0
+    discardexit_test.go:73: discard exit lost Configure focus
+    discardexit_test.go:79: discard question cannot reopen by keyboard
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-zh
+    discardexit_test.go:64: discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-en
+    discardexit_test.go:64: discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0
+    discardexit_test.go:73: discard exit lost Configure focus
+    discardexit_test.go:79: discard question cannot reopen by keyboard
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-en
+    discardexit_test.go:64: discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-zh
+    discardexit_test.go:64: discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0
+    discardexit_test.go:73: discard exit lost Configure focus
+    discardexit_test.go:79: discard question cannot reopen by keyboard
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-zh
+    discardexit_test.go:64: discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0
+--- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard (0.81s)
+    --- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-en (0.21s)
+    --- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-en (0.13s)
+    --- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-zh (0.03s)
+    --- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-zh (0.07s)
+    --- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-en (0.14s)
+    --- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-en (0.14s)
+    --- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-zh (0.02s)
+    --- FAIL: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-zh (0.07s)
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-en
+    discardexit_test.go:73: discard exit lost Configure focus
+    discardexit_test.go:79: discard question cannot reopen by keyboard
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-zh
+    discardexit_test.go:73: discard exit lost Configure focus
+    discardexit_test.go:79: discard question cannot reopen by keyboard
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-zh
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-en
+    discardexit_test.go:73: discard exit lost Configure focus
+    discardexit_test.go:79: discard question cannot reopen by keyboard
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-zh
+    discardexit_test.go:73: discard exit lost Configure focus
+    discardexit_test.go:79: discard question cannot reopen by keyboard
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-zh
+--- FAIL: TestConfigDiscardExpiryKeepsDraftAndKeyboard (0.62s)
+    --- FAIL: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-en (0.07s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-en (0.12s)
+    --- FAIL: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-zh (0.02s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-zh (0.07s)
+    --- FAIL: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-en (0.08s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-en (0.15s)
+    --- FAIL: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-zh (0.03s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-zh (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	1.439s
+FAIL

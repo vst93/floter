@@ -1,0 +1,38 @@
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-en
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-en
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-zh
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-zh
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-en
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-en
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-zh
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-zh
+--- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard (0.85s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-en (0.22s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-en (0.14s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-zh (0.04s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-zh (0.07s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-en (0.15s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-en (0.14s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-zh (0.03s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-zh (0.07s)
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-zh
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-zh
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-zh
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-zh
+--- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard (0.58s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-en (0.08s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-en (0.12s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-zh (0.03s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-zh (0.06s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-en (0.08s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-en (0.12s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-zh (0.03s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-zh (0.06s)
+PASS
+ok  	floter/internal/settingsui	1.445s

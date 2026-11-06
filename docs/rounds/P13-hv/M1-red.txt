@@ -1,0 +1,55 @@
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape
+    noticeexit_test.go:110: external exit lost its keyboard opener
+    noticeexit_test.go:120: Space cannot reopen the cancelled question
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout
+    noticeexit_test.go:110: external exit lost its keyboard opener
+    noticeexit_test.go:120: Space cannot reopen the cancelled question
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape
+    noticeexit_test.go:110: external exit lost its keyboard opener
+    noticeexit_test.go:120: Space cannot reopen the cancelled question
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout
+    noticeexit_test.go:110: external exit lost its keyboard opener
+    noticeexit_test.go:120: Space cannot reopen the cancelled question
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout-elsewhere
+--- FAIL: TestNoticeDisableExternalExitKeepsKeyboard (0.37s)
+    --- FAIL: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape (0.12s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape-elsewhere (0.05s)
+    --- FAIL: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout (0.02s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout-elsewhere (0.04s)
+    --- FAIL: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape (0.02s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape-elsewhere (0.05s)
+    --- FAIL: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout (0.02s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout-elsewhere (0.04s)
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape
+    noticeexit_test.go:110: external exit lost its keyboard opener
+    noticeexit_test.go:120: Space cannot reopen the cancelled question
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout
+    noticeexit_test.go:110: external exit lost its keyboard opener
+    noticeexit_test.go:120: Space cannot reopen the cancelled question
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape
+    noticeexit_test.go:110: external exit lost its keyboard opener
+    noticeexit_test.go:120: Space cannot reopen the cancelled question
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout
+    noticeexit_test.go:110: external exit lost its keyboard opener
+    noticeexit_test.go:120: Space cannot reopen the cancelled question
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout-elsewhere
+--- FAIL: TestNoticeRemoveExternalExitKeepsKeyboard (0.44s)
+    --- FAIL: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape (0.06s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape-elsewhere (0.07s)
+    --- FAIL: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout (0.04s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout-elsewhere (0.05s)
+    --- FAIL: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape (0.06s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape-elsewhere (0.06s)
+    --- FAIL: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout (0.04s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout-elsewhere (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.812s
+FAIL

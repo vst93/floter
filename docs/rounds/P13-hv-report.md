@@ -27,3 +27,12 @@
 2. 现象：移除确认同样丢失原入口。改动：同族按归属回到移除按钮，进入组件卸载时保留浮层焦点。验证：同样八场景，并回归已有卸载与显式取消路径。
 
 基线全量实测 **4083 PASS / 0 FAIL / 2888 测试函数**。第一批相关回归 **97 PASS / 0 FAIL**。M1 回注旧产品：`external exit lost its keyboard opener`、`Space cannot reopen the cancelled question`，8 个场景红；还原后 MD5 通过、touch 复跑 **18 PASS**，settingsui vet 通过。V/B/S 旧断言修改 **0/0/0**。
+
+第一批 `8412ad8a` 已推送。
+
+### 第二批：配置丢弃的 Escape 与到期
+
+3. 现象：丢弃问题打开时 Escape 执行设置 Close，问题没有取消。改动：把已有 configDiscard 加入全局确认取消集合，保留草稿、表单展开状态，不写回。验证：深浅 × 中英文 × 焦点仍在/已移开，Close=0、保存=0、值仍为 edited，Space 可重开。
+4. 现象：配置丢弃在 3 秒到期后丢失 Configure 焦点。改动：沿用跨帧答案 Handle，仅在离场答案持有键盘时还给入口。验证：同样八场景，检查按钮上的焦点不受影响。
+
+相关回归 **103 PASS / 0 FAIL**；M2 原始红串 `discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0`、`discard exit lost Configure focus`；恢复 MD5 与 touch 后 **18 PASS**，settingsui vet 净。V/B/S 0/0/0，旧断言不改。
