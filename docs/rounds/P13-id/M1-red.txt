@@ -1,0 +1,23 @@
+=== RUN   TestOptionExitSelectExternal
+=== RUN   TestOptionExitSelectExternal/light
+    optionexit_test.go:71: external refresh lost select keyboard exit
+    optionexit_test.go:82: external cannot choose after refresh: 远程来源
+=== RUN   TestOptionExitSelectExternal/dark
+    optionexit_test.go:71: external refresh lost select keyboard exit
+    optionexit_test.go:82: external cannot choose after refresh: 远程来源
+--- FAIL: TestOptionExitSelectExternal (0.21s)
+    --- FAIL: TestOptionExitSelectExternal/light (0.20s)
+    --- FAIL: TestOptionExitSelectExternal/dark (0.01s)
+=== RUN   TestOptionExitSelectRemoved
+=== RUN   TestOptionExitSelectRemoved/light
+    optionexit_test.go:71: removed refresh lost select keyboard exit
+    optionexit_test.go:82: removed cannot choose after refresh: 文件
+=== RUN   TestOptionExitSelectRemoved/dark
+    optionexit_test.go:71: removed refresh lost select keyboard exit
+    optionexit_test.go:82: removed cannot choose after refresh: 文件
+--- FAIL: TestOptionExitSelectRemoved (0.03s)
+    --- FAIL: TestOptionExitSelectRemoved/light (0.02s)
+    --- FAIL: TestOptionExitSelectRemoved/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.258s
+FAIL

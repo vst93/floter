@@ -1,0 +1,39 @@
+=== RUN   TestOptionExitMultiRemoved
+=== RUN   TestOptionExitMultiRemoved/light
+    optionexit_test.go:123: multi-removed Tab did not continue at remaining options
+    optionexit_test.go:128: multi-removed cannot toggle surviving option: <nil>
+=== RUN   TestOptionExitMultiRemoved/dark
+    optionexit_test.go:123: multi-removed Tab did not continue at remaining options
+    optionexit_test.go:128: multi-removed cannot toggle surviving option: <nil>
+--- FAIL: TestOptionExitMultiRemoved (0.30s)
+    --- FAIL: TestOptionExitMultiRemoved/light (0.23s)
+    --- FAIL: TestOptionExitMultiRemoved/dark (0.07s)
+=== RUN   TestOptionExitMultiEmpty
+=== RUN   TestOptionExitMultiEmpty/light
+    optionexit_test.go:123: multi-empty Tab did not continue at remaining options
+    optionexit_test.go:128: multi-empty cannot toggle surviving option: <nil>
+=== RUN   TestOptionExitMultiEmpty/dark
+    optionexit_test.go:123: multi-empty Tab did not continue at remaining options
+    optionexit_test.go:128: multi-empty cannot toggle surviving option: <nil>
+--- FAIL: TestOptionExitMultiEmpty (0.10s)
+    --- FAIL: TestOptionExitMultiEmpty/light (0.05s)
+    --- FAIL: TestOptionExitMultiEmpty/dark (0.05s)
+=== RUN   TestOptionExitPluginCheckbox
+=== RUN   TestOptionExitPluginCheckbox/light
+    optionexit_test.go:178: checkbox-removed Tab did not return to the surviving group
+=== RUN   TestOptionExitPluginCheckbox/dark
+    optionexit_test.go:178: checkbox-removed Tab did not return to the surviving group
+--- FAIL: TestOptionExitPluginCheckbox (0.15s)
+    --- FAIL: TestOptionExitPluginCheckbox/light (0.10s)
+    --- FAIL: TestOptionExitPluginCheckbox/dark (0.05s)
+=== RUN   TestOptionExitPluginRadio
+=== RUN   TestOptionExitPluginRadio/light
+    optionexit_test.go:178: radio-removed Tab did not return to the surviving group
+=== RUN   TestOptionExitPluginRadio/dark
+    optionexit_test.go:178: radio-removed Tab did not return to the surviving group
+--- FAIL: TestOptionExitPluginRadio (0.11s)
+    --- FAIL: TestOptionExitPluginRadio/light (0.05s)
+    --- FAIL: TestOptionExitPluginRadio/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.667s
+FAIL

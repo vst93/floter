@@ -1,0 +1,69 @@
+=== RUN   TestOptionExitSelectExternal
+=== RUN   TestOptionExitSelectExternal/light
+    optionexit_test.go:71: external refresh lost select keyboard exit
+    optionexit_test.go:82: external cannot choose after refresh: 远程来源
+=== RUN   TestOptionExitSelectExternal/dark
+    optionexit_test.go:71: external refresh lost select keyboard exit
+    optionexit_test.go:82: external cannot choose after refresh: 远程来源
+--- FAIL: TestOptionExitSelectExternal (0.26s)
+    --- FAIL: TestOptionExitSelectExternal/light (0.20s)
+    --- FAIL: TestOptionExitSelectExternal/dark (0.06s)
+=== RUN   TestOptionExitSelectRemoved
+=== RUN   TestOptionExitSelectRemoved/light
+    optionexit_test.go:71: removed refresh lost select keyboard exit
+    optionexit_test.go:82: removed cannot choose after refresh: 文件
+=== RUN   TestOptionExitSelectRemoved/dark
+    optionexit_test.go:71: removed refresh lost select keyboard exit
+    optionexit_test.go:82: removed cannot choose after refresh: 文件
+--- FAIL: TestOptionExitSelectRemoved (0.10s)
+    --- FAIL: TestOptionExitSelectRemoved/light (0.05s)
+    --- FAIL: TestOptionExitSelectRemoved/dark (0.05s)
+=== RUN   TestOptionExitSelectEmpty
+=== RUN   TestOptionExitSelectEmpty/light
+    optionexit_test.go:71: empty refresh lost select keyboard exit
+    optionexit_test.go:82: empty cannot choose after refresh: 文件
+=== RUN   TestOptionExitSelectEmpty/dark
+    optionexit_test.go:71: empty refresh lost select keyboard exit
+    optionexit_test.go:82: empty cannot choose after refresh: 文件
+--- FAIL: TestOptionExitSelectEmpty (0.09s)
+    --- FAIL: TestOptionExitSelectEmpty/light (0.05s)
+    --- FAIL: TestOptionExitSelectEmpty/dark (0.04s)
+=== RUN   TestOptionExitSelectUnlock
+=== RUN   TestOptionExitSelectUnlock/light
+    optionexit_test.go:71: unlock refresh lost select keyboard exit
+    optionexit_test.go:82: unlock cannot choose after refresh: 文件
+=== RUN   TestOptionExitSelectUnlock/dark
+    optionexit_test.go:71: unlock refresh lost select keyboard exit
+    optionexit_test.go:82: unlock cannot choose after refresh: 文件
+--- FAIL: TestOptionExitSelectUnlock (0.10s)
+    --- FAIL: TestOptionExitSelectUnlock/light (0.04s)
+    --- FAIL: TestOptionExitSelectUnlock/dark (0.05s)
+=== RUN   TestOptionExitMultiRemoved
+=== RUN   TestOptionExitMultiRemoved/light
+=== RUN   TestOptionExitMultiRemoved/dark
+--- PASS: TestOptionExitMultiRemoved (0.10s)
+    --- PASS: TestOptionExitMultiRemoved/light (0.06s)
+    --- PASS: TestOptionExitMultiRemoved/dark (0.04s)
+=== RUN   TestOptionExitMultiEmpty
+=== RUN   TestOptionExitMultiEmpty/light
+=== RUN   TestOptionExitMultiEmpty/dark
+--- PASS: TestOptionExitMultiEmpty (0.12s)
+    --- PASS: TestOptionExitMultiEmpty/light (0.05s)
+    --- PASS: TestOptionExitMultiEmpty/dark (0.06s)
+=== RUN   TestOptionExitPluginCheckbox
+=== RUN   TestOptionExitPluginCheckbox/light
+=== RUN   TestOptionExitPluginCheckbox/dark
+--- PASS: TestOptionExitPluginCheckbox (0.14s)
+    --- PASS: TestOptionExitPluginCheckbox/light (0.09s)
+    --- PASS: TestOptionExitPluginCheckbox/dark (0.06s)
+=== RUN   TestOptionExitPluginRadio
+=== RUN   TestOptionExitPluginRadio/light
+    optionexit_test.go:147: cannot Tab to 应用
+=== RUN   TestOptionExitPluginRadio/dark
+    optionexit_test.go:147: cannot Tab to 应用
+--- FAIL: TestOptionExitPluginRadio (0.03s)
+    --- FAIL: TestOptionExitPluginRadio/light (0.01s)
+    --- FAIL: TestOptionExitPluginRadio/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.949s
+FAIL

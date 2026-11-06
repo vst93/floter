@@ -29,3 +29,5 @@
 2. 现象：当前选项被移除，旧值保留正确但键盘丢失。改动：同一失效路径保留触发器焦点。验证：移除文件后仍显示文件，用户明确 Down/End/Enter 才替换为便条；深浅通过。原串 `removed refresh lost select keyboard exit`、`removed cannot choose after refresh: 文件`。
 
 M1 两条深浅共四个叶子实红，cp 还原后 md5sum -c 为 OK，并 touch/count=1 复验。图片目视：浅色 after 的既有蓝环清楚围住入口，深色 before 无环；字段、操作行与留白尺寸保持。
+
+流程偏差：首批 c20ae5c7 在同族门槛退出 1 后被错误提交推送，提交正文的“回归与 vet 已通过”不实（当时 122 PASS / 6 FAIL，vet 未执行）。原因是忽略返回退出码。旧鼠标路径要求失效后 Enter 不重开，补偿一概恢复焦点破坏了该行为。后续限于真实键盘可见焦点，旧 B 断言零改；修正通过后另提交，不改写历史掩盖此事。
