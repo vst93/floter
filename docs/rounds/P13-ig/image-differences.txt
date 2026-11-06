@@ -1,0 +1,16 @@
+1 run-closed light: changed_pixels=875 bbox=(34, 189, 237, 201)
+2 run-replaced light: changed_pixels=0 bbox=None
+3 unknown-schema light: changed_pixels=860 bbox=(35, 249, 226, 261)
+4 unknown-answer light: changed_pixels=860 bbox=(35, 189, 226, 201)
+5 reopen-write-false light: changed_pixels=58624 bbox=(20, 104, 700, 271)
+6 reopen-action light: changed_pixels=503 bbox=(538, 214, 618, 226)
+7 sibling-added-true light: changed_pixels=19881 bbox=(37, 117, 687, 311)
+8 sibling-removed-false light: changed_pixels=53257 bbox=(20, 104, 700, 224)
+1 run-closed dark: changed_pixels=875 bbox=(34, 189, 237, 201)
+2 run-replaced dark: changed_pixels=0 bbox=None
+3 unknown-schema dark: changed_pixels=860 bbox=(35, 249, 226, 261)
+4 unknown-answer dark: changed_pixels=860 bbox=(35, 189, 226, 201)
+5 reopen-write-false dark: changed_pixels=58619 bbox=(20, 104, 700, 271)
+6 reopen-action dark: changed_pixels=503 bbox=(538, 214, 618, 226)
+7 sibling-added-true dark: changed_pixels=19829 bbox=(37, 117, 687, 311)
+8 sibling-removed-false dark: changed_pixels=53238 bbox=(20, 104, 700, 224)

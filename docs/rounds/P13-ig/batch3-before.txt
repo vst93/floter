@@ -1,0 +1,29 @@
+=== RUN   TestConfigEpochReopenedWrite
+=== RUN   TestConfigEpochReopenedWrite/light/accepted=false
+    configepoch_test.go:75: reopened sheet inherited old write: values=map[enabled:true limit:10] failed=true
+    configepoch_test.go:78: reopened sheet shows old write refusal
+=== RUN   TestConfigEpochReopenedWrite/light/accepted=true
+    configepoch_test.go:75: reopened sheet inherited old write: values=map[enabled:true limit:80] failed=false
+=== RUN   TestConfigEpochReopenedWrite/dark/accepted=false
+    configepoch_test.go:75: reopened sheet inherited old write: values=map[enabled:true limit:10] failed=true
+    configepoch_test.go:78: reopened sheet shows old write refusal
+=== RUN   TestConfigEpochReopenedWrite/dark/accepted=true
+    configepoch_test.go:75: reopened sheet inherited old write: values=map[enabled:true limit:80] failed=false
+--- FAIL: TestConfigEpochReopenedWrite (0.78s)
+    --- FAIL: TestConfigEpochReopenedWrite/light/accepted=false (0.51s)
+    --- FAIL: TestConfigEpochReopenedWrite/light/accepted=true (0.06s)
+    --- FAIL: TestConfigEpochReopenedWrite/dark/accepted=false (0.11s)
+    --- FAIL: TestConfigEpochReopenedWrite/dark/accepted=true (0.10s)
+=== RUN   TestConfigEpochReopenedAction
+=== RUN   TestConfigEpochReopenedAction/light
+    configepoch_test.go:111: reopened sheet inherited old action refusal: calls=1 failed="clear"
+    configepoch_test.go:121: Escape failed to cancel fresh confirmation
+=== RUN   TestConfigEpochReopenedAction/dark
+    configepoch_test.go:111: reopened sheet inherited old action refusal: calls=1 failed="clear"
+    configepoch_test.go:121: Escape failed to cancel fresh confirmation
+--- FAIL: TestConfigEpochReopenedAction (0.30s)
+    --- FAIL: TestConfigEpochReopenedAction/light (0.19s)
+    --- FAIL: TestConfigEpochReopenedAction/dark (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	1.102s
+FAIL

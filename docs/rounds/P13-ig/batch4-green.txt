@@ -1,0 +1,188 @@
+=== RUN   TestActionConditionChangedQuestion
+=== RUN   TestActionConditionChangedQuestion/light
+=== RUN   TestActionConditionChangedQuestion/dark
+--- PASS: TestActionConditionChangedQuestion (0.31s)
+    --- PASS: TestActionConditionChangedQuestion/light (0.28s)
+    --- PASS: TestActionConditionChangedQuestion/dark (0.03s)
+=== RUN   TestActionConditionChangedFailure
+=== RUN   TestActionConditionChangedFailure/light
+=== RUN   TestActionConditionChangedFailure/dark
+--- PASS: TestActionConditionChangedFailure (0.10s)
+    --- PASS: TestActionConditionChangedFailure/light (0.04s)
+    --- PASS: TestActionConditionChangedFailure/dark (0.06s)
+=== RUN   TestActionConditionCallbackReplacement
+=== RUN   TestActionConditionCallbackReplacement/light
+=== RUN   TestActionConditionCallbackReplacement/dark
+--- PASS: TestActionConditionCallbackReplacement (0.09s)
+    --- PASS: TestActionConditionCallbackReplacement/light (0.04s)
+    --- PASS: TestActionConditionCallbackReplacement/dark (0.05s)
+=== RUN   TestActionConditionCallbackRearm
+=== RUN   TestActionConditionCallbackRearm/light
+=== RUN   TestActionConditionCallbackRearm/dark
+--- PASS: TestActionConditionCallbackRearm (0.11s)
+    --- PASS: TestActionConditionCallbackRearm/light (0.05s)
+    --- PASS: TestActionConditionCallbackRearm/dark (0.06s)
+=== RUN   TestConfigEpochReopenedWrite
+=== RUN   TestConfigEpochReopenedWrite/light/accepted=false
+=== RUN   TestConfigEpochReopenedWrite/light/accepted=true
+=== RUN   TestConfigEpochReopenedWrite/dark/accepted=false
+=== RUN   TestConfigEpochReopenedWrite/dark/accepted=true
+--- PASS: TestConfigEpochReopenedWrite (0.19s)
+    --- PASS: TestConfigEpochReopenedWrite/light/accepted=false (0.05s)
+    --- PASS: TestConfigEpochReopenedWrite/light/accepted=true (0.02s)
+    --- PASS: TestConfigEpochReopenedWrite/dark/accepted=false (0.07s)
+    --- PASS: TestConfigEpochReopenedWrite/dark/accepted=true (0.05s)
+=== RUN   TestConfigEpochReopenedAction
+=== RUN   TestConfigEpochReopenedAction/light
+=== RUN   TestConfigEpochReopenedAction/dark
+--- PASS: TestConfigEpochReopenedAction (0.16s)
+    --- PASS: TestConfigEpochReopenedAction/light (0.08s)
+    --- PASS: TestConfigEpochReopenedAction/dark (0.08s)
+=== RUN   TestConfigEpochSiblingAdded
+=== RUN   TestConfigEpochSiblingAdded/light/accepted=false
+=== RUN   TestConfigEpochSiblingAdded/light/accepted=true
+=== RUN   TestConfigEpochSiblingAdded/dark/accepted=false
+=== RUN   TestConfigEpochSiblingAdded/dark/accepted=true
+--- PASS: TestConfigEpochSiblingAdded (0.22s)
+    --- PASS: TestConfigEpochSiblingAdded/light/accepted=false (0.03s)
+    --- PASS: TestConfigEpochSiblingAdded/light/accepted=true (0.03s)
+    --- PASS: TestConfigEpochSiblingAdded/dark/accepted=false (0.10s)
+    --- PASS: TestConfigEpochSiblingAdded/dark/accepted=true (0.06s)
+=== RUN   TestConfigEpochSiblingRemoved
+=== RUN   TestConfigEpochSiblingRemoved/light/accepted=false
+=== RUN   TestConfigEpochSiblingRemoved/light/accepted=true
+=== RUN   TestConfigEpochSiblingRemoved/dark/accepted=false
+=== RUN   TestConfigEpochSiblingRemoved/dark/accepted=true
+--- PASS: TestConfigEpochSiblingRemoved (0.18s)
+    --- PASS: TestConfigEpochSiblingRemoved/light/accepted=false (0.03s)
+    --- PASS: TestConfigEpochSiblingRemoved/light/accepted=true (0.04s)
+    --- PASS: TestConfigEpochSiblingRemoved/dark/accepted=false (0.06s)
+    --- PASS: TestConfigEpochSiblingRemoved/dark/accepted=true (0.04s)
+=== RUN   TestRunEpochClosedDuringCallback
+=== RUN   TestRunEpochClosedDuringCallback/light
+=== RUN   TestRunEpochClosedDuringCallback/dark
+--- PASS: TestRunEpochClosedDuringCallback (0.23s)
+    --- PASS: TestRunEpochClosedDuringCallback/light (0.15s)
+    --- PASS: TestRunEpochClosedDuringCallback/dark (0.08s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+--- PASS: TestRunEpochParametersReplacedDuringCallback (0.15s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/light (0.06s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/dark (0.08s)
+=== RUN   TestRunEpochUnknownParameterNowExists
+=== RUN   TestRunEpochUnknownParameterNowExists/light
+=== RUN   TestRunEpochUnknownParameterNowExists/dark
+--- PASS: TestRunEpochUnknownParameterNowExists (0.16s)
+    --- PASS: TestRunEpochUnknownParameterNowExists/light (0.08s)
+    --- PASS: TestRunEpochUnknownParameterNowExists/dark (0.08s)
+=== RUN   TestRunEpochUnknownRefusalAfterEditing
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/light
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/dark
+--- PASS: TestRunEpochUnknownRefusalAfterEditing (0.20s)
+    --- PASS: TestRunEpochUnknownRefusalAfterEditing/light (0.11s)
+    --- PASS: TestRunEpochUnknownRefusalAfterEditing/dark (0.10s)
+=== RUN   TestWriteResultOwnerChangedInsideCallback
+=== RUN   TestWriteResultOwnerChangedInsideCallback/light/accepted=false
+=== RUN   TestWriteResultOwnerChangedInsideCallback/dark/accepted=false
+=== RUN   TestWriteResultOwnerChangedInsideCallback/light/accepted=true
+=== RUN   TestWriteResultOwnerChangedInsideCallback/dark/accepted=true
+--- PASS: TestWriteResultOwnerChangedInsideCallback (0.12s)
+    --- PASS: TestWriteResultOwnerChangedInsideCallback/light/accepted=false (0.04s)
+    --- PASS: TestWriteResultOwnerChangedInsideCallback/dark/accepted=false (0.03s)
+    --- PASS: TestWriteResultOwnerChangedInsideCallback/light/accepted=true (0.03s)
+    --- PASS: TestWriteResultOwnerChangedInsideCallback/dark/accepted=true (0.03s)
+=== RUN   TestWriteResultOlderRefusalCannotUndoNewerSuccess
+=== RUN   TestWriteResultOlderRefusalCannotUndoNewerSuccess/light/accepted=false
+=== RUN   TestWriteResultOlderRefusalCannotUndoNewerSuccess/dark/accepted=false
+--- PASS: TestWriteResultOlderRefusalCannotUndoNewerSuccess (0.06s)
+    --- PASS: TestWriteResultOlderRefusalCannotUndoNewerSuccess/light/accepted=false (0.02s)
+    --- PASS: TestWriteResultOlderRefusalCannotUndoNewerSuccess/dark/accepted=false (0.03s)
+=== RUN   TestWriteResultOlderSuccessCannotUndoNewerRefusal
+=== RUN   TestWriteResultOlderSuccessCannotUndoNewerRefusal/light/accepted=false
+=== RUN   TestWriteResultOlderSuccessCannotUndoNewerRefusal/dark/accepted=false
+--- PASS: TestWriteResultOlderSuccessCannotUndoNewerRefusal (0.06s)
+    --- PASS: TestWriteResultOlderSuccessCannotUndoNewerRefusal/light/accepted=false (0.03s)
+    --- PASS: TestWriteResultOlderSuccessCannotUndoNewerRefusal/dark/accepted=false (0.03s)
+=== RUN   TestWriteResultFieldChangedInsideCallback
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind/light/accepted=false
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind/dark/accepted=false
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind/light/accepted=true
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind/dark/accepted=true
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed/light/accepted=false
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed/dark/accepted=false
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed/light/accepted=true
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed/dark/accepted=true
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds/light/accepted=false
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds/dark/accepted=false
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds/light/accepted=true
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds/dark/accepted=true
+=== RUN   TestWriteResultFieldChangedInsideCallback/options
+=== RUN   TestWriteResultFieldChangedInsideCallback/options/light/accepted=false
+=== RUN   TestWriteResultFieldChangedInsideCallback/options/dark/accepted=false
+=== RUN   TestWriteResultFieldChangedInsideCallback/options/light/accepted=true
+=== RUN   TestWriteResultFieldChangedInsideCallback/options/dark/accepted=true
+--- PASS: TestWriteResultFieldChangedInsideCallback (0.47s)
+    --- PASS: TestWriteResultFieldChangedInsideCallback/kind (0.12s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/kind/light/accepted=false (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/kind/dark/accepted=false (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/kind/light/accepted=true (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/kind/dark/accepted=true (0.03s)
+    --- PASS: TestWriteResultFieldChangedInsideCallback/removed (0.12s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/removed/light/accepted=false (0.04s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/removed/dark/accepted=false (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/removed/light/accepted=true (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/removed/dark/accepted=true (0.03s)
+    --- PASS: TestWriteResultFieldChangedInsideCallback/bounds (0.11s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/bounds/light/accepted=false (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/bounds/dark/accepted=false (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/bounds/light/accepted=true (0.02s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/bounds/dark/accepted=true (0.03s)
+    --- PASS: TestWriteResultFieldChangedInsideCallback/options (0.12s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/options/light/accepted=false (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/options/dark/accepted=false (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/options/light/accepted=true (0.03s)
+        --- PASS: TestWriteResultFieldChangedInsideCallback/options/dark/accepted=true (0.03s)
+PASS
+ok  	floter/internal/settingsui	2.841s
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-refused
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-accepted
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-refused
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-accepted
+--- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet (0.00s)
+    --- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-refused (0.00s)
+    --- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-accepted (0.00s)
+    --- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-refused (0.00s)
+    --- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-accepted (0.00s)
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/close-refused
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/close-accepted
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-refused
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-accepted
+--- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/close-refused (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/close-accepted (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-refused (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-accepted (0.00s)
+=== RUN   TestConfigLifetimeRemovedAction
+=== RUN   TestConfigLifetimeRemovedAction/armed
+=== RUN   TestConfigLifetimeRemovedAction/failed
+--- PASS: TestConfigLifetimeRemovedAction (0.00s)
+    --- PASS: TestConfigLifetimeRemovedAction/armed (0.00s)
+    --- PASS: TestConfigLifetimeRemovedAction/failed (0.00s)
+=== RUN   TestConfigLifetimeRetypedAction
+=== RUN   TestConfigLifetimeRetypedAction/armed
+=== RUN   TestConfigLifetimeRetypedAction/failed
+--- PASS: TestConfigLifetimeRetypedAction (0.00s)
+    --- PASS: TestConfigLifetimeRetypedAction/armed (0.00s)
+    --- PASS: TestConfigLifetimeRetypedAction/failed (0.00s)
+=== RUN   TestConfigLifetimeRunRequiresConfirmation
+--- PASS: TestConfigLifetimeRunRequiresConfirmation (0.00s)
+=== RUN   TestConfigLifetimeStaleActionCannotConsumeAnother
+--- PASS: TestConfigLifetimeStaleActionCannotConsumeAnother (0.00s)
+PASS
+ok  	floter/internal/launcher	0.169s

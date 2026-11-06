@@ -1,0 +1,14 @@
+=== RUN   TestRunEpochClosedDuringCallback
+=== RUN   TestRunEpochClosedDuringCallback/light
+=== RUN   TestRunEpochClosedDuringCallback/dark
+--- PASS: TestRunEpochClosedDuringCallback (0.60s)
+    --- PASS: TestRunEpochClosedDuringCallback/light (0.49s)
+    --- PASS: TestRunEpochClosedDuringCallback/dark (0.11s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+--- PASS: TestRunEpochParametersReplacedDuringCallback (0.28s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/light (0.13s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/dark (0.15s)
+PASS
+ok  	floter/internal/settingsui	0.904s

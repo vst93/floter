@@ -7,6 +7,7 @@ import (
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/settings"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -29,6 +30,9 @@ func checkRunEpoch(t *testing.T, scenario string) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			a, in := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText, Default: "remembered"})
+			if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearanceName(dark) }); err != nil {
+				t.Fatal(err)
+			}
 			a.Integrations = func() []Integration { return []Integration{*in} }
 			copy := i18n.For("en").Settings
 			calls, staleFrames := 0, 0

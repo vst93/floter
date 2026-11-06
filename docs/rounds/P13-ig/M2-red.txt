@@ -1,0 +1,128 @@
+=== RUN   TestRunConditionEditedValue
+=== RUN   TestRunConditionEditedValue/light
+=== RUN   TestRunConditionEditedValue/dark
+--- PASS: TestRunConditionEditedValue (0.49s)
+    --- PASS: TestRunConditionEditedValue/light (0.34s)
+    --- PASS: TestRunConditionEditedValue/dark (0.15s)
+=== RUN   TestRunConditionRemovedField
+=== RUN   TestRunConditionRemovedField/light
+=== RUN   TestRunConditionRemovedField/dark
+--- PASS: TestRunConditionRemovedField (0.27s)
+    --- PASS: TestRunConditionRemovedField/light (0.12s)
+    --- PASS: TestRunConditionRemovedField/dark (0.14s)
+=== RUN   TestRunConditionChangedConstraints
+=== RUN   TestRunConditionChangedConstraints/light
+=== RUN   TestRunConditionChangedConstraints/dark
+--- PASS: TestRunConditionChangedConstraints (0.23s)
+    --- PASS: TestRunConditionChangedConstraints/light (0.11s)
+    --- PASS: TestRunConditionChangedConstraints/dark (0.12s)
+=== RUN   TestRunConditionRenamedField
+=== RUN   TestRunConditionRenamedField/light
+=== RUN   TestRunConditionRenamedField/dark
+--- PASS: TestRunConditionRenamedField (0.22s)
+    --- PASS: TestRunConditionRenamedField/light (0.10s)
+    --- PASS: TestRunConditionRenamedField/dark (0.12s)
+=== RUN   TestRunConditionValidationRefreshVariants
+=== RUN   TestRunConditionValidationRefreshVariants/required
+=== RUN   TestRunConditionValidationRefreshVariants/required/light
+=== RUN   TestRunConditionValidationRefreshVariants/required/dark
+=== RUN   TestRunConditionValidationRefreshVariants/flag
+=== RUN   TestRunConditionValidationRefreshVariants/flag/light
+=== RUN   TestRunConditionValidationRefreshVariants/flag/dark
+=== RUN   TestRunConditionValidationRefreshVariants/options
+=== RUN   TestRunConditionValidationRefreshVariants/options/light
+=== RUN   TestRunConditionValidationRefreshVariants/options/dark
+--- PASS: TestRunConditionValidationRefreshVariants (0.65s)
+    --- PASS: TestRunConditionValidationRefreshVariants/required (0.21s)
+        --- PASS: TestRunConditionValidationRefreshVariants/required/light (0.10s)
+        --- PASS: TestRunConditionValidationRefreshVariants/required/dark (0.12s)
+    --- PASS: TestRunConditionValidationRefreshVariants/flag (0.24s)
+        --- PASS: TestRunConditionValidationRefreshVariants/flag/light (0.11s)
+        --- PASS: TestRunConditionValidationRefreshVariants/flag/dark (0.12s)
+    --- PASS: TestRunConditionValidationRefreshVariants/options (0.19s)
+        --- PASS: TestRunConditionValidationRefreshVariants/options/light (0.09s)
+        --- PASS: TestRunConditionValidationRefreshVariants/options/dark (0.10s)
+=== RUN   TestRunEpochClosedDuringCallback
+=== RUN   TestRunEpochClosedDuringCallback/light
+=== RUN   TestRunEpochClosedDuringCallback/dark
+--- PASS: TestRunEpochClosedDuringCallback (0.14s)
+    --- PASS: TestRunEpochClosedDuringCallback/light (0.06s)
+    --- PASS: TestRunEpochClosedDuringCallback/dark (0.08s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+--- PASS: TestRunEpochParametersReplacedDuringCallback (0.16s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/light (0.08s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/dark (0.09s)
+=== RUN   TestRunEpochUnknownParameterNowExists
+=== RUN   TestRunEpochUnknownParameterNowExists/light
+    runepoch_test.go:123: schema refresh retained obsolete unknown-parameter refusal
+=== RUN   TestRunEpochUnknownParameterNowExists/dark
+    runepoch_test.go:123: schema refresh retained obsolete unknown-parameter refusal
+--- FAIL: TestRunEpochUnknownParameterNowExists (0.23s)
+    --- FAIL: TestRunEpochUnknownParameterNowExists/light (0.12s)
+    --- FAIL: TestRunEpochUnknownParameterNowExists/dark (0.11s)
+=== RUN   TestRunEpochUnknownRefusalAfterEditing
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/light
+    runepoch_test.go:123: answer refresh retained obsolete unknown-parameter refusal
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/dark
+    runepoch_test.go:123: answer refresh retained obsolete unknown-parameter refusal
+--- FAIL: TestRunEpochUnknownRefusalAfterEditing (0.29s)
+    --- FAIL: TestRunEpochUnknownRefusalAfterEditing/light (0.15s)
+    --- FAIL: TestRunEpochUnknownRefusalAfterEditing/dark (0.14s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.09s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.04s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.04s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.17s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.09s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.08s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.10s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.06s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.05s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.10s)
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (0.68s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.35s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.33s)
+=== RUN   TestRunResultAllParametersRetired
+=== RUN   TestRunResultAllParametersRetired/light
+=== RUN   TestRunResultAllParametersRetired/dark
+--- PASS: TestRunResultAllParametersRetired (0.16s)
+    --- PASS: TestRunResultAllParametersRetired/light (0.08s)
+    --- PASS: TestRunResultAllParametersRetired/dark (0.07s)
+=== RUN   TestRunResultCallbackWithdrawn
+=== RUN   TestRunResultCallbackWithdrawn/light
+=== RUN   TestRunResultCallbackWithdrawn/dark
+--- PASS: TestRunResultCallbackWithdrawn (0.14s)
+    --- PASS: TestRunResultCallbackWithdrawn/light (0.07s)
+    --- PASS: TestRunResultCallbackWithdrawn/dark (0.07s)
+=== RUN   TestRunResultOptionsChangedInsideCallback
+=== RUN   TestRunResultOptionsChangedInsideCallback/light
+=== RUN   TestRunResultOptionsChangedInsideCallback/dark
+--- PASS: TestRunResultOptionsChangedInsideCallback (0.12s)
+    --- PASS: TestRunResultOptionsChangedInsideCallback/light (0.06s)
+    --- PASS: TestRunResultOptionsChangedInsideCallback/dark (0.07s)
+=== RUN   TestRunResultValueChangedInsideCallback
+=== RUN   TestRunResultValueChangedInsideCallback/light
+=== RUN   TestRunResultValueChangedInsideCallback/dark
+--- PASS: TestRunResultValueChangedInsideCallback (0.13s)
+    --- PASS: TestRunResultValueChangedInsideCallback/light (0.06s)
+    --- PASS: TestRunResultValueChangedInsideCallback/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	4.397s
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/launcher	0.078s [no tests to run]
+FAIL

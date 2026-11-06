@@ -1,0 +1,19 @@
+=== RUN   TestRunEpochClosedDuringCallback
+=== RUN   TestRunEpochClosedDuringCallback/light
+    runepoch_test.go:69: closed run published stale refusal in 22 frames
+=== RUN   TestRunEpochClosedDuringCallback/dark
+    runepoch_test.go:69: closed run published stale refusal in 22 frames
+--- FAIL: TestRunEpochClosedDuringCallback (0.55s)
+    --- FAIL: TestRunEpochClosedDuringCallback/light (0.44s)
+    --- FAIL: TestRunEpochClosedDuringCallback/dark (0.11s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+    runepoch_test.go:69: replaced run published stale refusal in 1 frames
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+    runepoch_test.go:69: replaced run published stale refusal in 1 frames
+--- FAIL: TestRunEpochParametersReplacedDuringCallback (0.27s)
+    --- FAIL: TestRunEpochParametersReplacedDuringCallback/light (0.16s)
+    --- FAIL: TestRunEpochParametersReplacedDuringCallback/dark (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	0.832s
+FAIL

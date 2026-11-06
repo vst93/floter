@@ -1,0 +1,66 @@
+diff --git a/internal/launcher/config.go b/internal/launcher/config.go
+index 44e24960..cce08280 100644
+--- a/internal/launcher/config.go
++++ b/internal/launcher/config.go
+@@ -88,12 +88,14 @@ func (a *App) openConfig(plugin string) {
+ 	if a.Actions.ConfigFor == nil {
+ 		return
+ 	}
++	a.configGeneration++
+ 	a.config = a.Actions.ConfigFor(plugin)
+ 	a.FocusSearch()
+ }
+ 
+ // closeConfig hides the overlay and forgets its armed action.
+ func (a *App) closeConfig() {
++	a.configGeneration++
+ 	a.config = nil
+ }
+ 
+@@ -124,6 +126,7 @@ func (a *App) ChangeConfig(key string, value any) {
+ 		return
+ 	}
+ 	config := a.config
++	opening := a.configGeneration
+ 	config.writeGeneration++
+ 	generation := config.writeGeneration
+ 	plugin := config.Schema.Plugin
+@@ -139,7 +142,7 @@ func (a *App) ChangeConfig(key string, value any) {
+ 	stored := a.Actions.ConfigChange(plugin, key, next[key])
+ 	// A callback may close this overlay or open a different plugin's. Its
+ 	// answer belongs only to the sheet that dispatched the write.
+-	if a.config != config || config.writeGeneration != generation || config.Schema == nil || config.Schema.Plugin != plugin {
++	if a.config != config || a.configGeneration != opening || config.writeGeneration != generation || config.Schema == nil || config.Schema.Plugin != plugin {
+ 		return
+ 	}
+ 	current, exists := config.Schema.Field(key)
+@@ -202,13 +205,14 @@ func (a *App) RunConfig(key string) {
+ 	config.Armed = ""
+ 	config.ActionFailed = ""
+ 	identity, generation := config.armedAction, config.actionGeneration
++	opening := a.configGeneration
+ 	if a.Actions.ConfigAction == nil {
+ 		// Nothing was wired to run: no command was attempted, so there is
+ 		// nothing to report (the old build's `onRun?.()` no-op).
+ 		return
+ 	}
+ 	if !a.Actions.ConfigAction(config.Schema.Plugin, key) && a.config == config &&
+-		config.actionIdentity(key) == identity && config.actionGeneration == generation {
++		a.configGeneration == opening && config.actionIdentity(key) == identity && config.actionGeneration == generation {
+ 		config.ActionFailed = key
+ 		config.failedAction = identity
+ 	}
+diff --git a/internal/launcher/launcher.go b/internal/launcher/launcher.go
+index 9923c4ba..3b9b4ff8 100644
+--- a/internal/launcher/launcher.go
++++ b/internal/launcher/launcher.go
+@@ -495,7 +495,8 @@ type App struct {
+ 	footerSpin time.Time
+ 	// config is the open plugin-configuration overlay, which takes the result
+ 	// list's place (see config.go).
+-	config *Config
++	config           *Config
++	configGeneration uint64 // Each opening owns its callback results, even for a reused Config.
+ 	// modeWord is the trigger word the mode on screen was entered with: the
+ 	// scope marker draws it as the icon and the name beside the field, and
+ 	// leaving the mode restores it as an ordinary query.

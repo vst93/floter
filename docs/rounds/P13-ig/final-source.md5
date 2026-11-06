@@ -1,0 +1,5 @@
+82294a5acae4ca97b3d531a1a8bd0a27  internal/settingsui/settingsui.go
+ce9412730610470f1866a57f97695676  internal/launcher/config.go
+6ee2b2048bc89e4f7410c6d191600aaa  internal/launcher/launcher.go
+9c70b4665151997443fa1c104c578584  internal/settingsui/runepoch_test.go
+2e71efecfb78ead779579ed9789513c7  internal/settingsui/configepoch_test.go

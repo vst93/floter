@@ -1,0 +1,67 @@
+=== RUN   TestRunEpochClosedDuringCallback
+=== RUN   TestRunEpochClosedDuringCallback/light
+=== RUN   TestRunEpochClosedDuringCallback/dark
+--- PASS: TestRunEpochClosedDuringCallback (0.60s)
+    --- PASS: TestRunEpochClosedDuringCallback/light (0.46s)
+    --- PASS: TestRunEpochClosedDuringCallback/dark (0.13s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+--- PASS: TestRunEpochParametersReplacedDuringCallback (0.25s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/light (0.12s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/dark (0.13s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.10s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.05s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.05s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.21s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.11s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.11s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.13s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.06s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.06s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.14s)
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (1.08s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.56s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.52s)
+=== RUN   TestRunResultAllParametersRetired
+=== RUN   TestRunResultAllParametersRetired/light
+=== RUN   TestRunResultAllParametersRetired/dark
+--- PASS: TestRunResultAllParametersRetired (0.24s)
+    --- PASS: TestRunResultAllParametersRetired/light (0.13s)
+    --- PASS: TestRunResultAllParametersRetired/dark (0.11s)
+=== RUN   TestRunResultCallbackWithdrawn
+=== RUN   TestRunResultCallbackWithdrawn/light
+=== RUN   TestRunResultCallbackWithdrawn/dark
+--- PASS: TestRunResultCallbackWithdrawn (0.20s)
+    --- PASS: TestRunResultCallbackWithdrawn/light (0.10s)
+    --- PASS: TestRunResultCallbackWithdrawn/dark (0.10s)
+=== RUN   TestRunResultOptionsChangedInsideCallback
+=== RUN   TestRunResultOptionsChangedInsideCallback/light
+=== RUN   TestRunResultOptionsChangedInsideCallback/dark
+--- PASS: TestRunResultOptionsChangedInsideCallback (0.17s)
+    --- PASS: TestRunResultOptionsChangedInsideCallback/light (0.08s)
+    --- PASS: TestRunResultOptionsChangedInsideCallback/dark (0.09s)
+=== RUN   TestRunResultValueChangedInsideCallback
+=== RUN   TestRunResultValueChangedInsideCallback/light
+=== RUN   TestRunResultValueChangedInsideCallback/dark
+--- PASS: TestRunResultValueChangedInsideCallback (0.17s)
+    --- PASS: TestRunResultValueChangedInsideCallback/light (0.08s)
+    --- PASS: TestRunResultValueChangedInsideCallback/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	3.322s
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/launcher	0.197s [no tests to run]

@@ -1,0 +1,39 @@
+=== RUN   TestConfigEpochSiblingAdded
+=== RUN   TestConfigEpochSiblingAdded/light/accepted=false
+    configepoch_test.go:161: added refresh inherited obsolete outcome: map[enabled:true limit:10] failed=true
+    configepoch_test.go:165: new sibling lost its current value: map[enabled:true limit:10]
+=== RUN   TestConfigEpochSiblingAdded/light/accepted=true
+    configepoch_test.go:161: added refresh inherited obsolete outcome: map[enabled:true limit:80] failed=false
+    configepoch_test.go:165: new sibling lost its current value: map[enabled:true limit:80]
+=== RUN   TestConfigEpochSiblingAdded/dark/accepted=false
+    configepoch_test.go:161: added refresh inherited obsolete outcome: map[enabled:true limit:10] failed=true
+    configepoch_test.go:165: new sibling lost its current value: map[enabled:true limit:10]
+=== RUN   TestConfigEpochSiblingAdded/dark/accepted=true
+    configepoch_test.go:161: added refresh inherited obsolete outcome: map[enabled:true limit:80] failed=false
+    configepoch_test.go:165: new sibling lost its current value: map[enabled:true limit:80]
+--- FAIL: TestConfigEpochSiblingAdded (0.27s)
+    --- FAIL: TestConfigEpochSiblingAdded/light/accepted=false (0.18s)
+    --- FAIL: TestConfigEpochSiblingAdded/light/accepted=true (0.02s)
+    --- FAIL: TestConfigEpochSiblingAdded/dark/accepted=false (0.04s)
+    --- FAIL: TestConfigEpochSiblingAdded/dark/accepted=true (0.04s)
+=== RUN   TestConfigEpochSiblingRemoved
+=== RUN   TestConfigEpochSiblingRemoved/light/accepted=false
+    configepoch_test.go:161: removed refresh inherited obsolete outcome: map[enabled:true limit:10] failed=true
+    configepoch_test.go:168: retired sibling resurrected in values: map[enabled:true limit:10]
+=== RUN   TestConfigEpochSiblingRemoved/light/accepted=true
+    configepoch_test.go:161: removed refresh inherited obsolete outcome: map[enabled:true limit:80] failed=false
+    configepoch_test.go:168: retired sibling resurrected in values: map[enabled:true limit:80]
+=== RUN   TestConfigEpochSiblingRemoved/dark/accepted=false
+    configepoch_test.go:161: removed refresh inherited obsolete outcome: map[enabled:true limit:10] failed=true
+    configepoch_test.go:168: retired sibling resurrected in values: map[enabled:true limit:10]
+=== RUN   TestConfigEpochSiblingRemoved/dark/accepted=true
+    configepoch_test.go:161: removed refresh inherited obsolete outcome: map[enabled:true limit:80] failed=false
+    configepoch_test.go:168: retired sibling resurrected in values: map[enabled:true limit:80]
+--- FAIL: TestConfigEpochSiblingRemoved (0.09s)
+    --- FAIL: TestConfigEpochSiblingRemoved/light/accepted=false (0.02s)
+    --- FAIL: TestConfigEpochSiblingRemoved/light/accepted=true (0.02s)
+    --- FAIL: TestConfigEpochSiblingRemoved/dark/accepted=false (0.03s)
+    --- FAIL: TestConfigEpochSiblingRemoved/dark/accepted=true (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.369s
+FAIL

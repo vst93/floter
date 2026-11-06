@@ -1,0 +1,58 @@
+diff --git a/internal/launcher/config.go b/internal/launcher/config.go
+index cce08280..7f0a8b77 100644
+--- a/internal/launcher/config.go
++++ b/internal/launcher/config.go
+@@ -130,8 +130,10 @@ func (a *App) ChangeConfig(key string, value any) {
+ 	config.writeGeneration++
+ 	generation := config.writeGeneration
+ 	plugin := config.Schema.Plugin
+-	field, _ := config.Schema.Field(key)
+-	field.Options = slices.Clone(field.Options)
++	fields := slices.Clone(config.Schema.Fields)
++	for i := range fields {
++		fields[i].Options = slices.Clone(fields[i].Options)
++	}
+ 	committed := config.Values
+ 	next := config.Schema.Apply(committed, key, value)
+ 	config.Values = next
+@@ -145,9 +147,8 @@ func (a *App) ChangeConfig(key string, value any) {
+ 	if a.config != config || a.configGeneration != opening || config.writeGeneration != generation || config.Schema == nil || config.Schema.Plugin != plugin {
+ 		return
+ 	}
+-	current, exists := config.Schema.Field(key)
+-	if !exists || current.Kind != field.Kind || current.Min != field.Min ||
+-		current.Max != field.Max || current.Step != field.Step || !sameConfigOptionValues(current.Options, field.Options) {
++	_, exists := config.Schema.Field(key)
++	if !exists || !sameConfigValueFields(fields, config.Schema.Fields) {
+ 		return
+ 	}
+ 	values, failed := plugincfg.ConfigChangeOutcome(next, committed, stored != nil)
+@@ -167,6 +168,28 @@ func sameConfigOptionValues(a, b []plugincfg.Option) bool {
+ 	return slices.EqualFunc(a, b, func(a, b plugincfg.Option) bool { return a.Value == b.Value })
+ }
+ 
++// A write returns a complete value map, so its result also belongs to the
++// sibling fields present at dispatch. Locale and ordering are presentation.
++func sameConfigValueFields(before, after []plugincfg.Field) bool {
++	if len(before) != len(after) {
++		return false
++	}
++	for _, old := range before {
++		found := false
++		for _, field := range after {
++			if field.Key == old.Key {
++				found = field.Kind == old.Kind && field.Min == old.Min && field.Max == old.Max &&
++					field.Step == old.Step && sameConfigOptionValues(field.Options, old.Options)
++				break
++			}
++		}
++		if !found {
++			return false
++		}
++	}
++	return true
++}
++
+ // ArmConfig arms an action field: the first press of a destructive button only
+ // asks the question. The press also clears that row's failure line — the old
+ // build's `ActionControl` cleared `failed` as it armed, so a refused run does

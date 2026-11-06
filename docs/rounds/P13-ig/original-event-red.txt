@@ -1,0 +1,95 @@
+=== RUN   TestConfigEpochReopenedWrite
+=== RUN   TestConfigEpochReopenedWrite/light/accepted=false
+    configepoch_test.go:75: reopened sheet inherited old write: values=map[enabled:true limit:10] failed=true
+    configepoch_test.go:78: reopened sheet shows old write refusal
+=== RUN   TestConfigEpochReopenedWrite/light/accepted=true
+    configepoch_test.go:75: reopened sheet inherited old write: values=map[enabled:true limit:80] failed=false
+=== RUN   TestConfigEpochReopenedWrite/dark/accepted=false
+    configepoch_test.go:75: reopened sheet inherited old write: values=map[enabled:true limit:10] failed=true
+    configepoch_test.go:78: reopened sheet shows old write refusal
+=== RUN   TestConfigEpochReopenedWrite/dark/accepted=true
+    configepoch_test.go:75: reopened sheet inherited old write: values=map[enabled:true limit:80] failed=false
+--- FAIL: TestConfigEpochReopenedWrite (0.63s)
+    --- FAIL: TestConfigEpochReopenedWrite/light/accepted=false (0.38s)
+    --- FAIL: TestConfigEpochReopenedWrite/light/accepted=true (0.05s)
+    --- FAIL: TestConfigEpochReopenedWrite/dark/accepted=false (0.11s)
+    --- FAIL: TestConfigEpochReopenedWrite/dark/accepted=true (0.08s)
+=== RUN   TestConfigEpochReopenedAction
+=== RUN   TestConfigEpochReopenedAction/light
+    configepoch_test.go:111: reopened sheet inherited old action refusal: calls=1 failed="clear"
+=== RUN   TestConfigEpochReopenedAction/dark
+    configepoch_test.go:111: reopened sheet inherited old action refusal: calls=1 failed="clear"
+--- FAIL: TestConfigEpochReopenedAction (0.36s)
+    --- FAIL: TestConfigEpochReopenedAction/light (0.18s)
+    --- FAIL: TestConfigEpochReopenedAction/dark (0.18s)
+=== RUN   TestConfigEpochSiblingAdded
+=== RUN   TestConfigEpochSiblingAdded/light/accepted=false
+    configepoch_test.go:161: added refresh inherited obsolete outcome: map[enabled:true limit:10] failed=true
+    configepoch_test.go:165: new sibling lost its current value: map[enabled:true limit:10]
+=== RUN   TestConfigEpochSiblingAdded/light/accepted=true
+    configepoch_test.go:161: added refresh inherited obsolete outcome: map[enabled:true limit:80] failed=false
+    configepoch_test.go:165: new sibling lost its current value: map[enabled:true limit:80]
+=== RUN   TestConfigEpochSiblingAdded/dark/accepted=false
+    configepoch_test.go:161: added refresh inherited obsolete outcome: map[enabled:true limit:10] failed=true
+    configepoch_test.go:165: new sibling lost its current value: map[enabled:true limit:10]
+=== RUN   TestConfigEpochSiblingAdded/dark/accepted=true
+    configepoch_test.go:161: added refresh inherited obsolete outcome: map[enabled:true limit:80] failed=false
+    configepoch_test.go:165: new sibling lost its current value: map[enabled:true limit:80]
+--- FAIL: TestConfigEpochSiblingAdded (0.41s)
+    --- FAIL: TestConfigEpochSiblingAdded/light/accepted=false (0.09s)
+    --- FAIL: TestConfigEpochSiblingAdded/light/accepted=true (0.07s)
+    --- FAIL: TestConfigEpochSiblingAdded/dark/accepted=false (0.12s)
+    --- FAIL: TestConfigEpochSiblingAdded/dark/accepted=true (0.13s)
+=== RUN   TestConfigEpochSiblingRemoved
+=== RUN   TestConfigEpochSiblingRemoved/light/accepted=false
+    configepoch_test.go:161: removed refresh inherited obsolete outcome: map[enabled:true limit:10] failed=true
+    configepoch_test.go:168: retired sibling resurrected in values: map[enabled:true limit:10]
+=== RUN   TestConfigEpochSiblingRemoved/light/accepted=true
+    configepoch_test.go:161: removed refresh inherited obsolete outcome: map[enabled:true limit:80] failed=false
+    configepoch_test.go:168: retired sibling resurrected in values: map[enabled:true limit:80]
+=== RUN   TestConfigEpochSiblingRemoved/dark/accepted=false
+    configepoch_test.go:161: removed refresh inherited obsolete outcome: map[enabled:true limit:10] failed=true
+    configepoch_test.go:168: retired sibling resurrected in values: map[enabled:true limit:10]
+=== RUN   TestConfigEpochSiblingRemoved/dark/accepted=true
+    configepoch_test.go:161: removed refresh inherited obsolete outcome: map[enabled:true limit:80] failed=false
+    configepoch_test.go:168: retired sibling resurrected in values: map[enabled:true limit:80]
+--- FAIL: TestConfigEpochSiblingRemoved (0.38s)
+    --- FAIL: TestConfigEpochSiblingRemoved/light/accepted=false (0.06s)
+    --- FAIL: TestConfigEpochSiblingRemoved/light/accepted=true (0.06s)
+    --- FAIL: TestConfigEpochSiblingRemoved/dark/accepted=false (0.16s)
+    --- FAIL: TestConfigEpochSiblingRemoved/dark/accepted=true (0.10s)
+=== RUN   TestRunEpochClosedDuringCallback
+=== RUN   TestRunEpochClosedDuringCallback/light
+    runepoch_test.go:69: closed run published stale refusal in 22 frames
+=== RUN   TestRunEpochClosedDuringCallback/dark
+    runepoch_test.go:69: closed run published stale refusal in 22 frames
+--- FAIL: TestRunEpochClosedDuringCallback (0.47s)
+    --- FAIL: TestRunEpochClosedDuringCallback/light (0.29s)
+    --- FAIL: TestRunEpochClosedDuringCallback/dark (0.18s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+    runepoch_test.go:69: replaced run published stale refusal in 1 frames
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+    runepoch_test.go:69: replaced run published stale refusal in 1 frames
+--- FAIL: TestRunEpochParametersReplacedDuringCallback (0.28s)
+    --- FAIL: TestRunEpochParametersReplacedDuringCallback/light (0.12s)
+    --- FAIL: TestRunEpochParametersReplacedDuringCallback/dark (0.16s)
+=== RUN   TestRunEpochUnknownParameterNowExists
+=== RUN   TestRunEpochUnknownParameterNowExists/light
+    runepoch_test.go:123: schema refresh retained obsolete unknown-parameter refusal
+=== RUN   TestRunEpochUnknownParameterNowExists/dark
+    runepoch_test.go:123: schema refresh retained obsolete unknown-parameter refusal
+--- FAIL: TestRunEpochUnknownParameterNowExists (0.35s)
+    --- FAIL: TestRunEpochUnknownParameterNowExists/light (0.20s)
+    --- FAIL: TestRunEpochUnknownParameterNowExists/dark (0.14s)
+=== RUN   TestRunEpochUnknownRefusalAfterEditing
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/light
+    runepoch_test.go:123: answer refresh retained obsolete unknown-parameter refusal
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/dark
+    runepoch_test.go:123: answer refresh retained obsolete unknown-parameter refusal
+--- FAIL: TestRunEpochUnknownRefusalAfterEditing (0.44s)
+    --- FAIL: TestRunEpochUnknownRefusalAfterEditing/light (0.22s)
+    --- FAIL: TestRunEpochUnknownRefusalAfterEditing/dark (0.21s)
+FAIL
+FAIL	floter/internal/settingsui	3.326s
+FAIL

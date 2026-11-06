@@ -25,7 +25,7 @@
 
 ## 验证计划
 
-统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。开盘完整 verbose 基线正在实跑，前轮记录仅作对照：4585 PASS / 2987 函数；实测补报告。
+统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。开盘完整 verbose 实测 4585 PASS / 0 FAIL；f0ef7c33 的测试函数通过 git 对象计数为 2987，与前轮一致。
 
 每两项定向事件回归与相关 vet 全绿后提交推送。轮末一次 gofmt -l cmd internal、三平台 go vet ./...、普通/verbose go test -count=1 ./...、三平台 go build ./...。旧 V/B/S 断言零改，函数不减、Skip 不增。
 

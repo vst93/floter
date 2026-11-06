@@ -1,0 +1,72 @@
+=== RUN   TestRunEpochClosedDuringCallback
+=== RUN   TestRunEpochClosedDuringCallback/light
+    runepoch_test.go:69: closed run published stale refusal in 22 frames
+=== RUN   TestRunEpochClosedDuringCallback/dark
+    runepoch_test.go:69: closed run published stale refusal in 22 frames
+--- FAIL: TestRunEpochClosedDuringCallback (0.43s)
+    --- FAIL: TestRunEpochClosedDuringCallback/light (0.31s)
+    --- FAIL: TestRunEpochClosedDuringCallback/dark (0.12s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+    runepoch_test.go:69: replaced run published stale refusal in 1 frames
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+    runepoch_test.go:69: replaced run published stale refusal in 1 frames
+--- FAIL: TestRunEpochParametersReplacedDuringCallback (0.25s)
+    --- FAIL: TestRunEpochParametersReplacedDuringCallback/light (0.11s)
+    --- FAIL: TestRunEpochParametersReplacedDuringCallback/dark (0.13s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.09s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.04s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.05s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.17s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.10s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.08s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.11s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.06s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.05s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.13s)
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (0.84s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.44s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.40s)
+=== RUN   TestRunResultAllParametersRetired
+=== RUN   TestRunResultAllParametersRetired/light
+=== RUN   TestRunResultAllParametersRetired/dark
+--- PASS: TestRunResultAllParametersRetired (0.19s)
+    --- PASS: TestRunResultAllParametersRetired/light (0.10s)
+    --- PASS: TestRunResultAllParametersRetired/dark (0.08s)
+=== RUN   TestRunResultCallbackWithdrawn
+=== RUN   TestRunResultCallbackWithdrawn/light
+=== RUN   TestRunResultCallbackWithdrawn/dark
+--- PASS: TestRunResultCallbackWithdrawn (0.17s)
+    --- PASS: TestRunResultCallbackWithdrawn/light (0.09s)
+    --- PASS: TestRunResultCallbackWithdrawn/dark (0.08s)
+=== RUN   TestRunResultOptionsChangedInsideCallback
+=== RUN   TestRunResultOptionsChangedInsideCallback/light
+=== RUN   TestRunResultOptionsChangedInsideCallback/dark
+--- PASS: TestRunResultOptionsChangedInsideCallback (0.16s)
+    --- PASS: TestRunResultOptionsChangedInsideCallback/light (0.07s)
+    --- PASS: TestRunResultOptionsChangedInsideCallback/dark (0.08s)
+=== RUN   TestRunResultValueChangedInsideCallback
+=== RUN   TestRunResultValueChangedInsideCallback/light
+=== RUN   TestRunResultValueChangedInsideCallback/dark
+--- PASS: TestRunResultValueChangedInsideCallback (0.13s)
+    --- PASS: TestRunResultValueChangedInsideCallback/light (0.07s)
+    --- PASS: TestRunResultValueChangedInsideCallback/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	2.700s
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/launcher	0.083s [no tests to run]
+FAIL

@@ -1,0 +1,19 @@
+=== RUN   TestRunEpochUnknownParameterNowExists
+=== RUN   TestRunEpochUnknownParameterNowExists/light
+    runepoch_test.go:123: schema refresh retained obsolete unknown-parameter refusal
+=== RUN   TestRunEpochUnknownParameterNowExists/dark
+    runepoch_test.go:123: schema refresh retained obsolete unknown-parameter refusal
+--- FAIL: TestRunEpochUnknownParameterNowExists (0.59s)
+    --- FAIL: TestRunEpochUnknownParameterNowExists/light (0.45s)
+    --- FAIL: TestRunEpochUnknownParameterNowExists/dark (0.14s)
+=== RUN   TestRunEpochUnknownRefusalAfterEditing
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/light
+    runepoch_test.go:123: answer refresh retained obsolete unknown-parameter refusal
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/dark
+    runepoch_test.go:123: answer refresh retained obsolete unknown-parameter refusal
+--- FAIL: TestRunEpochUnknownRefusalAfterEditing (0.35s)
+    --- FAIL: TestRunEpochUnknownRefusalAfterEditing/light (0.16s)
+    --- FAIL: TestRunEpochUnknownRefusalAfterEditing/dark (0.19s)
+FAIL
+FAIL	floter/internal/settingsui	0.969s
+FAIL
