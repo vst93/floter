@@ -1,0 +1,35 @@
+=== RUN   TestPendingOutletSaveOwner
+=== RUN   TestPendingOutletSaveOwner/light/entry
+    pendingoutlet_test.go:144: pending save-owner lost keyboard outlet "Open configuration"
+    pendingoutlet_test.go:154: late save result changed keyboard outlet "Open configuration"
+    pendingoutlet_test.go:171: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveOwner/light/elsewhere
+=== RUN   TestPendingOutletSaveOwner/dark/entry
+    pendingoutlet_test.go:144: pending save-owner lost keyboard outlet "Open configuration"
+    pendingoutlet_test.go:154: late save result changed keyboard outlet "Open configuration"
+    pendingoutlet_test.go:171: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveOwner/dark/elsewhere
+--- FAIL: TestPendingOutletSaveOwner (2.57s)
+    --- FAIL: TestPendingOutletSaveOwner/light/entry (0.61s)
+    --- PASS: TestPendingOutletSaveOwner/light/elsewhere (0.69s)
+    --- FAIL: TestPendingOutletSaveOwner/dark/entry (0.47s)
+    --- PASS: TestPendingOutletSaveOwner/dark/elsewhere (0.80s)
+=== RUN   TestPendingOutletSaveSchema
+=== RUN   TestPendingOutletSaveSchema/light/entry
+    pendingoutlet_test.go:144: pending save-schema lost keyboard outlet "Check"
+    pendingoutlet_test.go:154: late save result changed keyboard outlet "Check"
+    pendingoutlet_test.go:171: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveSchema/light/elsewhere
+=== RUN   TestPendingOutletSaveSchema/dark/entry
+    pendingoutlet_test.go:144: pending save-schema lost keyboard outlet "Check"
+    pendingoutlet_test.go:154: late save result changed keyboard outlet "Check"
+    pendingoutlet_test.go:171: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveSchema/dark/elsewhere
+--- FAIL: TestPendingOutletSaveSchema (2.00s)
+    --- FAIL: TestPendingOutletSaveSchema/light/entry (0.46s)
+    --- PASS: TestPendingOutletSaveSchema/light/elsewhere (0.62s)
+    --- FAIL: TestPendingOutletSaveSchema/dark/entry (0.31s)
+    --- PASS: TestPendingOutletSaveSchema/dark/elsewhere (0.61s)
+FAIL
+FAIL	floter/internal/settingsui	4.579s
+FAIL

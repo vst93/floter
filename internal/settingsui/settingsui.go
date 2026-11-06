@@ -3183,6 +3183,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				discardOpener = checkOpener
 			}
 			a.restoreNotice(c, integration.ID, "discard", a.configDiscard[integration.ID], discardOpener)
+			// A host save can still be in flight when its form is replaced by
+			// the provider's editor, or its schema is withdrawn altogether.
+			a.restoreNotice(c, integration.ID, "save", false, discardOpener)
 		}
 		if !disableOpener.Valid() && integration.Broken {
 			disableOpener = checkOpener

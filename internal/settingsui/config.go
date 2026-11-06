@@ -536,7 +536,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		}
 		// P13-aq：Save 的 disabled 现在由 `extensionPrimaryButton` 自己给（它同时负责
 		// 熄灯）；这里不再叠一道 `.Opacity(0.4)`——那是框架 0.5 之外的第二次淡。
-		save := a.extensionPrimaryButton(c, saveLabel, saveDisabled)
+		save := a.extensionPrimaryButton(c, saveLabel, saveDisabled).Bind(&a.noticeFocus(c, integration.ID, "save").confirm)
 		if save.Clicked() && !saveDisabled {
 			if a.configSaveBusy == nil {
 				a.configSaveBusy = map[string]bool{}

@@ -1,0 +1,27 @@
+# P13-ia：异步入口随条件刷新消失时的键盘交接
+
+开盘 a7f1fb39，pull 最新、工作区干净；当前最新交接为 P13-hz，未重做 hx–hz 已交付项。Codex 独立执行，无外部模型。done.log 开盘不存在；结案时新建。
+
+## Stash 清点
+
+八条 SHA 与已审核 backlog 相同，全部 reverse-check 退出 1；它们是早期独立 WIP，不是未接续的 stale-kill。按已归档处置保留，不覆盖新主题或恢复旧 Tauri。
+
+| ref | SHA | 判断 | 处置 |
+| --- | --- | --- | --- |
+| stash@{0} | 422483b4 | 旧 keycap，reverse=1 | 保留 |
+| stash@{1} | 8af94a07 | 旧 rows/slider，reverse=1 | 保留 |
+| stash@{2} | 7e4aa710 | 旧卸载布局/探针，reverse=1 | 保留 |
+| stash@{3} | 1e3aec94 | 旧数字字段，reverse=1 | 保留 |
+| stash@{4} | 363f5a42 | 旧插件字段，reverse=1 | 保留 |
+| stash@{5} | 9b8ce23c | 旧快捷键，reverse=1 | 保留 |
+| stash@{6} | 90d314b2 | 旧启动器动作栏，reverse=1 | 保留 |
+| stash@{7} | 7a9f6e13 | 旧 main/Tauri，reverse=1 | 保留 |
+
+## 增量记录
+
+规格先于产品修改落盘。原确认在飞路径与普通退场已有覆盖，本轮转向保存、修复和启用的异步入口；以下只登记真实复现的缺陷。
+
+1. 现象：键盘保存尚未返回时 owner 变 tool，保存按钮消失，Space 没有作用。改动：保存入口记住原焦点句柄，交给当前可用工具编辑入口。验证：深浅真实编辑、Tab、Space、owner 刷新、失败回调；原实现报 `pending save-owner lost keyboard outlet "Open configuration"`，且派发 0 次；用户预先移焦页头的对照通过。修后结果待本批日志。
+2. 现象：同一保存中 schema 被清空，当前 Check 未接键盘。改动：沿用已存在的可用操作选择链，把保存入口交给 Check。验证：同事件与 schema 清空，断言当前 Check 的焦点和一次派发，不重复保存；修后结果待本批日志。
+
+第一批相关 **74 PASS / 0 FAIL**，settingsui vet 退出 0。M1 撤回保存句柄，四个 entry 场景实跑红（owner/schema × 深浅），页头已持焦的对照仍通过。原串：`pending save-schema lost keyboard outlet "Check"`；恢复 MD5 与 touch 复验见 M1-restore.txt。浅色原图中“打开配置”原本没有键盘轮廓，修后出现完整 accent 环；没有改变布局。

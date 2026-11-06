@@ -1,0 +1,24 @@
+internal/settingsui/config.go: OK
+internal/settingsui/settingsui.go: OK
+=== RUN   TestPendingOutletSaveOwner
+=== RUN   TestPendingOutletSaveOwner/light/entry
+=== RUN   TestPendingOutletSaveOwner/light/elsewhere
+=== RUN   TestPendingOutletSaveOwner/dark/entry
+=== RUN   TestPendingOutletSaveOwner/dark/elsewhere
+--- PASS: TestPendingOutletSaveOwner (2.17s)
+    --- PASS: TestPendingOutletSaveOwner/light/entry (0.51s)
+    --- PASS: TestPendingOutletSaveOwner/light/elsewhere (0.68s)
+    --- PASS: TestPendingOutletSaveOwner/dark/entry (0.34s)
+    --- PASS: TestPendingOutletSaveOwner/dark/elsewhere (0.64s)
+=== RUN   TestPendingOutletSaveSchema
+=== RUN   TestPendingOutletSaveSchema/light/entry
+=== RUN   TestPendingOutletSaveSchema/light/elsewhere
+=== RUN   TestPendingOutletSaveSchema/dark/entry
+=== RUN   TestPendingOutletSaveSchema/dark/elsewhere
+--- PASS: TestPendingOutletSaveSchema (1.73s)
+    --- PASS: TestPendingOutletSaveSchema/light/entry (0.26s)
+    --- PASS: TestPendingOutletSaveSchema/light/elsewhere (0.54s)
+    --- PASS: TestPendingOutletSaveSchema/dark/entry (0.26s)
+    --- PASS: TestPendingOutletSaveSchema/dark/elsewhere (0.67s)
+PASS
+ok  	floter/internal/settingsui	3.913s
