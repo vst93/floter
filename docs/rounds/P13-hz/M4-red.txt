@@ -1,0 +1,119 @@
+=== RUN   TestNoticeOutletDiscardOwner
+=== RUN   TestNoticeOutletDiscardOwner/light/answer
+    noticeoutlet_test.go:168: retired discard-owner lost available keyboard outlet "Open configuration"
+    noticeoutlet_test.go:186: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardOwner/light/elsewhere
+=== RUN   TestNoticeOutletDiscardOwner/dark/answer
+    noticeoutlet_test.go:168: retired discard-owner lost available keyboard outlet "Open configuration"
+    noticeoutlet_test.go:186: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardOwner/dark/elsewhere
+--- FAIL: TestNoticeOutletDiscardOwner (1.52s)
+    --- FAIL: TestNoticeOutletDiscardOwner/light/answer (0.39s)
+    --- PASS: TestNoticeOutletDiscardOwner/light/elsewhere (0.45s)
+    --- FAIL: TestNoticeOutletDiscardOwner/dark/answer (0.21s)
+    --- PASS: TestNoticeOutletDiscardOwner/dark/elsewhere (0.47s)
+=== RUN   TestNoticeOutletDiscardOrphan
+=== RUN   TestNoticeOutletDiscardOrphan/light/answer
+    noticeoutlet_test.go:168: retired discard-orphan lost available keyboard outlet "Adopt"
+    noticeoutlet_test.go:186: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardOrphan/light/elsewhere
+=== RUN   TestNoticeOutletDiscardOrphan/dark/answer
+    noticeoutlet_test.go:168: retired discard-orphan lost available keyboard outlet "Adopt"
+    noticeoutlet_test.go:186: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardOrphan/dark/elsewhere
+--- FAIL: TestNoticeOutletDiscardOrphan (1.12s)
+    --- FAIL: TestNoticeOutletDiscardOrphan/light/answer (0.17s)
+    --- PASS: TestNoticeOutletDiscardOrphan/light/elsewhere (0.39s)
+    --- FAIL: TestNoticeOutletDiscardOrphan/dark/answer (0.16s)
+    --- PASS: TestNoticeOutletDiscardOrphan/dark/elsewhere (0.39s)
+=== RUN   TestNoticeOutletDiscardSchema
+=== RUN   TestNoticeOutletDiscardSchema/light/answer
+    noticeoutlet_test.go:168: retired discard-schema lost available keyboard outlet "Check"
+    noticeoutlet_test.go:186: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardSchema/light/elsewhere
+=== RUN   TestNoticeOutletDiscardSchema/dark/answer
+    noticeoutlet_test.go:168: retired discard-schema lost available keyboard outlet "Check"
+    noticeoutlet_test.go:186: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardSchema/dark/elsewhere
+--- FAIL: TestNoticeOutletDiscardSchema (1.17s)
+    --- FAIL: TestNoticeOutletDiscardSchema/light/answer (0.16s)
+    --- PASS: TestNoticeOutletDiscardSchema/light/elsewhere (0.41s)
+    --- FAIL: TestNoticeOutletDiscardSchema/dark/answer (0.17s)
+    --- PASS: TestNoticeOutletDiscardSchema/dark/elsewhere (0.42s)
+=== RUN   TestNoticeOutletDiscardUnavailable
+=== RUN   TestNoticeOutletDiscardUnavailable/light/answer
+    noticeoutlet_test.go:168: retired discard-unopenable lost available keyboard outlet "Check"
+    noticeoutlet_test.go:186: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardUnavailable/light/elsewhere
+=== RUN   TestNoticeOutletDiscardUnavailable/dark/answer
+    noticeoutlet_test.go:168: retired discard-unopenable lost available keyboard outlet "Check"
+    noticeoutlet_test.go:186: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardUnavailable/dark/elsewhere
+--- FAIL: TestNoticeOutletDiscardUnavailable (1.44s)
+    --- FAIL: TestNoticeOutletDiscardUnavailable/light/answer (0.21s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/light/elsewhere (0.46s)
+    --- FAIL: TestNoticeOutletDiscardUnavailable/dark/answer (0.25s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/dark/elsewhere (0.51s)
+=== RUN   TestNoticeOutletDisableNoAdopt
+=== RUN   TestNoticeOutletDisableNoAdopt/light/answer
+    noticeoutlet_test.go:168: retired disable-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletDisableNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletDisableNoAdopt/dark/answer
+    noticeoutlet_test.go:168: retired disable-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletDisableNoAdopt/dark/elsewhere
+--- FAIL: TestNoticeOutletDisableNoAdopt (0.17s)
+    --- FAIL: TestNoticeOutletDisableNoAdopt/light/answer (0.05s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/light/elsewhere (0.04s)
+    --- FAIL: TestNoticeOutletDisableNoAdopt/dark/answer (0.04s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/dark/elsewhere (0.04s)
+=== RUN   TestNoticeOutletRemoveNoAdopt
+=== RUN   TestNoticeOutletRemoveNoAdopt/light/answer
+    noticeoutlet_test.go:168: retired remove-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletRemoveNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletRemoveNoAdopt/dark/answer
+    noticeoutlet_test.go:168: retired remove-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletRemoveNoAdopt/dark/elsewhere
+--- FAIL: TestNoticeOutletRemoveNoAdopt (0.73s)
+    --- FAIL: TestNoticeOutletRemoveNoAdopt/light/answer (0.09s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/light/elsewhere (0.27s)
+    --- FAIL: TestNoticeOutletRemoveNoAdopt/dark/answer (0.09s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/dark/elsewhere (0.27s)
+=== RUN   TestNoticeOutletUninstallNoAdopt
+=== RUN   TestNoticeOutletUninstallNoAdopt/light/answer
+    noticeoutlet_test.go:168: retired uninstall-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletUninstallNoAdopt/light/elsewhere
+    noticeoutlet_test.go:168: retired uninstall-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletUninstallNoAdopt/dark/answer
+    noticeoutlet_test.go:168: retired uninstall-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletUninstallNoAdopt/dark/elsewhere
+    noticeoutlet_test.go:168: retired uninstall-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+--- FAIL: TestNoticeOutletUninstallNoAdopt (0.83s)
+    --- FAIL: TestNoticeOutletUninstallNoAdopt/light/answer (0.19s)
+    --- FAIL: TestNoticeOutletUninstallNoAdopt/light/elsewhere (0.21s)
+    --- FAIL: TestNoticeOutletUninstallNoAdopt/dark/answer (0.18s)
+    --- FAIL: TestNoticeOutletUninstallNoAdopt/dark/elsewhere (0.25s)
+=== RUN   TestNoticeOutletDisableNoCheck
+=== RUN   TestNoticeOutletDisableNoCheck/light/answer
+    noticeoutlet_test.go:168: retired disable-no-check lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletDisableNoCheck/light/elsewhere
+=== RUN   TestNoticeOutletDisableNoCheck/dark/answer
+    noticeoutlet_test.go:168: retired disable-no-check lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:198: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletDisableNoCheck/dark/elsewhere
+--- FAIL: TestNoticeOutletDisableNoCheck (0.19s)
+    --- FAIL: TestNoticeOutletDisableNoCheck/light/answer (0.05s)
+    --- PASS: TestNoticeOutletDisableNoCheck/light/elsewhere (0.04s)
+    --- FAIL: TestNoticeOutletDisableNoCheck/dark/answer (0.05s)
+    --- PASS: TestNoticeOutletDisableNoCheck/dark/elsewhere (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	7.167s
+FAIL

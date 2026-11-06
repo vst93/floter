@@ -37,3 +37,10 @@
 
 5. 现象：停用问题打开时目标变 Orphan 且 Adopt 未接线，答案与原开关消失，焦点悬空。改动：保持已可用 Adopt 优先，无该入口时用已有页头 Close。验证：深浅刷新后 Close 持焦、Space 关闭恰好一次，删除/停用/保存 0 次。
 6. 现象：移除问题同样在无 Adopt 的 Orphan 状态失去键盘出口。改动：同族安全出口覆盖移除带。验证：深浅答案与用户已在页头两条路径都只关闭一次，不派发任何移除；旧问题退场。
+
+第三批 b860ef46 已推送；相关 219 PASS，vet 净。M3 回注后四场景实跑红，`retired disable-no-adopt lost available keyboard outlet "Close settings"` 与 remove 同串；MD5 两文件恢复 OK，touch 后相关 219 PASS。
+
+7. 现象：组件卸载浮层因目标变 Orphan 退场，但没有 Adopt，浮层 Cancel/组件勾选里的焦点无处返回。改动：浮层原 handle 与现有安全出口连接。验证：深浅 Cancel/checkbox 路径，Close 接焦、Space 退出一次，遗留选项已清、卸载调用 0 次。
+8. 现象：停用目标变 Broken，开关禁用且 Check 未接线，原问题退场后键盘悬空。改动：所有退役问题统一只选择有效可用 opener，否则现有页头 Close；用户已移焦时不接管。验证：深浅刷新后 Close 持焦，Space 退出一次、停用/删除/保存 0 次。
+
+最终截图前加入真实 Tab 进入键盘模式，保证焦点环可见；八条全部在开盘源码重新跑 before，与最终源码同事件重拍 after。

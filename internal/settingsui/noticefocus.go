@@ -74,6 +74,13 @@ func noticeExit(c *ui.Context) *ui.Handle {
 	return ui.Local(c.Root(), "settings.notice-exit", func() ui.Handle { return ui.Handle{} })
 }
 
+func (a *App) restoreNotice(c *ui.Context, id, kind string, open bool, opener ui.Element) {
+	if !opener.Valid() || opener.IsDisabled() {
+		opener = c.Resolve(*noticeExit(c))
+	}
+	a.noticeFocus(c, id, kind).restore(c, open, opener)
+}
+
 func (a *App) noticeFocus(c *ui.Context, id, kind string) *noticeFocusState {
 	key := struct {
 		app      *App

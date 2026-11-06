@@ -2914,7 +2914,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			wasAsking := a.configDiscard[integration.ID]
 			opened := a.row(c, copy.ConfigSection, "", func() {
 				button := a.actionButton(c, copy.ConfigOpen).Bind(&opener)
-				a.noticeFocus(c, integration.ID, "discard").restore(c, a.configDiscard[integration.ID], button)
+				a.restoreNotice(c, integration.ID, "discard", a.configDiscard[integration.ID], button)
 				if button.Clicked() {
 					a.toggleConfig(integration.ID)
 				}
@@ -3003,14 +3003,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				}
 			})
-			safeOpener := adoptOpener
-			if !safeOpener.Valid() {
-				safeOpener = c.Resolve(*noticeExit(c))
-			}
-			a.noticeFocus(c, integration.ID, "disable").restore(c, false, safeOpener)
-			a.noticeFocus(c, integration.ID, "remove").restore(c, false, safeOpener)
-			a.noticeFocus(c, integration.ID, "uninstall").restore(c, false, adoptOpener)
-			a.noticeFocus(c, integration.ID, "discard").restore(c, false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "disable", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "remove", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "uninstall", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "discard", false, adoptOpener)
 			return
 		}
 
@@ -3186,15 +3182,15 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if !discardOpener.Valid() && !busy {
 				discardOpener = checkOpener
 			}
-			a.noticeFocus(c, integration.ID, "discard").restore(c, a.configDiscard[integration.ID], discardOpener)
+			a.restoreNotice(c, integration.ID, "discard", a.configDiscard[integration.ID], discardOpener)
 		}
 		if !disableOpener.Valid() && integration.Broken {
 			disableOpener = checkOpener
 		}
-		a.noticeFocus(c, integration.ID, "disable").restore(c, a.disableConfirm[integration.ID], disableOpener)
+		a.restoreNotice(c, integration.ID, "disable", a.disableConfirm[integration.ID], disableOpener)
 		if !a.uninstallOpen[integration.ID] {
-			a.noticeFocus(c, integration.ID, "remove").restore(c, a.removeConfirm[integration.ID], removeOpener)
-			a.noticeFocus(c, integration.ID, "uninstall").restore(c, false, removeOpener)
+			a.restoreNotice(c, integration.ID, "remove", a.removeConfirm[integration.ID], removeOpener)
+			a.restoreNotice(c, integration.ID, "uninstall", false, removeOpener)
 		}
 		if a.disableConfirm[integration.ID] {
 			a.disableConfirmation(c.Key("integration.disable-confirmation"), copy, integration)

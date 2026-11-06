@@ -59,12 +59,10 @@ func checkNoticeOutlet(t *testing.T, kind, change string) {
 				a.Actions.Close = func() { closed++ }
 				copy := a.copy()
 				a.Page, a.entered = PageIntegrations, true
-				navigationFocused := false
 				tt := ui.NewTester(func(c *ui.Context) {
 					c.SetTheme(a.tokens(c).Theme)
 					c.Root().Background(c.Theme().Background)
 					a.View(c)
-					navigationFocused = a.Sidebar.Handle.Focused(c)
 				}, 720, 900)
 				tt.SetDark(dark)
 				tt.SetPreferences(ui.Preferences{ReduceMotion: true})
@@ -109,6 +107,10 @@ func checkNoticeOutlet(t *testing.T, kind, change string) {
 				if !a.anyConfirmOpen() {
 					t.Fatal("question did not open")
 				}
+				// Enter keyboard modality before the refresh so screenshots also
+				// expose the restored focus ring, not only its logical identity.
+				tt.Key(0, ui.KeyTab)
+				tt.Frame()
 				// A modal traps focus; its control comparison keeps focus on a
 				// component checkbox. Inline questions permit leaving for navigation.
 				if elsewhere {
@@ -162,11 +164,7 @@ func checkNoticeOutlet(t *testing.T, kind, change string) {
 				if !elsewhere {
 					outletDump(t, tt, name, dark)
 				}
-				focused := tt.Focused(want)
-				if want == a.page(PageIntegrations).Title {
-					focused = navigationFocused
-				}
-				if !focused {
+				if !tt.Focused(want) {
 					t.Errorf("retired %s lost available keyboard outlet %q", name, want)
 				}
 				if a.anyConfirmOpen() || destructive != 0 || saved != 0 || opened != 0 || checked != 0 || adopted != 0 {
@@ -212,3 +210,6 @@ func TestNoticeOutletDiscardUnavailable(t *testing.T) { checkNoticeOutlet(t, "di
 
 func TestNoticeOutletDisableNoAdopt(t *testing.T) { checkNoticeOutlet(t, "disable", "no-adopt") }
 func TestNoticeOutletRemoveNoAdopt(t *testing.T)  { checkNoticeOutlet(t, "remove", "no-adopt") }
+
+func TestNoticeOutletUninstallNoAdopt(t *testing.T) { checkNoticeOutlet(t, "uninstall", "no-adopt") }
+func TestNoticeOutletDisableNoCheck(t *testing.T)   { checkNoticeOutlet(t, "disable", "no-check") }

@@ -1,0 +1,16 @@
+discard-owner light: 780 changed pixels
+discard-orphan light: 420 changed pixels
+discard-schema light: 424 changed pixels
+discard-unopenable light: 424 changed pixels
+disable-no-adopt light: 4896 changed pixels
+remove-no-adopt light: 4896 changed pixels
+uninstall-no-adopt light: 4896 changed pixels
+disable-no-check light: 4896 changed pixels
+discard-owner dark: 780 changed pixels
+discard-orphan dark: 420 changed pixels
+discard-schema dark: 424 changed pixels
+discard-unopenable dark: 424 changed pixels
+disable-no-adopt dark: 3679 changed pixels
+remove-no-adopt dark: 3679 changed pixels
+uninstall-no-adopt dark: 3679 changed pixels
+disable-no-check dark: 3679 changed pixels
