@@ -3001,6 +3001,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 			a.noticeFocus(c, integration.ID, "disable").restore(c, false, adoptOpener)
 			a.noticeFocus(c, integration.ID, "remove").restore(c, false, adoptOpener)
+			a.noticeFocus(c, integration.ID, "uninstall").restore(c, false, adoptOpener)
 			return
 		}
 
@@ -3176,6 +3177,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		a.noticeFocus(c, integration.ID, "disable").restore(c, a.disableConfirm[integration.ID], disableOpener)
 		if !a.uninstallOpen[integration.ID] {
 			a.noticeFocus(c, integration.ID, "remove").restore(c, a.removeConfirm[integration.ID], removeOpener)
+			a.noticeFocus(c, integration.ID, "uninstall").restore(c, false, removeOpener)
 		}
 		if a.disableConfirm[integration.ID] {
 			a.disableConfirmation(c.Key("integration.disable-confirmation"), copy, integration)

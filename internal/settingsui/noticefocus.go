@@ -65,6 +65,7 @@ func (a *App) retireMissingConfirmations() {
 // Keeping this on the UI root makes the handles live only as long as the view.
 type noticeFocusState struct {
 	cancel, confirm ui.Handle
+	panel           ui.Handle
 }
 
 func (a *App) noticeFocus(c *ui.Context, id, kind string) *noticeFocusState {
@@ -76,7 +77,7 @@ func (a *App) noticeFocus(c *ui.Context, id, kind string) *noticeFocusState {
 }
 
 func (s *noticeFocusState) restore(c *ui.Context, open bool, opener ui.Element) {
-	if !open && (s.cancel.Focused(c) || s.confirm.Focused(c)) {
+	if !open && (s.cancel.Focused(c) || s.confirm.Focused(c) || s.panel.FocusWithin(c)) {
 		opener.Focus()
 	}
 }

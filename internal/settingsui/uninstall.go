@@ -67,7 +67,7 @@ func (a *App) uninstallComponentsRow(c *ui.Context, copy i18n.Settings, integrat
 	if !a.uninstallOpen[integration.ID] {
 		return
 	}
-	a.uninstallDialog(c, copy, integration)
+	a.uninstallDialog(c, copy, integration).Bind(&a.noticeFocus(c, integration.ID, "uninstall").panel)
 }
 
 // uninstallParts is the dialog's four rows in the reference's own order:

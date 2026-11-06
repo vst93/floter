@@ -120,6 +120,9 @@ func TestResultRefreshRemoveComponentized(t *testing.T) {
 	checkResultRefresh(t, "remove", "componentized")
 }
 
+func TestResultRefreshUninstallOrphan(t *testing.T) { checkResultRefresh(t, "uninstall", "orphan") }
+func TestResultRefreshUninstallKind(t *testing.T)   { checkResultRefresh(t, "uninstall", "kind") }
+
 func checkSaveResult(t *testing.T, retry bool) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {
