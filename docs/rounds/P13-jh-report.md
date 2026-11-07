@@ -37,3 +37,8 @@
 第三批首次测试发现本轮夹具把 descriptor 中的 `script` 子串误认成脚本，错误要求 ScriptContent 等于描述 JSON。改为两个精确脚本场景名；描述文件自身的严格 JSON 等值断言不变。首次日志保留，没有修改旧 B pin，也没有放宽任何容差。
 
 第三批修正夹具后 **21 PASS / 0 FAIL**，extensions/shell vet 净。前六项完成，正式 mutation 与全量门槛仍待。
+
+7. 现象：descriptor 的非法 UTF-8 原样进入导出 JSON，自己的 ReadSync 随后拒绝。改动：读取 descriptor 时检查编码并定位源路径。验证：原始 `descriptor-text export replaced a good backup with unrestorable content`；修复后 JSON 原文一致。
+8. 现象：脚本源文本不到 4 MiB，JSON 转义后超过导入上限，导出仍覆盖好备份。改动：编码完成后以最终字节数（包括文件末尾换行）检查已有 4194304 字节上限。验证：原始 `oversize export replaced a good backup with unrestorable content`；新增恰好上限可读、多一字节拒绝与转义膨胀边界。
+
+第四批 **29 PASS / 0 FAIL**，extensions/shell vet 净。兼容测试确认无包记录仍可导出、其他平台的包仍完整携带、自定义 manifest 文件名正确保留、明确登记但缺失的包拒绝。公开 text/path/multiselect/key 的坏字节拒绝，已脱敏的密码不误拒，合法中文/U+FFFD/emoji 保留。八项四批完成，完整门槛尚待。

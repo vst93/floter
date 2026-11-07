@@ -208,3 +208,6 @@ func TestBackupRejectsEmptyScript(t *testing.T)            { checkBackupIntegrit
 
 func TestBackupRejectsInvalidScriptText(t *testing.T) { checkBackupIntegrity(t, "script-text") }
 func TestBackupRejectsEmptyDescriptor(t *testing.T)   { checkBackupIntegrity(t, "empty-descriptor") }
+
+func TestBackupRejectsInvalidDescriptorText(t *testing.T) { checkBackupIntegrity(t, "descriptor-text") }
+func TestBackupRejectsEncodedOversize(t *testing.T)       { checkBackupIntegrity(t, "oversize") }

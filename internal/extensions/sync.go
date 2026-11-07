@@ -195,6 +195,9 @@ func exportIntegration(paths Paths, integration Integration) (SyncEntry, error) 
 			if len(data) == 0 {
 				return SyncEntry{}, fmt.Errorf("descriptor %s is empty; the backup cannot restore it", filepath.Join(packageDir, filepath.FromSlash(descriptor)))
 			}
+			if !utf8.Valid(data) {
+				return SyncEntry{}, fmt.Errorf("descriptor %s contains invalid UTF-8", filepath.Join(packageDir, filepath.FromSlash(descriptor)))
+			}
 			entry.ProviderDescriptor = json.RawMessage(data)
 		}
 	}
@@ -272,7 +275,16 @@ func (d SyncDocument) Marshal() ([]byte, error) {
 	if d.ExportedAt == "" {
 		d.ExportedAt = time.Now().UTC().Format(time.RFC3339)
 	}
-	return json.MarshalIndent(d, "", "  ")
+	data, err := json.MarshalIndent(d, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	// The file writer adds one newline. A successful backup must fit the
+	// reader's existing limit, including JSON escaping and that final byte.
+	if len(data)+1 > maxSyncBytes {
+		return nil, fmt.Errorf("extensions: export is larger than %d bytes; reduce its content before exporting", maxSyncBytes)
+	}
+	return data, nil
 }
 
 // ReadSync parses a document, refusing one that is not a document this build
