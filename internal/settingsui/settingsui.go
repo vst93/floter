@@ -5568,7 +5568,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// script box and the fields, before the output row
 			// (`CustomIntegrationDrawer.tsx:145-146`).
 			a.toolContentActions(c, copy, mode, command, program, args, script, language)
-			a.row(c, copy.LocalToolOutput, "", func() {
+			a.row(c.Key("local-output"), copy.LocalToolOutput, "", func() {
 				index := 0
 				if a.toolOutput == routeBackground {
 					index = 1
@@ -5590,7 +5590,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			for i, platform := range customPlatforms {
 				ticked[i] = a.toolPlatforms[platform.ID]
 			}
-			a.row(c, copy.LocalToolPlatforms, "", func() {
+			a.row(c.Key("local-platforms"), copy.LocalToolPlatforms, "", func() {
 				ui.Row(c).FillWidth().Gap(c.Theme().Space(3)).Wrap().Children(func() {
 					for i, platform := range customPlatforms {
 						i, platform := i, platform

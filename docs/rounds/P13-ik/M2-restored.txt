@@ -1,0 +1,14 @@
+=== RUN   TestContentRecoveryModeOutput
+=== RUN   TestContentRecoveryModeOutput/light
+=== RUN   TestContentRecoveryModeOutput/dark
+--- PASS: TestContentRecoveryModeOutput (0.42s)
+    --- PASS: TestContentRecoveryModeOutput/light (0.31s)
+    --- PASS: TestContentRecoveryModeOutput/dark (0.11s)
+=== RUN   TestContentRecoveryModePlatform
+=== RUN   TestContentRecoveryModePlatform/light
+=== RUN   TestContentRecoveryModePlatform/dark
+--- PASS: TestContentRecoveryModePlatform (0.26s)
+    --- PASS: TestContentRecoveryModePlatform/light (0.13s)
+    --- PASS: TestContentRecoveryModePlatform/dark (0.13s)
+PASS
+ok  	floter/internal/settingsui	0.692s

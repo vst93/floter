@@ -1,0 +1,23 @@
+=== RUN   TestContentRecoveryModeOutput
+=== RUN   TestContentRecoveryModeOutput/light
+    moderecovery_test.go:37: mode refresh lost output focus
+    moderecovery_test.go:46: mode refresh blocked output keyboard: "background"
+=== RUN   TestContentRecoveryModeOutput/dark
+    moderecovery_test.go:37: mode refresh lost output focus
+    moderecovery_test.go:46: mode refresh blocked output keyboard: "background"
+--- FAIL: TestContentRecoveryModeOutput (0.60s)
+    --- FAIL: TestContentRecoveryModeOutput/light (0.41s)
+    --- FAIL: TestContentRecoveryModeOutput/dark (0.19s)
+=== RUN   TestContentRecoveryModePlatform
+=== RUN   TestContentRecoveryModePlatform/light
+    moderecovery_test.go:37: mode refresh lost platform focus
+    moderecovery_test.go:49: mode refresh blocked platform keyboard
+=== RUN   TestContentRecoveryModePlatform/dark
+    moderecovery_test.go:37: mode refresh lost platform focus
+    moderecovery_test.go:49: mode refresh blocked platform keyboard
+--- FAIL: TestContentRecoveryModePlatform (0.26s)
+    --- FAIL: TestContentRecoveryModePlatform/light (0.13s)
+    --- FAIL: TestContentRecoveryModePlatform/dark (0.13s)
+FAIL
+FAIL	floter/internal/settingsui	0.872s
+FAIL
