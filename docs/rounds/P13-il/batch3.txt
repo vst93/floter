@@ -1,0 +1,168 @@
+=== RUN   TestDeclarationRefreshNumberDefault
+=== RUN   TestDeclarationRefreshNumberDefault/light
+=== RUN   TestDeclarationRefreshNumberDefault/dark
+--- PASS: TestDeclarationRefreshNumberDefault (0.80s)
+    --- PASS: TestDeclarationRefreshNumberDefault/light (0.48s)
+    --- PASS: TestDeclarationRefreshNumberDefault/dark (0.32s)
+=== RUN   TestDeclarationRefreshBooleanDefault
+=== RUN   TestDeclarationRefreshBooleanDefault/light
+=== RUN   TestDeclarationRefreshBooleanDefault/dark
+--- PASS: TestDeclarationRefreshBooleanDefault (0.71s)
+    --- PASS: TestDeclarationRefreshBooleanDefault/light (0.32s)
+    --- PASS: TestDeclarationRefreshBooleanDefault/dark (0.39s)
+=== RUN   TestDeclarationRefreshSelectDefault
+=== RUN   TestDeclarationRefreshSelectDefault/light
+=== RUN   TestDeclarationRefreshSelectDefault/dark
+--- PASS: TestDeclarationRefreshSelectDefault (0.61s)
+    --- PASS: TestDeclarationRefreshSelectDefault/light (0.32s)
+    --- PASS: TestDeclarationRefreshSelectDefault/dark (0.29s)
+=== RUN   TestDeclarationRefreshPlaceholderExit
+=== RUN   TestDeclarationRefreshPlaceholderExit/light
+=== RUN   TestDeclarationRefreshPlaceholderExit/dark
+--- PASS: TestDeclarationRefreshPlaceholderExit (0.10s)
+    --- PASS: TestDeclarationRefreshPlaceholderExit/light (0.05s)
+    --- PASS: TestDeclarationRefreshPlaceholderExit/dark (0.05s)
+=== RUN   TestRunConditionEditedValue
+=== RUN   TestRunConditionEditedValue/light
+=== RUN   TestRunConditionEditedValue/dark
+--- PASS: TestRunConditionEditedValue (0.22s)
+    --- PASS: TestRunConditionEditedValue/light (0.11s)
+    --- PASS: TestRunConditionEditedValue/dark (0.11s)
+=== RUN   TestRunConditionRemovedField
+=== RUN   TestRunConditionRemovedField/light
+=== RUN   TestRunConditionRemovedField/dark
+--- PASS: TestRunConditionRemovedField (0.15s)
+    --- PASS: TestRunConditionRemovedField/light (0.09s)
+    --- PASS: TestRunConditionRemovedField/dark (0.07s)
+=== RUN   TestRunConditionChangedConstraints
+=== RUN   TestRunConditionChangedConstraints/light
+=== RUN   TestRunConditionChangedConstraints/dark
+--- PASS: TestRunConditionChangedConstraints (0.12s)
+    --- PASS: TestRunConditionChangedConstraints/light (0.06s)
+    --- PASS: TestRunConditionChangedConstraints/dark (0.06s)
+=== RUN   TestRunConditionRenamedField
+=== RUN   TestRunConditionRenamedField/light
+=== RUN   TestRunConditionRenamedField/dark
+--- PASS: TestRunConditionRenamedField (0.11s)
+    --- PASS: TestRunConditionRenamedField/light (0.05s)
+    --- PASS: TestRunConditionRenamedField/dark (0.05s)
+=== RUN   TestRunConditionValidationRefreshVariants
+=== RUN   TestRunConditionValidationRefreshVariants/required
+=== RUN   TestRunConditionValidationRefreshVariants/required/light
+=== RUN   TestRunConditionValidationRefreshVariants/required/dark
+=== RUN   TestRunConditionValidationRefreshVariants/flag
+=== RUN   TestRunConditionValidationRefreshVariants/flag/light
+=== RUN   TestRunConditionValidationRefreshVariants/flag/dark
+=== RUN   TestRunConditionValidationRefreshVariants/options
+=== RUN   TestRunConditionValidationRefreshVariants/options/light
+=== RUN   TestRunConditionValidationRefreshVariants/options/dark
+--- PASS: TestRunConditionValidationRefreshVariants (0.30s)
+    --- PASS: TestRunConditionValidationRefreshVariants/required (0.11s)
+        --- PASS: TestRunConditionValidationRefreshVariants/required/light (0.05s)
+        --- PASS: TestRunConditionValidationRefreshVariants/required/dark (0.05s)
+    --- PASS: TestRunConditionValidationRefreshVariants/flag (0.10s)
+        --- PASS: TestRunConditionValidationRefreshVariants/flag/light (0.05s)
+        --- PASS: TestRunConditionValidationRefreshVariants/flag/dark (0.05s)
+    --- PASS: TestRunConditionValidationRefreshVariants/options (0.10s)
+        --- PASS: TestRunConditionValidationRefreshVariants/options/light (0.05s)
+        --- PASS: TestRunConditionValidationRefreshVariants/options/dark (0.05s)
+=== RUN   TestRunDefaultRefreshKnownLater
+=== RUN   TestRunDefaultRefreshKnownLater/light
+=== RUN   TestRunDefaultRefreshKnownLater/dark
+--- PASS: TestRunDefaultRefreshKnownLater (0.08s)
+    --- PASS: TestRunDefaultRefreshKnownLater/light (0.04s)
+    --- PASS: TestRunDefaultRefreshKnownLater/dark (0.04s)
+=== RUN   TestRunDefaultRefreshUnknownLater
+=== RUN   TestRunDefaultRefreshUnknownLater/light
+=== RUN   TestRunDefaultRefreshUnknownLater/dark
+--- PASS: TestRunDefaultRefreshUnknownLater (0.08s)
+    --- PASS: TestRunDefaultRefreshUnknownLater/light (0.04s)
+    --- PASS: TestRunDefaultRefreshUnknownLater/dark (0.04s)
+=== RUN   TestRunDefaultRefreshKnownCallback
+=== RUN   TestRunDefaultRefreshKnownCallback/light
+=== RUN   TestRunDefaultRefreshKnownCallback/dark
+--- PASS: TestRunDefaultRefreshKnownCallback (0.08s)
+    --- PASS: TestRunDefaultRefreshKnownCallback/light (0.04s)
+    --- PASS: TestRunDefaultRefreshKnownCallback/dark (0.04s)
+=== RUN   TestRunDefaultRefreshUnknownCallback
+=== RUN   TestRunDefaultRefreshUnknownCallback/light
+=== RUN   TestRunDefaultRefreshUnknownCallback/dark
+--- PASS: TestRunDefaultRefreshUnknownCallback (0.07s)
+    --- PASS: TestRunDefaultRefreshUnknownCallback/light (0.04s)
+    --- PASS: TestRunDefaultRefreshUnknownCallback/dark (0.04s)
+=== RUN   TestRunEpochClosedDuringCallback
+=== RUN   TestRunEpochClosedDuringCallback/light
+=== RUN   TestRunEpochClosedDuringCallback/dark
+--- PASS: TestRunEpochClosedDuringCallback (0.04s)
+    --- PASS: TestRunEpochClosedDuringCallback/light (0.02s)
+    --- PASS: TestRunEpochClosedDuringCallback/dark (0.02s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+--- PASS: TestRunEpochParametersReplacedDuringCallback (0.05s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/light (0.02s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/dark (0.02s)
+=== RUN   TestRunEpochUnknownParameterNowExists
+=== RUN   TestRunEpochUnknownParameterNowExists/light
+=== RUN   TestRunEpochUnknownParameterNowExists/dark
+--- PASS: TestRunEpochUnknownParameterNowExists (0.06s)
+    --- PASS: TestRunEpochUnknownParameterNowExists/light (0.03s)
+    --- PASS: TestRunEpochUnknownParameterNowExists/dark (0.03s)
+=== RUN   TestRunEpochUnknownRefusalAfterEditing
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/light
+=== RUN   TestRunEpochUnknownRefusalAfterEditing/dark
+--- PASS: TestRunEpochUnknownRefusalAfterEditing (0.10s)
+    --- PASS: TestRunEpochUnknownRefusalAfterEditing/light (0.05s)
+    --- PASS: TestRunEpochUnknownRefusalAfterEditing/dark (0.05s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.03s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.02s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.01s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.06s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.03s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.03s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.03s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.02s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.02s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.05s)
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (0.30s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.16s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.14s)
+=== RUN   TestRunResultAllParametersRetired
+=== RUN   TestRunResultAllParametersRetired/light
+=== RUN   TestRunResultAllParametersRetired/dark
+--- PASS: TestRunResultAllParametersRetired (0.07s)
+    --- PASS: TestRunResultAllParametersRetired/light (0.04s)
+    --- PASS: TestRunResultAllParametersRetired/dark (0.03s)
+=== RUN   TestRunResultCallbackWithdrawn
+=== RUN   TestRunResultCallbackWithdrawn/light
+=== RUN   TestRunResultCallbackWithdrawn/dark
+--- PASS: TestRunResultCallbackWithdrawn (0.06s)
+    --- PASS: TestRunResultCallbackWithdrawn/light (0.03s)
+    --- PASS: TestRunResultCallbackWithdrawn/dark (0.03s)
+=== RUN   TestRunResultOptionsChangedInsideCallback
+=== RUN   TestRunResultOptionsChangedInsideCallback/light
+=== RUN   TestRunResultOptionsChangedInsideCallback/dark
+--- PASS: TestRunResultOptionsChangedInsideCallback (0.05s)
+    --- PASS: TestRunResultOptionsChangedInsideCallback/light (0.03s)
+    --- PASS: TestRunResultOptionsChangedInsideCallback/dark (0.03s)
+=== RUN   TestRunResultValueChangedInsideCallback
+=== RUN   TestRunResultValueChangedInsideCallback/light
+=== RUN   TestRunResultValueChangedInsideCallback/dark
+--- PASS: TestRunResultValueChangedInsideCallback (0.05s)
+    --- PASS: TestRunResultValueChangedInsideCallback/light (0.03s)
+    --- PASS: TestRunResultValueChangedInsideCallback/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	4.423s

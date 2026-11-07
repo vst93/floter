@@ -1,0 +1,26 @@
+=== RUN   TestRunDefaultRefreshKnownLater
+=== RUN   TestRunDefaultRefreshKnownLater/light
+=== RUN   TestRunDefaultRefreshKnownLater/dark
+--- PASS: TestRunDefaultRefreshKnownLater (0.09s)
+    --- PASS: TestRunDefaultRefreshKnownLater/light (0.08s)
+    --- PASS: TestRunDefaultRefreshKnownLater/dark (0.02s)
+=== RUN   TestRunDefaultRefreshUnknownLater
+=== RUN   TestRunDefaultRefreshUnknownLater/light
+=== RUN   TestRunDefaultRefreshUnknownLater/dark
+--- PASS: TestRunDefaultRefreshUnknownLater (0.04s)
+    --- PASS: TestRunDefaultRefreshUnknownLater/light (0.02s)
+    --- PASS: TestRunDefaultRefreshUnknownLater/dark (0.02s)
+=== RUN   TestRunDefaultRefreshKnownCallback
+=== RUN   TestRunDefaultRefreshKnownCallback/light
+=== RUN   TestRunDefaultRefreshKnownCallback/dark
+--- PASS: TestRunDefaultRefreshKnownCallback (0.04s)
+    --- PASS: TestRunDefaultRefreshKnownCallback/light (0.02s)
+    --- PASS: TestRunDefaultRefreshKnownCallback/dark (0.02s)
+=== RUN   TestRunDefaultRefreshUnknownCallback
+=== RUN   TestRunDefaultRefreshUnknownCallback/light
+=== RUN   TestRunDefaultRefreshUnknownCallback/dark
+--- PASS: TestRunDefaultRefreshUnknownCallback (0.04s)
+    --- PASS: TestRunDefaultRefreshUnknownCallback/light (0.02s)
+    --- PASS: TestRunDefaultRefreshUnknownCallback/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.212s

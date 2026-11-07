@@ -7338,7 +7338,7 @@ func runParametersMatch(submitted []extensions.ParamDefinition, current []Param)
 		found := false
 		for _, param := range current {
 			if param.ID == old.ID {
-				found = param.Kind == old.Kind && param.Required == old.Required && param.Flag == old.Flag && slices.Equal(param.Options, old.Options)
+				found = param.Kind == old.Kind && param.Required == old.Required && param.Default == old.Default && param.Flag == old.Flag && slices.Equal(param.Options, old.Options)
 				break
 			}
 		}
@@ -7571,7 +7571,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				for _, param := range params {
 					if param.ID == refusal.param {
 						old := refusal.definition
-						valid = valid && param.Kind == old.Kind && param.Required == old.Required && param.Flag == old.Flag && slices.Equal(param.Options, old.Options)
+						valid = valid && param.Kind == old.Kind && param.Required == old.Required && param.Default == old.Default && param.Flag == old.Flag && slices.Equal(param.Options, old.Options)
 						break
 					}
 				}

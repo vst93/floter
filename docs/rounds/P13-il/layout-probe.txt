@@ -1,0 +1,19 @@
+=== RUN   TestParamReasonLayoutLocal
+=== RUN   TestParamReasonLayoutLocal/light
+    paramreasonlayout_test.go:57: corrected field kept wrapped reason
+=== RUN   TestParamReasonLayoutLocal/dark
+    paramreasonlayout_test.go:57: corrected field kept wrapped reason
+--- FAIL: TestParamReasonLayoutLocal (0.23s)
+    --- FAIL: TestParamReasonLayoutLocal/light (0.18s)
+    --- FAIL: TestParamReasonLayoutLocal/dark (0.05s)
+=== RUN   TestParamReasonLayoutBackend
+=== RUN   TestParamReasonLayoutBackend/light
+    paramreasonlayout_test.go:46: reason must wrap inside form: {X:34 Y:207 W:652 H:30}
+=== RUN   TestParamReasonLayoutBackend/dark
+    paramreasonlayout_test.go:46: reason must wrap inside form: {X:34 Y:207 W:652 H:30}
+--- FAIL: TestParamReasonLayoutBackend (0.11s)
+    --- FAIL: TestParamReasonLayoutBackend/light (0.06s)
+    --- FAIL: TestParamReasonLayoutBackend/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.350s
+FAIL

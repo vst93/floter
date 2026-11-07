@@ -36,3 +36,12 @@
 4. 现象：占位符输入已获键盘焦点，类型刷新为布尔后输入退场且失焦。改动：给占位符保存独立焦点句柄，退场时回同盘类型选择。验证：Tab 往返→类型刷新→方向键/Home/Enter 可回文字类型，提示草稿仍为“记住此提示”。
 
 相关 **39 PASS / 0 FAIL**，包 vet 净。M2 去掉选择默认值校验与占位符回焦，6 FAIL 记录，原串 `invalid select default dispatched 1 saves, open=false`、`hidden placeholder lost kind focus`；两文件 MD5 一致、touch 后 6 PASS。
+
+## 第三批（5–6）
+
+5. 现象：空答案依赖默认值，已知字段的宿主拒绝在默认值刷新后仍指责旧输入；回调内刷新也能把旧结果写入新条件。改动：记录字段拒绝和发布前条件比较都包含 Default。验证：深浅 later/callback 两种时序，旧提示退役、答案仍为空、再次显式运行使用 fresh 默认值。
+6. 现象：未知字段拒绝属于整次提交，但整表只核对类型/选项，默认值改变后旧错误仍常驻。改动：整表语义比较补 Default，发布前和已发布结果共用。验证：深浅两种时序均退役旧提示，条件未变时错误仍保留，刷新本身不额外运行。
+
+相关 **83 PASS / 0 FAIL**，settingsui vet 净。M3 删除默认值比较后 **12 FAIL** 记录（8 个深浅叶子），原串 `known-later retained obsolete default refusal`、`unknown-callback retained obsolete default refusal: staleFrames=61`；MD5 恢复一致、touch 后 **12 PASS**。回调和稍后刷新是同一修复的两种验收，不拆成四项。
+
+长错误候选初探：框架本身会折行，最初的宽度断言 650 与实际 652 是夹具错误，不能算产品缺陷；正在核对长标签输入命中，不按假定添加 Wrap。

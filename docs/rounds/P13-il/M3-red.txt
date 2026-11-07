@@ -1,0 +1,35 @@
+=== RUN   TestRunDefaultRefreshKnownLater
+=== RUN   TestRunDefaultRefreshKnownLater/light
+    rundefaultrefresh_test.go:72: known-later retained obsolete default refusal: staleFrames=0 error="目标 不是该参数的有效值"
+=== RUN   TestRunDefaultRefreshKnownLater/dark
+    rundefaultrefresh_test.go:72: known-later retained obsolete default refusal: staleFrames=0 error="目标 不是该参数的有效值"
+--- FAIL: TestRunDefaultRefreshKnownLater (0.12s)
+    --- FAIL: TestRunDefaultRefreshKnownLater/light (0.10s)
+    --- FAIL: TestRunDefaultRefreshKnownLater/dark (0.02s)
+=== RUN   TestRunDefaultRefreshUnknownLater
+=== RUN   TestRunDefaultRefreshUnknownLater/light
+    rundefaultrefresh_test.go:72: unknown-later retained obsolete default refusal: staleFrames=0 error="没有声明 id 为 retired 的参数"
+=== RUN   TestRunDefaultRefreshUnknownLater/dark
+    rundefaultrefresh_test.go:72: unknown-later retained obsolete default refusal: staleFrames=0 error="没有声明 id 为 retired 的参数"
+--- FAIL: TestRunDefaultRefreshUnknownLater (0.04s)
+    --- FAIL: TestRunDefaultRefreshUnknownLater/light (0.02s)
+    --- FAIL: TestRunDefaultRefreshUnknownLater/dark (0.02s)
+=== RUN   TestRunDefaultRefreshKnownCallback
+=== RUN   TestRunDefaultRefreshKnownCallback/light
+    rundefaultrefresh_test.go:72: known-callback retained obsolete default refusal: staleFrames=61 error="目标 不是该参数的有效值"
+=== RUN   TestRunDefaultRefreshKnownCallback/dark
+    rundefaultrefresh_test.go:72: known-callback retained obsolete default refusal: staleFrames=61 error="目标 不是该参数的有效值"
+--- FAIL: TestRunDefaultRefreshKnownCallback (0.04s)
+    --- FAIL: TestRunDefaultRefreshKnownCallback/light (0.02s)
+    --- FAIL: TestRunDefaultRefreshKnownCallback/dark (0.02s)
+=== RUN   TestRunDefaultRefreshUnknownCallback
+=== RUN   TestRunDefaultRefreshUnknownCallback/light
+    rundefaultrefresh_test.go:72: unknown-callback retained obsolete default refusal: staleFrames=61 error="没有声明 id 为 retired 的参数"
+=== RUN   TestRunDefaultRefreshUnknownCallback/dark
+    rundefaultrefresh_test.go:72: unknown-callback retained obsolete default refusal: staleFrames=61 error="没有声明 id 为 retired 的参数"
+--- FAIL: TestRunDefaultRefreshUnknownCallback (0.04s)
+    --- FAIL: TestRunDefaultRefreshUnknownCallback/light (0.02s)
+    --- FAIL: TestRunDefaultRefreshUnknownCallback/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.235s
+FAIL
