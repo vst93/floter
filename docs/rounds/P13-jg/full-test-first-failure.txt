@@ -1,0 +1,52 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.005s
+ok  	floter/internal/apps	0.392s
+ok  	floter/internal/browser	0.021s
+ok  	floter/internal/calc	0.004s
+ok  	floter/internal/calculator	0.016s
+ok  	floter/internal/ci	6.572s
+ok  	floter/internal/clipboard	0.065s
+ok  	floter/internal/control	0.214s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.005s
+ok  	floter/internal/drops	0.005s
+ok  	floter/internal/extensions	31.776s
+ok  	floter/internal/extensions/recommended	0.137s
+ok  	floter/internal/frameaudit	0.082s
+ok  	floter/internal/glassmap	0.009s
+ok  	floter/internal/homepath	0.003s
+ok  	floter/internal/i18n	1.276s
+ok  	floter/internal/inputtext	0.050s
+ok  	floter/internal/inventory	0.078s
+ok  	floter/internal/launcher	36.253s
+ok  	floter/internal/motion	0.038s
+ok  	floter/internal/pathid	0.009s
+ok  	floter/internal/pathlist	0.023s
+ok  	floter/internal/pinyin	0.020s
+ok  	floter/internal/plist	0.010s
+ok  	floter/internal/plugincfg	0.006s
+ok  	floter/internal/progname	0.009s
+ok  	floter/internal/progtype	0.011s
+ok  	floter/internal/scriptlang	0.003s
+ok  	floter/internal/semver	0.002s
+ok  	floter/internal/settings	1.871s
+--- FAIL: TestTheSettingsPageHasNoFrameworkTips (0.00s)
+    tipglass_test.go:305: transfer.go carries 2 `tokens.Tip` calls, want 1
+    tipglass_test.go:309: the settings page carries 13 tips, want 12 (§6.20 20-3 + §6.231)
+FAIL
+FAIL	floter/internal/settingsui	242.322s
+ok  	floter/internal/shell	88.059s
+ok  	floter/internal/shortcuts	0.008s
+ok  	floter/internal/spawn	0.169s
+ok  	floter/internal/statefile	0.007s
+ok  	floter/internal/terminalui	21.000s
+ok  	floter/internal/termsession	4.410s
+ok  	floter/internal/textlines	0.005s
+ok  	floter/internal/theme	0.063s
+ok  	floter/internal/tools	0.007s
+ok  	floter/internal/usage	0.005s
+ok  	floter/internal/valuedomain	0.003s
+ok  	floter/internal/versioning	0.003s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.005s
+FAIL

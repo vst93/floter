@@ -1,0 +1,9 @@
+0a299760844fb043a669d3249b1c5e37  internal/settingsui/transfer.go
+21c7a71fb917750cf225fd9e60b063f4  internal/shell/sync.go
+beda7e1d6080e0bd316afdb8ac410b3f  internal/extensions/sync.go
+82438dcee1b7748af57f258d9fd671b1  internal/settingsui/transferdetail_test.go
+269c682d78c2d6a8a8118401a955ff0d  internal/shell/transferpartial_test.go
+9a2d6cd8b5b0b5814dc4e1dd03f298f6  internal/shell/transfervalidation_test.go
+4a1a8ffe8850bb1557ba1feba5ebb346  internal/shell/transferessential_test.go
+e2329fa9eb4e761524bfc5644aca1ee0  internal/extensions/synctext_test.go
+ceb2b32bb03475afa26327d3676a2903  internal/settingsui/tipglass_test.go

@@ -1,0 +1,20 @@
+=== RUN   TestImportPartialResultRetainsAppliedSummary
+=== RUN   TestImportPartialResultRetainsAppliedSummary/light
+2026/11/08 01:02:10 floter: dev.workspace.broken was not imported: extensions: the package declares dev.workspace.other, not dev.workspace.broken
+2026/11/08 01:02:10 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+=== RUN   TestImportPartialResultRetainsAppliedSummary/dark
+2026/11/08 01:02:10 floter: dev.workspace.broken was not imported: extensions: the package declares dev.workspace.other, not dev.workspace.broken
+2026/11/08 01:02:10 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+--- PASS: TestImportPartialResultRetainsAppliedSummary (0.55s)
+    --- PASS: TestImportPartialResultRetainsAppliedSummary/light (0.34s)
+    --- PASS: TestImportPartialResultRetainsAppliedSummary/dark (0.20s)
+=== RUN   TestImportSkippedResultExplainsUnchangedEntry
+=== RUN   TestImportSkippedResultExplainsUnchangedEntry/light
+2026/11/08 01:02:10 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+=== RUN   TestImportSkippedResultExplainsUnchangedEntry/dark
+2026/11/08 01:02:10 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+--- PASS: TestImportSkippedResultExplainsUnchangedEntry (0.37s)
+    --- PASS: TestImportSkippedResultExplainsUnchangedEntry/light (0.18s)
+    --- PASS: TestImportSkippedResultExplainsUnchangedEntry/dark (0.19s)
+PASS
+ok  	floter/internal/shell	0.936s

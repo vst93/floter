@@ -1,0 +1,18 @@
+=== RUN   TestExportMissingScriptPreservesBackup
+=== RUN   TestExportMissingScriptPreservesBackup/light
+2026/11/08 01:02:51 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingScriptPreservesBackuplight1849706267/002/extensions/dev.floter.configured/tool.sh: no such file or directory
+=== RUN   TestExportMissingScriptPreservesBackup/dark
+2026/11/08 01:02:51 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingScriptPreservesBackupdark2050680943/002/extensions/dev.floter.configured/tool.sh: no such file or directory
+--- PASS: TestExportMissingScriptPreservesBackup (0.32s)
+    --- PASS: TestExportMissingScriptPreservesBackup/light (0.21s)
+    --- PASS: TestExportMissingScriptPreservesBackup/dark (0.12s)
+=== RUN   TestExportMissingDescriptorPreservesBackup
+=== RUN   TestExportMissingDescriptorPreservesBackup/light
+2026/11/08 01:02:51 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingDescriptorPreservesBackuplight1676129293/002/extensions/dev.floter.configured/description.json: no such file or directory
+=== RUN   TestExportMissingDescriptorPreservesBackup/dark
+2026/11/08 01:02:51 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingDescriptorPreservesBackupdark3085512657/002/extensions/dev.floter.configured/description.json: no such file or directory
+--- PASS: TestExportMissingDescriptorPreservesBackup (0.26s)
+    --- PASS: TestExportMissingDescriptorPreservesBackup/light (0.13s)
+    --- PASS: TestExportMissingDescriptorPreservesBackup/dark (0.13s)
+PASS
+ok  	floter/internal/shell	0.593s

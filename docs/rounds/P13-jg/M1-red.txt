@@ -1,0 +1,15 @@
+=== RUN   TestImportPartialResultRetainsAppliedSummary
+=== RUN   TestImportPartialResultRetainsAppliedSummary/light
+2026/11/08 01:02:02 floter: dev.workspace.broken was not imported: extensions: the package declares dev.workspace.other, not dev.workspace.broken
+2026/11/08 01:02:02 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+    transferpartial_test.go:65: partial failure hides the already-applied result
+=== RUN   TestImportPartialResultRetainsAppliedSummary/dark
+2026/11/08 01:02:02 floter: dev.workspace.broken was not imported: extensions: the package declares dev.workspace.other, not dev.workspace.broken
+2026/11/08 01:02:02 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+    transferpartial_test.go:65: partial failure hides the already-applied result
+--- FAIL: TestImportPartialResultRetainsAppliedSummary (0.37s)
+    --- FAIL: TestImportPartialResultRetainsAppliedSummary/light (0.26s)
+    --- FAIL: TestImportPartialResultRetainsAppliedSummary/dark (0.11s)
+FAIL
+FAIL	floter/internal/shell	0.378s
+FAIL
