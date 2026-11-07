@@ -29,6 +29,6 @@
 
 ## 验收
 
-基线全量 verbose 已启动；数字按实际完成日志补录，不引用旧报告冒充实测。环境 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。门槛：gofmt -l cmd internal 空；三平台 go vet ./...；普通 go test -count=1 ./...；verbose PASS 数；linux/windows/darwin go build ./...。
+基线全量 verbose 实测5678 PASS / 0 FAIL，退出0；起点3311测试函数。环境 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。门槛：gofmt -l cmd internal 空；三平台 go vet ./...；普通 go test -count=1 ./...；verbose PASS 数；linux/windows/darwin go build ./...。
 
 M1 删除运行时/健康声明的身份项，预期前六条变红；M2 恢复单行无条件使用旧 ID 的命中路径，预期后两条变红。每条独立注入、实红、还原、md5sum -c、touch 复验。旧 V/B/S 断言不改，无新增 Skip。深浅前后 PNG 必须入库并目检。

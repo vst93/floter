@@ -2876,21 +2876,19 @@ func detectedToolRequest(tool settingsui.DetectedTool) settingsui.CustomTool {
 // once, and every frame after it is a map lookup. A rebuild of the inventory
 // drops the memo (`RefreshIntegrations`), which is when an answer may change.
 func (a *App) integrationFreshness(id string) (extensions.Freshness, bool) {
-	// This is the whole cost of a drawn row: one lock and one map lookup. The
-	// list's own pass fills the same memo when the page is built, so a card row
-	// almost always finds its answer waiting; a row asked about on its own (a
-	// test, or a surface that draws one card) pays the stat once and is
-	// remembered. A rebuild of the repository drops the memo, which is exactly
-	// when an answer may change.
-	facts, _, _ := integrationFactsMemo.snapshot()
-	if fact, ok := facts[id]; ok && fact.key != "" {
-		return fact.freshness, fact.hasFreshness
-	}
 	integration, ok := a.Integrations.Inventory().WithID(id)
 	if !ok {
 		return extensions.Freshness{}, false
 	}
-	fact := integrationFact{key: integrationFactKey(integration), partial: true}
+	// Direct inventory refreshes can replace a same-ID package or health
+	// report without first drawing the whole list. Validate against the live
+	// declaration in memory; a cache hit still does no filesystem I/O.
+	source := integrationFactSource(integration)
+	facts, _, _ := integrationFactsMemo.snapshot()
+	if fact, ok := facts[id]; ok && fact.source == source {
+		return fact.freshness, fact.hasFreshness
+	}
+	fact := integrationFact{key: integrationFactKey(integration), source: source, partial: true}
 	if freshness := extensions.FreshnessOf(integration.Paths, integration); freshness.Known() {
 		fact.freshness, fact.hasFreshness = freshness, true
 	}

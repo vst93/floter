@@ -74,6 +74,9 @@ type integrationFact struct {
 	partial bool
 	// key is the identity the fact was computed from (see integrationFactKey).
 	key string
+	// source contains only the inventory's declarations, so a single row can
+	// validate a memo hit without another filesystem probe on every frame.
+	source string
 }
 
 // integrationFactsCache is the process's one memo (one App per process, exactly
@@ -94,10 +97,15 @@ var integrationFactsMemo integrationFactsCache
 // the approval. A reinstall, a repair, or a manifest that moved changes it, and
 // that entry's fact is recomputed on the frame that sees it.
 func integrationFactKey(integration extensions.Integration) string {
-	key := integration.Entry.ExecutablePath + "\x00" + integration.ManifestPath()
+	return integrationFactSource(integration) + "\x00" + integration.ManifestPath()
+}
+
+func integrationFactSource(integration extensions.Integration) string {
+	key := strconv.Quote(integration.Entry.ExecutablePath) + "\x00" + strconv.Quote(integration.Entry.ManifestPath) + "\x00" + strconv.Quote(integration.Paths.Extensions)
 	// A refreshed manifest can keep both paths while changing how the
 	// program is resolved. Its old availability no longer answers this row.
 	key += "\x00" + strconv.Quote(integration.Manifest.Runtime.Type) + "\x00" + strconv.Quote(integration.Manifest.Runtime.Language)
+	key += "\x00" + strconv.Quote(integration.Manifest.ID) + "\x00" + strconv.Quote(integration.Manifest.Runtime.Path)
 	for _, name := range integration.Manifest.Runtime.ExecutableNames {
 		key += "\x00name=" + strconv.Quote(name)
 	}
@@ -118,7 +126,7 @@ func integrationFactKey(integration extensions.Integration) string {
 func computeIntegrationFacts(items []extensions.Integration) map[string]integrationFact {
 	out := make(map[string]integrationFact, len(items))
 	for _, integration := range items {
-		fact := integrationFact{key: integrationFactKey(integration)}
+		fact := integrationFact{key: integrationFactKey(integration), source: integrationFactSource(integration)}
 		if _, err := extensions.ResolveRuntime(integration); err == nil {
 			fact.available = true
 		}

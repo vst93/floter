@@ -39,3 +39,10 @@
 6. 现象：健康检查时间已刷新到现在，上次探测仍显示前天。改动：当前事实身份纳入 CheckedAt。验证：真实时间字段更新、当前记录与可见“刚刚”联合断言；修前 `health-time: refreshed check still paints old timestamp`。
 
 第三批及第二批补验：**20 PASS / 0 FAIL**、shell vet退出0。候选程序使用本机已有解释器名称，四种声明与两种健康刷新全部通过。正式M1将在最终代码上串行注入；夹具失败日志保留。
+
+第三批 **aa13eb26** 已推送，修正后的候选夹具和健康结果同批提交。
+
+7. 现象：同 ID 换到新包，单行新鲜度继续显示旧包的2条命令。改动：命中缓存前核对当前清单中的声明，路径变化立即重读本行。验证：两个真实包目录和sidecar、Store.Refresh、单行回调与可见命令数；修前 `row-path: new package still paints old command count`，修后9条。
+8. 现象：独立行的健康报告更新后仍永久显示旧成功，等待本行重绘也不刷新。改动：同一检查覆盖当前报告；命中仅比较内存声明，不额外stat/read。验证：真实健康记录与单行界面，修前 `row-health: refreshed report still paints old result: got=success want=failed`，修后失败。
+
+第四批相关 **27 PASS / 0 FAIL**、shell vet退出0，旧V/B/S 0/0/0，无新增Skip。保留列表与单行两种入口，额外验证连续60帧复用、partial补全和单行memo。八项已完成红绿复现，随后进行正式mutation和完整门槛。

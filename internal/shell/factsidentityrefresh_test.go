@@ -203,3 +203,8 @@ func TestFactsIdentityHealthResultRefresh(t *testing.T) {
 	checkFactsIdentityRefresh(t, "health-result")
 }
 func TestFactsIdentityHealthTimeRefresh(t *testing.T) { checkFactsIdentityRefresh(t, "health-time") }
+
+func TestFactsIdentitySingleRowPathRefresh(t *testing.T) { checkFactsIdentityRefresh(t, "row-path") }
+func TestFactsIdentitySingleRowHealthRefresh(t *testing.T) {
+	checkFactsIdentityRefresh(t, "row-health")
+}
