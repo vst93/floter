@@ -113,14 +113,15 @@ func (m *storedConfigMemoCache) publish(entries map[string]storedConfig, at time
 
 // A save, import or first read can supersede an in-flight background read.
 // Only the generation that started that read may publish its result.
-func (m *storedConfigMemoCache) publishCurrent(entries map[string]storedConfig, at time.Time, revision uint64) {
+func (m *storedConfigMemoCache) publishCurrent(entries map[string]storedConfig, at time.Time, revision uint64) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.revision != revision {
-		return
+		return false
 	}
 	m.entries, m.computed, m.pending = entries, at, false
 	m.revision++
+	return true
 }
 
 // invalidateStoredConfigs drops the memo, so the next frame reads in place. The
@@ -153,55 +154,63 @@ func refreshStoredConfigs(
 	invalidate func(),
 	now time.Time,
 ) map[string]storedConfig {
-	entries, computed, _ := m.snapshot()
-
-	var missing []extensions.Integration
-	for _, integration := range items {
-		fact, known := entries[integration.Entry.ID]
-		if !known || fact.key != storedConfigKey(integration.Paths, integration.Entry.ID) {
-			missing = append(missing, integration)
-		}
-	}
-	if len(missing) > 0 && !computed.IsZero() {
-		fresh := compute(missing)
-		merged := make(map[string]storedConfig, len(entries)+len(fresh))
-		for id, fact := range entries {
-			merged[id] = fact
-		}
-		for id, fact := range fresh {
-			merged[id] = fact
-		}
-		m.publish(merged, computed)
-		entries = merged
-	}
-
-	if computed.IsZero() {
-		// The visit's first question: everything is missing, so the pass above
-		// (which had nothing to merge into) is the whole answer, read in place.
-		fresh := compute(missing)
-		m.publish(fresh, now)
-		return fresh
-	}
-
-	if now.Sub(computed) >= storedConfigTTL {
-		// One pass at a time: a frame that arrives while the previous one is
-		// still reading must not start a second.
+	for {
 		m.mu.Lock()
-		start := !m.pending
-		m.pending = true
-		revision := m.revision
+		entries, computed, revision := m.entries, m.computed, m.revision
 		m.mu.Unlock()
-		if start {
-			go func() {
-				fresh := compute(items)
-				m.publishCurrent(fresh, time.Now(), revision)
-				if invalidate != nil {
-					invalidate()
-				}
-			}()
+
+		var missing []extensions.Integration
+		for _, integration := range items {
+			fact, known := entries[integration.Entry.ID]
+			if !known || fact.key != storedConfigKey(integration.Paths, integration.Entry.ID) {
+				missing = append(missing, integration)
+			}
 		}
+		if len(missing) > 0 && !computed.IsZero() {
+			fresh := compute(missing)
+			merged := make(map[string]storedConfig, len(entries)+len(fresh))
+			for id, fact := range entries {
+				merged[id] = fact
+			}
+			for id, fact := range fresh {
+				merged[id] = fact
+			}
+			m.publish(merged, computed)
+			entries = merged
+		}
+
+		if computed.IsZero() {
+			// The visit's first question: everything is missing, so the pass above
+			// (which had nothing to merge into) is the whole answer, read in place.
+			fresh := compute(missing)
+			// A save/import may invalidate even this synchronous read while I/O
+			// is in progress. Re-read the current generation before drawing it.
+			if !m.publishCurrent(fresh, now, revision) {
+				continue
+			}
+			return fresh
+		}
+
+		if now.Sub(computed) >= storedConfigTTL {
+			// One pass at a time: a frame that arrives while the previous one is
+			// still reading must not start a second.
+			m.mu.Lock()
+			start := !m.pending
+			m.pending = true
+			revision := m.revision
+			m.mu.Unlock()
+			if start {
+				go func() {
+					fresh := compute(items)
+					m.publishCurrent(fresh, time.Now(), revision)
+					if invalidate != nil {
+						invalidate()
+					}
+				}()
+			}
+		}
+		return entries
 	}
-	return entries
 }
 
 // storedConfigs is the drawing thread's view of the memo (see
