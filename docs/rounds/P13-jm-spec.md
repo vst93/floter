@@ -13,7 +13,7 @@
 | 1 | integrationfacts.go:100 | 同路径 runtime.type 更新仍沿用旧可用徽标 → 纳入当前类型 |
 | 2 | integrationfacts.go:100 | 解释器语言改变仍显示旧可用状态 → 纳入当前语言 |
 | 3 | integrationfacts.go:100 | 系统程序候选名更新仍显示旧运行入口 → 纳入候选名 |
-| 4 | integrationfacts.go:100 | 脚本路径变为越界后仍显示可用 → 纳入当前脚本路径 |
+| 4 | integrationfacts.go:100 | 平台声明不再支持当前主机却仍显示可用 → 纳入 manifest 有效状态 |
 | 5 | integrationfacts.go:100 | 已刷新健康报告的结果仍是旧成功 → 纳入报告状态 |
 | 6 | integrationfacts.go:100 | 最新检查时间仍显示旧记录 → 纳入报告时间 |
 | 7 | shell.go:2886 | 单行同 ID 换包路径后继续显示旧命令数 → 命中前核对当前身份 |

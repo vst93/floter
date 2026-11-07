@@ -98,6 +98,10 @@ func integrationFactKey(integration extensions.Integration) string {
 	// A refreshed manifest can keep both paths while changing how the
 	// program is resolved. Its old availability no longer answers this row.
 	key += "\x00" + strconv.Quote(integration.Manifest.Runtime.Type) + "\x00" + strconv.Quote(integration.Manifest.Runtime.Language)
+	for _, name := range integration.Manifest.Runtime.ExecutableNames {
+		key += "\x00name=" + strconv.Quote(name)
+	}
+	key += "\x00invalid=" + strconv.FormatBool(integration.ManifestErr != nil)
 	if integration.Entry.ApprovedAt != 0 {
 		key += "\x00" + strconv.FormatUint(integration.Entry.ApprovedAt, 10)
 	}

@@ -162,6 +162,9 @@ func checkFactsIdentityRefresh(t *testing.T, scenario string) {
 				if got.RuntimeAvailable != wantAvailable {
 					t.Errorf("%s: refreshed declaration kept obsolete runtime badge: got=%v want=%v", scenario, got.RuntimeAvailable, wantAvailable)
 				}
+				if tt.HasText(copy.RuntimeUnavailable) == wantAvailable {
+					t.Errorf("%s: actual card paints obsolete unavailable badge", scenario)
+				}
 			case "health-result", "row-health":
 				got, ok := a.integrationFreshness(id)
 				if !ok || got.Result != wantFreshness.Result || !tt.HasText(copy.FreshnessResultFailed) {
@@ -185,4 +188,11 @@ func checkFactsIdentityRefresh(t *testing.T, scenario string) {
 func TestFactsIdentityRuntimeTypeRefresh(t *testing.T) { checkFactsIdentityRefresh(t, "runtime-type") }
 func TestFactsIdentityRuntimeLanguageRefresh(t *testing.T) {
 	checkFactsIdentityRefresh(t, "runtime-language")
+}
+
+func TestFactsIdentityRuntimeNamesRefresh(t *testing.T) {
+	checkFactsIdentityRefresh(t, "runtime-names")
+}
+func TestFactsIdentityRuntimePlatformRefresh(t *testing.T) {
+	checkFactsIdentityRefresh(t, "runtime-platform")
 }
