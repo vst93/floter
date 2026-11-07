@@ -1,0 +1,17 @@
+=== RUN   TestImportReportLongSourceFitsTooltip
+=== RUN   TestImportReportLongSourceFitsTooltip/light
+=== RUN   TestImportReportLongSourceFitsTooltip/dark
+--- PASS: TestImportReportLongSourceFitsTooltip (0.26s)
+    --- PASS: TestImportReportLongSourceFitsTooltip/light (0.21s)
+    --- PASS: TestImportReportLongSourceFitsTooltip/dark (0.05s)
+=== RUN   TestImportExcludedDetailsExposeFieldCounts
+=== RUN   TestImportExcludedDetailsExposeFieldCounts/light
+    transferdetail_test.go:66: excluded-fields notice hides per-integration field counts
+=== RUN   TestImportExcludedDetailsExposeFieldCounts/dark
+    transferdetail_test.go:66: excluded-fields notice hides per-integration field counts
+--- FAIL: TestImportExcludedDetailsExposeFieldCounts (0.11s)
+    --- FAIL: TestImportExcludedDetailsExposeFieldCounts/light (0.05s)
+    --- FAIL: TestImportExcludedDetailsExposeFieldCounts/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.394s
+FAIL

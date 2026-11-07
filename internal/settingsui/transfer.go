@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -66,10 +67,13 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 	block.Children(func() {
 		if len(report.ExcludedFields) > 0 {
 			names := make([]string, 0, len(report.ExcludedFields))
+			details := make([]string, 0, len(report.ExcludedFields))
 			for _, warning := range report.ExcludedFields {
 				names = append(names, warning.ExtensionID)
+				details = append(details, warning.ExtensionID+": "+strconv.Itoa(warning.FieldCount))
 			}
-			a.transferNotice(c, t.Warning, "alert", copy.IntegrationsImportExcludedFields(strings.Join(names, ", ")))
+			warning := a.transferNotice(c, t.Warning, "alert", copy.IntegrationsImportExcludedFields(strings.Join(names, ", ")))
+			tokens.Tip(c, warning, strings.Join(details, "\n"))
 		}
 		// Entries are applied independently: a failure must not hide the
 		// integrations already changed, or the count that remained unchanged.
@@ -91,7 +95,10 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 			if extra := len(lines) - len(shown); extra > 0 {
 				body += " (" + copy.IntegrationsImportFailedMore(extra) + ")"
 			}
-			a.transferNotice(c, t.Warning, "alert", body)
+			failure := a.transferNotice(c, t.Warning, "alert", body)
+			if len(lines) > len(shown) {
+				tokens.Tip(c, failure, strings.Join(lines, "\n"))
+			}
 		}
 		if len(report.SkippedDetails) > 0 {
 			lines := make([]string, 0, len(report.SkippedDetails))
@@ -113,9 +120,9 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 // 语义**，不是「哪个被选中 / 哪个是开的」；accent 在这里只充当「这条重要」的
 // 高亮，属于 §5 禁止的那一类。改 `TextStrong`（同一行的失败/警告仍然是
 // `t.Warning` 语义色：语义色不是 accent，不在本预算内）。
-func (a *App) transferNotice(c *ui.Context, color ui.Color, mark, text string) {
+func (a *App) transferNotice(c *ui.Context, color ui.Color, mark, text string) ui.Element {
 	t := c.Theme()
-	ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Start).Children(func() {
+	return ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, mustGlyph(mark)).Size(t.Space(4), t.Space(4)).TextColor(color)
 		ui.Text(c, text).FontSize(a.tokens(c).Caption).TextColor(color).Grow(1).MinWidth(0)
 	})

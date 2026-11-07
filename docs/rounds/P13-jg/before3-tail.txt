@@ -1,0 +1,11 @@
+=== RUN   TestImportFailureTailHasReadableDetails
+=== RUN   TestImportFailureTailHasReadableDetails/light
+    transferdetail_test.go:99: failure tail cannot reveal the fourth integration or reason
+=== RUN   TestImportFailureTailHasReadableDetails/dark
+    transferdetail_test.go:99: failure tail cannot reveal the fourth integration or reason
+--- FAIL: TestImportFailureTailHasReadableDetails (0.34s)
+    --- FAIL: TestImportFailureTailHasReadableDetails/light (0.29s)
+    --- FAIL: TestImportFailureTailHasReadableDetails/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.349s
+FAIL
