@@ -24,6 +24,14 @@ import (
 // customSection draws the list, the row being made and the empty region.
 func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	entries := a.customShortcuts()
+	for key, focus := range a.customFocusRows(c) {
+		if customBindingIndex(entries, key) < 0 {
+			if focus.command.Focused(c) || focus.picker.Focused(c) || focus.recorder.Focused(c) || focus.remove.Focused(c) {
+				a.customFocusAdd = true
+			}
+			delete(a.customFocusRows(c), key)
+		}
+	}
 	if a.customFocusKey != "" && customBindingIndex(entries, a.customFocusKey) < 0 {
 		a.customFocusKey = ""
 	}
@@ -114,7 +122,7 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 // a modifier is not a shortcut at all.
 //
 // P8-b 重定基线：`RaisedQuiet` 不透面 → `Control`（与静息同一档面）。
-func (a *App) customCapturePane(c *ui.Context, copy i18n.Settings, capture func(accelerator string)) {
+func (a *App) customCapturePane(c *ui.Context, copy i18n.Settings, capture func(accelerator string)) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	pane := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(tokens.RadiusSM).
@@ -142,18 +150,18 @@ func (a *App) customCapturePane(c *ui.Context, copy i18n.Settings, capture func(
 		return true
 	})
 	pane.Focus()
+	return pane
 }
 
 // customRecorder is one row's key recorder: the reference's
 // `.shortcut-recorder` pane, showing the chord in the monospace stack while it
 // rests and the armed prompt while it records. index is the row it records
 // into; draftRow names the row being made.
-func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, index int) {
+func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, index int) ui.Element {
 	if a.customRecording && a.customRecordRow == index {
-		a.customCapturePane(c, copy, func(accelerator string) {
+		return a.customCapturePane(c, copy, func(accelerator string) {
 			a.captureCustomKey(copy, accelerator)
 		})
-		return
 	}
 	// The reference passes `formatShortcut(row.key)` straight through, so a row
 	// without a key yet shows an empty keys slot (the button's accessible name
@@ -168,6 +176,7 @@ func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, inde
 		button.Focus()
 		a.customFocusKey = ""
 	}
+	return button
 }
 
 // captureCustomKey applies a chord the custom section recorded. A saved row
@@ -256,15 +265,23 @@ func (a *App) customWarning(copy i18n.Settings, key string, row int) string {
 func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry settings.CustomShortcut, index int) {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
+	rows := a.customFocusRows(c)
+	if rows[entry.Key] == nil {
+		rows[entry.Key] = &customRowFocus{}
+	}
+	focus := rows[entry.Key]
 	action := entry.Action
 	commandLine := !strings.HasPrefix(action, "plugin:") && !strings.HasPrefix(action, "action:")
 	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
-		a.customActionPicker(c, copy, action, func(next string) {
+		picker := a.customActionPicker(c, copy, action, func(next string) {
 			a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: next})
 			if next == commandAction {
 				a.customFocusDraft = true
 			}
-		})
+		}).Bind(&focus.picker)
+		if !commandLine && focus.command.Focused(c) {
+			picker.Focus()
+		}
 		if commandLine {
 			// A stored command line is the reference's editable
 			// `input.settings-select.custom-shortcut__command`
@@ -279,7 +296,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 			if draft, ok := a.customEdits[entry.Key]; ok {
 				text = draft
 			}
-			field := a.textInput(c, &text).Label(copy.ShortcutsCommand).
+			field := a.textInput(c, &text).Bind(&focus.command).Label(copy.ShortcutsCommand).
 				Placeholder(copy.ShortcutsCommandHint).Width(220).
 				MinHeight(t.Space(7)).Padding(0, t.Space(2.5)).Radius(999)
 			if field.Changed() {
@@ -294,7 +311,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 		}
 	}, func() {
 		ui.Row(c).AlignItems(ui.Center).Children(func() {
-			a.customRecorder(c, copy, entry.Key, index)
+			a.customRecorder(c, copy, entry.Key, index).Bind(&focus.recorder)
 			// The reference's trash is the sessions page's 28u danger icon
 			// button (`session-manager__icon-button--danger`), not a text button
 			// (`ShortcutsPage.tsx:275-286`): a transparent square whose ink turns
@@ -302,7 +319,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 			a.sessionIconButton(c, "trash", copy.ShortcutsRemove, true, false, false, func() {
 				a.removeCustomShortcut(index)
 				a.customFocusAdd = true
-			})
+			}, &focus.remove)
 		})
 		if warning := a.customWarning(copy, entry.Key, index); warning != "" {
 			ui.Text(c, warning).FontSize(tokens.Caption).FontWeight(500).TextColor(c.Theme().Warning)
@@ -386,7 +403,7 @@ const customDraftRow = -1
 // customActionPicker draws the action choice: one drop-down listing the
 // plugins, the app's actions and the command-line slot. Its accessible name is
 // the reference's `settings.customShortcutsAction`.
-func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current string, apply func(string)) {
+func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current string, apply func(string)) ui.Element {
 	options := copy.ShortcutsActions
 	value := current
 	if value == "" {
@@ -408,7 +425,8 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	}
 	selected := labels[index]
 	chosen := ""
-	if a.fieldFace(c, ui.Select(c, &selected, labels).Radius(999).Label(copy.ShortcutsAction), true).Changed() {
+	picker := a.fieldFace(c, ui.Select(c, &selected, labels).Radius(999).Label(copy.ShortcutsAction), true)
+	if picker.Changed() {
 		for _, option := range options {
 			if option.Label == selected {
 				chosen = option.ID
@@ -419,6 +437,21 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	if chosen != "" && chosen != current {
 		apply(chosen)
 	}
+	return picker
+}
+
+// Handles live with the rendered view. A host refresh only restores focus
+// when the retiring control still owns it; moving elsewhere takes priority.
+type customRowFocus struct {
+	command, picker, recorder, remove ui.Handle
+}
+
+type customFocusRowsKey struct{ app *App }
+
+func (a *App) customFocusRows(c *ui.Context) map[string]*customRowFocus {
+	return *ui.Local(c.Root(), customFocusRowsKey{a}, func() map[string]*customRowFocus {
+		return make(map[string]*customRowFocus)
+	})
 }
 
 // customRowComplete reports whether the draft row is whole — both a key and an

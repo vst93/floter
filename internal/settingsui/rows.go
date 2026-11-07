@@ -1101,7 +1101,7 @@ func (a *App) sessionChip(c *ui.Context) ui.Element {
 // to `--text-warning` (`:1336-1340`); a disabled one dims to the reference's
 // 0.4. The reference's Play button may also carry the accent resume dot in its
 // top-right corner (`:1319-1327`, `:203`), which is the only accent on the row.
-func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, resumable, disabled bool, run func()) {
+func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, resumable, disabled bool, run func(), focus ...*ui.Handle) {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	button := ui.ButtonBase(c).Label(label).
@@ -1116,6 +1116,9 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	// P13-az：提示走 `tokens.Tip`（§6.20 20-3），不再是框架那枚反色片子。
 	button = tokens.Tip(c, button, label)
+	for _, handle := range focus {
+		button.Bind(handle)
+	}
 	ink := t.TextMuted
 	switch {
 	case disabled:

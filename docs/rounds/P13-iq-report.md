@@ -45,3 +45,12 @@
 6. 现象：删除已保存绑定后键盘没有出口。改动：用户删除回到 Add。验证：两主题真实 Tab/Enter 删除，列表为空，Enter 立即再次打开草稿录制。
 
 相关 70 PASS / 0 FAIL，包 vet 净。M3 回注两处遗漏，6 FAIL：`bound draft lost the saved recorder focus`、`saved removal lost the Add outlet`、`Enter cannot continue after binding exit`。MD5 还原 touch 后 6 PASS。旧 V/B/S 0/0/0。
+
+第三批 f01b9e29 已推送。
+
+### 第四批
+
+7. 现象：宿主把命令改为插件动作后，聚焦输入框消失，Enter 无法打开仍在的选择器。改动：仅原命令框仍持有键盘时，将其交回同一行选择器。验证：深浅真实输入后宿主刷新，Enter 打开菜单；先移到 Add 的对照不抢焦点，刷新写入 0 次。
+8. 现象：宿主移除绑定后，聚焦命令框、录制器、选择器或删除钮均无出口。改动：按上一帧控件句柄识别真正失主的焦点，退役句柄后转回 Add。验证：两主题四种焦点来源及主动移开对照，Enter 可继续添加，刷新写入 0 次；录制状态仍沿原退役规则。
+
+相关 86 PASS / 0 FAIL，包 vet 净。M4 撤销两类恢复，12 FAIL（10 失败场景与两个父测试），原串：`refresh-action from command lost its visible outlet "Action"`、`refresh-removed from recording lost its visible outlet "Add"`、`refreshed outlet cannot add`。MD5 还原 touch 后 16 PASS。实现时曾把无返回值的 sessionIconButton 当元素使用而编译失败，已改为可选句柄绑定并通过回归；没有带红提交。旧 V/B/S 0/0/0。
