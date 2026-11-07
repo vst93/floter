@@ -27,6 +27,6 @@ qiaomu-design已读SKILL、偏好账本、craft-loop、preflight、chinese-typog
 
 ## 门槛与变异
 
-中文locale基线实测4689 PASS / 0 FAIL，3019个测试函数，普通命令退出0。每批两项先定向回归及包vet，变异恢复后立即commit/push；完整门槛集中一次：gofmt -l cmd internal为空，三平台go vet ./...、三平台go build ./...净，go test -count=1 ./...及-v全绿，PASS与函数数不降。
+中文locale基线-v全量实测4689 PASS / 0 FAIL，3019个测试函数，退出0。每批两项先定向回归及包vet，变异恢复后立即commit/push；完整门槛集中一次：gofmt -l cmd internal为空，三平台go vet ./...、三平台go build ./...净，go test -count=1 ./...及-v全绿，PASS与函数数不降。
 
 四批分别回注本批产品补丁：M1撤销动作身份应令两条计划pin红；M2撤销输出/平台身份令两条模式pin红；M3撤销高级身份与选项归还令对应两pin红；M4撤销移除后焦点归还令两删除pin红。每次先存MD5，回注实跑红，git apply恢复，md5sum -c逐字节比对，touch后复跑。深浅ui.Tester PNG出到/tmp/floter-P13-ik-*并归档对照图。
