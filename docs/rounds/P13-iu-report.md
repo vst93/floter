@@ -57,3 +57,9 @@ M3 反转“本次确有写入”条件，录制/恢复/插件三组事件 9 FAI
 8. 现象：别名写失败后无变化的 Commit 返回 nil；多别名中后一条成功还会清 Store.LastError，前一条失败被吞掉。改动：逐次回调完成就记住该次失败。验证：真实输入，179ms 不写、180ms 单次写；首条失败/次条成功仍显示错误，分别持有正确的已存值，恢复后 Flush 可重试。
 
 M4 回退逐次别名错误观测，5 FAIL；原串 `alias-single lost the failed alias write behind a later commit` / `alias-mixed lost the failed alias write behind a later commit`。MD5 OK + touch 后 5 PASS。额外保护：无新写入与 OS 拒绝均不会重放旧磁盘错误。旧 V/B/S 0/0/0；相关计数见 batch4。
+
+第四批 `63961993` 已推送，59 PASS。
+
+## 抢救回归补强（9）
+
+9. 现象：P13-it 预存 B 红，自动显示的 45 秒遮住宿主后来写入的 120 秒；用户提交预设关闭输入后再经历同样刷新也会重现。改动：自动展开与用户活动草稿分别跟踪，提交预设关闭输入时释放草稿归属。验证：原 B 不改，新增真实选择/输入/Enter → 宿主 45 → 120 事件；修前 `committed preset left stale draft ownership on a later host refresh`，深浅均红。活动未提交草稿优先级、菜单模型与写入时机保持。

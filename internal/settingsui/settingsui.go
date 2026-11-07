@@ -5444,6 +5444,9 @@ func (a *App) commitResidencyDraft() {
 	}
 	a.residencyDraft = strconv.FormatUint(uint64(next), 10)
 	a.residencyCustomOpen = residencySelectValue(next) == residencyCustom
+	if !a.residencyCustomOpen {
+		a.residencyEditing = false
+	}
 }
 
 func optionIndex(options []i18n.Option, id string) int {
