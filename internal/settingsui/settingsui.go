@@ -5752,6 +5752,12 @@ func (a *App) toolIssueUnder(c *ui.Context, copy i18n.Settings, issues []extensi
 // form's current draft, so it is what the user sees now rather than what the
 // form opened with.
 func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, command, program, args, script, language string) {
+	// A confirmation ends with its operation group. Returning to the other
+	// kind of tool must not revive a copy from before the switch.
+	if (mode == routeScript && a.copiedContent != "script") || (mode != routeScript && a.copiedContent == "script") {
+		a.copiedContent, a.copiedContentValue = "", ""
+		a.copiedContentUntil = time.Time{}
+	}
 	t := a.cardTheme(c)
 	a.actionRow(c, func() {
 		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {

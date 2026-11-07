@@ -1,0 +1,18 @@
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+--- PASS: TestCopyLifecycleProgramModeRetiresSuccess (0.95s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.39s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.20s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.20s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.17s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+--- PASS: TestCopyLifecycleScriptModeRetiresSuccess (0.49s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.24s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.25s)
+PASS
+ok  	floter/internal/settingsui	1.458s

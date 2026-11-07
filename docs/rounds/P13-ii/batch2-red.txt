@@ -1,0 +1,31 @@
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+    copylifecycle_test.go:165: command copy success revived after mode roundtrip
+    copylifecycle_test.go:171: ui: no element shows "复制命令"
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+    copylifecycle_test.go:165: plan copy success revived after mode roundtrip
+    copylifecycle_test.go:171: ui: no element shows "复制执行计划"
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+    copylifecycle_test.go:165: command copy success revived after mode roundtrip
+    copylifecycle_test.go:171: ui: no element shows "复制命令"
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+    copylifecycle_test.go:165: plan copy success revived after mode roundtrip
+    copylifecycle_test.go:171: ui: no element shows "复制执行计划"
+--- FAIL: TestCopyLifecycleProgramModeRetiresSuccess (1.50s)
+    --- FAIL: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.74s)
+    --- FAIL: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.26s)
+    --- FAIL: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.25s)
+    --- FAIL: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.25s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+    copylifecycle_test.go:165: script copy success revived after mode roundtrip
+    copylifecycle_test.go:171: ui: no element shows "复制脚本内容"
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+    copylifecycle_test.go:165: script copy success revived after mode roundtrip
+    copylifecycle_test.go:171: ui: no element shows "复制脚本内容"
+--- FAIL: TestCopyLifecycleScriptModeRetiresSuccess (0.50s)
+    --- FAIL: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.26s)
+    --- FAIL: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.25s)
+FAIL
+FAIL	floter/internal/settingsui	2.017s
+FAIL

@@ -109,3 +109,85 @@ func TestCopyLifecycleUnavailableContentIsInert(t *testing.T) {
 		})
 	}
 }
+
+func checkCopyMode(t *testing.T, script bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		actions := []string{"command", "plan"}
+		if script {
+			actions = []string{"script"}
+		}
+		for _, action := range actions {
+			t.Run(appearanceName(dark)+"/"+action, func(t *testing.T) {
+				a := copyLifecycleApp(t, dark)
+				tool := callbackTool("weather")
+				tool.ScriptLanguage, tool.ScriptContent = "js", "console.log('weather');\n"
+				if script {
+					tool.Mode = routeScript
+				}
+				a.beginEdit("local.weather", tool)
+				calls, exports := 0, 0
+				a.Actions.CopyText = func(string) { calls++ }
+				a.Actions.ExportScript = func(name, content string) {
+					exports++
+					if name != "local.weather-script.js" || content != tool.ScriptContent {
+						t.Errorf("export changed: %q %q", name, content)
+					}
+				}
+				tt := toolCallbackFrame(t, a, dark)
+				copy := a.copy()
+				label, done := copy.LocalToolCopyCommand, copy.LocalToolCommandCopied
+				away, back := copy.LocalToolModeScript, copy.LocalToolModeProgram
+				if action == "plan" {
+					label, done = copy.LocalToolCopyPlan, copy.LocalToolPlanCopied
+				}
+				if script {
+					label, done = copy.LocalToolCopyScript, copy.LocalToolScriptCopied
+					away, back = back, away
+				}
+				if err := tt.Click(label); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if !tt.HasText(done) || calls != 1 {
+					t.Fatal("initial copy failed")
+				}
+				if err := tt.Click(away); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if err := tt.Click(back); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				copyLifecycleDump(t, tt, "mode-"+action, dark)
+				if tt.HasText(done) || a.copiedContent != "" {
+					t.Errorf("%s copy success revived after mode roundtrip", action)
+				}
+				if calls != 1 || a.toolCommand != tool.Command || a.toolScript != tool.ScriptContent {
+					t.Error("mode switch modified content or copied again")
+				}
+				if err := tt.Click(label); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if calls != 2 || !tt.HasText(done) {
+					t.Error("current mode copy failed")
+				}
+				if script {
+					deadline := a.copiedContentUntil
+					if err := tt.Click(copy.LocalToolExportScript); err != nil {
+						t.Fatal(err)
+					}
+					tt.Frame()
+					if exports != 1 || calls != 2 || a.copiedContentUntil != deadline || !tt.HasText(done) {
+						t.Error("export changed the clipboard confirmation")
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestCopyLifecycleProgramModeRetiresSuccess(t *testing.T) { checkCopyMode(t, false) }
+func TestCopyLifecycleScriptModeRetiresSuccess(t *testing.T)  { checkCopyMode(t, true) }

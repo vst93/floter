@@ -1,0 +1,131 @@
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.64s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.44s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.20s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.38s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.18s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.19s)
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+--- PASS: TestCopyLifecycleProgramModeRetiresSuccess (1.07s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.26s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.29s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.27s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.25s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+--- PASS: TestCopyLifecycleScriptModeRetiresSuccess (0.58s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.29s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.29s)
+=== RUN   TestLocalDraftEmptyScriptStaysEmpty
+=== RUN   TestLocalDraftEmptyScriptStaysEmpty/light
+=== RUN   TestLocalDraftEmptyScriptStaysEmpty/dark
+--- PASS: TestLocalDraftEmptyScriptStaysEmpty (0.58s)
+    --- PASS: TestLocalDraftEmptyScriptStaysEmpty/light (0.18s)
+    --- PASS: TestLocalDraftEmptyScriptStaysEmpty/dark (0.39s)
+=== RUN   TestLocalDraftNewToolHasItsOwnUndoHistory
+--- PASS: TestLocalDraftNewToolHasItsOwnUndoHistory (0.15s)
+=== RUN   TestLocalDraftNewConnectionDefaultsToTerminal
+--- PASS: TestLocalDraftNewConnectionDefaultsToTerminal (0.26s)
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool/light
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool/dark
+--- PASS: TestLocalDraftCopyConfirmationBelongsToTool (0.35s)
+    --- PASS: TestLocalDraftCopyConfirmationBelongsToTool/light (0.14s)
+    --- PASS: TestLocalDraftCopyConfirmationBelongsToTool/dark (0.21s)
+=== RUN   TestLocalDraftScriptLinesDoNotOverlap
+=== RUN   TestLocalDraftScriptLinesDoNotOverlap/light
+=== RUN   TestLocalDraftScriptLinesDoNotOverlap/dark
+--- PASS: TestLocalDraftScriptLinesDoNotOverlap (0.15s)
+    --- PASS: TestLocalDraftScriptLinesDoNotOverlap/light (0.05s)
+    --- PASS: TestLocalDraftScriptLinesDoNotOverlap/dark (0.10s)
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent/light
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent/dark
+--- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent (0.38s)
+    --- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent/light (0.16s)
+    --- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent/dark (0.22s)
+=== RUN   TestLocalFormNewToolHasItsOwnTextHistory
+--- PASS: TestLocalFormNewToolHasItsOwnTextHistory (0.32s)
+=== RUN   TestLocalFormLocalePreservesParameterInput
+=== RUN   TestLocalFormLocalePreservesParameterInput/light
+=== RUN   TestLocalFormLocalePreservesParameterInput/dark
+--- PASS: TestLocalFormLocalePreservesParameterInput (0.07s)
+    --- PASS: TestLocalFormLocalePreservesParameterInput/light (0.04s)
+    --- PASS: TestLocalFormLocalePreservesParameterInput/dark (0.03s)
+=== RUN   TestLocalFormCommandSurvivesModeSwitch
+=== RUN   TestLocalFormCommandSurvivesModeSwitch/light
+=== RUN   TestLocalFormCommandSurvivesModeSwitch/dark
+--- PASS: TestLocalFormCommandSurvivesModeSwitch (0.40s)
+    --- PASS: TestLocalFormCommandSurvivesModeSwitch/light (0.07s)
+    --- PASS: TestLocalFormCommandSurvivesModeSwitch/dark (0.33s)
+=== RUN   TestLocalFormVersionSurvivesModeSwitch
+--- PASS: TestLocalFormVersionSurvivesModeSwitch (0.31s)
+=== RUN   TestLocalDraftParameterRemovalKeepsRemainingInput
+--- PASS: TestLocalDraftParameterRemovalKeepsRemainingInput (0.06s)
+=== RUN   TestLocalDraftParameterKindKeepsDefaultInput
+--- PASS: TestLocalDraftParameterKindKeepsDefaultInput (0.04s)
+=== RUN   TestLocalToolFormBuildsAScript
+--- PASS: TestLocalToolFormBuildsAScript (0.63s)
+=== RUN   TestLocalToolFormRefusesAnEmptyScript
+--- PASS: TestLocalToolFormRefusesAnEmptyScript (0.38s)
+=== RUN   TestToolCallbackPickerKeepsNewDraft
+=== RUN   TestToolCallbackPickerKeepsNewDraft/light
+=== RUN   TestToolCallbackPickerKeepsNewDraft/dark
+--- PASS: TestToolCallbackPickerKeepsNewDraft (0.32s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/light (0.17s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/dark (0.15s)
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/light
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/dark
+--- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty (0.36s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.19s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.16s)
+=== RUN   TestToolCallbackSaveKeepsNewEditor
+=== RUN   TestToolCallbackSaveKeepsNewEditor/light
+=== RUN   TestToolCallbackSaveKeepsNewEditor/dark
+--- PASS: TestToolCallbackSaveKeepsNewEditor (0.27s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/light (0.14s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/dark (0.12s)
+=== RUN   TestToolCallbackConnectKeepsNewEditor
+=== RUN   TestToolCallbackConnectKeepsNewEditor/light
+=== RUN   TestToolCallbackConnectKeepsNewEditor/dark
+--- PASS: TestToolCallbackConnectKeepsNewEditor (0.27s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/light (0.14s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/dark (0.12s)
+=== RUN   TestToolCallbackLookupKeepsNewEditor
+=== RUN   TestToolCallbackLookupKeepsNewEditor/light
+=== RUN   TestToolCallbackLookupKeepsNewEditor/dark
+--- PASS: TestToolCallbackLookupKeepsNewEditor (0.34s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/light (0.15s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/dark (0.19s)
+=== RUN   TestToolCallbackLookupRechecksEligibility
+=== RUN   TestToolCallbackLookupRechecksEligibility/light
+=== RUN   TestToolCallbackLookupRechecksEligibility/dark
+--- PASS: TestToolCallbackLookupRechecksEligibility (0.22s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/light (0.11s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/dark (0.12s)
+=== RUN   TestLocalToolFormCopiesItsContent
+--- PASS: TestLocalToolFormCopiesItsContent (0.45s)
+=== RUN   TestLocalToolFormCopiesTheScript
+    toolcontent_test.go:145: copied script = "#!/usr/bin/env node\n\n// Floter provider script\n// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n// Read them with process.argv.slice(2).\n// 编辑器里声明的参数会作为 argv 传入，可用 process.argv.slice(2) 读取。\n"
+--- PASS: TestLocalToolFormCopiesTheScript (0.38s)
+=== RUN   TestLocalToolFormExportsTheScript
+--- PASS: TestLocalToolFormExportsTheScript (0.40s)
+=== RUN   TestLocalToolFormNamesTheIntegrationBeingEdited
+--- PASS: TestLocalToolFormNamesTheIntegrationBeingEdited (0.26s)
+=== RUN   TestLocalToolForm
+--- PASS: TestLocalToolForm (0.57s)
+=== RUN   TestLocalToolFormNamesTheShapeRules
+--- PASS: TestLocalToolFormNamesTheShapeRules (0.70s)
+PASS
+ok  	floter/internal/settingsui	11.319s

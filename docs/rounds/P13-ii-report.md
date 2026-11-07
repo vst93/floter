@@ -29,3 +29,12 @@
 2. 现象：宿主没有 CopyText，复制命令依旧取得焦点、可按却无结果。改动：内容按钮走现有 disabledActionButton，能力撤回时退役确认；恢复能力后原位可用。验证：深浅真实点击不再取得焦点、不确认；恢复后一次点击派发一次。
 
 原版与 M1 注入均实红：`old copy returned success into new editor`、`unavailable content copy still accepts focus`。当批相关 38 PASS / 0 FAIL、包 vet 净；M1 6 FAIL，MD5 逐字节还原、touch 后 6 PASS / 0 FAIL。旧 V/B/S 修改 0/0/0，无新增 Skip。已目视浅色 after：local.second 的复制动作回到原始文案，未新增一层面。
+
+## 第二批（3–4）
+
+第一批 72173676 已推送。
+
+3. 现象：复制命令或执行计划后，真实点击脚本模式再切回程序，旧成功文案复活。改动：操作组退出程序模式时退役其确认。验证：命令/计划分别在深浅主题复制→切换→返回，不重放剪贴板调用，保留字段值；再次明确复制才确认。
+4. 现象：复制脚本后切换程序再回脚本，旧“脚本已复制”再次出现。改动：脚本组退出时同样退役。验证：深浅实际模式控件往返，脚本文本保持、当前复制可用；导出仍收到同一文件名和全文，且不抢占或延长复制反馈。
+
+原串：`command copy success revived after mode roundtrip`、`plan copy success revived after mode roundtrip`、`script copy success revived after mode roundtrip`。相关 64 PASS / 0 FAIL、包 vet 净；M2 撤回本批补丁 8 FAIL，MD5 还原 touch 后 8 PASS / 0 FAIL。旧 V/B/S 0/0/0。已目视深色脚本 after：代码仍在，复制文案回到待操作状态，导出位置不动。
