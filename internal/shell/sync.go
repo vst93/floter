@@ -308,6 +308,9 @@ func (a *App) configurationForAction(id string) (*extensions.Configuration, erro
 	if !ok || description.Configuration == nil {
 		return nil, errors.New("extensions: configuration is no longer available; refresh and try again")
 	}
+	if strings.EqualFold(description.Configuration.Owner, "tool") {
+		return nil, errors.New("extensions: configuration is now owned by the tool; open its configuration instead")
+	}
 	return description.Configuration, nil
 }
 

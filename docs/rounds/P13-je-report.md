@@ -25,3 +25,10 @@
 2. 导出旧入口：现象 → 同样刷新后无选择器、无任何结果。改动 → 同一当前配置校验给可见拒绝，解锁原按钮。验证 → 原代码 `stale export silently succeeded after missing/disabled refresh` 实红；路径选择器零次，恢复后可导出。
 
 空 schema 原本被未知字段校验拒绝，保留回归但不计修复。夹具首次编译误用 FindText、随后误点内置插件 Configure，均已修正；只有目标集成的真实按钮事件失败计入产品证据。
+
+第一批定向 32 PASS / 0 FAIL，shell vet 净，e98caabc 已推送。
+
+## 第二批
+
+3. 复制 ownership：现象 → provider 改由 tool 持有后，旧复制仍写剪贴板。改动 → 沿既有 tool-owner 语义在宿主拒绝，提示打开工具配置。验证 → `stale copy reached output: picker=0 clipboard=1` 原事件实红；修后不输出、不改草稿，恢复 host 后可重试。
+4. 导出 ownership：现象 → 相同刷新后仍打开选择器、落文件。改动 → 同一宿主 owner 校验拦在选择器前。验证 → `stale export reached output: picker=1 clipboard=0` 原事件实红；修后选择器零次，恢复 host 后导出一次。

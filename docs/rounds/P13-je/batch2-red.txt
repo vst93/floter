@@ -1,0 +1,27 @@
+=== RUN   TestConfigTargetCopyTool
+=== RUN   TestConfigTargetCopyTool/light
+    configtarget_test.go:150: stale copy silently succeeded after tool refresh
+    configtarget_test.go:155: stale copy reached output: picker=0 clipboard=1
+    configtarget_test.go:179: restored copy did not deliver exactly once
+=== RUN   TestConfigTargetCopyTool/dark
+    configtarget_test.go:150: stale copy silently succeeded after tool refresh
+    configtarget_test.go:155: stale copy reached output: picker=0 clipboard=1
+    configtarget_test.go:179: restored copy did not deliver exactly once
+--- FAIL: TestConfigTargetCopyTool (0.52s)
+    --- FAIL: TestConfigTargetCopyTool/light (0.28s)
+    --- FAIL: TestConfigTargetCopyTool/dark (0.24s)
+=== RUN   TestConfigTargetExportTool
+=== RUN   TestConfigTargetExportTool/light
+    configtarget_test.go:150: stale export silently succeeded after tool refresh
+    configtarget_test.go:155: stale export reached output: picker=1 clipboard=0
+    configtarget_test.go:179: restored export did not deliver exactly once
+=== RUN   TestConfigTargetExportTool/dark
+    configtarget_test.go:150: stale export silently succeeded after tool refresh
+    configtarget_test.go:155: stale export reached output: picker=1 clipboard=0
+    configtarget_test.go:179: restored export did not deliver exactly once
+--- FAIL: TestConfigTargetExportTool (0.49s)
+    --- FAIL: TestConfigTargetExportTool/light (0.25s)
+    --- FAIL: TestConfigTargetExportTool/dark (0.25s)
+FAIL
+FAIL	floter/internal/shell	1.024s
+FAIL

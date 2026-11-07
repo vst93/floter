@@ -192,3 +192,6 @@ func TestConfigTargetExportMissing(t *testing.T) {
 		t.Run(change, func(t *testing.T) { checkConfigTarget(t, "export", change) })
 	}
 }
+
+func TestConfigTargetCopyTool(t *testing.T)   { checkConfigTarget(t, "copy", "tool") }
+func TestConfigTargetExportTool(t *testing.T) { checkConfigTarget(t, "export", "tool") }
