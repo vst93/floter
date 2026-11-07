@@ -25,3 +25,8 @@
 2. 现象：磁盘 config.json 含非法 UTF-8，集成导出把损坏文本读成合法值并覆盖备份。改动：原始配置解析拒绝非法字节，导出错误附 config.json 路径。验证：原始 `stored-text export replaced a good backup with unrestorable content`；修正文件后同入口重试，中文/U+FFFD 原样保留。
 
 第一批定向 **20 PASS / 0 FAIL**，extensions/shell vet 净。旧 V/B/S 断言修改 0/0/0，无新增 Skip。未来候选的失败测试先作为复现日志落盘，各批实现时再启用对应函数，保证每个提交不会带已知红测试。浅色首轮图确认字段名与 UTF-8 原因两行可读，关闭按钮完整；没有新增层级。
+
+3. 现象：已登记包的 manifest 损坏，导出仍成功却丢掉整个包。改动：明确登记包的读取/解析失败返回路径原因；平台不匹配重新读原 manifest，不误当损坏；无包兼容记录保留。验证：原始 `manifest export replaced a good backup with unrestorable content`；坏文件不覆盖旧备份、修正后导出含完整包。
+4. 现象：零字节脚本成功导出，但已有导入器拒绝空脚本。改动：导出时拒绝空必需脚本并指出路径，保留原有导入约定。验证：原始 `empty-script export replaced a good backup with unrestorable content`；写回合法脚本后同入口备份原文相等。
+
+第二批定向 **22 PASS / 0 FAIL**，extensions/shell vet 净。深色 manifest 错误路径折行、原因尾部与关闭按钮可见；原有导入安装/合并/权限拒绝、缺脚本/descriptor 全绿。

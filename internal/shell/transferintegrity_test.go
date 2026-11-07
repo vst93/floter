@@ -202,3 +202,6 @@ func checkBackupIntegrity(t *testing.T, kind string) {
 }
 
 func TestBackupRejectsInvalidStoredText(t *testing.T) { checkBackupIntegrity(t, "stored-text") }
+
+func TestBackupRejectsBrokenDeclaredManifest(t *testing.T) { checkBackupIntegrity(t, "manifest") }
+func TestBackupRejectsEmptyScript(t *testing.T)            { checkBackupIntegrity(t, "empty-script") }

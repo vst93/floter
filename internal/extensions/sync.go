@@ -132,6 +132,16 @@ func ExportSync(paths Paths) (SyncDocument, error) {
 
 // exportIntegration reads one integration into a document entry.
 func exportIntegration(paths Paths, integration Integration) (SyncEntry, error) {
+	if integration.ManifestErr != nil && (integration.Entry.ManifestPath != "" || !errors.Is(integration.ManifestErr, ErrNoManifest)) {
+		// Inventory also reports platform incompatibility here. Backups may
+		// travel to another platform, so only a real manifest read/parse
+		// failure prevents exporting an explicitly recorded package.
+		manifest, err := LoadManifest(integration.ManifestPath())
+		if err != nil {
+			return SyncEntry{}, fmt.Errorf("%s: %w", integration.ManifestPath(), err)
+		}
+		integration.Manifest, integration.ManifestErr = manifest, nil
+	}
 	entry := SyncEntry{
 		ID:                 integration.Entry.ID,
 		Version:            integration.Version,
@@ -155,9 +165,11 @@ func exportIntegration(paths Paths, integration Integration) (SyncEntry, error) 
 	// The package's essentials, when they can be read.
 	packageDir := integration.PackageDir()
 	if packageDir != "" && integration.ManifestErr == nil {
-		if data, err := os.ReadFile(filepath.Join(packageDir, manifestFileName)); err == nil {
-			entry.Manifest = json.RawMessage(data)
+		data, err := os.ReadFile(integration.ManifestPath())
+		if err != nil {
+			return SyncEntry{}, err
 		}
+		entry.Manifest = json.RawMessage(data)
 		// A script runtime carries its script, a static provider its
 		// descriptor: those two are what a package cannot be rebuilt without.
 		if integration.Manifest.Runtime.Type == "script" {
@@ -165,6 +177,9 @@ func exportIntegration(paths Paths, integration Integration) (SyncEntry, error) 
 				data, err := os.ReadFile(filepath.Join(packageDir, filepath.FromSlash(script)))
 				if err != nil {
 					return SyncEntry{}, err
+				}
+				if len(data) == 0 {
+					return SyncEntry{}, fmt.Errorf("script %s is empty; the backup cannot restore it", filepath.Join(packageDir, filepath.FromSlash(script)))
 				}
 				entry.ScriptContent = string(data)
 			}
