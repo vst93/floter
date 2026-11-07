@@ -4135,14 +4135,12 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 		a.sectionWithAction(c, copy.ShortcutsToggle, copy.ShortcutsHint,
 			copy.ShortcutsReset, func() {
 				if a.Actions.ResetShortcuts != nil {
-					writes := a.Store.Writes()
+					// Like starting a recording, an explicit reset begins a new
+					// attempt even when the stored map is already the default.
+					a.rejectedShortcut = ""
 					a.observeSettingsWrite(a.Actions.ResetShortcuts)
 					if a.Actions.ShortcutRefused != nil && a.Actions.ShortcutRefused(settings.ShortcutToggleWindow) {
 						a.rejectedShortcut = settings.ShortcutToggleWindow
-					} else if a.Store.Writes() != writes && a.Store.LastError() == nil {
-						// This explicit reset resolved the old binding attempt.
-						// An unrelated/no-op callback does not erase its history.
-						a.rejectedShortcut = ""
 					}
 				}
 			}, func() {
