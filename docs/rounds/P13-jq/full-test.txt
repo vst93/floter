@@ -30,3 +30,18 @@ ok  	floter/internal/progtype	0.005s
 ok  	floter/internal/scriptlang	0.004s
 ok  	floter/internal/semver	0.005s
 ok  	floter/internal/settings	2.114s
+ok  	floter/internal/settingsui	376.613s
+ok  	floter/internal/shell	176.082s
+ok  	floter/internal/shortcuts	0.008s
+ok  	floter/internal/spawn	0.180s
+ok  	floter/internal/statefile	0.007s
+ok  	floter/internal/terminalui	25.563s
+ok  	floter/internal/termsession	4.395s
+ok  	floter/internal/textlines	0.009s
+ok  	floter/internal/theme	0.057s
+ok  	floter/internal/tools	0.009s
+ok  	floter/internal/usage	0.007s
+ok  	floter/internal/valuedomain	0.007s
+ok  	floter/internal/versioning	0.008s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.006s

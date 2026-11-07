@@ -8336,8 +8336,8 @@ pin 与深浅前后图、V/B/S、四条变异、stash 清点见 `rounds/P13-hl-r
 | 1 | 磁盘删除全部 lifecycle probes 后，旧检查刷新事实并退出，不继续旧 provider | 已落地 |
 | 2 | 无 lifecycle probes 的 provider 完成也刷新来源，磁盘换声明后撤回旧结果与通知 | 已落地 |
 | 3 | lifecycle 已写出的健康报告在 provider 等待期间即可见 | 已落地 |
-| 4 | provider 协议错误追加到已有 lifecycle 失败，两个原因均可见 | 已落地 |
-| 5 | lifecycle 与 provider 结构化失败共同保留在原摘要位置，原 provider 状态及明细保留 | 已落地 |
+| 4 | provider 协议错误追加到已有 lifecycle 失败，两个不同原因均可见；同文原因只显示一次 | 已落地 |
+| 5 | lifecycle 与 provider 结构化失败共同保留在原摘要位置，同文状态去重，原 provider 状态及明细保留 | 已落地 |
 | 6 | 顶层成功词的空白和大小写按既有状态墨规则归类，不误报失败 | 已落地 |
 | 7 | 明细成功词的空白和大小写同样正确归类，原始数据保留 | 已落地 |
 | 8 | 只有空白的失败消息在摘要中回退检查 ID，与既有明细规则一致 | 已落地 |

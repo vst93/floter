@@ -1,6 +1,8 @@
 # P13-jq · 诊断过程的当前事实与完整失败说明
 
-开盘 2a8b1e1c，工作区干净、ff-only 已同步。沿最新 P13-jp 的实际遗留继续，P13-hw 线索已由后续轮次覆盖。规格先落盘，八个候选尚未算成果。
+本轮完成八项修复，跨健康面、诊断摘要与通知组件；四批产品 dd96d76d / 9506c8b5 / 71e369e6 / 978a8fc8 与去重补修 fce187ba 均已推送。最终 **5840 PASS / 0 FAIL**，比开盘增加 32；三平台 vet/build、普通/verbose 全量、gofmt、MD5 和补充 race 全过。
+
+开盘 2a8b1e1c，工作区干净、ff-only 已同步。沿最新 P13-jp 的实际遗留继续，P13-hw 线索已由后续轮次覆盖。规格先落盘，下文增量记录保留从候选、实红到落地的过程。
 
 ## stash 清点
 
@@ -98,3 +100,63 @@
 复核发现新合并逻辑会重复同一运行时错误，真实缺失 executable 的两阶段报错实红：`shared runtime failure is repeated in the summary`。相同的 unhealthy 也实红：`identical stage verdicts are duplicated: "unhealthy; unhealthy"`。改为仅合并不同原因；同文原因显示一次，原始 provider status 仍保留。新增场景扩入原两条测试函数，不算第九项产品成果。完整门槛已启动但尚未完成；最终须对补修后的源码验收，早期门槛日志不冒充最终版。
 
 补修相关 **93 PASS / 0 FAIL**、两包 vet 净，原断言零改。正在补跑去重逻辑的独立 mutation；初轮四组 mutation 对应 initial-source.md5，最终补修使用 final-source.md5，两个版本不混称。
+
+补修 fce187ba 已推送；M5 撤回两个相同原因判断，**6 节点实红**，六文件 MD5 全 OK、touch 后 **6 PASS / 0 FAIL**。此前异步事件 race **28 PASS / 0 FAIL**；最终补修再跑 shared 场景的 race，不将旧源码验证冒充最终验证。初轮普通全量运行中时做了补修，因此额外跑 final-full-test 和三平台 vet/build；初轮脚本的后续 verbose 在全部源码还原后才继续，作为最终 verbose。
+
+去重补充另有 8 张原图与 4 对局部图：[同一运行时错误浅](P13-jq/shared-runtime-light-detail.png)、[深](P13-jq/shared-runtime-dark-detail.png)，[同一状态浅](P13-jq/shared-word-light-detail.png)、[深](P13-jq/shared-word-dark-detail.png)。属于第 4/5 项的补验，不计额外产品项。临时目录路径是每次子进程夹具真实生成，前后路径数字不同；原因是否重复由精确字符串断言守住，不靠像素计数判断。
+
+## Preflight A / B / C / D2
+
+| 项 | 结论 |
+| --- | --- |
+| A1 渐变/纯黑/霓虹/渐变字 | 无新增，保留中性主题 |
+| A2 非系统字体 | 中文系统字体及现有合约优先，不换装 |
+| A3 斜体 | 无新增 |
+| A4 Hero | 原生状态面，不适用 |
+| A5 三等分/万能卡片 | 新增容器 0 个 |
+| A6 假数据 | 产品无假指标；事件用真实子进程和临时仓库 |
+| A7 空词/感叹号 | i18n 文案零改 |
+| A8 眉批 | 新增 0 个 |
+| A9 H1 行数 | 原标题完整可见 |
+| A10 Bento 空洞 | 非 Bento，不适用 |
+| A11 装饰竖线 | 无新增，既有 broken 警告面不改 |
+| B1 读取/拨盘 | 2/1/6：原密度、即时状态、克制变化 |
+| B2 主题锁定 | 深浅分开渲染，无混主题 |
+| B3 记忆点 | 当前工具的两阶段检查事实完整且一致 |
+| B4 动效气质 | 高频状态同步 0ms 额外延时，无新增动效 |
+| C1 目的/频率 | 不为键盘或高频状态更新添加动画 |
+| C2 all/ease-in/scale(0)/fade | 无新增 |
+| C3 时长/按压 | 既有反馈动效与按压规则不改 |
+| C4 origin | 原 toast 位置不改，无新浮层 |
+| C5 reduced-motion | 截图显式 ReduceMotion=true，原机制保留 |
+| C6 hover 条件 | Go 自绘非 CSS；原指针路由不改 |
+| C7 布局动画 | 无新增，旧诊断撤下是内容事实变化 |
+| C8 keyframes 重播 | 无新增 |
+| C9 手势 | 不涉及 |
+| C10 Framer/Motion | 没有此依赖，不适用 |
+| C11 慢放 | 无新动效；只声称真实状态帧验证，未声称真机慢放 |
+| D2-1 系统字体 | 保留系统中文字体，无 webfont |
+| D2-2 行高/字号 | 通用 ≥14px/1.5 未满足；Caption9.9/正文10.8及行盒仍需拍板 |
+| D2-3 混排/单位 | 原 i18n 零改，错误/ID作为提供者原始数据显示 |
+| D2-4 标点/对比 | 中文文案原标点不改，不宣称旧次要墨全部过 7:1 |
+| D2 字重 | 沿用原 580/620 等，不宣称满足通用 400/500/600 |
+
+用户指定既有方向、Go 自绘和不改字号的限制优先于四方案 HTML、浏览器 viewport 和通用字号门。可复现问题入本仓 §6.244 与事件 pin，不把一次性修复改成全局 skill 审美规范。
+
+## 仍待
+
+1. 下一轮先事件复现健康报告自己的刷新按钮：probe 声明全部移除却仍有旧报告、绑定失败或仓库读取失败时，是否留下无效重试入口或只写日志而没有当前反馈。仅代码线索，不算已确认问题；不重复本轮诊断链八项。
+2. 既有字号/行盒、accent 禁用填充、未知选项、保存期草稿归属、重复包 ID/模板重试、终端 S1b/S1c/S2 尾继续待拍板，未改语义。
+3. Linux 真实子进程、磁盘刷新、ui.Tester 有证据；Windows/macOS 仅 vet/build，真机交互未验证。八条旧 WIP 保留，没有新 stash。
+
+## 完整门槛与交接
+
+最终产品 **fce187ba**。基线 **5808 PASS / 0 FAIL / 3345 函数**；最终 **5840 PASS / 0 FAIL / 3353 函数**（+32 PASS、+8 函数）。最终普通与 verbose 全量均退出 **0**；gofmt 空、Linux/Windows/Darwin 的 vet 和 build 全退出 0。原 V/B/S 断言修改 **0/0/0**，新增 Skip **0**，旧测试函数未减。
+
+八项原场景的定向 race **28 PASS / 0 FAIL**；最终补充共享原因场景 race **6 PASS / 0 FAIL**，两次分别记录，不把重复父节点相加成独立测试数。五组 mutation 均实红、六文件 MD5 核对及 touch 后 count=1 复跑；四组初稿还原 **6/6/8/8 PASS**，最终去重补验 **6 PASS**。最终源码校验六文件全部 OK。文档契约检查退出 0。
+
+证据：[最终普通全量](P13-jq/final-full-test.txt)、[最终 verbose](P13-jq/full-verbose.txt)、[最终门槛](P13-jq/final-gates.txt)、[verbose 统计](P13-jq/gates.txt)、[原事件 race](P13-jq/race.txt)、[补充 race](P13-jq/shared-race.txt)、[最终 MD5](P13-jq/final-md5.txt)、[文档检查](P13-jq/docs-check.txt)。初版普通全量 full-test.txt 也退出 0，但在补修前启动，保留为过程记录，不冒充最终普通结果。
+
+前后图为 Linux ui.Tester 软件自绘；代表原帧 `/tmp/floter-P13-jq-diagnostics-{light,dark}.png`。没有 Windows/macOS 真机交互证据，未改变终端或保存语义。
+
+按首次实测时钟 21:59 UTC 至收尾 22:27 UTC，约 28 分钟，低于 45–75 分钟目标。超过 40 次工具调用预算；扩项已停止，超额用于既定完整验收、还原核对与归档。数量、跨组件、逐批推送及全部验收已完成，这两项过程偏差明确保留。

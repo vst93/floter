@@ -1,0 +1,14 @@
+=== RUN   TestDiagnosisPhaseProtocolFailure
+=== RUN   TestDiagnosisPhaseProtocolFailure/shared-runtime/light
+=== RUN   TestDiagnosisPhaseProtocolFailure/shared-runtime/dark
+--- PASS: TestDiagnosisPhaseProtocolFailure (1.49s)
+    --- PASS: TestDiagnosisPhaseProtocolFailure/shared-runtime/light (0.94s)
+    --- PASS: TestDiagnosisPhaseProtocolFailure/shared-runtime/dark (0.55s)
+=== RUN   TestDiagnosisSummaryCombinedFailures
+=== RUN   TestDiagnosisSummaryCombinedFailures/shared-word/light
+=== RUN   TestDiagnosisSummaryCombinedFailures/shared-word/dark
+--- PASS: TestDiagnosisSummaryCombinedFailures (1.18s)
+    --- PASS: TestDiagnosisSummaryCombinedFailures/shared-word/light (0.59s)
+    --- PASS: TestDiagnosisSummaryCombinedFailures/shared-word/dark (0.59s)
+PASS
+ok  	floter/internal/shell	2.684s

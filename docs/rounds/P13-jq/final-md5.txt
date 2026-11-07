@@ -1,0 +1,6 @@
+internal/shell/shell.go: 成功
+internal/settingsui/settingsui.go: 成功
+internal/shell/diagnosisboundary_test.go: 成功
+internal/shell/diagnosisphase_test.go: 成功
+internal/shell/diagnosissummary_test.go: 成功
+internal/shell/diagnosismessage_test.go: 成功
