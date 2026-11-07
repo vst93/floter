@@ -558,7 +558,13 @@ func (a *App) commitCustomCommand(index int, text string) {
 		delete(a.customEdits, entries[index].Key)
 		return
 	}
-	a.updateCustomShortcut(index, settings.CustomShortcut{Key: entries[index].Key, Action: next})
+	// The editor submits command text, not a picker mode. In particular the
+	// shell builtin "command" must not take the picker's draft-conversion path.
+	updated := append([]settings.CustomShortcut{}, entries...)
+	updated[index].Action = next
+	if a.commitCustomShortcuts(updated) {
+		delete(a.customEdits, entries[index].Key)
+	}
 }
 
 // updateCustomShortcut rewrites one row's action. The picker's
