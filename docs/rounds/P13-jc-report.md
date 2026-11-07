@@ -34,3 +34,12 @@ done.log 开盘不存在。按本轮实测创建交接，不追认历史日志�
 4. 保存行菜单 Escape：现象 → Escape 取消底下录制，菜单仍留着，后续组合键不能完成原行。改动 → 同一菜单拥有键盘，Escape 只关闭菜单。验证 → Escape 写入 0 次，录制继续且聚焦，下一组合键完成原行。
 
 相关 355 PASS / 0 FAIL，settingsui vet 净。M2 回注旧 custom.go 实红，原串 `recorder left action menu open after keyboard exit`、`saved menu did not commit keyboard-selected action`、`menu exit canceled or lost the original recorder`、`menu return cannot finish the original binding`；两文件 MD5 还原，touch 后 6 PASS。旧 V/B/S 0/0/0。实现时漏一处闭括号的编译错误已修，不把编译错误计入 mutation。
+
+第二批 **5e724345** 已推送。
+
+## 第三批：草稿菜单的键盘出口
+
+5. 草稿动作选择：现象 → Add 自动录制时，动作菜单 End/Enter 不能切到命令模式。改动 → 草稿的已开菜单同样取得焦点。验证 → 深浅真实 End/Enter 显示命令输入框，下一组合键仍落原草稿，输入 say draft 后可绑定。
+6. 草稿菜单 Escape：现象 → Escape 取消草稿录制而留下菜单，下一键不能录入。改动 → 菜单优先接收 Escape，关闭后归还原捕获。验证 → Escape 写入 0 次，原草稿仍在录制，下一键及 Bind 完成同一条绑定。
+
+相关 361 PASS / 0 FAIL，settingsui vet 净。M3 回注上一批 custom.go，原串 `draft menu could not select command mode`、`menu exit canceled or lost the original recorder`、`menu return did not record into the same draft` 实红；MD5 还原、touch 后 6 PASS。旧 V/B/S 0/0/0。

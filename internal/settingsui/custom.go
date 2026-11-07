@@ -347,9 +347,10 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 	tokens := a.tokens(c)
 	a.cardRow(c, ui.Center, nil, rowFace{FlexibleControls: true}, func() {
-		a.customActionPicker(c, copy, a.customAction, func(action string) {
+		picker := a.customActionPicker(c, copy, a.customAction, func(action string) {
 			a.customAction = action
 		})
+		focusOpenCustomPicker(picker)
 		if a.customAction == commandAction {
 			command := a.customCommand
 			field := a.textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
