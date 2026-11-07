@@ -1,0 +1,52 @@
+=== RUN   TestTheImportSummaryIsNeutral
+=== RUN   TestTheImportSummaryIsNeutral/light
+=== RUN   TestTheImportSummaryIsNeutral/dark
+--- PASS: TestTheImportSummaryIsNeutral (0.10s)
+    --- PASS: TestTheImportSummaryIsNeutral/light (0.09s)
+    --- PASS: TestTheImportSummaryIsNeutral/dark (0.01s)
+=== RUN   TestTheSettingsPageHasNoFrameworkTips
+--- PASS: TestTheSettingsPageHasNoFrameworkTips (0.01s)
+=== RUN   TestImportReportLongSourceFitsTooltip
+=== RUN   TestImportReportLongSourceFitsTooltip/light
+=== RUN   TestImportReportLongSourceFitsTooltip/dark
+--- PASS: TestImportReportLongSourceFitsTooltip (0.08s)
+    --- PASS: TestImportReportLongSourceFitsTooltip/light (0.07s)
+    --- PASS: TestImportReportLongSourceFitsTooltip/dark (0.01s)
+=== RUN   TestImportExcludedDetailsExposeFieldCounts
+=== RUN   TestImportExcludedDetailsExposeFieldCounts/light
+=== RUN   TestImportExcludedDetailsExposeFieldCounts/dark
+--- PASS: TestImportExcludedDetailsExposeFieldCounts (0.02s)
+    --- PASS: TestImportExcludedDetailsExposeFieldCounts/light (0.01s)
+    --- PASS: TestImportExcludedDetailsExposeFieldCounts/dark (0.01s)
+=== RUN   TestImportFailureTailHasReadableDetails
+=== RUN   TestImportFailureTailHasReadableDetails/light
+=== RUN   TestImportFailureTailHasReadableDetails/dark
+--- PASS: TestImportFailureTailHasReadableDetails (0.02s)
+    --- PASS: TestImportFailureTailHasReadableDetails/light (0.01s)
+    --- PASS: TestImportFailureTailHasReadableDetails/dark (0.01s)
+=== RUN   TestImportFailureTailAvailableInPageScroll
+=== RUN   TestImportFailureTailAvailableInPageScroll/light
+=== RUN   TestImportFailureTailAvailableInPageScroll/dark
+--- PASS: TestImportFailureTailAvailableInPageScroll (0.04s)
+    --- PASS: TestImportFailureTailAvailableInPageScroll/light (0.02s)
+    --- PASS: TestImportFailureTailAvailableInPageScroll/dark (0.02s)
+=== RUN   TestImportReportRevealsItsSource
+=== RUN   TestImportReportRevealsItsSource/light/success
+=== RUN   TestImportReportRevealsItsSource/light/failed
+=== RUN   TestImportReportRevealsItsSource/dark/success
+=== RUN   TestImportReportRevealsItsSource/dark/failed
+--- PASS: TestImportReportRevealsItsSource (0.05s)
+    --- PASS: TestImportReportRevealsItsSource/light/success (0.01s)
+    --- PASS: TestImportReportRevealsItsSource/light/failed (0.01s)
+    --- PASS: TestImportReportRevealsItsSource/dark/success (0.01s)
+    --- PASS: TestImportReportRevealsItsSource/dark/failed (0.01s)
+=== RUN   TestImportReportLongFailureStaysInItsColumn
+=== RUN   TestImportReportLongFailureStaysInItsColumn/light
+=== RUN   TestImportReportLongFailureStaysInItsColumn/dark
+--- PASS: TestImportReportLongFailureStaysInItsColumn (0.01s)
+    --- PASS: TestImportReportLongFailureStaysInItsColumn/light (0.01s)
+    --- PASS: TestImportReportLongFailureStaysInItsColumn/dark (0.00s)
+=== RUN   TestIntegrationTransferButtons
+--- PASS: TestIntegrationTransferButtons (0.19s)
+PASS
+ok  	floter/internal/settingsui	0.577s
