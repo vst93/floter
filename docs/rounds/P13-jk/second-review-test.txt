@@ -1,0 +1,32 @@
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure/light
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure/dark
+--- PASS: TestExternalConfigAcceptanceRetiresSaveFailure (0.07s)
+    --- PASS: TestExternalConfigAcceptanceRetiresSaveFailure/light (0.06s)
+    --- PASS: TestExternalConfigAcceptanceRetiresSaveFailure/dark (0.01s)
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity/light
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity/dark
+--- PASS: TestExternalConfigNumberRetainsCurrentValidity (0.00s)
+    --- PASS: TestExternalConfigNumberRetainsCurrentValidity/light (0.00s)
+    --- PASS: TestExternalConfigNumberRetainsCurrentValidity/dark (0.00s)
+=== RUN   TestExternalConfigTextRetainsCurrentValidity
+=== RUN   TestExternalConfigTextRetainsCurrentValidity/light
+=== RUN   TestExternalConfigTextRetainsCurrentValidity/dark
+--- PASS: TestExternalConfigTextRetainsCurrentValidity (0.01s)
+    --- PASS: TestExternalConfigTextRetainsCurrentValidity/light (0.00s)
+    --- PASS: TestExternalConfigTextRetainsCurrentValidity/dark (0.00s)
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange/light
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange/dark
+--- PASS: TestExternalConfigAcceptedSelectionEndsRange (0.01s)
+    --- PASS: TestExternalConfigAcceptedSelectionEndsRange/light (0.00s)
+    --- PASS: TestExternalConfigAcceptedSelectionEndsRange/dark (0.00s)
+=== RUN   TestExternalConfigAcceptanceKeepsUnfinishedSibling
+=== RUN   TestExternalConfigAcceptanceKeepsUnfinishedSibling/light
+=== RUN   TestExternalConfigAcceptanceKeepsUnfinishedSibling/dark
+--- PASS: TestExternalConfigAcceptanceKeepsUnfinishedSibling (0.05s)
+    --- PASS: TestExternalConfigAcceptanceKeepsUnfinishedSibling/light (0.03s)
+    --- PASS: TestExternalConfigAcceptanceKeepsUnfinishedSibling/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.146s

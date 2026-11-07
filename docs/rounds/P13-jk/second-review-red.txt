@@ -1,0 +1,11 @@
+=== RUN   TestExternalConfigAcceptanceKeepsUnfinishedSibling
+=== RUN   TestExternalConfigAcceptanceKeepsUnfinishedSibling/light
+    configexternalresult_test.go:155: accepting one field retired the unfinished form's failure or input
+=== RUN   TestExternalConfigAcceptanceKeepsUnfinishedSibling/dark
+    configexternalresult_test.go:155: accepting one field retired the unfinished form's failure or input
+--- FAIL: TestExternalConfigAcceptanceKeepsUnfinishedSibling (0.13s)
+    --- FAIL: TestExternalConfigAcceptanceKeepsUnfinishedSibling/light (0.11s)
+    --- FAIL: TestExternalConfigAcceptanceKeepsUnfinishedSibling/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.130s
+FAIL

@@ -269,7 +269,7 @@ func (a *App) draft(integration Integration) *configDraft {
 	// An external writer can finish the exact edit whose save failed here.
 	// Retire that failure only once the whole draft is confirmed; unrelated
 	// refreshes, partial edits and in-flight saves retain their own feedback.
-	if acceptedEdit && !a.configSaveBusy[integration.ID] && !a.configDirty(integration, draft) {
+	if acceptedEdit && len(draft.live) == 0 && !a.configSaveBusy[integration.ID] && !a.configDirty(integration, draft) {
 		delete(a.configError, integration.ID)
 	}
 	return draft

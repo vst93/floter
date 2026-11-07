@@ -44,3 +44,7 @@
 
 7. 现象：保存失败后，外部导入/写入已确认完全相同的草稿，界面读 Saved 但仍留旧保存失败条。改动：本地改动被外部实际值接受且整个草稿不再有差异时，撤掉这条旧失败；不触发保存或新成功通知。验证：真实输入、点击 Save 失败、配置值刷新，深浅修前 `external acceptance left an obsolete save failure`。
 8. 现象：选 alpha 后外部确认相同选择，再 Shift 点 gamma，会连 beta 一起带上。改动：外部接受当前多选值时退役旧范围锚点。验证：真实点击与 Shift 点击，修前 `[alpha beta gamma]`，修后 `[alpha gamma]`。首版四选项夹具最后一行在滚动区外，未派发点击；正式三选项事件与 batch4-red.txt 已排除该夹具错误。
+
+第四批 **c77d70b3** 已提交推送，原日志为 **31 PASS / 0 FAIL**、settingsui vet 净。该提交正文误写 28 PASS，此处按原日志纠正，不重写已推送历史。
+
+第二轮四视角：艺术总监看见批准卡底部不再被旧告警占据；工程师增加“空数字值上还有 1e 半输入”反例；任务用户需要知道仍未完成的输入不能算整表成功；读者需要过长/越界提示继续贴着当前字段。反例实红 `accepting one field retired the unfinished form's failure or input`，原因是 nil 数值相等不能代表半输入完成。补上 live 草稿为空条件，保持原半输入与错误，不新增修复项凑数。

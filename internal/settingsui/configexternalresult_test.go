@@ -130,3 +130,30 @@ func TestExternalConfigAcceptedSelectionEndsRange(t *testing.T) {
 		})
 	}
 }
+
+func TestExternalConfigAcceptanceKeepsUnfinishedSibling(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			in := Integration{ID: "local.external", Config: []ConfigField{
+				{Key: "path", Label: "工作目录", Type: "path"},
+				{Key: "limit", Label: "结果上限", Type: "number"},
+			}, ConfigValues: map[string]any{"path": "/workspace/before", "limit": nil}}
+			a, tt := configIdentityFrame(t, dark, &in)
+			a.Actions.SaveConfiguration = func(_ string, _ map[string]any, done func(error)) { done(errors.New("save was refused")) }
+			configIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/accepted")
+			tt.Frame()
+			if err := tt.Click(a.copy().ConfigSave); err != nil {
+				t.Fatal(err)
+			}
+			configIdentityFocus(t, tt, "结果上限")
+			tt.Type("1e")
+			tt.Frame()
+			in.ConfigValues["path"] = "/workspace/accepted"
+			tt.Frame()
+			if !tt.HasText("save was refused") || refreshRead(tt) != "1e" {
+				t.Error("accepting one field retired the unfinished form's failure or input")
+			}
+		})
+	}
+}
