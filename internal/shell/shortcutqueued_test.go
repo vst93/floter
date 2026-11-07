@@ -163,3 +163,57 @@ func queuedSummon(t *testing.T, a *App, fn func(), want bool) {
 		t.Errorf("queued summon reached Toggle = %d, want dispatch %v", calls, want)
 	}
 }
+
+func TestQueuedSummonReplacedKeyCannotDispatch(t *testing.T) { checkQueuedSummonReplacement(t, false) }
+func TestQueuedSummonExternalKeyCannotDispatch(t *testing.T) { checkQueuedSummonReplacement(t, true) }
+
+func checkQueuedSummonReplacement(t *testing.T, external bool) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			h := newShortcutLifecycle(t, "Ctrl+Alt+J")
+			old := h.live["Ctrl+Alt+J"]
+			tt := h.frame(dark)
+			name := "summon-replaced"
+			if external {
+				name = "summon-external"
+				if err := h.app.Store.Update(func(s *settings.Settings) {
+					s.SetExtra("hotkey", "Ctrl+Alt+K")
+					s.SetShortcut(settings.ShortcutToggleWindow, "Ctrl+Alt+K")
+				}); err != nil {
+					t.Fatal(err)
+				}
+				h.app.ApplySummonShortcut()
+			} else {
+				lifecycleRecord(t, h, tt, "Ctrl+Alt+J")
+				tt.Key(ui.Ctrl|ui.Alt, ui.KeyK)
+			}
+			tt.Frame()
+			tt.Frame()
+			if h.app.summonKey != "Ctrl+Alt+K" || h.live["Ctrl+Alt+K"] == nil {
+				t.Fatal("replacement not active")
+			}
+			queuedSummon(t, h.app, old, false)
+			queuedSummon(t, h.app, h.live["Ctrl+Alt+K"], true)
+			queuedDump(t, tt, name, dark)
+		})
+	}
+}
+
+func TestQueuedSummonFailedReplacementKeepsWorkingCallback(t *testing.T) {
+	a, live, _, _ := shortcutWriteFailureApp(t)
+	old := live["Ctrl+Alt+J"]
+	register := a.registerShortcut
+	var tentative func()
+	a.registerShortcut = func(key string, fn func()) error {
+		if key == "Ctrl+Alt+K" {
+			tentative = fn
+		}
+		return register(key, fn)
+	}
+	a.setShortcut(settings.ShortcutToggleWindow, "Ctrl+Alt+K")
+	if a.Store.LastError() == nil {
+		t.Fatal("no disk refusal")
+	}
+	queuedSummon(t, a, tentative, false)
+	queuedSummon(t, a, old, true)
+}

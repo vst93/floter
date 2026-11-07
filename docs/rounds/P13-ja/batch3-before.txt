@@ -1,0 +1,23 @@
+=== RUN   TestQueuedSummonReplacedKeyCannotDispatch
+=== RUN   TestQueuedSummonReplacedKeyCannotDispatch/light
+    shortcutqueued_test.go:195: queued summon reached Toggle = 1, want dispatch false
+=== RUN   TestQueuedSummonReplacedKeyCannotDispatch/dark
+    shortcutqueued_test.go:195: queued summon reached Toggle = 1, want dispatch false
+--- FAIL: TestQueuedSummonReplacedKeyCannotDispatch (0.50s)
+    --- FAIL: TestQueuedSummonReplacedKeyCannotDispatch/light (0.25s)
+    --- FAIL: TestQueuedSummonReplacedKeyCannotDispatch/dark (0.25s)
+=== RUN   TestQueuedSummonExternalKeyCannotDispatch
+=== RUN   TestQueuedSummonExternalKeyCannotDispatch/light
+    shortcutqueued_test.go:195: queued summon reached Toggle = 1, want dispatch false
+=== RUN   TestQueuedSummonExternalKeyCannotDispatch/dark
+    shortcutqueued_test.go:195: queued summon reached Toggle = 1, want dispatch false
+--- FAIL: TestQueuedSummonExternalKeyCannotDispatch (0.25s)
+    --- FAIL: TestQueuedSummonExternalKeyCannotDispatch/light (0.07s)
+    --- FAIL: TestQueuedSummonExternalKeyCannotDispatch/dark (0.17s)
+=== RUN   TestQueuedSummonFailedReplacementKeepsWorkingCallback
+2026/11/07 20:29:19 floter: could not save Ctrl+Alt+K: rename /tmp/TestQueuedSummonFailedReplacementKeepsWorkingCallback697015235/001/.floter-state-2465662907.tmp /tmp/TestQueuedSummonFailedReplacementKeepsWorkingCallback697015235/001/settings.json: file exists
+    shortcutqueued_test.go:217: queued summon reached Toggle = 1, want dispatch false
+--- FAIL: TestQueuedSummonFailedReplacementKeepsWorkingCallback (0.00s)
+FAIL
+FAIL	floter/internal/shell	0.763s
+FAIL

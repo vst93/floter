@@ -1,0 +1,17 @@
+=== RUN   TestQueuedSummonReplacedKeyCannotDispatch
+=== RUN   TestQueuedSummonReplacedKeyCannotDispatch/light
+=== RUN   TestQueuedSummonReplacedKeyCannotDispatch/dark
+--- PASS: TestQueuedSummonReplacedKeyCannotDispatch (0.46s)
+    --- PASS: TestQueuedSummonReplacedKeyCannotDispatch/light (0.18s)
+    --- PASS: TestQueuedSummonReplacedKeyCannotDispatch/dark (0.29s)
+=== RUN   TestQueuedSummonExternalKeyCannotDispatch
+=== RUN   TestQueuedSummonExternalKeyCannotDispatch/light
+=== RUN   TestQueuedSummonExternalKeyCannotDispatch/dark
+--- PASS: TestQueuedSummonExternalKeyCannotDispatch (0.18s)
+    --- PASS: TestQueuedSummonExternalKeyCannotDispatch/light (0.02s)
+    --- PASS: TestQueuedSummonExternalKeyCannotDispatch/dark (0.16s)
+=== RUN   TestQueuedSummonFailedReplacementKeepsWorkingCallback
+2026/11/07 20:31:00 floter: could not save Ctrl+Alt+K: rename /tmp/TestQueuedSummonFailedReplacementKeepsWorkingCallback1790794862/001/.floter-state-4142195403.tmp /tmp/TestQueuedSummonFailedReplacementKeepsWorkingCallback1790794862/001/settings.json: file exists
+--- PASS: TestQueuedSummonFailedReplacementKeepsWorkingCallback (0.00s)
+PASS
+ok  	floter/internal/shell	0.661s

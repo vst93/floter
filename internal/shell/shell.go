@@ -377,7 +377,8 @@ type App struct {
 	unregisterShortcut func(string)
 	summonKey          string
 	// A native event may already be queued when its registration is released.
-	customGeneration uint64
+	customGeneration   uint64
+	summonRegistration *bool
 
 	// Clipboard is the clipboard history the launcher searches, and
 	// Calculator its calculation history.
@@ -1485,7 +1486,8 @@ func (a *App) setShortcut(id, accelerator string) {
 	// A new attempt owns its own failure; an earlier OS refusal must not
 	// mislabel a later disk error.
 	a.ShortcutErr, a.shortcutRefusal = nil, ""
-	if err := a.registerShortcut(normalized, a.summonCallback()); err != nil {
+	activate, err := a.registerSummonShortcut(normalized)
+	if err != nil {
 		// The system holds the chord (another app took it): the old key stays
 		// registered and nothing is written, so the page owes the user a word
 		// about the new one not taking. ShortcutRefused carries this back to
@@ -1514,6 +1516,7 @@ func (a *App) setShortcut(id, accelerator string) {
 		a.unregisterShortcut(a.summonKey)
 	}
 	a.summonKey = normalized
+	activate()
 	a.summonNeedsRestore = false
 	a.Settings.SummonUnavailable = false
 	a.Settings.Shortcut = normalized
@@ -2272,7 +2275,8 @@ func (a *App) ApplySummonShortcut() {
 	if accelerator == a.summonKey && !a.summonNeedsRestore {
 		return
 	}
-	if err := a.registerShortcut(accelerator, a.summonCallback()); err != nil {
+	activate, err := a.registerSummonShortcut(accelerator)
+	if err != nil {
 		// Same refusal as setShortcut's: the chord the settings name is not
 		// the one the system holds now, and the page has to be able to say so.
 		log.Printf("floter: could not register %s: %v", accelerator, err)
@@ -2285,6 +2289,7 @@ func (a *App) ApplySummonShortcut() {
 		a.unregisterShortcut(a.summonKey)
 	}
 	a.summonKey = accelerator
+	activate()
 	a.summonNeedsRestore = false
 	a.Settings.SummonUnavailable = false
 	a.Settings.Shortcut = accelerator
