@@ -1,0 +1,23 @@
+=== RUN   TestAliasFeedbackTracksTheVisibleDraft
+=== RUN   TestAliasFeedbackTracksTheVisibleDraft/light
+    aliasfeedbackrefresh_test.go:45: old alias conflict labels a different pending draft
+    aliasfeedbackrefresh_test.go:58: empty alias kept the old conflict
+=== RUN   TestAliasFeedbackTracksTheVisibleDraft/dark
+    aliasfeedbackrefresh_test.go:45: old alias conflict labels a different pending draft
+    aliasfeedbackrefresh_test.go:58: empty alias kept the old conflict
+--- FAIL: TestAliasFeedbackTracksTheVisibleDraft (0.30s)
+    --- FAIL: TestAliasFeedbackTracksTheVisibleDraft/light (0.23s)
+    --- FAIL: TestAliasFeedbackTracksTheVisibleDraft/dark (0.06s)
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears/light
+    aliasfeedbackrefresh_test.go:84: reopened command resurrected retired draft: "say obsolete"
+    aliasfeedbackrefresh_test.go:88: Enter overwrote the new host action
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears/dark
+    aliasfeedbackrefresh_test.go:84: reopened command resurrected retired draft: "say obsolete"
+    aliasfeedbackrefresh_test.go:88: Enter overwrote the new host action
+--- FAIL: TestCustomDraftRetiresWhenCommandEditorDisappears (0.49s)
+    --- FAIL: TestCustomDraftRetiresWhenCommandEditorDisappears/light (0.12s)
+    --- FAIL: TestCustomDraftRetiresWhenCommandEditorDisappears/dark (0.37s)
+FAIL
+FAIL	floter/internal/settingsui	0.806s
+FAIL

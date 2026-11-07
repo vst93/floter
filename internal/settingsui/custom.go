@@ -24,6 +24,12 @@ import (
 // customSection draws the list, the row being made and the empty region.
 func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	entries := a.customShortcuts()
+	for _, entry := range entries {
+		// An external action change can unmount the command editor too.
+		if strings.HasPrefix(entry.Action, "plugin:") || strings.HasPrefix(entry.Action, "action:") {
+			delete(a.customEdits, entry.Key)
+		}
+	}
 	// A row being made starts on the first action, as the old build's draft
 	// row did, so the action can be chosen before the key or the other way
 	// round.

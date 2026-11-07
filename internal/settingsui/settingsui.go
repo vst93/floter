@@ -3680,7 +3680,8 @@ func (a *App) commandAliasEditor(c *ui.Context, copy i18n.Settings, extensionID 
 			a.Actions.SetCommandAlias != nil {
 			a.debounceAlias(extensionID, command.ID, alias)
 		}
-		if command.Taken {
+		// Taken describes the host's alias, not an uncommitted replacement.
+		if command.Taken && strings.TrimSpace(alias) == strings.TrimSpace(command.Alias) {
 			ui.Text(c, copy.IntegrationsCommandAliasTaken).
 				FontSize(tokens.Caption).TextColor(t.TextMuted)
 		}

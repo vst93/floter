@@ -1,0 +1,14 @@
+=== RUN   TestAliasFeedbackTracksTheVisibleDraft
+=== RUN   TestAliasFeedbackTracksTheVisibleDraft/light
+=== RUN   TestAliasFeedbackTracksTheVisibleDraft/dark
+--- PASS: TestAliasFeedbackTracksTheVisibleDraft (0.40s)
+    --- PASS: TestAliasFeedbackTracksTheVisibleDraft/light (0.34s)
+    --- PASS: TestAliasFeedbackTracksTheVisibleDraft/dark (0.06s)
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears/light
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears/dark
+--- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears (0.60s)
+    --- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears/light (0.14s)
+    --- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears/dark (0.46s)
+PASS
+ok  	floter/internal/settingsui	1.023s
