@@ -1957,6 +1957,7 @@ func (a *App) diagnoseIntegration(id string) {
 func integrationDiagnosisSource(integration extensions.Integration) string {
 	data, _ := json.Marshal([]any{integration.Entry.ManifestPath,
 		integration.Entry.ExecutablePath, integration.Entry.PackageVersion,
+		integration.Entry.CurrentVersion, integration.Entry.RuntimeRoot,
 		integration.Manifest, integration.ManifestErr != nil})
 	return string(data)
 }

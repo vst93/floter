@@ -25,3 +25,10 @@
 2. 现象：磁盘已有更新的健康报告，过期探测仍下结论并通知“报告了问题”。改动：ErrProbeSuperseded/ErrNoIntegration刷新当前事实后结束。验证：真实健康子进程门控制磁盘更新、不提前刷新Inventory；原串 `discarded lifecycle check published a diagnosis or notice: diagnosis="ok" failed=true` 深浅均红，修复后无旧诊断/通知且新时间可见。
 
 第一批相关 **37 PASS / 0 FAIL**、shell vet净；gofmt已执行。旧V/B/S断言修改0/0/0。首次新增测试有未使用import，编译拒绝后已修正，该次不计有效红。截图首查发现命令卡长于1600px，正式mutation前将统一增高夹具以完整覆盖诊断区。正式mutation尚未执行，不预填结果。
+
+第一批73291c3a已推送。
+
+3. 现象：同路径切换CurrentVersion后，旧运行版本的失败仍显示在当前卡片。改动：诊断来源包含CurrentVersion。验证：真实提供者先报告旧故障，仓库版本刷新，已完成/在飞两种情况×深浅均由 `changed runtime version inherited stale diagnosis` 转绿，并确认新检查可显示。
+4. 现象：RuntimeRoot刷新后同样沿用旧诊断。改动：诊断来源包含RuntimeRoot的值。验证：真实提供者子进程配合仓库运行根刷新，同样四场景由 `changed runtime root inherited stale diagnosis` 转绿；没有运行新命令或改变会话语义。
+
+第二批相关 **41 PASS / 0 FAIL**、shell vet净，gofmt完成；旧V/B/S断言0/0/0。

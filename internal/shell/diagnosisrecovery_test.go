@@ -81,3 +81,49 @@ func TestDiagnosisRecoverySupersededHealth(t *testing.T) {
 		})
 	}
 }
+
+func checkDiagnosisRuntimeChange(t *testing.T, change string) {
+	t.Helper()
+	for _, pending := range []bool{false, true} {
+		for _, dark := range []bool{false, true} {
+			t.Run(map[bool]string{false: "complete", true: "pending"}[pending]+"/"+map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+				f := newDiagnosisFixture(t, dark)
+				f.request(t, 0, "error", []extensions.DiagnosisCheck{{ID: "runtime", Status: "error", Message: "旧运行版本检查失败"}}, !pending)
+				done := f.start(t)
+				f.waitStarted(t, 0)
+				if !pending {
+					diagnosisWait(t, done)
+				}
+				switch change {
+				case "version":
+					f.entry.CurrentVersion = "2.0.0"
+				case "root":
+					root := t.TempDir()
+					f.entry.RuntimeRoot = &root
+				}
+				f.write(t)
+				f.a.Integrations.Refresh(context.Background())
+				if pending {
+					f.release(t, 0)
+					diagnosisWait(t, done)
+				}
+				tt := diagnosisRecoveryFrame(t, f, "runtime-"+change+"-"+map[bool]string{false: "complete", true: "pending"}[pending], dark)
+				row := f.a.integrationList()[0]
+				if row.Diagnosis != "" || row.DiagnosisFailed || tt.HasText("旧运行版本检查失败") {
+					t.Errorf("changed runtime %s inherited stale diagnosis: %q", change, row.Diagnosis)
+				}
+				// A new check of this runtime must still publish normally.
+				f.request(t, 1, "ok", []extensions.DiagnosisCheck{{ID: "runtime", Status: "ok", Message: "当前运行版本正常"}}, true)
+				diagnosisWait(t, f.start(t))
+				tt.Frame()
+				tt.Frame()
+				if !tt.HasText("当前运行版本正常") {
+					t.Error("current runtime check was lost")
+				}
+			})
+		}
+	}
+}
+
+func TestDiagnosisRecoveryRuntimeVersion(t *testing.T) { checkDiagnosisRuntimeChange(t, "version") }
+func TestDiagnosisRecoveryRuntimeRoot(t *testing.T)    { checkDiagnosisRuntimeChange(t, "root") }
