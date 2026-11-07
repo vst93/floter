@@ -5509,12 +5509,20 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				if mode == routeScript {
 					index = 1
 				}
-				if a.segmentedControl(c, &index, copy.LocalToolModeProgram, copy.LocalToolModeScript).Changed() {
+				programFocus, scriptFocus := a.contentFocus(c, "mode-program"), a.contentFocus(c, "mode-script")
+				picker := a.segmentedControl(c, &index, copy.LocalToolModeProgram, copy.LocalToolModeScript).
+					Label(copy.LocalToolMode).Bind(&programFocus.source).Bind(&scriptFocus.source)
+				if picker.Changed() {
 					if index == 0 {
 						mode = ""
 					} else {
 						mode = routeScript
 					}
+				}
+				if mode == routeScript {
+					programFocus.restore(c)
+				} else {
+					scriptFocus.restore(c)
 				}
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldMode)
@@ -5522,12 +5530,12 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			if mode == routeScript {
 				a.scriptRows(c, copy, &language, &script, issues)
 			} else {
-				a.row(c, copy.LocalToolProgram, copy.LocalToolProgramHint, func() {
+				a.row(c.Key("local-program"), copy.LocalToolProgram, copy.LocalToolProgramHint, func() {
 					pickerFocus := a.contentFocus(c, "choose")
-					a.extensionField(c, &program, customFieldMetrics).Bind(&a.contentFocus(c, "plan").source).Label(copy.LocalToolProgram).Width(240).Grow(1).
-						Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source)
+					a.rememberModeContent(c, false, a.extensionField(c, &program, customFieldMetrics).Bind(&a.contentFocus(c, "plan").source).Label(copy.LocalToolProgram).Width(240).Grow(1).
+						Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source))
 					if a.Actions.ChooseProgram != nil {
-						if a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button).Clicked() {
+						if a.rememberModeContent(c, false, a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button)).Clicked() {
 							if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {
 								program = picked
 							}
@@ -5544,10 +5552,10 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			})
 			if mode != routeScript {
 				a.row(c, copy.LocalToolArgs, copy.LocalToolArgsHint, func() {
-					a.extensionField(c, &args, customFieldMetrics).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter")
+					a.rememberModeContent(c, false, a.extensionField(c, &args, customFieldMetrics).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter"))
 				})
 				a.row(c, copy.LocalToolVersionArgs, copy.LocalToolVersionArgsHint, func() {
-					a.extensionField(c, &versionArgs, customFieldMetrics).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
+					a.rememberModeContent(c, false, a.extensionField(c, &versionArgs, customFieldMetrics).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version"))
 				})
 			}
 			a.row(c.Key("local-version"), copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
@@ -5563,8 +5571,8 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// backend stores the honest empty rather than a generated sentence.
 			if mode != routeScript {
 				a.row(c, copy.LocalToolDescription, "", func() {
-					a.extensionField(c, &description, customFieldMetrics).Label(copy.LocalToolDescription).Width(240).Grow(1).
-						Placeholder(copy.LocalToolDescriptionPlaceholder)
+					a.rememberModeContent(c, false, a.extensionField(c, &description, customFieldMetrics).Label(copy.LocalToolDescription).Width(240).Grow(1).
+						Placeholder(copy.LocalToolDescriptionPlaceholder))
 				})
 			}
 			// The content actions sit where the reference put them: after the
@@ -5802,7 +5810,7 @@ func (a *App) exportScriptAction(c *ui.Context, copy i18n.Settings, command, scr
 		focus.restore(c)
 		return
 	}
-	if a.actionButton(c, copy.LocalToolExportScript).Bind(&focus.button).Clicked() {
+	if a.rememberModeContent(c, true, a.actionButton(c, copy.LocalToolExportScript).Bind(&focus.button)).Clicked() {
 		a.Actions.ExportScript(scriptExportName(a.toolEditing, command, language), script)
 	}
 }
@@ -5862,6 +5870,7 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
 		label = done
 	}
 	button := a.actionButton(c, label).MinWidth(floor).Bind(&focus.button)
+	a.rememberModeContent(c, action == "script", button)
 	if button.Clicked() {
 		if a.Actions.CopyText != nil {
 			form, open := a.toolFormKey, a.toolOpen
@@ -6013,7 +6022,7 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 	for _, option := range scriptlang.Languages {
 		options = append(options, i18n.Option{ID: option.ID, Label: option.Label})
 	}
-	a.choose(c, copy.LocalToolLanguage, copy.LocalToolLanguageHint, options, *language, func(id string) {
+	languagePicker := a.choose(c.Key("local-language"), copy.LocalToolLanguage, copy.LocalToolLanguageHint, options, *language, func(id string) {
 		// The editor owns the text now: switching language only names the new
 		// one. The template swap for an untouched draft happens in the
 		// editor's own sync (see scriptEditorView), against the buffer it
@@ -6023,14 +6032,15 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 	}, func() {
 		a.scriptRuntimeNote(c, a.scriptRuntimeLine(*language))
 	})
+	a.rememberModeContent(c, true, languagePicker)
 	// The editor is a stacked row: a script wants the row's full width and
 	// more than one line, so the label and the status sit above it. The box is
 	// mygo's code editor (line numbers, syntax highlighting) rather than a bare
 	// TextArea; scriptEditorView keeps its state across frames.
-	a.stackedRow(c, copy.LocalToolScript, copy.LocalToolScriptHint, func() {
-		a.scriptEditorView(c, copy, language, script).
+	a.stackedRow(c.Key("local-script"), copy.LocalToolScript, copy.LocalToolScriptHint, func() {
+		a.rememberModeContent(c, true, a.scriptEditorView(c, copy, language, script).
 			Bind(&a.contentFocus(c, "script").source).
-			Bind(&a.contentFocus(c, "export").source)
+			Bind(&a.contentFocus(c, "export").source))
 		a.toolIssueUnder(c, copy, issues, extensions.CustomFieldScript)
 	})
 }

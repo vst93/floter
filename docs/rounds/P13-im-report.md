@@ -41,3 +41,12 @@
 6. 现象：宿主撤回 RunWithParams 时表单与入口同时消失，键盘无出口。改动：复用既有页头 Close 作为可用回退点。验证：Close 获焦，刷新不关闭页面、不运行、不删除答案。
 
 定向 **81 PASS / 0 FAIL**，包 vet 净。M3 实跑 6 FAIL，原串 `closed form lost Run keyboard exit`、`withdrawn Run action lost page keyboard exit`；MD5 恢复、touch 后 **6 PASS**。V/B/S 0/0/0。
+
+## 第四批（7–8）
+
+7. 现象：程序模式的输入与动作随模式刷新撤回，下一键失去对象。改动：程序路径、参数、版本参数、说明、选择程序、复制命令、复制计划共七处记录当前持焦成员，退场回模式组。验证：七处深浅事件逐一执行；Tab 进入组，Space 可切回程序，原程序/脚本草稿保持。
+8. 现象：脚本模式的编辑器、语言、复制、导出退场后同样失焦。改动：四处共同回模式组，焦点句柄仍属于当前表单；程序/语言/脚本行给明确身份，避免条件分支复用。验证：四处深浅事件逐一执行，Tab/Right 可切回脚本，原脚本内容保持。
+
+相关 **100 PASS / 0 FAIL**，包 vet 净；包括不抢焦与文字改为分段的补充保护组 **62 PASS / 0 FAIL**。M4 最终实跑 **35 FAIL**（22 深浅叶子、11 场景、2 父测试），原串 `retired mode content lost mode keyboard exit`、`mode exit cannot switch back with keyboard`；MD5 恢复两文件、touch 后 **38 PASS**（另含 3 条不抢焦保护）。旧 V/B/S 断言修改 0/0/0。
+
+夹具复核：中文“程序”同时命名模式选项与输入框，初次 input 场景实际聚焦模式选项；已改为从 Choose 反向 Tab 到真实输入。代码编辑器的 Tab 是缩进，改用 Left 建立键盘态；语言通过真实 Select 的 Tab 入口聚焦。中性组锚点的既有 Tab 规则是进入第一格，随后 Space/方向键才选择；修正测试遵守此规则，不改变产品键盘模型。最终 mutation 使用修正夹具重录 before 图与原始失败日志。文字→分段原已有键盘出口，只加保护，不计第九项。

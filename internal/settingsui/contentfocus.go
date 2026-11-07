@@ -25,6 +25,19 @@ func (s *contentFocusState) restore(c *ui.Context) {
 	}
 }
 
+// Only the focused member of a mode owns its exit. The mode picker is a
+// neutral return point when those inputs and actions are withdrawn together.
+func (a *App) rememberModeContent(c *ui.Context, script bool, entry ui.Element) ui.Element {
+	kind := "mode-program"
+	if script {
+		kind = "mode-script"
+	}
+	if entry.FocusWithin() {
+		entry.Bind(&a.contentFocus(c, kind).button)
+	}
+	return entry
+}
+
 // Deep links share labels, so their return targets are keyed by the URL.
 func (a *App) linkFocus(c *ui.Context, link string) *contentFocusState {
 	key := struct {

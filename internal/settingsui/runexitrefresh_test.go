@@ -143,3 +143,63 @@ func checkRunFormExit(t *testing.T, change string) {
 func TestRunExitAllParametersWithdrawn(t *testing.T) { checkRunFormExit(t, "empty") }
 func TestRunExitFormClosed(t *testing.T)             { checkRunFormExit(t, "closed") }
 func TestRunExitActionWithdrawn(t *testing.T)        { checkRunFormExit(t, "unavailable") }
+
+func TestRunExitUnfocusedParameterDoesNotSteal(t *testing.T) {
+	a, in := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText}, Param{ID: "other", Label: "Other", Kind: extensions.ParamText})
+	tt := runRecoveryFrame(t, a, in, true)
+	optionExitFocus(t, tt, "Other")
+	in.Params = in.Params[1:]
+	tt.Frame()
+	if !tt.Focused("Other") {
+		t.Fatal("unfocused removal stole remaining input")
+	}
+	tt.Type("kept")
+	tt.Frame()
+	if a.runValues[in.ID]["other"] != "kept" {
+		t.Error("remaining input no longer accepts text")
+	}
+}
+
+func TestRunExitChoiceKindAlreadyHasKeyboardExit(t *testing.T) {
+	a, in := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText, Default: "one", Options: []string{"one", "two"}})
+	tt := runRecoveryFrame(t, a, in, true)
+	optionExitFocus(t, tt, "Target")
+	in.Params[0].Kind = extensions.ParamSelect
+	tt.Frame()
+	tt.Frame()
+	tt.Key(0, ui.KeyTab)
+	tt.Key(0, ui.KeyRight)
+	tt.Frame()
+	if a.runValues[in.ID]["target"] != "two" || !tt.Focused("two") {
+		t.Error("new choice lost its established group keyboard exit")
+	}
+}
+
+func TestRunExitFormDoesNotSteal(t *testing.T) {
+	for _, change := range []string{"closed", "empty", "unavailable"} {
+		t.Run(change, func(t *testing.T) {
+			a := noticeApp(t, true)
+			a.Actions.Close = func() {}
+			a.Actions.RunWithParams = func(string, map[string]string) *extensions.ParamFailure { t.Error("unexpected run"); return nil }
+			in := Integration{ID: "local", Name: "Workspace Tools", Enabled: true, Running: true, Params: []Param{{ID: "target", Label: "Target", Kind: extensions.ParamText}}}
+			a.Integrations = func() []Integration { return []Integration{in} }
+			a.runOpen = map[string]bool{in.ID: true}
+			tt := noticeExitPage(t, a, true)
+			optionExitFocus(t, tt, "Target")
+			optionExitFocus(t, tt, a.copy().Close)
+			switch change {
+			case "closed":
+				a.runOpen[in.ID] = false
+			case "empty":
+				in.Params = nil
+			case "unavailable":
+				a.Actions.RunWithParams = nil
+			}
+			tt.Frame()
+			tt.Frame()
+			if !tt.Focused(a.copy().Close) {
+				t.Error("unfocused form retirement stole page focus")
+			}
+		})
+	}
+}
