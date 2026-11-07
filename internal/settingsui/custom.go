@@ -24,6 +24,9 @@ import (
 // customSection draws the list, the row being made and the empty region.
 func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	entries := a.customShortcuts()
+	if a.customFocusKey != "" && customBindingIndex(entries, a.customFocusKey) < 0 {
+		a.customFocusKey = ""
+	}
 	if a.customRecording && a.customRecordRow >= 0 {
 		if a.customRecordKey == "" && a.customRecordRow < len(entries) {
 			a.customRecordKey = entries[a.customRecordRow].Key
@@ -151,12 +154,16 @@ func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, inde
 	// The reference passes `formatShortcut(row.key)` straight through, so a row
 	// without a key yet shows an empty keys slot (the button's accessible name
 	// is `settings.shortcut.record`, `ShortcutRecorder.tsx:67-78`).
-	a.shortcutRecorder(c, copy.ShortcutRecord, shortcuts.Display(key), func() {
+	button := a.shortcutRecorder(c, copy.ShortcutRecord, shortcuts.Display(key), func() {
 		a.customRecording = true
 		a.customRecordRow = index
 		a.customRecordKey = key
 		a.customDuplicate, a.customDuplicateRow = "", customDraftRow
 	})
+	if key != "" && a.customFocusKey == key {
+		button.Focus()
+		a.customFocusKey = ""
+	}
 }
 
 // captureCustomKey applies a chord the custom section recorded. A saved row
@@ -209,6 +216,7 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 		Action: entries[a.customRecordRow].Action,
 	}
 	a.commitCustomShortcuts(entries)
+	a.customFocusKey = accelerator
 }
 
 // customWarning words one row's refused key, as the reference's row sublabel

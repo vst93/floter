@@ -1023,6 +1023,7 @@ type App struct {
 	customRecording bool
 	customRecordRow int
 	customRecordKey string // identity survives a host list reorder
+	customFocusKey  string // recorder destination after a binding changes key
 	customKey       string
 	customAction    string
 	customCommand   string
@@ -4185,7 +4186,15 @@ func (a *App) shortcutRow(c *ui.Context, copy i18n.Settings) {
 // keys and the Record button otherwise.
 func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value string) {
 	t := c.Theme()
-	recording := a.recording && (action == "" || a.ShortcutID == action)
+	id := action
+	if id == "" {
+		id = settings.ShortcutToggleWindow
+	}
+	recordedID := a.ShortcutID
+	if recordedID == "" {
+		recordedID = settings.ShortcutToggleWindow
+	}
+	recording := a.recording && recordedID == id
 	if recording {
 		// The armed recorder: the same control face as the resting one, plus
 		// the accent ring and the accent prompt — the one state in this page
@@ -4254,7 +4263,7 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 // `Control`，只有录制中才用 accent 环」。accent 在本页只有两处法定用途
 // （侧栏前导图标、主 CTA，§5），一个悬停的静息控件不是第三处：悬停只抬
 // **面**与**字**，不抬色相。
-func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()) {
+func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(20.5)).MinHeight(t.Space(6.75)).
@@ -4285,6 +4294,7 @@ func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()
 	if button.Clicked() {
 		clicked()
 	}
+	return button
 }
 
 // recordShortcut applies a chord the recorder captured. The map's own rule
