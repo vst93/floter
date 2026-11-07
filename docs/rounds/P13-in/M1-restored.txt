@@ -1,0 +1,14 @@
+=== RUN   TestRefreshDestinationRunRemoved
+=== RUN   TestRefreshDestinationRunRemoved/light
+=== RUN   TestRefreshDestinationRunRemoved/dark
+--- PASS: TestRefreshDestinationRunRemoved (0.11s)
+    --- PASS: TestRefreshDestinationRunRemoved/light (0.08s)
+    --- PASS: TestRefreshDestinationRunRemoved/dark (0.02s)
+=== RUN   TestRefreshDestinationRunOrphan
+=== RUN   TestRefreshDestinationRunOrphan/light
+=== RUN   TestRefreshDestinationRunOrphan/dark
+--- PASS: TestRefreshDestinationRunOrphan (0.04s)
+    --- PASS: TestRefreshDestinationRunOrphan/light (0.02s)
+    --- PASS: TestRefreshDestinationRunOrphan/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.156s

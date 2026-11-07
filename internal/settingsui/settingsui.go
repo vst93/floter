@@ -3041,6 +3041,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.restoreNotice(c, integration.ID, "repair", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "toggle", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "editor", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "run", a.runOpen[integration.ID] && len(integration.Params) > 0 && a.Actions.RunWithParams != nil, adoptOpener)
 			return
 		}
 

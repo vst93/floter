@@ -1,0 +1,23 @@
+=== RUN   TestRefreshDestinationRunRemoved
+=== RUN   TestRefreshDestinationRunRemoved/light
+    refreshdestination_test.go:68: removed run lost keyboard destination "Close settings"
+    refreshdestination_test.go:78: removed run cannot exit by keyboard
+=== RUN   TestRefreshDestinationRunRemoved/dark
+    refreshdestination_test.go:68: removed run lost keyboard destination "Close settings"
+    refreshdestination_test.go:78: removed run cannot exit by keyboard
+--- FAIL: TestRefreshDestinationRunRemoved (0.21s)
+    --- FAIL: TestRefreshDestinationRunRemoved/light (0.19s)
+    --- FAIL: TestRefreshDestinationRunRemoved/dark (0.02s)
+=== RUN   TestRefreshDestinationRunOrphan
+=== RUN   TestRefreshDestinationRunOrphan/light
+    refreshdestination_test.go:68: orphan run lost keyboard destination "Adopt"
+    refreshdestination_test.go:82: orphan run cannot reach adoption by keyboard
+=== RUN   TestRefreshDestinationRunOrphan/dark
+    refreshdestination_test.go:68: orphan run lost keyboard destination "Adopt"
+    refreshdestination_test.go:82: orphan run cannot reach adoption by keyboard
+--- FAIL: TestRefreshDestinationRunOrphan (0.05s)
+    --- FAIL: TestRefreshDestinationRunOrphan/light (0.03s)
+    --- FAIL: TestRefreshDestinationRunOrphan/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.271s
+FAIL

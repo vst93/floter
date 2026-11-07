@@ -1,0 +1,101 @@
+=== RUN   TestRefreshDestinationRunRemoved
+=== RUN   TestRefreshDestinationRunRemoved/light
+    refreshdestination_test.go:68: removed run lost keyboard destination "Close settings"
+    refreshdestination_test.go:78: removed run cannot exit by keyboard
+=== RUN   TestRefreshDestinationRunRemoved/dark
+    refreshdestination_test.go:68: removed run lost keyboard destination "Close settings"
+    refreshdestination_test.go:78: removed run cannot exit by keyboard
+--- FAIL: TestRefreshDestinationRunRemoved (0.16s)
+    --- FAIL: TestRefreshDestinationRunRemoved/light (0.13s)
+    --- FAIL: TestRefreshDestinationRunRemoved/dark (0.03s)
+=== RUN   TestRefreshDestinationRunOrphan
+=== RUN   TestRefreshDestinationRunOrphan/light
+    refreshdestination_test.go:68: orphan run lost keyboard destination "Adopt"
+    refreshdestination_test.go:82: orphan run cannot reach adoption by keyboard
+=== RUN   TestRefreshDestinationRunOrphan/dark
+    refreshdestination_test.go:68: orphan run lost keyboard destination "Adopt"
+    refreshdestination_test.go:82: orphan run cannot reach adoption by keyboard
+--- FAIL: TestRefreshDestinationRunOrphan (0.06s)
+    --- FAIL: TestRefreshDestinationRunOrphan/light (0.03s)
+    --- FAIL: TestRefreshDestinationRunOrphan/dark (0.03s)
+=== RUN   TestRefreshDestinationRunBusyKind
+=== RUN   TestRefreshDestinationRunBusyKind/light
+=== RUN   TestRefreshDestinationRunBusyKind/dark
+--- PASS: TestRefreshDestinationRunBusyKind (0.06s)
+    --- PASS: TestRefreshDestinationRunBusyKind/light (0.03s)
+    --- PASS: TestRefreshDestinationRunBusyKind/dark (0.03s)
+=== RUN   TestRefreshDestinationRunSubmitDisabled
+=== RUN   TestRefreshDestinationRunSubmitDisabled/light
+    refreshdestination_test.go:68: submit-disabled run lost keyboard destination "Cancel"
+    refreshdestination_test.go:86: unavailable run cannot cancel by keyboard
+=== RUN   TestRefreshDestinationRunSubmitDisabled/dark
+    refreshdestination_test.go:68: submit-disabled run lost keyboard destination "Cancel"
+    refreshdestination_test.go:86: unavailable run cannot cancel by keyboard
+--- FAIL: TestRefreshDestinationRunSubmitDisabled (0.06s)
+    --- FAIL: TestRefreshDestinationRunSubmitDisabled/light (0.03s)
+    --- FAIL: TestRefreshDestinationRunSubmitDisabled/dark (0.03s)
+=== RUN   TestRefreshDestinationCommandAliasReorder
+=== RUN   TestRefreshDestinationCommandAliasReorder/light
+    refreshdestination_test.go:145: alias-reorder command lost keyboard destination "Alias for JSON Viewer"
+    refreshdestination_test.go:156: reordered alias edited wrong command: id="build" value="jview"
+=== RUN   TestRefreshDestinationCommandAliasReorder/dark
+    refreshdestination_test.go:145: alias-reorder command lost keyboard destination "Alias for JSON Viewer"
+    refreshdestination_test.go:156: reordered alias edited wrong command: id="build" value="jview"
+--- FAIL: TestRefreshDestinationCommandAliasReorder (0.07s)
+    --- FAIL: TestRefreshDestinationCommandAliasReorder/light (0.04s)
+    --- FAIL: TestRefreshDestinationCommandAliasReorder/dark (0.03s)
+=== RUN   TestRefreshDestinationCommandToggleReorder
+=== RUN   TestRefreshDestinationCommandToggleReorder/light
+    refreshdestination_test.go:145: toggle-reorder command lost keyboard destination "Enable JSON Viewer in the launcher"
+    refreshdestination_test.go:162: reordered switch toggled wrong command "build"
+=== RUN   TestRefreshDestinationCommandToggleReorder/dark
+    refreshdestination_test.go:145: toggle-reorder command lost keyboard destination "Enable JSON Viewer in the launcher"
+    refreshdestination_test.go:162: reordered switch toggled wrong command "build"
+--- FAIL: TestRefreshDestinationCommandToggleReorder (0.07s)
+    --- FAIL: TestRefreshDestinationCommandToggleReorder/light (0.03s)
+    --- FAIL: TestRefreshDestinationCommandToggleReorder/dark (0.03s)
+=== RUN   TestRefreshDestinationCommandRemoved
+=== RUN   TestRefreshDestinationCommandRemoved/removed
+=== RUN   TestRefreshDestinationCommandRemoved/removed/light
+    refreshdestination_test.go:145: removed command lost keyboard destination "Close settings"
+    refreshdestination_test.go:174: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/removed/dark
+    refreshdestination_test.go:145: removed command lost keyboard destination "Close settings"
+    refreshdestination_test.go:174: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared/light
+    refreshdestination_test.go:145: undeclared command lost keyboard destination "Close settings"
+    refreshdestination_test.go:174: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared/dark
+    refreshdestination_test.go:145: undeclared command lost keyboard destination "Close settings"
+    refreshdestination_test.go:174: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed/light
+    refreshdestination_test.go:145: card-removed command lost keyboard destination "Close settings"
+    refreshdestination_test.go:174: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed/dark
+    refreshdestination_test.go:145: card-removed command lost keyboard destination "Close settings"
+    refreshdestination_test.go:174: retired command cannot exit by keyboard
+--- FAIL: TestRefreshDestinationCommandRemoved (0.19s)
+    --- FAIL: TestRefreshDestinationCommandRemoved/removed (0.07s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/removed/light (0.03s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/removed/dark (0.03s)
+    --- FAIL: TestRefreshDestinationCommandRemoved/undeclared (0.07s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/undeclared/light (0.03s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/undeclared/dark (0.03s)
+    --- FAIL: TestRefreshDestinationCommandRemoved/card-removed (0.06s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/card-removed/light (0.03s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/card-removed/dark (0.03s)
+=== RUN   TestRefreshDestinationCommandOrphan
+=== RUN   TestRefreshDestinationCommandOrphan/light
+    refreshdestination_test.go:145: orphan command lost keyboard destination "Adopt"
+    refreshdestination_test.go:168: orphan command cannot reach adoption by keyboard
+=== RUN   TestRefreshDestinationCommandOrphan/dark
+    refreshdestination_test.go:145: orphan command lost keyboard destination "Adopt"
+    refreshdestination_test.go:168: orphan command cannot reach adoption by keyboard
+--- FAIL: TestRefreshDestinationCommandOrphan (0.06s)
+    --- FAIL: TestRefreshDestinationCommandOrphan/light (0.03s)
+    --- FAIL: TestRefreshDestinationCommandOrphan/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.732s
+FAIL
