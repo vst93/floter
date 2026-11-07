@@ -27,3 +27,12 @@
 2. 现象：录制 New command 时，唤出快捷键也显示录制态。改动：空 action 只代表唤出动作，统一后精确匹配录制 ID。验证：深浅真实 Tab/Enter，原先四条 prompt（两块控件各有 label/text）缩为两条（唯一录制器），Escape 可取消。初版测试误将 label/text 视为一条，夹具已纠正，原始误计记录不算产品缺陷。
 
 相关 58 PASS / 0 FAIL，包 vet 净。M1 回注旧逻辑，6 FAIL：`custom-accepted lost recorder focus`、`Enter cannot restart the original recorder`、`one recording painted 4 prompt entries, want 2 for one pane`。MD5 两文件还原、touch 后 6 PASS。旧 V/B/S 0/0/0。
+
+第一批 f06e320e 已推送。
+
+### 第二批
+
+3. 现象：保存行切换到“命令行”会变成草稿，但键盘停在退场选择器，直接打字无效。改动：转换后一次性聚焦新命令框。验证：真实选择菜单、直接输入 say converted，草稿获得完整文本，绑定仍未保存。最初夹具使用不在选项中的 action:settings，已经显示命令模式；改为真实 plugin:clipboard 后才取得产品红证据。
+4. 现象：删除未完成草稿后没有焦点，Enter 无法继续添加。改动：删除后回到原 Add 入口。验证：两主题真实添加、录键、Tab 到删除、Enter，草稿退出且绑定数 0，Enter 再开录制。
+
+相关 64 PASS / 0 FAIL，包 vet 净。M2 撤掉两条焦点请求，6 FAIL：`command conversion lost its input focus`、`converted command cannot type: ""`、`draft cancel lost the Add outlet`、`Enter cannot add again after cancel`。MD5 还原 touch 后 6 PASS。旧 V/B/S 0/0/0。

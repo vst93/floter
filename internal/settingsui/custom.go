@@ -70,9 +70,13 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	// The reference's CustomShortcutsSection heading carries an "Add" text
 	// action at its end (`ShortcutsPage.tsx:210-216`), the same accent-text
 	// idiom the built-in group's "Restore defaults" uses.
-	a.sectionWithAction(c, copy.ShortcutsCustom, copy.ShortcutsCustomHint,
-		copy.ShortcutsAdd, func() {
-			a.beginCustomDraft()
+	a.sectionWithControls(c, copy.ShortcutsCustom, copy.ShortcutsCustomHint,
+		func() {
+			add := a.action(c, copy.ShortcutsAdd, a.beginCustomDraft)
+			if a.customFocusAdd {
+				add.Focus()
+				a.customFocusAdd = false
+			}
 		}, func() {
 			// The reference wraps both arms of this group in one card
 			// (`ShortcutsPage.tsx:221-301`): the empty region sits *inside* the
@@ -257,6 +261,9 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
 		a.customActionPicker(c, copy, action, func(next string) {
 			a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: next})
+			if next == commandAction {
+				a.customFocusDraft = true
+			}
 		})
 		if commandLine {
 			// A stored command line is the reference's editable
@@ -319,8 +326,12 @@ func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 		})
 		if a.customAction == commandAction {
 			command := a.customCommand
-			a.textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
+			field := a.textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
 				Label(copy.ShortcutsCommand).Grow(1)
+			if a.customFocusDraft {
+				field.Focus()
+				a.customFocusDraft = false
+			}
 			a.customCommand = command
 		}
 		// The heading's own "Add" opens this row; this button commits it, so it
@@ -333,6 +344,7 @@ func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 			a.customRecorder(c, copy, a.customKey, -1)
 			a.sessionIconButton(c, "trash", copy.ShortcutsRemove, true, false, false, func() {
 				a.cancelCustomDraft()
+				a.customFocusAdd = true
 			})
 		})
 		if warning := a.customWarning(copy, a.customKey, customDraftRow); warning != "" {

@@ -1019,14 +1019,16 @@ type App struct {
 	// reference's Add put it there), the recorded key, the chosen action and,
 	// for a command line, its text. customRecordRow names the row the recorder
 	// is editing: an index into the stored list, or -1 for the row being made.
-	customDraftOpen bool
-	customRecording bool
-	customRecordRow int
-	customRecordKey string // identity survives a host list reorder
-	customFocusKey  string // recorder destination after a binding changes key
-	customKey       string
-	customAction    string
-	customCommand   string
+	customDraftOpen  bool
+	customRecording  bool
+	customRecordRow  int
+	customRecordKey  string // identity survives a host list reorder
+	customFocusKey   string // recorder destination after a binding changes key
+	customFocusDraft bool
+	customFocusAdd   bool
+	customKey        string
+	customAction     string
+	customCommand    string
 	// customDuplicate is a key this section refused on the spot (another custom
 	// row already holds it), and customRejections are the keys the shell could
 	// not register with the system. Both hang under the row that holds the key.
