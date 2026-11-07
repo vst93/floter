@@ -426,15 +426,21 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 			index = i
 		}
 	}
-	if index < 0 {
-		// A stored action that is not in the picker (a command line, or an
-		// action a later build dropped) reads as the command-line slot so the
-		// control never shows a value it does not hold.
-		index = len(options) - 1
+	selected, display := value, value
+	if index >= 0 {
+		display = labels[index]
+	} else if !strings.HasPrefix(value, "plugin:") && !strings.HasPrefix(value, "action:") {
+		// Free-form commands share the command slot. Missing plugins/actions
+		// retain their actual identity so choosing Command still changes mode.
+		selected = commandAction
+		for _, option := range options {
+			if option.ID == commandAction {
+				display = option.Label
+			}
+		}
 	}
-	selected := values[index]
 	chosen := ""
-	picker := a.fieldFace(c, valueSelect(c, &selected, labels, values, labels[index], a.tokens(c), true, current).
+	picker := a.fieldFace(c, valueSelect(c, &selected, labels, values, display, a.tokens(c), true, current).
 		Radius(999).Label(copy.ShortcutsAction), true)
 	if picker.Changed() {
 		chosen = selected
@@ -515,7 +521,9 @@ func (a *App) addCustomShortcut() {
 		a.customDuplicate, a.customDuplicateRow = a.customKey, customDraftRow
 		return
 	}
-	a.customDuplicate = ""
+	if a.customDuplicateRow == customDraftRow {
+		a.customDuplicate = ""
+	}
 	entries = append(entries, settings.CustomShortcut{Key: a.customKey, Action: action})
 	// Bind submits the chord already shown by this draft. End its own
 	// capture before the host accepts the key so resume does not release

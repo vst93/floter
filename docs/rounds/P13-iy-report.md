@@ -48,3 +48,14 @@
 5. 现象：large 档命令草稿的选择器盖在录制键上，点击键帽会落进菜单。改动：同一行宽分配保护草稿键帽/删除组，命令框让出横向空间。验证：真实 Add/录键/转命令后点击原键帽中心，必须启动草稿录制；深浅均原代码失败。初始仅检查窗口边界的探针全部通过，目视发现内部遮挡后补严格邻控件与点击检查；不以初始通过冒充无问题。
 
 第三批相关 **161 PASS / 0 FAIL**、包 vet 净。M3 撤行宽保护，原串 `saved picker overlaps remove: trash={X:301.8 Y:760.7 W:30.799988 H:30.799988} picker={X:301.99997 Y:760.7 W:154 H:35.200012}` 与 `draft picker covers recorder hit target`。V/B/S **0/0/0**；只改横向分配，行盒与高度链保持。
+
+第三批 **87b6037f** 已推送。M3 **5 FAIL**，MD5 OK、touch 后 **11 PASS**。
+
+### 第四批：动作与拒绝说明的身份
+
+6. 现象：已不可识别的 plugin/action 存值被显示成“命令行”，且再选命令行没有反应。改动：未知动作显示原 ID，保留未知选择值；自由文本命令才映射命令槽。验证：两种前缀、深浅主题均要求原值可见，并能真实选命令转入草稿；原串 `unknown action "plugin:removed-tool" disguised as command mode` / `unknown action cannot switch to real command mode`。
+7. 现象：B 录成 A 被本地拒绝后，绑定另一个已完成的 Z 草稿会抹掉 B 的冲突说明。改动：Bind 只清草稿自己的 local rejection；成功提交仍沿原时机。验证：真实 Add Z→B 录 A→Bind，Z 已保存，B 的拒绝说明仍在；原串 `binding unrelated draft erased saved refusal`，深浅均红。
+
+第五批的焦点问题已把“缺少 setter”探针换成真实磁盘失败：合法 settings 文件替换为同名目录，转换触发 Store 写失败，原绑定与现有草稿均保留，但焦点错误跳到草稿命令。原串 `failed conversion stole focus into unrelated command draft`，深浅均红。不改变提交时机或失败写回。
+
+第四批相关 **24 PASS / 0 FAIL**、包 vet 净。M4 回注未知值伪装与无条件清拒绝，实跑 **8 FAIL**，MD5 OK、touch 后 **8 PASS**。V/B/S **0/0/0**。

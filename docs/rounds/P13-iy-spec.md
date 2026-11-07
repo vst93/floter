@@ -17,6 +17,8 @@
 
 第三批现场图：custom.go 的 customShortcutRow / customDraftRow 与 rows.go:1675 的不可收缩控制列叠加；large 档保存行选择器压住删除，草稿命令选择器盖住录制键。只为快捷键行分配最小前列 30u、允许后列与命令框横向收缩；不改高度链/字号/正常键盘顺序。各自有相邻边界与真实点击 pin。
 
+第四批：custom.go:434–442 把缺失 action/plugin 当命令，显示原 ID 并允许选择真实命令模式；custom.go:520 Bind 无条件清 customDuplicate，改成只清草稿归属。第五批候选：customShortcutRow 菜单回调失败仍排 customFocusDraft；用实际 Store 写失败复现，成功转换后才排焦点。
+
 ## 零改动红线
 
 高度链、键盘模型、会话管理、设置写回时机、i18n、命令接线；3000ms/5000ms、180ms/Flush、终端待拍板项不改。既有 B 断言零改，V/S 如需改变明确台账。
