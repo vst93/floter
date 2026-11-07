@@ -1,9 +1,10 @@
 d08dea0c7b9576b0f700a27c9351b4c1  internal/shell/shell.go
 beabd758c5bc8b5b78a8d28c483c2823  internal/shell/custom.go
-424f18aae25de8f1b88c7422063f2733  internal/settingsui/settingsui.go
-72b25937187ffba5de055d0cfbd77c6a  internal/settingsui/custom.go
+0645d83b3d5f3f65c8444103ae001207  internal/settingsui/settingsui.go
+657152e7d61a1d84c6ad40e5e52a7044  internal/settingsui/custom.go
 3674d70ab78a67cb5a955c9fe43b2dbf  internal/settingsui/savealert.go
 dff110ee5465529b88136253a16648ce  internal/shell/shortcutlifecycle_test.go
 6077538724f24375d0658c534601f8fb  internal/shell/shortcutcapturerestore_test.go
 56f52fc3cfa5ed593dddb9fc94fc250e  internal/shell/shortcutrefreshsuspension_test.go
 7ddb8c74b0bb066eae3a81b1ca54f90c  internal/shell/shortcutinitialrestore_test.go
+0b55bccc2248f6b0e4ddd1ce8b9bcc32  internal/shell/shortcutrecordhandoff_test.go

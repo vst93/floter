@@ -1,6 +1,6 @@
 # P13-iw：快捷键录制结束与注册状态恢复
 
-开盘 c00585f3；pull 已最新，工作区干净。Codex 独立执行，按 qiaomu-design 已有方向路径。done.log 开盘不存在。基线运行中，以下增量记实测。
+开盘 c00585f3；pull 已最新，工作区干净。Codex 独立执行，按 qiaomu-design 已有方向路径。done.log 开盘不存在。基线实测 5150 PASS / 0 FAIL / 3143 测试函数，以下增量记实测。
 
 ## Stash 清点
 
@@ -34,9 +34,9 @@
 
 第一批 b132484a 已提交推送。
 
-### 第二批（5–6，先补暂停期间的刷新边界）
+### 第二批（6 与附带的唤起刷新守卫）
 
-5. 现象：录制器仍占键盘时，设置刷新直接注册了新唤起键。改动：刷新在暂停期只记待恢复，退出录制按最新设置注册；不是恢复过期旧值。验证：真实打开录制，Store 更新并触发宿主刷新，live 集合必须为空；Escape 后最新键可用，旧键不复活。原串 `settings refresh re-enabled global keys while recording: [Ctrl+Shift+Z]`。
+附带防护（原第 5 项，最终不计数）：现象：录制器仍占键盘时，设置刷新直接注册了新唤起键。改动：刷新在暂停期只记待恢复，退出录制按最新设置注册；不是恢复过期旧值。验证：真实打开录制，Store 更新并触发宿主刷新，live 集合必须为空；Escape 后最新键可用，旧键不复活。原串 `settings refresh re-enabled global keys while recording: [Ctrl+Shift+Z]`。
 6. 现象：同一期间自定义键刷新也抢先注册。改动：暂停期不运行全量自定义注册，恢复时再取最新键与动作。验证：同样事件链，录制中系统零绑定、取消后新自定义键存在，原串同上。
 
 第二批 **116 PASS / 0 FAIL**，包 vet 净。M2 撤掉两类暂停守卫，**2 FAIL**；两文件 MD5 还原 OK，touch 后 **2 PASS**。旧 V/B/S 0/0/0。
@@ -73,7 +73,7 @@ M4 把六个注册/恢复函数完整回注为开盘 c00585f3 的版本，保留
 
 ## 看图与两轮复核
 
-最终 Linux ui.Tester 原帧 **20 张（960×1100）**，深浅前后对照 **10 张**，局部对照 **4 张**。全部在 `P13-iw/`；代表原帧 `/tmp/floter-P13-iw-shortcuts-{dark,light}.png`。前后均使用 shell 相同的 launcher.Resolve 主题入口；英文来自真实测试夹具语言，产品 i18n 零改。
+最终 Linux ui.Tester 原帧 **32 张（960×1100）**，深浅前后对照 **16 张**，局部对照 **4 张**。全部在 `P13-iw/`；代表原帧 `/tmp/floter-P13-iw-shortcuts-{dark,light}.png`。前后均使用 shell 相同的 launcher.Resolve 主题入口；英文来自真实测试夹具语言，产品 i18n 零改。
 
 已目视 [浅色自定义行](P13-iw/resume-custom-light-detail.png)、[深色自定义行](P13-iw/resume-custom-dark-detail.png)、[浅色唤起行](P13-iw/resume-summon-light-detail.png)、[深色唤起行](P13-iw/resume-summon-dark-detail.png) 与完整深色原帧。看到的变化：两套自定义行在键帽下面出现当前占用说明，仍与其命令处于同一张面上；唤起失败进入已有顶部警告面及原行。成功恢复后，自定义完整页面与原先正常态逐像素一致（两主题 **0 像素差**）；唤起正常态仅原按钮区域残留 hover/focus 状态差（浅 **1732** / 深 **1711** 像素），不是新增材质。
 
@@ -135,6 +135,13 @@ DNA 供体为 qiaomu-design 的 Apple DESIGN：单一蓝色交互角色、2px fo
 2. 冲突另一端变化的拒绝历史、字号/行盒、accent 禁用填充、未知多选/Radio、极小步长、176-9/161-4 保存期间草稿和终端 S1b/S1c/S2 尾沿用需拍板；3000ms、5000ms、180ms/Flush、会话管理不变。
 3. Linux 自绘真实事件、注入 OS 注册钩子已验；原生桌面系统热键竞争未真机验，Windows/macOS 仅 vet/build。八条早期 WIP 原件逐条保留。
 
-## 完整门槛（运行中）
+## 完整门槛与交接
 
-三平台 vet/build 全部退出 0，gofmt 空。普通全量/verbose 全量执行中；不预填最终 PASS 数。旧 V/B/S 修改 **0/0/0**，只新增 4 个测试文件，无新增 Skip。
+最终产品 **7b906470**。最终普通全量与 verbose 全量均退出 0，**5177 PASS / 0 FAIL / 3154 测试函数**；相对基线 5150 PASS / 3143 函数，PASS +27、函数 +11。三平台 vet/build 全部退出 0，gofmt 空。旧 V/B/S 修改 **0/0/0**，只新增 5 个测试文件，无新增 Skip。完整 verbose 日志：/tmp/floter-P13-iw-final-verbose-v2.txt；普通全量与平台门槛见 final-ordinary.txt / final-gates.txt。
+
+
+第五批 **7b906470** 已推送。接管图已目视：浅色反向切换前，唤起行与自定义行同时显示 Press keys；修后只剩上方的新目标，原 Ctrl+Shift+B 与 say original 仍在。深色新增绑定接管后，旧唤起键回到静息面，只有草稿行保留录制框。最终归档 **32 原帧 / 16 对照 / 4 局部**。
+
+五组变异失败数依次 **6 / 2 / 4 / 20 / 7**，全部 MD5 还原并 touch 复验。M3 的恢复证据包含在 batch3-final.txt，M5 包含在 batch5.txt。新增行为 pin 不替换旧 B 断言。
+
+首次计时 09:43:34 UTC，门槛收敛于 2026-11-07 10:15:31 UTC，约 **32 分钟**，低于 45 分钟目标。最终接线审计纠正一次可见修复计数，并补实测问题后重新跑完整门槛；过程与中间 5170 PASS 保留。没有新增页面、系统或依赖，保留所有需拍板项。
