@@ -189,6 +189,14 @@ func TestScriptExportFailureRetiresSuccess(t *testing.T) {
 	checkTransferFailureRetiresSuccess(t, "script")
 }
 
+func TestConfigurationLateFailureDoesNotUndoSuccess(t *testing.T) {
+	checkLateTransferFailure(t, true, true)
+}
+
+func TestScriptLateFailureDoesNotUndoSuccess(t *testing.T) {
+	checkLateTransferFailure(t, false, true)
+}
+
 func checkTransferFailureRetiresSuccess(t *testing.T, operation string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {

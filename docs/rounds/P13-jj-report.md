@@ -40,4 +40,7 @@
 
 第三批首次相关运行 24 PASS，有一条前轮恢复测试在真实主机工具发现插入行时点击未派发。定位到 transferCauseFrame 接入了与传输无关的异步 Detected 列表；夹具固定为不显示主机候选，安装的真实 provider、点击与全部旧断言不动。该辅助夹具变更不计产品修复、不改 B 断言、不放宽容差。复验数字见下一记录。
 
-第三批复验 **25 PASS / 0 FAIL**，shell vet 净；源码与旧行为断言检查通过。
+第三批复验 **26 PASS / 0 FAIL**，shell vet 净；源码与旧行为断言检查通过。7b5cee7d 已推送；提交正文误写 25，原始 batch3-retest.txt 为 26，报告已纠正，不改写已推送提交。
+
+7. 现象：配置导出较早选择器失败，在较新导出已经写成后才返回，旧错误重新出现。改动：同成功槽记住当前完成版本，拒绝旧失败；先登记成功再解除旧错误，闭合回调交错窗口。验证：真实两个选择器反序返回，深浅修前 `config-late-success: obsolete failure replaced current result`。
+8. 现象：脚本导出同样在新文件已写成后冒出旧 picker 错误。改动：同脚本版本保护，旧成功回调不降低记录版本。验证：真实并发脚本导出、磁盘文件存在，深浅修前 `script-late-success: obsolete failure replaced current result`。写入与回调照常完成，只修反馈归属。

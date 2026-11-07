@@ -94,7 +94,6 @@ func (a *App) exportIntegrations() {
 		}
 		// The reference reports a clean export as a success toast naming the
 		// count and the two things that never travel.
-		a.resolveNotice(attempt)
 		a.transferSucceededFor(attempt, copy.IntegrationsExported(len(document.Extensions)))
 	}()
 }
@@ -205,13 +204,13 @@ func (a *App) exportScript(name, content string) {
 			a.transferFailedFor(attempt, copy.LocalToolExportFailed, err)
 			return
 		}
-		a.resolveNotice(attempt)
 		a.queueOwnedToast(ui.Toast{
 			ID:      scriptExportNoticeID,
 			Title:   copy.LocalToolScriptExported,
 			Type:    "success",
 			Timeout: successNotice,
 		}, attempt)
+		a.resolveNotice(attempt)
 	}()
 }
 
@@ -231,6 +230,9 @@ func (a *App) transferSucceededFor(attempt noticeAttempt, message string) {
 		Type:    "success",
 		Timeout: successNotice,
 	}, attempt)
+	// Register the successful version before resolving its old error. A late
+	// failing worker can now be rejected on either side of the resolution.
+	a.resolveNotice(attempt)
 }
 
 // transferFailed raises the actual cause when the failure is not a bad document.
@@ -375,7 +377,6 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 	text := string(document)
 	go func() {
 		a.writeClipboard(ClipboardPayload{Kind: clipboard.KindText, Text: text})
-		a.resolveNotice(owner)
 		a.transferSucceededFor(owner, a.SettingsCopy().ConfigCopied)
 		finish(nil)
 	}()
@@ -431,7 +432,6 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 			finish(err)
 			return
 		}
-		a.resolveNotice(owner)
 		a.transferSucceededFor(owner, a.SettingsCopy().ConfigExported)
 		finish(nil)
 	}()

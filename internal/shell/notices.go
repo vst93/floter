@@ -118,6 +118,12 @@ func (a *App) queueOwnedToast(toast ui.Toast, attempt noticeAttempt) {
 			return
 		}
 		if attempt.owner != "" {
+			for _, success := range a.noticeSuccess {
+				if success.owner == attempt.owner && success.version > attempt.version {
+					a.noticeMu.Unlock()
+					return
+				}
+			}
 			for id, success := range a.noticeSuccess {
 				if success.owner != attempt.owner || success.version > attempt.version {
 					continue
@@ -136,10 +142,17 @@ func (a *App) queueOwnedToast(toast ui.Toast, attempt noticeAttempt) {
 		}
 		a.noticeOwner, a.noticeVersion = attempt.owner, attempt.version
 	} else if toast.Type == "success" {
-		if a.noticeSuccess == nil {
-			a.noticeSuccess = make(map[string]noticeAttempt)
+		if attempt.owner == "" {
+			delete(a.noticeSuccess, toast.ID)
+		} else {
+			if a.noticeSuccess == nil {
+				a.noticeSuccess = make(map[string]noticeAttempt)
+			}
+			current := a.noticeSuccess[toast.ID]
+			if current.owner != attempt.owner || current.version <= attempt.version {
+				a.noticeSuccess[toast.ID] = attempt
+			}
 		}
-		a.noticeSuccess[toast.ID] = attempt
 	}
 	a.notices = append(a.notices, toast)
 	a.noticeMu.Unlock()
