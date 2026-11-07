@@ -1,0 +1,2 @@
+ordinary exit=0
+verbose exit=1 PASS=4252

@@ -51,7 +51,7 @@
 7. 现象：文字参数刷新为数字后，原输入节点退场，直接键盘输入无效。改动：保留参数焦点归属，重建新控件后仅在原控件持焦点时归还；控件身份仍按类型分隔。验证：Tab 往返→刷新→Cmd+A/Type 输入 24，Undo 回新数字初值 12，不跨旧编辑器。
 8. 现象：选择参数刷新成布尔后，原分段焦点消失，空格无法切换。改动：同一参数的持焦控件交给新开关。验证：选择 false→Tab 往返→刷新→Space 得 true，Cancel 仍可关闭。
 
-相关 **91 PASS / 0 FAIL**（加一条重复 ID 兼容保护后），包 vet 净。最终 M4 禁止回焦后 6 FAIL 记录，原串 `parameter kind refresh lost current control focus`、`new boolean did not accept keyboard toggle`；MD5 一致、touch 后 **8 PASS**（含不抢 Cancel 焦点与重复 ID 保护）。长本地/宿主错误都已证伪为原已正常，新增两条回归保护，**不计本轮修复**。
+相关 **91 PASS / 0 FAIL**（加一条重复 ID 兼容保护后），包 vet 净。M4 禁止回焦后 6 FAIL 记录，原串 `parameter kind refresh lost current control focus`、`new boolean did not accept keyboard toggle`；MD5 一致、touch 后最初 **8 PASS**。最终表单范围修正后该组为 **9 PASS**，包括不抢 Cancel、重复参数 ID 与双父卡片相同集成 ID 保护。长本地/宿主错误都已证伪为原已正常，新增两条回归保护，**不计本轮修复**。
 
 ## 偷了什么
 
@@ -107,3 +107,27 @@ skill 的外部供体/五签名/网页预览不适用于本次已定方向与行
 深浅对照板均逐行复核，4× 细节复核默认值错误与焦点边：警告在盘内左侧且无截字，类型选择焦点环跟着现有轮廓。原始图 40 张，对照板 2 张，局部 4× 图 6 张，全部进仓。
 
 正确父级夹具在旧范围实测 `panic: ui: Handle bound to two controls in one build`；限定到 form 后定向通过。首个夹具的 duplicate-key 失败与随后修正过程均未当作独立产品修复计数。最终门槛在范围修正后重跑。
+
+范围修正实测 **34 PASS / 0 FAIL**（form-scope.txt）；最终 M4 源文件 MD5 校验一致，touch 后 **9 PASS / 0 FAIL**。本轮测试函数 **3044**（基线 3029，+15），旧函数未减少、旧 V/B/S 断言修改 0/0/0、新增 Skip 0。
+
+## 仍待
+
+1. 下一轮先查参数改型为分段选择、参数撤回以及表单折叠时的键盘出口，先用真实事件复现。当前仅代码线索，不宣称存在缺陷。
+2. 字号/行盒、accent 禁用填充、未知多选/Radio、极小数字步长、176-9/161-4 保存期草稿、终端 S1b/S1c/S2 尾继续待拍板。
+3. Windows/macOS 只有 vet/build；Linux 证据是 ui.Tester 自绘和事件，不是 OS 宿主真机。
+
+## 图片
+
+[深色前后对照](P13-il/dark-comparison.png) · [浅色前后对照](P13-il/light-comparison.png)。单幅 PNG 保留原分辨率；对照板只为快速索引，细读使用原图和 4× 局部。
+
+执行记录：四批每两项产品提交均经定向回归与包 vet 后推送；完整门槛集中跑。最终范围修正触发第二次完整门槛，前次结果不冒充最终结果。工具调用超过任务书 40 次预算：尾部用于已完成八项的范围修正、全量复验与归档，未继续扩题；这是本轮过程偏差，剩余线索如上。
+
+## 完整门槛与结案
+
+最终产品 **fd5e59eb**。2026-11-07 03:08 UTC 最终实测 **4758 PASS / 0 FAIL**（基线 4719，+39）；测试函数 **3044**（基线 3029，+15）。[普通全量](P13-il/final-test.txt)、[verbose 全量](P13-il/final-verbose.txt) 均退出 **0**；[三平台 vet/build](P13-il/platform-summary.txt) 六项退出 **0**，gofmt 输出 **0 字节**，文档 CI 通过。最终七份源码 MD5 全部一致。全过程未修改旧 V/B/S pin，未减少测试函数，新增 Skip 0。
+
+中间完整普通测试退出 0；紧随其后的 verbose 编译到实验中错误父级的双表单测试，**4252 PASS 后失败**，日志 full-verbose.txt 原样保留。修正父级与句柄归属后重跑全部门槛，以上 final-* 才是最终结论，不隐去失败或混用数字。
+
+四组变异最终分别 **6/6/12/6 FAIL** 记录（包含父测试），对应 4/4/8/4 个深浅叶子；MD5 字节还原并 touch 复验 **6/6/12/9 PASS**。M4 额外三条为重复参数、重复集成及非聚焦刷新保护。
+
+产品提交：518fdeaf → 1be3c861 → 3bf1cdcf → c3a5e87f → fd5e59eb，均已 push origin mygo-rewrite。本轮没有新依赖、页面、系统或终端语义改动。

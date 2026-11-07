@@ -1,0 +1,7 @@
+08e76ecc8b0408f15673b7cea9ea1f9a  internal/extensions/params.go
+8ad10343065afacf74827f7dff6b2f4a  internal/settingsui/parameditor.go
+85561e5b05bfc2f6597eca5a69e3b078  internal/settingsui/settingsui.go
+e52125875e8c7f6731d0a96670be25dd  internal/settingsui/paramvalidationrefresh_test.go
+a767a705344d512e6b202c2847e474e4  internal/settingsui/rundefaultrefresh_test.go
+4d5c0638e1417e5fa7ac647ac69b9f7f  internal/settingsui/paramreasonlayout_test.go
+430b9a2a6bebb105dcf5bd3eebe3083a  internal/settingsui/runkindfocus_test.go
