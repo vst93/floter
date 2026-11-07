@@ -1,0 +1,23 @@
+=== RUN   TestHealthRefreshBindingFailure
+=== RUN   TestHealthRefreshBindingFailure/light
+2026/11/08 06:44:35 floter: health re-check of dev.floter.check: extensions: binding-missing: binding-missing:{"path":"/tmp/TestHealthRefreshBindingFailurelight878473922/002/missing-program"}
+    healthrefresh_test.go:155: health refresh binding failure is silent: toast={ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+=== RUN   TestHealthRefreshBindingFailure/dark
+2026/11/08 06:44:35 floter: health re-check of dev.floter.check: extensions: binding-missing: binding-missing:{"path":"/tmp/TestHealthRefreshBindingFailuredark3880997056/002/missing-program"}
+    healthrefresh_test.go:155: health refresh binding failure is silent: toast={ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+--- FAIL: TestHealthRefreshBindingFailure (0.41s)
+    --- FAIL: TestHealthRefreshBindingFailure/light (0.24s)
+    --- FAIL: TestHealthRefreshBindingFailure/dark (0.16s)
+=== RUN   TestHealthRefreshRepositoryFailure
+=== RUN   TestHealthRefreshRepositoryFailure/light
+2026/11/08 06:44:35 floter: health re-check of dev.floter.check: extensions: invalid repository /tmp/TestHealthRefreshRepositoryFailurelight1596305014/001/extension-repository.json: unexpected end of JSON input
+    healthrefresh_test.go:155: health refresh repository failure is silent: toast={ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+=== RUN   TestHealthRefreshRepositoryFailure/dark
+2026/11/08 06:44:36 floter: health re-check of dev.floter.check: extensions: invalid repository /tmp/TestHealthRefreshRepositoryFailuredark1359541871/001/extension-repository.json: unexpected end of JSON input
+    healthrefresh_test.go:155: health refresh repository failure is silent: toast={ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+--- FAIL: TestHealthRefreshRepositoryFailure (0.27s)
+    --- FAIL: TestHealthRefreshRepositoryFailure/light (0.14s)
+    --- FAIL: TestHealthRefreshRepositoryFailure/dark (0.13s)
+FAIL
+FAIL	floter/internal/shell	0.679s
+FAIL

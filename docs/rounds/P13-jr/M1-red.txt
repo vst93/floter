@@ -1,0 +1,41 @@
+=== RUN   TestHealthRefreshRemovedDeclaration
+=== RUN   TestHealthRefreshRemovedDeclaration/light
+    healthrefresh_test.go:81: current declaration cannot run probes but still offers health refresh
+    healthrefresh_test.go:87: stale health refresh still dispatches a request
+    healthrefresh_test.go:103: restored declaration does not dispatch exactly once
+=== RUN   TestHealthRefreshRemovedDeclaration/dark
+    healthrefresh_test.go:81: current declaration cannot run probes but still offers health refresh
+    healthrefresh_test.go:87: stale health refresh still dispatches a request
+    healthrefresh_test.go:103: restored declaration does not dispatch exactly once
+--- FAIL: TestHealthRefreshRemovedDeclaration (1.57s)
+    --- FAIL: TestHealthRefreshRemovedDeclaration/light (0.87s)
+    --- FAIL: TestHealthRefreshRemovedDeclaration/dark (0.70s)
+=== RUN   TestHealthRefreshInvalidDeclaration
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/light
+    healthrefresh_test.go:81: current declaration cannot run probes but still offers health refresh
+    healthrefresh_test.go:87: stale health refresh still dispatches a request
+    healthrefresh_test.go:103: restored declaration does not dispatch exactly once
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/dark
+    healthrefresh_test.go:81: current declaration cannot run probes but still offers health refresh
+    healthrefresh_test.go:87: stale health refresh still dispatches a request
+    healthrefresh_test.go:103: restored declaration does not dispatch exactly once
+=== RUN   TestHealthRefreshInvalidDeclaration/identity
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/light
+    healthrefresh_test.go:81: current declaration cannot run probes but still offers health refresh
+    healthrefresh_test.go:87: stale health refresh still dispatches a request
+    healthrefresh_test.go:103: restored declaration does not dispatch exactly once
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/dark
+    healthrefresh_test.go:81: current declaration cannot run probes but still offers health refresh
+    healthrefresh_test.go:87: stale health refresh still dispatches a request
+    healthrefresh_test.go:103: restored declaration does not dispatch exactly once
+--- FAIL: TestHealthRefreshInvalidDeclaration (2.76s)
+    --- FAIL: TestHealthRefreshInvalidDeclaration/invalid (1.38s)
+        --- FAIL: TestHealthRefreshInvalidDeclaration/invalid/light (0.70s)
+        --- FAIL: TestHealthRefreshInvalidDeclaration/invalid/dark (0.69s)
+    --- FAIL: TestHealthRefreshInvalidDeclaration/identity (1.38s)
+        --- FAIL: TestHealthRefreshInvalidDeclaration/identity/light (0.69s)
+        --- FAIL: TestHealthRefreshInvalidDeclaration/identity/dark (0.69s)
+FAIL
+FAIL	floter/internal/shell	4.342s
+FAIL

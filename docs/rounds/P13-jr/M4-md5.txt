@@ -1,0 +1,4 @@
+internal/shell/shell.go: OK
+internal/settingsui/settingsui.go: OK
+internal/shell/healthrefresh_test.go: OK
+internal/settingsui/healthrefresh_test.go: OK

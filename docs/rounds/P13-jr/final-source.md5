@@ -1,0 +1,4 @@
+bd77afe04ff6499c5ccbfce227cb6829  internal/shell/shell.go
+7ce367a19af52ed7d86adb2f06e40633  internal/settingsui/settingsui.go
+82332f66c92d49be164634be3734bf73  internal/shell/healthrefresh_test.go
+97b91909319d2501a656c2969eebf32e  internal/settingsui/healthrefresh_test.go

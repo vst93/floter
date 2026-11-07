@@ -1945,7 +1945,7 @@ func (a *App) runHealthReprobe(integration extensions.Integration) {
 	}
 	// Binding failures can persist a broken state even without a new report.
 	// Refresh before publishing the result, just as repair/reconnect do.
-	a.Integrations.Refresh(context.Background())
+	a.RefreshIntegrations(context.Background())
 	if err != nil && !errors.Is(err, extensions.ErrProbeSuperseded) &&
 		!errors.Is(err, extensions.ErrNoIntegration) && !errors.Is(err, extensions.ErrNoProbes) {
 		current := a.Integrations.Inventory()

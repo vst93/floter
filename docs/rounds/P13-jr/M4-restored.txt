@@ -1,0 +1,22 @@
+=== RUN   TestHealthRefreshWithdrawsFailedCommands
+=== RUN   TestHealthRefreshWithdrawsFailedCommands/light
+=== RUN   TestHealthRefreshWithdrawsFailedCommands/dark
+--- PASS: TestHealthRefreshWithdrawsFailedCommands (0.24s)
+    --- PASS: TestHealthRefreshWithdrawsFailedCommands/light (0.16s)
+    --- PASS: TestHealthRefreshWithdrawsFailedCommands/dark (0.08s)
+=== RUN   TestHealthRefreshRestoresRecoveredCommands
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled/light
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled/dark
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled/light
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled/dark
+--- PASS: TestHealthRefreshRestoresRecoveredCommands (0.49s)
+    --- PASS: TestHealthRefreshRestoresRecoveredCommands/enabled (0.25s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/enabled/light (0.14s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/enabled/dark (0.12s)
+    --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled (0.24s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled/light (0.12s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled/dark (0.12s)
+PASS
+ok  	floter/internal/shell	0.741s

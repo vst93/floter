@@ -1,0 +1,22 @@
+=== RUN   TestHealthRefreshRemovedDeclaration
+=== RUN   TestHealthRefreshRemovedDeclaration/light
+=== RUN   TestHealthRefreshRemovedDeclaration/dark
+--- PASS: TestHealthRefreshRemovedDeclaration (1.20s)
+    --- PASS: TestHealthRefreshRemovedDeclaration/light (0.68s)
+    --- PASS: TestHealthRefreshRemovedDeclaration/dark (0.53s)
+=== RUN   TestHealthRefreshInvalidDeclaration
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/light
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/dark
+=== RUN   TestHealthRefreshInvalidDeclaration/identity
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/light
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/dark
+--- PASS: TestHealthRefreshInvalidDeclaration (2.06s)
+    --- PASS: TestHealthRefreshInvalidDeclaration/invalid (0.96s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/invalid/light (0.48s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/invalid/dark (0.48s)
+    --- PASS: TestHealthRefreshInvalidDeclaration/identity (1.10s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/identity/light (0.57s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/identity/dark (0.54s)
+PASS
+ok  	floter/internal/shell	3.272s

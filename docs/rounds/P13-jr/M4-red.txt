@@ -1,0 +1,31 @@
+=== RUN   TestHealthRefreshWithdrawsFailedCommands
+=== RUN   TestHealthRefreshWithdrawsFailedCommands/light
+    healthrefresh_test.go:258: health refresh leaves launcher commands stale: got=1 want=0
+    healthrefresh_test.go:261: health result and visible launcher command disagree: want command=false texts=["启动器结果" "Health Ping" "检查连接" "␣" "检查工具" "Ctrl" "1" "Tab" "healthping" "在终端中运行" "Ctrl" "↩" "Ctrl" "K" "搜索" "␣Health Ping · 进入" "清除" "会话" "设置"]
+=== RUN   TestHealthRefreshWithdrawsFailedCommands/dark
+    healthrefresh_test.go:258: health refresh leaves launcher commands stale: got=1 want=0
+    healthrefresh_test.go:261: health result and visible launcher command disagree: want command=false texts=["启动器结果" "Health Ping" "检查连接" "␣" "检查工具" "Ctrl" "1" "Tab" "healthping" "在终端中运行" "Ctrl" "↩" "Ctrl" "K" "搜索" "␣Health Ping · 进入" "清除" "会话" "设置"]
+--- FAIL: TestHealthRefreshWithdrawsFailedCommands (0.23s)
+    --- FAIL: TestHealthRefreshWithdrawsFailedCommands/light (0.15s)
+    --- FAIL: TestHealthRefreshWithdrawsFailedCommands/dark (0.08s)
+=== RUN   TestHealthRefreshRestoresRecoveredCommands
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled/light
+    healthrefresh_test.go:258: health refresh leaves launcher commands stale: got=0 want=1
+    healthrefresh_test.go:261: health result and visible launcher command disagree: want command=true texts=["没有匹配项" "搜索" "清除" "会话" "设置"]
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled/dark
+    healthrefresh_test.go:258: health refresh leaves launcher commands stale: got=0 want=1
+    healthrefresh_test.go:261: health result and visible launcher command disagree: want command=true texts=["没有匹配项" "搜索" "清除" "会话" "设置"]
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled/light
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled/dark
+--- FAIL: TestHealthRefreshRestoresRecoveredCommands (0.37s)
+    --- FAIL: TestHealthRefreshRestoresRecoveredCommands/enabled (0.19s)
+        --- FAIL: TestHealthRefreshRestoresRecoveredCommands/enabled/light (0.09s)
+        --- FAIL: TestHealthRefreshRestoresRecoveredCommands/enabled/dark (0.09s)
+    --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled (0.18s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled/light (0.09s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled/dark (0.09s)
+FAIL
+FAIL	floter/internal/shell	0.603s
+FAIL

@@ -1,0 +1,18 @@
+=== RUN   TestHealthRefreshBindingFailure
+=== RUN   TestHealthRefreshBindingFailure/light
+2026/11/08 06:44:36 floter: health re-check of dev.floter.check: extensions: binding-missing: binding-missing:{"path":"/tmp/TestHealthRefreshBindingFailurelight2500843653/002/missing-program"}
+=== RUN   TestHealthRefreshBindingFailure/dark
+2026/11/08 06:44:37 floter: health re-check of dev.floter.check: extensions: binding-missing: binding-missing:{"path":"/tmp/TestHealthRefreshBindingFailuredark2254358742/002/missing-program"}
+--- PASS: TestHealthRefreshBindingFailure (0.73s)
+    --- PASS: TestHealthRefreshBindingFailure/light (0.37s)
+    --- PASS: TestHealthRefreshBindingFailure/dark (0.36s)
+=== RUN   TestHealthRefreshRepositoryFailure
+=== RUN   TestHealthRefreshRepositoryFailure/light
+2026/11/08 06:44:37 floter: health re-check of dev.floter.check: extensions: invalid repository /tmp/TestHealthRefreshRepositoryFailurelight2025435228/001/extension-repository.json: unexpected end of JSON input
+=== RUN   TestHealthRefreshRepositoryFailure/dark
+2026/11/08 06:44:37 floter: health re-check of dev.floter.check: extensions: invalid repository /tmp/TestHealthRefreshRepositoryFailuredark1243547300/001/extension-repository.json: unexpected end of JSON input
+--- PASS: TestHealthRefreshRepositoryFailure (0.69s)
+    --- PASS: TestHealthRefreshRepositoryFailure/light (0.34s)
+    --- PASS: TestHealthRefreshRepositoryFailure/dark (0.35s)
+PASS
+ok  	floter/internal/shell	1.429s
