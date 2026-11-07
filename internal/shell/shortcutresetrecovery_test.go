@@ -37,4 +37,12 @@ func TestResetSystemRefusalKeepsConfirmedBindings(t *testing.T) {
 	if SummonShortcut(a.Store.Snapshot()) != settings.DefaultSummonShortcut || a.ShortcutErr != nil || live[settings.DefaultSummonShortcut] == nil || live["Ctrl+Alt+J"] != nil {
 		t.Fatal("reset could not retry after system recovery")
 	}
+
+	// The newly claimed default must be released if the subsequent file write
+	// fails. The original key and the custom command remain usable.
+	broken, held, _, _ := shortcutWriteFailureApp(t)
+	broken.Settings.Actions.ResetShortcuts()
+	if broken.Store.LastError() == nil || broken.Store.Writes() != 1 || held[settings.DefaultSummonShortcut] != nil || held["Ctrl+Alt+J"] == nil || held["Ctrl+Shift+B"] == nil || broken.Settings.Shortcut != "Ctrl+Alt+J" {
+		t.Fatalf("disk-refused reset lost confirmed keys or leaked reserved default: held=%v writes=%d display=%s", keysOf(held), broken.Store.Writes(), broken.Settings.Shortcut)
+	}
 }

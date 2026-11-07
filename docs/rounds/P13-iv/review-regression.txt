@@ -1,0 +1,12 @@
+=== RUN   TestSummonDiskFailureDoesNotRepeatOldSystemRefusal
+2026/11/07 17:31:56 floter: could not register Ctrl+Alt+K: occupied
+2026/11/07 17:31:56 floter: could not save Ctrl+Alt+L: rename /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal334186303/001/.floter-state-566065465.tmp /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal334186303/001/settings.json: file exists
+--- PASS: TestSummonDiskFailureDoesNotRepeatOldSystemRefusal (0.00s)
+=== RUN   TestConfirmedSummonKeyClearsPreviousRefusal
+2026/11/07 17:31:56 floter: could not register Ctrl+Alt+K: occupied
+--- PASS: TestConfirmedSummonKeyClearsPreviousRefusal (0.00s)
+=== RUN   TestResetSystemRefusalKeepsConfirmedBindings
+2026/11/07 17:31:56 floter: could not reset the shortcuts: rename /tmp/TestResetSystemRefusalKeepsConfirmedBindings495196345/002/.floter-state-4170124760.tmp /tmp/TestResetSystemRefusalKeepsConfirmedBindings495196345/002/settings.json: file exists
+--- PASS: TestResetSystemRefusalKeepsConfirmedBindings (0.00s)
+PASS
+ok  	floter/internal/shell	0.011s

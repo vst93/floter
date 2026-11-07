@@ -1478,7 +1478,9 @@ func (a *App) setShortcut(id, accelerator string) {
 		return
 	}
 	if normalized == a.summonKey {
-		a.ShortcutErr, a.shortcutRefusal = nil, ""
+		if a.shortcutRefusal == id {
+			a.ShortcutErr, a.shortcutRefusal = nil, ""
+		}
 		return
 	}
 	// A new attempt owns its own failure; an earlier OS refusal must not

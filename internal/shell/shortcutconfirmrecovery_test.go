@@ -17,4 +17,11 @@ func TestConfirmedSummonKeyClearsPreviousRefusal(t *testing.T) {
 	if a.Store.Writes() != 0 || live["Ctrl+Alt+J"] == nil {
 		t.Fatal("confirming current key wrote or unbound it")
 	}
+	// A startup registration error is not a rejected change to a working key.
+	// A no-op must not claim that an unavailable system key recovered.
+	a.ShortcutErr = errors.New("startup registration failed")
+	a.setShortcut(settings.ShortcutToggleWindow, "Ctrl+Alt+J")
+	if a.ShortcutErr == nil {
+		t.Fatal("confirming configured key hid a startup registration failure")
+	}
 }
