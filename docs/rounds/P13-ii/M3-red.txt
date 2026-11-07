@@ -1,0 +1,23 @@
+=== RUN   TestCopyLifecycleFoldRetiresSuccess
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/light
+    copylifecycle_test.go:268: copy-fold revived old copy success
+    copylifecycle_test.go:274: ui: no element shows "复制命令"
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/dark
+    copylifecycle_test.go:268: copy-fold revived old copy success
+    copylifecycle_test.go:274: ui: no element shows "复制命令"
+--- FAIL: TestCopyLifecycleFoldRetiresSuccess (0.64s)
+    --- FAIL: TestCopyLifecycleFoldRetiresSuccess/light (0.44s)
+    --- FAIL: TestCopyLifecycleFoldRetiresSuccess/dark (0.20s)
+=== RUN   TestCopyLifecyclePageRetiresSuccess
+=== RUN   TestCopyLifecyclePageRetiresSuccess/light
+    copylifecycle_test.go:268: copy-page revived old copy success
+    copylifecycle_test.go:274: ui: no element shows "复制命令"
+=== RUN   TestCopyLifecyclePageRetiresSuccess/dark
+    copylifecycle_test.go:268: copy-page revived old copy success
+    copylifecycle_test.go:274: ui: no element shows "复制命令"
+--- FAIL: TestCopyLifecyclePageRetiresSuccess (0.72s)
+    --- FAIL: TestCopyLifecyclePageRetiresSuccess/light (0.38s)
+    --- FAIL: TestCopyLifecyclePageRetiresSuccess/dark (0.35s)
+FAIL
+FAIL	floter/internal/settingsui	1.377s
+FAIL

@@ -191,3 +191,95 @@ func checkCopyMode(t *testing.T, script bool) {
 
 func TestCopyLifecycleProgramModeRetiresSuccess(t *testing.T) { checkCopyMode(t, false) }
 func TestCopyLifecycleScriptModeRetiresSuccess(t *testing.T)  { checkCopyMode(t, true) }
+
+func copyPageFrame(t *testing.T, a *App, dark bool) *ui.Tester {
+	t.Helper()
+	ground := realPageGround(t, dark)
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		c.Root().Background(ground)
+		a.View(c)
+	}, 960, 1600)
+	tt.SetDark(dark)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.Frame()
+	return tt
+}
+
+func checkCopyDeparture(t *testing.T, page bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := copyLifecycleApp(t, dark)
+			a.Page = PageIntegrations
+			a.beginEdit("local.weather", callbackTool("weather"))
+			calls := 0
+			a.Actions.CopyText = func(string) { calls++ }
+			var tt *ui.Tester
+			if page {
+				tt = copyPageFrame(t, a, dark)
+			} else {
+				tt = toolCallbackFrame(t, a, dark)
+			}
+			copy := a.copy()
+			if err := tt.Click(copy.LocalToolCopyCommand); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(copy.LocalToolCommandCopied) {
+				t.Fatal("initial copy failed")
+			}
+			name := "copy-fold"
+			if page {
+				name = "copy-page"
+				if err := tt.Click(copy.PageIntegrations); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if !tt.HasText(copy.LocalToolCommandCopied) {
+					t.Error("reselecting current page retired live success")
+				}
+				if err := tt.Click(copy.PageGeneral); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if a.Page != PageGeneral {
+					t.Fatal("did not leave integrations")
+				}
+				if err := tt.Click(copy.PageIntegrations); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+			} else {
+				if err := tt.Click(copy.LocalToolAdd); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if a.toolOpen {
+					t.Fatal("form did not fold")
+				}
+				if err := tt.Click(copy.LocalToolAdd); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+			}
+			copyLifecycleDump(t, tt, name, dark)
+			if tt.HasText(copy.LocalToolCommandCopied) || a.copiedContent != "" {
+				t.Errorf("%s revived old copy success", name)
+			}
+			if calls != 1 || !a.toolOpen || a.toolEditing != "local.weather" || a.toolCommand != "weather" || a.toolProgram != "/usr/bin/weather" {
+				t.Error("departure changed draft or copied again")
+			}
+			if err := tt.Click(copy.LocalToolCopyCommand); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if calls != 2 || !tt.HasText(copy.LocalToolCommandCopied) {
+				t.Error("returned form cannot copy")
+			}
+		})
+	}
+}
+
+func TestCopyLifecycleFoldRetiresSuccess(t *testing.T) { checkCopyDeparture(t, false) }
+func TestCopyLifecyclePageRetiresSuccess(t *testing.T) { checkCopyDeparture(t, true) }

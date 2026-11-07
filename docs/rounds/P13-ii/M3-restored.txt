@@ -1,0 +1,14 @@
+=== RUN   TestCopyLifecycleFoldRetiresSuccess
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/light
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/dark
+--- PASS: TestCopyLifecycleFoldRetiresSuccess (0.65s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/light (0.40s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/dark (0.25s)
+=== RUN   TestCopyLifecyclePageRetiresSuccess
+=== RUN   TestCopyLifecyclePageRetiresSuccess/light
+=== RUN   TestCopyLifecyclePageRetiresSuccess/dark
+--- PASS: TestCopyLifecyclePageRetiresSuccess (0.83s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/light (0.49s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/dark (0.34s)
+PASS
+ok  	floter/internal/settingsui	1.489s

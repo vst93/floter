@@ -1571,6 +1571,10 @@ func (a *App) selectPage(page int) {
 	// reading leaves the offset alone.
 	if page != a.Page {
 		a.Body.Y = 0
+		if a.Page == PageIntegrations {
+			a.copiedContent, a.copiedContentValue = "", ""
+			a.copiedContentUntil = time.Time{}
+		}
 	}
 	a.Page = page
 	if a.Actions.SetPage != nil {
@@ -5449,6 +5453,8 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			a.toolIssue = false
 		}
 		if !a.toolOpen {
+			a.copiedContent, a.copiedContentValue = "", ""
+			a.copiedContentUntil = time.Time{}
 			return
 		}
 		if a.toolPermissions == nil {

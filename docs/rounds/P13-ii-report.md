@@ -38,3 +38,12 @@
 4. 现象：复制脚本后切换程序再回脚本，旧“脚本已复制”再次出现。改动：脚本组退出时同样退役。验证：深浅实际模式控件往返，脚本文本保持、当前复制可用；导出仍收到同一文件名和全文，且不抢占或延长复制反馈。
 
 原串：`command copy success revived after mode roundtrip`、`plan copy success revived after mode roundtrip`、`script copy success revived after mode roundtrip`。相关 64 PASS / 0 FAIL、包 vet 净；M2 撤回本批补丁 8 FAIL，MD5 还原 touch 后 8 PASS / 0 FAIL。旧 V/B/S 0/0/0。已目视深色脚本 after：代码仍在，复制文案回到待操作状态，导出位置不动。
+
+## 第三批（5–6）
+
+第二批 a73f1250 已推送。
+
+5. 现象：复制后点击“添加本机工具”折叠，再展开仍显示旧成功。改动：折叠时退役复制反馈。验证：深浅真实折叠/展开按钮保持 weather 的命令、程序和编辑 ID，复制次数仍为 1；再点一次才显示新成功。
+6. 现象：复制后点击常规页再回集成页，已离场的成功文案复活。改动：实际离开集成页时清理该页复制反馈。验证：完整设置页深浅侧栏点击往返不再显示旧成功；重选当前页保持尚有效反馈，草稿与后续复制均正常。
+
+原串：`copy-fold revived old copy success`、`copy-page revived old copy success`。相关 71 PASS / 0 FAIL、包 vet 净；M3 撤回后 6 FAIL，MD5 还原 touch 后 6 PASS / 0 FAIL。旧 V/B/S 0/0/0，无新增 Skip。
