@@ -288,6 +288,9 @@ func ReadSync(data []byte) (SyncDocument, error) {
 func ImportSync(paths Paths, document SyncDocument, approve func([]PermissionApproval) bool) (SyncReport, error) {
 	report := SyncReport{}
 	inventory := LoadInventory(paths)
+	if inventory.RepositoryErr != nil {
+		return report, inventory.RepositoryErr
+	}
 	installed := map[string]Integration{}
 	for _, integration := range inventory.Integrations {
 		installed[integration.Entry.ID] = integration

@@ -420,11 +420,18 @@ func (a *App) toastViewport(c *ui.Context) {
 				}
 				// A path can be one long word. Let its text column shrink to the
 				// available width instead of pushing the dismiss control off-pane.
-				sentence := ui.Text(c, toast.Title).TextColor(tone).Grow(1).MinWidth(0)
-				if collapsed {
-					sentence.FontSize(tokens.Caption).SingleLine().Ellipsis("\u2026")
+				if toast.Description != "" && !collapsed {
+					ui.Column(c).Grow(1).MinWidth(0).Gap(t.Space(0.5)).Children(func() {
+						ui.Text(c, toast.Title).FontSize(t.FontSize).TextColor(tone).FillWidth().MinWidth(0)
+						ui.Text(c, toast.Description).FontSize(t.FontSize).TextColor(tokens.TextSecondary).FillWidth().MinWidth(0)
+					})
 				} else {
-					sentence.FontSize(t.FontSize)
+					sentence := ui.Text(c, toast.Title).TextColor(tone).Grow(1).MinWidth(0)
+					if collapsed {
+						sentence.FontSize(tokens.Caption).SingleLine().Ellipsis("\u2026")
+					} else {
+						sentence.FontSize(t.FontSize)
+					}
 				}
 				// The optional action chip (a page failure's retry), the old
 				// `.app-toast__action`: a quiet control-material chip the same

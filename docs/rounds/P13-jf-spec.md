@@ -21,7 +21,7 @@
 
 高度链、键盘模型、会话管理、保存时机、i18n 字典、命令接线不变；3000ms/5000ms、180ms/Flush 不变。旧 B pin 零修改，不引依赖、不加系统。错误详情是已有信息的接活。
 
-中文 locale 基线正在实跑，原始证据 /tmp/floter-P13-jf/baseline.txt，未取得结果前不填数字。每批运行相关测试及包 vet；结尾运行 gofmt -l cmd internal、三平台 go vet ./...、普通与 verbose go test -count=1 ./...、三平台 go build ./...。PASS/测试函数只增不减。
+中文 locale 基线实测 5454 PASS / 0 FAIL / 3237 函数，原始证据 /tmp/floter-P13-jf/baseline.txt。每批运行相关测试及包 vet；结尾运行 gofmt -l cmd internal、三平台 go vet ./...、普通与 verbose go test -count=1 ./...、三平台 go build ./...。PASS/测试函数只增不减。
 
 Mutation 至少两组：M1 恢复集成读错误的通用文案，原因可见 pin 必红；M2 恢复脚本通用标题而去掉详情，脚本原因 pin 必红。注入后记录原始失败，逐字节 MD5 还原、touch，再测试。新增测试先在原产品跑红，导出深浅 before 图。
 

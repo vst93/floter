@@ -25,3 +25,10 @@
 2. 现象：导出遇到损坏仓库，也提示无效导入文件。改动：展示 ExportSync 返回的仓库读取原因。验证：原产品报 `repository export failure hides its cause`；修后保存选择器 0 次、无目的文件、busy 释放，修复仓库再导出 1 个集成。
 
 第一批相关 **17 PASS / 0 FAIL**，shell vet 净；原产品真实红证据 before12.txt。初始指针夹具受整页高度影响，改用产品已接线 Actions + 真实文件事件，不声称系统原生选择器真机验收。正式 mutation 后续独立注入并 MD5 还原。
+
+基线结束：**5454 PASS / 0 FAIL / 3237 测试函数**，与 P13-je 一致。第一批 1a6853f2 已推送。
+
+3. 现象：不支持的版本和 JSON 语法错误只剩同一个标题。改动：保留原本地化标题，用已有 Toast.Description 接回实际解析原因；满高浮层补画原来遗漏的详情。验证：两种文档 × 深浅，原产品 `document refusal hides its cause`；修后标题与原因同时可见、不产生报告，改正文件可重试。
+4. 现象：仓库损坏被当空仓库，合法导入误显示跳过 1 项。改动：ImportSync 在任何应用动作前返回 RepositoryErr，宿主显示实际错误。验证：两主题原产品 `unreadable repository was treated as empty` 与 `unreadable repository fabricated import report`；修后仓库字节不变、无虚假报告，恢复仓库后成功 1/跳过 0/失败 0。
+
+第二批相关 **62 PASS / 0 FAIL**，extensions/shell vet 净。旧标题 B pin、原单行 toast 的结构和键盘规则未改；新增详情列以 2u 间隔排原文，无新增浮层。

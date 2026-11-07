@@ -122,7 +122,7 @@ func (a *App) importIntegrations() {
 		document, err := extensions.ReadSync(data)
 		if err != nil {
 			log.Printf("floter: could not read %s: %v", path, err)
-			a.transferFailed(copy.IntegrationsTransferBad)
+			a.transferFailedCause(copy.IntegrationsTransferBad, err)
 			return
 		}
 		report, err := extensions.ImportSync(a.Paths, document, func(approvals []extensions.PermissionApproval) bool {
@@ -137,7 +137,7 @@ func (a *App) importIntegrations() {
 		})
 		if err != nil {
 			log.Printf("floter: could not import %s: %v", path, err)
-			a.transferFailed(copy.IntegrationsTransferBad)
+			a.transferFailed(err.Error())
 			return
 		}
 		for _, failure := range report.Failed {
@@ -220,12 +220,17 @@ func (a *App) transferSucceeded(message string) {
 	})
 }
 
-// transferFailed raises a transfer's error toast: the reference's
-// `showError(errorMessage(...))`. The one sentence this build produces for a
-// bad file is `IntegrationsTransferBad`, so the message is the same on every
-// branch and the caller passes it.
+// transferFailed raises the actual cause when the failure is not a bad document.
 func (a *App) transferFailed(message string) {
 	a.queueNotice(message, refusalNotice)
+}
+
+// Keep the existing localized heading while exposing the operation's cause.
+func (a *App) transferFailedCause(title string, err error) {
+	a.queueToast(ui.Toast{
+		ID: "floter-notice", Title: title, Description: err.Error(),
+		Type: "error", Timeout: refusalNotice,
+	})
 }
 
 // setTransferBusy puts (or clears) the busy line on the Integrations page.
