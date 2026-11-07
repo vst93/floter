@@ -67,11 +67,6 @@ func checkShortcutExit(t *testing.T, custom bool, exit string) {
 				if hidden != 1 {
 					t.Fatal("window was not hidden")
 				}
-			case "route":
-				// Existing host route sets Page directly, then opens the same surface.
-				h.app.Launcher.Actions.OpenSessions()
-				tt.Frame()
-				tt.Frame()
 			}
 			if h.app.Settings.RecordingShortcut() || h.app.shortcutsSuspended {
 				t.Error("invisible recorder still suspends global shortcuts")
@@ -79,7 +74,7 @@ func checkShortcutExit(t *testing.T, custom bool, exit string) {
 			if h.live["Ctrl+Alt+J"] == nil || h.live["Ctrl+Shift+B"] == nil {
 				t.Error("exit did not restore the summon and custom registrations")
 			}
-			if exit == "page" || exit == "route" {
+			if exit == "page" {
 				editingClick(t, tt, copy.PageShortcuts)
 				shortcutExitDump(t, tt, name, dark)
 				if tt.HasText(copy.ShortcutRecording) {
@@ -100,7 +95,7 @@ func checkShortcutExit(t *testing.T, custom bool, exit string) {
 			editingClick(t, tt, copy.PageShortcuts)
 			tt.Frame()
 			tt.Frame()
-			if exit != "page" && exit != "route" {
+			if exit != "page" {
 				shortcutExitDump(t, tt, name, dark)
 			}
 			if tt.HasText(copy.ShortcutRecording) {

@@ -45,3 +45,14 @@ done.log 开盘不存在，收尾创建，不伪造上轮记录。八项结果�
 相关回归 286 PASS / 0 FAIL，包 vet 净。M3 回注旧 Hide，实红 `invisible recorder still suspends global shortcuts`、`exit did not restore the summon and custom registrations`、`reopen resurrected the old recording`；MD5 还原、touch 后 6 PASS / 0 FAIL。既有 V/B/S 0/0/0。隐藏的原生窗口调用由钩子计数验证，没有冒充原生桌面真机。
 
 第一轮目视：浅色自定义关闭对照中，旧的蓝色 Press keys… 已换回 Ctrl+Shift+B；右侧 say unfinished 保持完整。没有增加玻璃层或提示占高。
+
+第三批 804b1055 已推送。
+
+## 第四批：内置拒绝仍属于原行
+
+7. **开始邻行录制**：现象 → New command 录到 Paste 已占用键后出现拒绝；点击另一内置行录制时，原行拒绝无故消失。改动 → 只有重试被拒的那一行才清其拒绝。验证 → 深浅真实点击/冲突按键，邻行仍进入录制且写入 0 次，原行提示保留，回原行重试可清除并成功改键。
+8. **邻行录制成功**：现象 → 即使保住开始时的拒绝，邻行成功接受新键后仍清掉原行提示。改动 → recordShortcut 的成功/同键分支只结束当前 action 的拒绝。验证 → 单修第 7 项后，第 8 项独立实红；两处完成后，邻行成功写入恰 1 次，原行原键与拒绝保持，原行可继续重试成功。
+
+相关回归 295 PASS / 0 FAIL，包 vet 净。M4 回注两处无条件清空，实红 `neighbor recording erased the original row refusal`；MD5 还原、touch 后 6 PASS / 0 FAIL。既有 V/B/S 0/0/0；首次新测试常量拼写错误导致编译失败，修正后才计入事件红灯，不把编译错误算 mutation。
+
+原候选的宿主页跳转没有当前设置面可点击触发证据，因此未计修复、未加防护；其测试分支也已删除。最后两项是同一快捷键表面真实可达的状态归属问题，不扩展拒绝历史模型。

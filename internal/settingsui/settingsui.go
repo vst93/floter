@@ -4287,9 +4287,10 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 	a.shortcutRecorder(c, copy.ShortcutRecord, shortcuts.Display(value), func() {
 		a.customRecording = false
 		a.recording, a.ShortcutID = true, action
-		// Starting a recording clears the last refusal, as the reference's own
-		// toggle did.
-		a.rejectedShortcut = ""
+		// A fresh attempt clears its own refusal, not another row's.
+		if a.rejectedShortcut == id {
+			a.rejectedShortcut = ""
+		}
 	})
 }
 
@@ -4348,7 +4349,9 @@ func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()
 func (a *App) recordShortcut(action, accelerator string) {
 	switch settings.ShortcutRecordingOf(a.Store.Snapshot(), action, accelerator) {
 	case settings.ShortcutRecorded:
-		a.rejectedShortcut = ""
+		if a.rejectedShortcut == action {
+			a.rejectedShortcut = ""
+		}
 		if a.Actions.SetShortcut != nil {
 			a.observeSettingsWrite(func() { a.Actions.SetShortcut(action, accelerator) })
 			// The map has already accepted the chord; the system may still
@@ -4363,7 +4366,9 @@ func (a *App) recordShortcut(action, accelerator string) {
 	case settings.ShortcutRefused:
 		a.rejectedShortcut = action
 	default:
-		a.rejectedShortcut = ""
+		if a.rejectedShortcut == action {
+			a.rejectedShortcut = ""
+		}
 	}
 }
 

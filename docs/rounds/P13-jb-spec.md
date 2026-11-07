@@ -12,13 +12,15 @@
 | 4 | shell.go:3507 Open | 自定义录制关闭设置只 Flush → 退役录制，未提交文本保留 |
 | 5 | shell.go:4233 Hide | 内置录制隐藏窗口只 Flush → 隐藏前恢复召回 |
 | 6 | shell.go:4233 Hide | 自定义录制隐藏窗口只 Flush → 隐藏前恢复注册且可重开 |
-| 7 | shell.go:716 / settingsui.go:1160 View | 宿主页跳转绕过 selectPage，内置录制遗留 → 按当前页面退役 |
-| 8 | shell.go:716 / settingsui.go:1160 View | 宿主页跳转绕过 selectPage，自定义录制遗留 → 按当前页面退役，草稿不提交 |
+| 7 | settingsui.go:4277 shortcutControl（开盘行号） | 开始邻行内置录制无条件清掉原行拒绝 → 只清当前行的旧拒绝 |
+| 8 | settingsui.go:4336 recordShortcut（开盘行号） | 邻行接受/同键重录无条件清掉原行拒绝 → 成功只结束自己的拒绝 |
 
 跨内置录制器、自定义录制器、设置导航与宿主窗口退出。红线：高度链、现有按键含义、Enter 保存、180ms/Flush、3000/5000ms、会话管理、i18n 不改；只结束已不可见的录制，不清除草稿/拒绝历史，不新增系统、依赖、设置项。
 
 基线：中文 locale 全量 verbose 5328 PASS / 0 FAIL，exit 0；cmd/internal 下 3201 个 Test 函数（与上轮计数口径需区分）。门槛：gofmt 空、三平台 vet/build、普通/verbose 全量。每两项先相关测试与包 vet，通过立即提交推送；完整门槛一轮集中一次。每批不带未通过的后续 pin。
 
-Mutation：M1 撤切页退役，1/2 的实际注册与返回焦点 pin 红；M2 撤 Open 退役，3/4 红；M3 撤 Hide 退役，5/6 红；M4 撤 View 页检查，7/8 红。每组备份 MD5、回注旧行为、实红、还原、md5sum -c、touch、-count=1 复验。
+Mutation：M1 撤切页退役，1/2 的实际注册与返回焦点 pin 红；M2 撤 Open 退役，3/4 红；M3 撤 Hide 退役，5/6 红；M4 回注内置拒绝的无条件清空，7/8 红。每组备份 MD5、回注旧行为、实红、还原、md5sum -c、touch、-count=1 复验。
+
+选题收窄：原拟直接调用宿主页跳转属于边界注入，当前没有从设置页可点击触发的证据，不计修复、不加产品防护。最后两项改为真实录制事件可达的邻行拒绝清除；保留单条拒绝归属，不新增多条历史。
 
 已读 qiaomu-design / 偏好账本 / craft-loop / preflight / chinese-typography，Apple DESIGN 的蓝色交互角色、2px focus、8px 控件圆角作供体，沿用本仓 token。菜单 #3 保住返回侧栏的焦点，#4 退出即时 0ms，#6 多余提示 0 条，#12 新玻璃层 0 层、原 1px 受光边保持。少掉不可见录制的键盘占用，页面与焦点层级一致；不添加装饰凑五项。
