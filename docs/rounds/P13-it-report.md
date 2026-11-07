@@ -34,3 +34,12 @@
 4. 现象：直接 Enter 提交 30 秒失败也提前关闭并覆盖输入。改动：存储接受后再规范化草稿及决定展开状态。验证：两主题真实输入、失败、恢复后重试，写次数 1 → 2，未提前改写原值。
 
 相关 **30 PASS / 0 FAIL**，包 vet 净。M2 回注旧文件 **6 FAIL**，原串 `preset-save-failure discarded retry draft: open=false draft="45"`、`custom-save-failure discarded retry draft: open=false draft="45"`；MD5 OK，touch 后 **6 PASS**。旧 V/B/S 0/0/0。参数 Required 与即时校验探针均为绿，不计修复、不改实现。
+
+第二批 `06d75e0d` 已推送。
+
+## 第三批
+
+5. 现象：输入 4294967296 秒、-5、45.6、1e2 均错误回落到 10 秒。改动：依据参考 `surface-residency.ts` 的既有数值规范，有限数值先限幅再舍入；保留 never 哨兵与 NaN/Inf 默认值。验证：深浅真实 Type/Enter，分别为 86400/0/46/100；哨兵、非有限数保护均绿。此族算一项。
+6. 现象：输入闭合时宿主更新为 53 秒，自定义菜单可见却无法选择同值打开编辑器。改动：闭合态收到 custom 时种入原值并打开输入，不触碰活动草稿。验证：两主题真实 Down/End/Enter，53 可读可编辑且未产生写入。
+
+相关 **46 PASS / 0 FAIL**，包 vet 净。旧 V/B/S 0/0/0。上述全部数值先在旧实现上见红；沿用前两组正式 mutation，不虚称本批额外变异。最初尝试的历史路径 `src/components/settings/GeneralPage.tsx` 不存在，随后通过该分支树清单定位 `src/settings/GeneralPage.tsx`；未做全盘搜索。

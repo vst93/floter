@@ -5261,11 +5261,14 @@ func parseResidencyDraft(text string) uint32 {
 	if trimmed == "" {
 		return 0
 	}
-	n, err := strconv.ParseUint(trimmed, 10, 32)
-	if err != nil {
+	n, err := strconv.ParseFloat(trimmed, 64)
+	if err != nil || math.IsNaN(n) || math.IsInf(n, 0) {
 		return settings.DefaultSurfaceResidencySeconds
 	}
-	return settings.NormalizeResidencySeconds(uint32(n))
+	if n == float64(settings.SurfaceResidencyNever) {
+		return settings.SurfaceResidencyNever
+	}
+	return uint32(math.Round(max(0, min(float64(settings.MaxSurfaceResidencySeconds), n))))
 }
 
 // residencyPresetSeconds are the select's named steps, the reference's
@@ -5367,6 +5370,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 	}
 	if !a.residencyCustomOpen {
 		a.residencyDraft = strconv.FormatUint(uint64(residencyCustomSeedSeconds(value)), 10)
+		a.residencyCustomOpen = selectValue == residencyCustom
 	}
 
 	labels := []string{copy.SurfaceResidencyOff}

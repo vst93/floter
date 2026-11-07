@@ -1,0 +1,53 @@
+=== RUN   TestResidencyBoundaryNumericCommit
+=== RUN   TestResidencyBoundaryNumericCommit/light
+=== RUN   TestResidencyBoundaryNumericCommit/light/4294967296
+    residencyboundary_test.go:30: typed 4294967296 stored 10, want reference-normalized 86400
+=== RUN   TestResidencyBoundaryNumericCommit/light/-5
+    residencyboundary_test.go:30: typed -5 stored 10, want reference-normalized 0
+=== RUN   TestResidencyBoundaryNumericCommit/light/45.6
+    residencyboundary_test.go:30: typed 45.6 stored 10, want reference-normalized 46
+=== RUN   TestResidencyBoundaryNumericCommit/light/1e2
+    residencyboundary_test.go:30: typed 1e2 stored 10, want reference-normalized 100
+=== RUN   TestResidencyBoundaryNumericCommit/light/4294967295
+=== RUN   TestResidencyBoundaryNumericCommit/light/NaN
+=== RUN   TestResidencyBoundaryNumericCommit/light/Inf
+=== RUN   TestResidencyBoundaryNumericCommit/dark
+=== RUN   TestResidencyBoundaryNumericCommit/dark/4294967296
+    residencyboundary_test.go:30: typed 4294967296 stored 10, want reference-normalized 86400
+=== RUN   TestResidencyBoundaryNumericCommit/dark/-5
+    residencyboundary_test.go:30: typed -5 stored 10, want reference-normalized 0
+=== RUN   TestResidencyBoundaryNumericCommit/dark/45.6
+    residencyboundary_test.go:30: typed 45.6 stored 10, want reference-normalized 46
+=== RUN   TestResidencyBoundaryNumericCommit/dark/1e2
+    residencyboundary_test.go:30: typed 1e2 stored 10, want reference-normalized 100
+=== RUN   TestResidencyBoundaryNumericCommit/dark/4294967295
+=== RUN   TestResidencyBoundaryNumericCommit/dark/NaN
+=== RUN   TestResidencyBoundaryNumericCommit/dark/Inf
+--- FAIL: TestResidencyBoundaryNumericCommit (0.23s)
+    --- FAIL: TestResidencyBoundaryNumericCommit/light (0.17s)
+        --- FAIL: TestResidencyBoundaryNumericCommit/light/4294967296 (0.13s)
+        --- FAIL: TestResidencyBoundaryNumericCommit/light/-5 (0.01s)
+        --- FAIL: TestResidencyBoundaryNumericCommit/light/45.6 (0.01s)
+        --- FAIL: TestResidencyBoundaryNumericCommit/light/1e2 (0.01s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/4294967295 (0.01s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/NaN (0.01s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/Inf (0.01s)
+    --- FAIL: TestResidencyBoundaryNumericCommit/dark (0.06s)
+        --- FAIL: TestResidencyBoundaryNumericCommit/dark/4294967296 (0.02s)
+        --- FAIL: TestResidencyBoundaryNumericCommit/dark/-5 (0.01s)
+        --- FAIL: TestResidencyBoundaryNumericCommit/dark/45.6 (0.01s)
+        --- FAIL: TestResidencyBoundaryNumericCommit/dark/1e2 (0.01s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/4294967295 (0.01s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/NaN (0.01s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/Inf (0.01s)
+=== RUN   TestResidencyBoundaryClosedHostCustom
+=== RUN   TestResidencyBoundaryClosedHostCustom/light
+    residencyboundary_test.go:56: host custom value cannot open its editor by selecting Custom
+=== RUN   TestResidencyBoundaryClosedHostCustom/dark
+    residencyboundary_test.go:56: host custom value cannot open its editor by selecting Custom
+--- FAIL: TestResidencyBoundaryClosedHostCustom (0.03s)
+    --- FAIL: TestResidencyBoundaryClosedHostCustom/light (0.02s)
+    --- FAIL: TestResidencyBoundaryClosedHostCustom/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.274s
+FAIL
