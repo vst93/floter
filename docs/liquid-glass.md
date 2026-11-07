@@ -102,7 +102,7 @@ pin 在 `internal/launcher/raycast_test.go`（`TestTheControlRimIsTheOneLitLine`
 （`mygo@v0.7.3/ui/runtime.go:1286-1324`）落到默认箭头，写了是废话。
 
 这张表现在是**可执行**的：`internal/settingsui/pointercensus_test.go` 的
-`disabledSites` 登记 14 个站点（`file:func` + 四档：面 / 槽 / 透明面 / 根），
+`disabledSites` 登记 15 个站点（P13-ii：14 → 15，新增 `rows.go:actionWithGlyph` 透明面；`file:func` + 四档：面 / 槽 / 透明面 / 根），
 `TestEveryUnavailableControlIsClassified` 守住「新加一个 `Disabled` 必须归到其中一档」，
 `TestAnUnavailableControlPointsAtItselfWithOneOfTwoShapes` 守住指针的两句话（§6.130）。
 
@@ -7807,3 +7807,18 @@ pin 与深浅前后图、V/B/S、四条变异、stash 清点见 `rounds/P13-hl-r
 | 209-8 | 获取工具期间失去编辑资格，旧返回仍开编辑器 → 按 ID 核对当前目标资格 | `已落地` |
 
 为什么更轻、更有空间感：当前面不被旧结果挤走，过期表单不复活；新增玻璃、投影、提示层 0。沿用现有 2px focus、8px 圆角和 1px 受光边；高度链、保存时机、3000ms、键盘模型、终端会话、i18n 不改。深浅前后图与八项事件验收见 `rounds/P13-ih-report.md`。
+
+### §6.210 复制反馈与当前可操作表面一致（P13-ii）
+
+| 项 | 现象 → 落地 | 状态 |
+| --- | --- | --- |
+| 210-1 | 旧复制返回给新工具显示成功 → 核对发起表单身份与展开状态 | `已落地` |
+| 210-2 | 无 CopyText 的内容动作仍可聚焦 → 既有禁用药丸，恢复能力后可复制 | `已落地` |
+| 210-3 | 命令/计划成功跨模式复活 → 程序操作组离场时退役 | `已落地` |
+| 210-4 | 脚本成功跨模式复活 → 脚本操作组离场时退役，保留正文与导出 | `已落地` |
+| 210-5 | 折叠再展开复活工具成功 → 折叠清反馈、保留草稿 | `已落地` |
+| 210-6 | 集成页往返复活工具成功 → 实际离页退役，重选当前页不清 | `已落地` |
+| 210-7 | 无 CopyText 的链接动作仍可聚焦 → 原文字动作禁用且撤回旧成功 | `已落地` |
+| 210-8 | 关于页往返复活链接成功 → 实际离页退役，新的复制仍有通知 | `已落地` |
+
+为什么更轻、更有空间感：成功墨只属于当前可操作表面，离场后不留残影；缺失能力使用已有禁用墨与 DimFace，无新增面、影、装饰或提示层。1600ms、3000ms、高度链、键盘模型、保存/导出时机、会话管理与 i18n 不改。八项深浅真实事件和图片见 `rounds/P13-ii-report.md`。

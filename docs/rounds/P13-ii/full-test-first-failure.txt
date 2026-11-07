@@ -1,0 +1,53 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.006s
+ok  	floter/internal/apps	0.925s
+ok  	floter/internal/browser	0.123s
+ok  	floter/internal/calc	0.009s
+ok  	floter/internal/calculator	0.570s
+ok  	floter/internal/ci	16.693s
+ok  	floter/internal/clipboard	1.947s
+ok  	floter/internal/control	0.632s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.011s
+ok  	floter/internal/drops	0.013s
+ok  	floter/internal/extensions	49.202s
+ok  	floter/internal/extensions/recommended	0.278s
+ok  	floter/internal/frameaudit	0.182s
+ok  	floter/internal/glassmap	0.046s
+ok  	floter/internal/homepath	0.006s
+ok  	floter/internal/i18n	3.289s
+ok  	floter/internal/inputtext	0.082s
+ok  	floter/internal/inventory	0.550s
+ok  	floter/internal/launcher	124.340s
+ok  	floter/internal/motion	0.093s
+ok  	floter/internal/pathid	0.037s
+ok  	floter/internal/pathlist	0.129s
+ok  	floter/internal/pinyin	0.036s
+ok  	floter/internal/plist	0.043s
+ok  	floter/internal/plugincfg	0.046s
+ok  	floter/internal/progname	0.010s
+ok  	floter/internal/progtype	0.011s
+ok  	floter/internal/scriptlang	0.023s
+ok  	floter/internal/semver	0.005s
+ok  	floter/internal/settings	3.973s
+--- FAIL: TestEveryUnavailableControlIsClassified (0.08s)
+    pointercensus_test.go:108: rows.go:actionWithGlyph: actionWithGlyph calls Disabled(true) at rows.go:1843:3, and §1's table does not name this site — add it to disabledSites with the arm it draws (面/槽/透明面)
+--- FAIL: TestTheSettingsPanelTakesTheSidebarAsItsKeyboardHome (0.13s)
+    sidebarfocus_test.go:65: Tab did not move the keyboard off the sidebar
+FAIL
+FAIL	floter/internal/settingsui	521.836s
+ok  	floter/internal/shell	93.473s
+ok  	floter/internal/shortcuts	0.013s
+ok  	floter/internal/spawn	0.205s
+ok  	floter/internal/statefile	0.080s
+ok  	floter/internal/terminalui	59.116s
+ok  	floter/internal/termsession	4.544s
+ok  	floter/internal/textlines	0.011s
+ok  	floter/internal/theme	0.115s
+ok  	floter/internal/tools	0.035s
+ok  	floter/internal/usage	0.165s
+ok  	floter/internal/valuedomain	0.011s
+ok  	floter/internal/versioning	0.005s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.039s
+FAIL

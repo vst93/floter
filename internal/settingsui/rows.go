@@ -1417,8 +1417,13 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
 			Background(theme.FaceOver(tokens.Theme.Background, tokens.Sunken)).
 			Border(1, tokens.ControlEdge)
 		chip.Children(func() {
-			ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
-				TextColor(tokens.TextSecondary)
+			text := ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
+				TextColor(tokens.TextSecondary).Selectable()
+			// Without the host copy action, the value itself is the useful
+			// keyboard destination. Keep the usual action's tab order intact.
+			if a.Actions.CopyText == nil {
+				text.Focusable()
+			}
 		})
 	}, below...)
 }

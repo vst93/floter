@@ -61,6 +61,8 @@ var disabledSites = []disabledSite{
 	{"settingsui.go", "slider", armGroove},
 	// 透明面 — only ink; half the ink is the whole statement.
 	{"rows.go", "extensionIconButton", armBare},
+	// P13-ii S: bare copy actions now expose an unavailable arm; 14 → 15 sites.
+	{"rows.go", "actionWithGlyph", armBare},
 	{"detach.go", "detachedBar", armBare},
 	// 根 — the one shared flag helper: it owns the depth, not the material.
 	{"config.go", "lockedControl", armRoot},

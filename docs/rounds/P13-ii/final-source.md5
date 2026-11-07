@@ -1,0 +1,4 @@
+1a25322611fe785116f5b0c557bae433  internal/settingsui/settingsui.go
+c036373ec04289ad1fc3a41a1581a6a1  internal/settingsui/rows.go
+d6d0c5786f5388d48238975976816be3  internal/settingsui/copylifecycle_test.go
+b3250a1198a53f676fbff0fc93954f96  internal/settingsui/pointercensus_test.go

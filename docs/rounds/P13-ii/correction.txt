@@ -1,0 +1,96 @@
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.52s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.37s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.15s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.20s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.10s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.10s)
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+--- PASS: TestCopyLifecycleProgramModeRetiresSuccess (0.77s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.18s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.17s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.20s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.21s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+--- PASS: TestCopyLifecycleScriptModeRetiresSuccess (0.47s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.23s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.24s)
+=== RUN   TestCopyLifecycleFoldRetiresSuccess
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/light
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/dark
+--- PASS: TestCopyLifecycleFoldRetiresSuccess (0.66s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/light (0.33s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/dark (0.33s)
+=== RUN   TestCopyLifecyclePageRetiresSuccess
+=== RUN   TestCopyLifecyclePageRetiresSuccess/light
+=== RUN   TestCopyLifecyclePageRetiresSuccess/dark
+--- PASS: TestCopyLifecyclePageRetiresSuccess (1.41s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/light (0.95s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/dark (0.46s)
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/light
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/dark
+--- PASS: TestCopyLifecycleAboutUnavailableIsInert (0.17s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/light (0.10s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/dark (0.07s)
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/light
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/dark
+--- PASS: TestCopyLifecycleAboutPageRetiresSuccess (0.50s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/light (0.24s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/dark (0.26s)
+=== RUN   TestDeepLinkCopyRaisesTheSuccessToast
+--- PASS: TestDeepLinkCopyRaisesTheSuccessToast (0.18s)
+=== RUN   TestDeepLinkCopyUsesTheReferenceGlyphs
+--- PASS: TestDeepLinkCopyUsesTheReferenceGlyphs (0.00s)
+=== RUN   TestTheDeepLinkValueIsTheReferenceCodeChip
+--- PASS: TestTheDeepLinkValueIsTheReferenceCodeChip (0.30s)
+=== RUN   TestTheDeepLinkValueUsesTheReferenceCodeFont
+--- PASS: TestTheDeepLinkValueUsesTheReferenceCodeFont (0.00s)
+=== RUN   TestTheDeepLinkCopyActionWearsItsIcon
+--- PASS: TestTheDeepLinkCopyActionWearsItsIcon (0.07s)
+=== RUN   TestTheEmptyRegionWearsTheReferenceSettingsEmptyMetrics
+--- PASS: TestTheEmptyRegionWearsTheReferenceSettingsEmptyMetrics (0.13s)
+=== RUN   TestTheEmptyRegionsWayOutStandsBelowItsSentence
+    emptyaction_test.go:145: dark: reason ink ends 211, plate edge 235, air 23px (label y=239.9)
+    emptyaction_test.go:145: light: reason ink ends 211, plate edge 234, air 22px (label y=239.9)
+--- PASS: TestTheEmptyRegionsWayOutStandsBelowItsSentence (0.07s)
+=== RUN   TestTheEmptyRegionGrowsPastItsFloor
+--- PASS: TestTheEmptyRegionGrowsPastItsFloor (0.02s)
+=== RUN   TestTheEmptyRegionHangsItsMarkOffItsSentence
+--- PASS: TestTheEmptyRegionHangsItsMarkOffItsSentence (0.06s)
+=== RUN   TestTheEmptyCaptureStaysAheadOfTheTruncationAside
+--- PASS: TestTheEmptyCaptureStaysAheadOfTheTruncationAside (0.01s)
+=== RUN   TestTheEmptySlotStatesItsConclusion
+    paramempty_test.go:177: dark=false: heading 128, hint 100, conclusion 217, ink 611
+    paramempty_test.go:177: dark=true: heading 147, hint 96, conclusion 220, ink 619
+--- PASS: TestTheEmptySlotStatesItsConclusion (0.45s)
+=== RUN   TestTheEmptySlotKeepsItsBox
+    paramempty_test.go:214: dark=false: slot 993..1025 = 33, statement {200 1002 493 15}
+    paramempty_test.go:214: dark=true: slot 993..1025 = 33, statement {200 1002 493 15}
+--- PASS: TestTheEmptySlotKeepsItsBox (0.40s)
+=== RUN   TestTheEmptySlotKeepsItsDashedEdge
+--- PASS: TestTheEmptySlotKeepsItsDashedEdge (0.38s)
+=== RUN   TestEveryUnavailableControlIsClassified
+--- PASS: TestEveryUnavailableControlIsClassified (0.06s)
+=== RUN   TestTheEmptyApprovalPermissionsKeepsItsAnswerQuiet
+--- PASS: TestTheEmptyApprovalPermissionsKeepsItsAnswerQuiet (0.20s)
+=== RUN   TestTheDeepLinkHintRidesInsideItsHeading
+--- PASS: TestTheDeepLinkHintRidesInsideItsHeading (0.05s)
+=== RUN   TestTheSettingsPanelTakesTheSidebarAsItsKeyboardHome
+--- PASS: TestTheSettingsPanelTakesTheSidebarAsItsKeyboardHome (0.06s)
+=== RUN   TestDeepLinkCopyConfirmsOnTheButton
+--- PASS: TestDeepLinkCopyConfirmsOnTheButton (0.07s)
+PASS
+ok  	floter/internal/settingsui	7.262s

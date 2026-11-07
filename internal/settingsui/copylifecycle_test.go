@@ -302,6 +302,20 @@ func TestCopyLifecycleAboutUnavailableIsInert(t *testing.T) {
 			if tt.HasText(copy.DeepLinkCopied) {
 				t.Error("unavailable link copy confirmed")
 			}
+			// The value remains keyboard-selectable even without the host's
+			// one-click action. Tab must have a useful destination off sidebar.
+			a.FocusSidebar()
+			tt.Frame()
+			tt.Key(0, ui.KeyTab)
+			tt.Frame()
+			if !tt.Focused(deepLinkConnectExample) {
+				t.Error("Tab cannot reach the link value")
+			}
+			tt.Command("selectAll")
+			tt.Command("copy")
+			if tt.Clipboard() != deepLinkConnectExample {
+				t.Errorf("selected link copied %q", tt.Clipboard())
+			}
 			calls, notices := 0, 0
 			a.Actions.CopyText = func(text string) {
 				calls++

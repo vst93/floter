@@ -1,0 +1,20 @@
+Baseline: exit 0, 4639 PASS, 0 FAIL; test functions 3003
+Batch 1: exit 0, 38 PASS, 0 FAIL; settingsui vet exit 0
+Batch 2: exit 0, 64 PASS, 0 FAIL; settingsui vet exit 0
+Batch 3: exit 0, 71 PASS, 0 FAIL; settingsui vet exit 0
+Batch 4: exit 0, 95 PASS, 0 FAIL; settingsui vet exit 0
+M1: injected exit 1, 6 FAIL; MD5 OK; touch replay exit 0, 6 PASS
+M2: injected exit 1, 8 FAIL; MD5 OK; touch replay exit 0, 8 PASS
+M3: injected exit 1, 6 FAIL; MD5 OK; touch replay exit 0, 6 PASS
+M4: injected exit 1, 6 FAIL; both source MD5 OK; touch replay exit 0, 6 PASS
+linux vet/build: 0/0
+windows vet/build: 0/0
+darwin vet/build: 0/0
+gofmt -l cmd internal: empty (0 bytes)
+docs CI: exit 0
+Final test functions: 3011; added 8, removed 0; existing test registry changed 1 (S)
+New t.Skip: 0
+Old V/B/S assertions changed: 0/0/1
+First full ordinary: exit 1 (disabled site registry, About sidebar Tab)
+Correction: 44 PASS / 0 FAIL; settingsui vet exit 0; original B assertion unchanged
+Final full ordinary/verbose and platform gates: pending after correction
