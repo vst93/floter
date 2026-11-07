@@ -5381,24 +5381,14 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 	labels = append(labels, copy.SurfaceResidencyNever, residencyCustomLabel(copy, value, selectValue))
 	choices = append(choices, "never", residencyCustom)
 
-	selected := labels[0]
-	for i, choice := range choices {
-		if choice == selectValue {
-			selected = labels[i]
-		}
-	}
+	selected := selectValue
 
 	t := c.Theme()
 	a.row(c, copy.SurfaceResidency, copy.SurfaceResidencyHint, func() {
-		e := a.fieldFace(c, valueSelect(c, &selected, labels, labels, selected, a.tokens(c), true).
+		e := a.fieldFace(c, valueSelect(c, &selected, labels, choices, selected, a.tokens(c), true).
 			Label(copy.SurfaceResidency).Width(200).Radius(999), true)
 		if e.Changed() {
-			for i, label := range labels {
-				if label == selected {
-					a.residencyChoice(choices[i], value)
-					break
-				}
-			}
+			a.residencyChoice(selected, value)
 		}
 		if !a.residencyCustomOpen {
 			return

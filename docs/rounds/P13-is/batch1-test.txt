@@ -1,0 +1,52 @@
+=== RUN   TestLocalDraftParameterRemovalKeepsRemainingInput
+--- PASS: TestLocalDraftParameterRemovalKeepsRemainingInput (0.07s)
+=== RUN   TestLocalDraftParameterKindKeepsDefaultInput
+--- PASS: TestLocalDraftParameterKindKeepsDefaultInput (0.01s)
+=== RUN   TestMenuLanguageParameter
+=== RUN   TestMenuLanguageParameter/light
+=== RUN   TestMenuLanguageParameter/dark
+--- PASS: TestMenuLanguageParameter (0.05s)
+    --- PASS: TestMenuLanguageParameter/light (0.03s)
+    --- PASS: TestMenuLanguageParameter/dark (0.02s)
+=== RUN   TestMenuLanguageResidency
+=== RUN   TestMenuLanguageResidency/light
+=== RUN   TestMenuLanguageResidency/dark
+--- PASS: TestMenuLanguageResidency (0.02s)
+    --- PASS: TestMenuLanguageResidency/light (0.01s)
+    --- PASS: TestMenuLanguageResidency/dark (0.01s)
+=== RUN   TestParameterMenuExternalSelection
+=== RUN   TestParameterMenuExternalSelection/light
+=== RUN   TestParameterMenuExternalSelection/dark
+--- PASS: TestParameterMenuExternalSelection (0.01s)
+    --- PASS: TestParameterMenuExternalSelection/light (0.00s)
+    --- PASS: TestParameterMenuExternalSelection/dark (0.00s)
+=== RUN   TestResidencyMenuExternalSelection
+=== RUN   TestResidencyMenuExternalSelection/light
+=== RUN   TestResidencyMenuExternalSelection/dark
+--- PASS: TestResidencyMenuExternalSelection (0.01s)
+    --- PASS: TestResidencyMenuExternalSelection/light (0.00s)
+    --- PASS: TestResidencyMenuExternalSelection/dark (0.00s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.03s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.02s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.02s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.03s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.02s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.01s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.03s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.01s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.01s)
+=== RUN   TestResidencySelectMapping
+--- PASS: TestResidencySelectMapping (0.00s)
+=== RUN   TestSurfaceResidencyControlIsOneRow
+--- PASS: TestSurfaceResidencyControlIsOneRow (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.304s

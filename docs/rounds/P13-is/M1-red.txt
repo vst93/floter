@@ -1,0 +1,19 @@
+=== RUN   TestMenuLanguageParameter
+=== RUN   TestMenuLanguageParameter/light
+    menulanguage_test.go:68: translation lost parameter highlight: text
+=== RUN   TestMenuLanguageParameter/dark
+    menulanguage_test.go:68: translation lost parameter highlight: text
+--- FAIL: TestMenuLanguageParameter (0.17s)
+    --- FAIL: TestMenuLanguageParameter/light (0.14s)
+    --- FAIL: TestMenuLanguageParameter/dark (0.03s)
+=== RUN   TestMenuLanguageResidency
+=== RUN   TestMenuLanguageResidency/light
+    menulanguage_test.go:63: translation lost residency highlight: 0, want 10
+=== RUN   TestMenuLanguageResidency/dark
+    menulanguage_test.go:63: translation lost residency highlight: 0, want 10
+--- FAIL: TestMenuLanguageResidency (0.02s)
+    --- FAIL: TestMenuLanguageResidency/light (0.01s)
+    --- FAIL: TestMenuLanguageResidency/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.203s
+FAIL

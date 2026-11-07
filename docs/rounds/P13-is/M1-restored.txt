@@ -1,0 +1,14 @@
+=== RUN   TestMenuLanguageParameter
+=== RUN   TestMenuLanguageParameter/light
+=== RUN   TestMenuLanguageParameter/dark
+--- PASS: TestMenuLanguageParameter (0.59s)
+    --- PASS: TestMenuLanguageParameter/light (0.51s)
+    --- PASS: TestMenuLanguageParameter/dark (0.08s)
+=== RUN   TestMenuLanguageResidency
+=== RUN   TestMenuLanguageResidency/light
+=== RUN   TestMenuLanguageResidency/dark
+--- PASS: TestMenuLanguageResidency (0.05s)
+    --- PASS: TestMenuLanguageResidency/light (0.04s)
+    --- PASS: TestMenuLanguageResidency/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.682s

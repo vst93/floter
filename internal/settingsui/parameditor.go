@@ -172,11 +172,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				})
 				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)
-					chosen := runParamKindLabel(copy, kind)
-					a.paramSelect(c, &chosen, labels, copy.ParamsKind).Bind(&optionsFocus.source).Bind(&placeholderFocus.source)
-					if chosen != runParamKindLabel(copy, kind) {
-						kind = paramKindFromLabel(copy, chosen)
-					}
+					a.paramSelect(c, &kind, labels, copy.ParamsKind, paramKinds).Bind(&optionsFocus.source).Bind(&placeholderFocus.source)
 				})
 				// The reference hides the placeholder field for a boolean: its
 				// value is its flag, so a field hint means nothing.
@@ -244,8 +240,12 @@ func (a *App) paramField(c *ui.Context, key, label string, field func()) {
 // paramSelect is one of the plate's drop-downs: the reference's
 // `.extension-custom-form select` (`extensions.css:1783-1789`) — the field
 // material in the form's pill shape and its 30px/3px/7px box.
-func (a *App) paramSelect(c *ui.Context, selected *string, labels []string, label string) ui.Element {
-	e := valueSelect(c, selected, labels, labels, *selected, a.tokens(c), len(labels) > 0).
+func (a *App) paramSelect(c *ui.Context, selected *string, labels []string, label string, identities ...[]string) ui.Element {
+	values := labels
+	if len(identities) > 0 {
+		values = identities[0]
+	}
+	e := valueSelect(c, selected, labels, values, *selected, a.tokens(c), len(labels) > 0).
 		Label(label).FillWidth().Radius(999)
 	if a.cardUnit > 0 {
 		m := customFieldMetrics
