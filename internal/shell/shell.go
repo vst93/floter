@@ -1812,6 +1812,8 @@ func (a *App) integrationList() []settingsui.Integration {
 			})
 		}
 		item.OutputMode = integration.Manifest.Route()
+		item.HealthReprobeUnavailable = integration.ManifestErr != nil ||
+			integration.Manifest.ID != integration.Entry.ID || len(integration.Manifest.Lifecycle.Probes) == 0
 		// Only the host's own generated integrations can be re-probed: the
 		// button rebuilds a descriptor it wrote, never publisher content.
 		item.Generated = integration.Entry.PublisherID == "local-user" &&

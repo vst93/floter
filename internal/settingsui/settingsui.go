@@ -380,6 +380,9 @@ type Integration struct {
 	// duration, the failed ones with their exit code and stderr, and when the
 	// run happened. Nil when nothing has ever probed the integration.
 	HealthReport *HealthReport
+	// HealthReprobeUnavailable keeps historical reports readable when the
+	// current manifest no longer declares executable lifecycle checks.
+	HealthReprobeUnavailable bool
 	// Approval is the recorded permission approval, as the card draws it: what
 	// was approved, when, and against which manifest — with the on-disk
 	// digest beside it, so "what I approved" and "what is here now" are two
@@ -2941,11 +2944,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				// chip is the block's value and the button its one action.
 				ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Children(func() {
 					a.healthStatusChip(c, copy, integration.Health, integration.HealthStatus)
-					// `healthReprobe` runs only while the stored report has a schema
-					// the host can execute (`Reprobe` refuses with `ErrNoProbes`
-					// otherwise), which is exactly the state the reference gates
-					// the button on: `healthReport &&` (`:2909`).
-					if a.Actions.ReprobeHealth != nil && integration.HealthReport != nil {
+					// A stored report is history; only the current declaration can
+					// authorize another run. Keep the report if that outlet retires.
+					if a.Actions.ReprobeHealth != nil && integration.HealthReport != nil && !integration.HealthReprobeUnavailable {
 						label := copy.IntegrationsHealthReprobe
 						if a.extensionIconButton(c, "refresh", label, a.rowBusy(integration.ID)).Clicked() {
 							a.Actions.ReprobeHealth(integration.ID)
