@@ -1,0 +1,14 @@
+=== RUN   TestQueuedCustomRemovedBindingCannotDispatch
+=== RUN   TestQueuedCustomRemovedBindingCannotDispatch/light
+=== RUN   TestQueuedCustomRemovedBindingCannotDispatch/dark
+--- PASS: TestQueuedCustomRemovedBindingCannotDispatch (0.38s)
+    --- PASS: TestQueuedCustomRemovedBindingCannotDispatch/light (0.18s)
+    --- PASS: TestQueuedCustomRemovedBindingCannotDispatch/dark (0.20s)
+=== RUN   TestQueuedCustomReplacedActionCannotDispatch
+=== RUN   TestQueuedCustomReplacedActionCannotDispatch/light
+=== RUN   TestQueuedCustomReplacedActionCannotDispatch/dark
+--- PASS: TestQueuedCustomReplacedActionCannotDispatch (0.36s)
+    --- PASS: TestQueuedCustomReplacedActionCannotDispatch/light (0.03s)
+    --- PASS: TestQueuedCustomReplacedActionCannotDispatch/dark (0.32s)
+PASS
+ok  	floter/internal/shell	0.751s

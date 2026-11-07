@@ -1,0 +1,19 @@
+=== RUN   TestQueuedCustomRemovedBindingCannotDispatch
+=== RUN   TestQueuedCustomRemovedBindingCannotDispatch/light
+    shortcutqueued_test.go:61: retired custom callback dispatched: [say original]
+=== RUN   TestQueuedCustomRemovedBindingCannotDispatch/dark
+    shortcutqueued_test.go:61: retired custom callback dispatched: [say original]
+--- FAIL: TestQueuedCustomRemovedBindingCannotDispatch (0.69s)
+    --- FAIL: TestQueuedCustomRemovedBindingCannotDispatch/light (0.35s)
+    --- FAIL: TestQueuedCustomRemovedBindingCannotDispatch/dark (0.34s)
+=== RUN   TestQueuedCustomReplacedActionCannotDispatch
+=== RUN   TestQueuedCustomReplacedActionCannotDispatch/light
+    shortcutqueued_test.go:61: retired custom callback dispatched: [say original]
+=== RUN   TestQueuedCustomReplacedActionCannotDispatch/dark
+    shortcutqueued_test.go:61: retired custom callback dispatched: [say original]
+--- FAIL: TestQueuedCustomReplacedActionCannotDispatch (0.58s)
+    --- FAIL: TestQueuedCustomReplacedActionCannotDispatch/light (0.13s)
+    --- FAIL: TestQueuedCustomReplacedActionCannotDispatch/dark (0.45s)
+FAIL
+FAIL	floter/internal/shell	1.274s
+FAIL

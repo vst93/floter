@@ -376,6 +376,8 @@ type App struct {
 	registerShortcut   func(string, func()) error
 	unregisterShortcut func(string)
 	summonKey          string
+	// A native event may already be queued when its registration is released.
+	customGeneration uint64
 
 	// Clipboard is the clipboard history the launcher searches, and
 	// Calculator its calculation history.

@@ -95,6 +95,8 @@ func (a *App) ApplyCustomShortcuts() []CustomShortcutRejection {
 // Every entry that reaches it has already been normalized into a whole binding,
 // so an unparseable key is dropped before it can be reported.
 func (a *App) applyCustomShortcuts(entries []settings.CustomShortcut) ([]settings.CustomShortcut, []CustomShortcutRejection) {
+	a.customGeneration++
+	generation := a.customGeneration
 	for _, key := range a.customKeys {
 		a.unregisterShortcut(key)
 	}
@@ -119,7 +121,7 @@ func (a *App) applyCustomShortcuts(entries []settings.CustomShortcut) ([]setting
 		if err := a.registerShortcut(accelerator, func() {
 			// A native event can arrive while an explicit edit validates its
 			// claims, before the still-active recorder releases them again.
-			if !a.Settings.RecordingShortcut() {
+			if generation == a.customGeneration && !a.Settings.RecordingShortcut() {
 				a.runCustomShortcut(action)
 			}
 		}); err != nil {
