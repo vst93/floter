@@ -95,9 +95,11 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 			if extra := len(lines) - len(shown); extra > 0 {
 				body += " (" + copy.IntegrationsImportFailedMore(extra) + ")"
 			}
-			failure := a.transferNotice(c, t.Warning, "alert", body)
-			if len(lines) > len(shown) {
-				tokens.Tip(c, failure, strings.Join(lines, "\n"))
+			a.transferNotice(c, t.Warning, "alert", body)
+			// Keep the established three-entry summary, but make its tail
+			// readable in the page's existing scroll area without hover.
+			for _, line := range lines[len(shown):] {
+				a.transferNotice(c, t.Warning, "alert", line)
 			}
 		}
 		if len(report.SkippedDetails) > 0 {

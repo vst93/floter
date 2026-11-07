@@ -1,0 +1,11 @@
+=== RUN   TestImportFailureTailAvailableInPageScroll
+=== RUN   TestImportFailureTailAvailableInPageScroll/light
+    transferdetail_test.go:128: failure tail is unavailable without hover
+=== RUN   TestImportFailureTailAvailableInPageScroll/dark
+    transferdetail_test.go:128: failure tail is unavailable without hover
+--- FAIL: TestImportFailureTailAvailableInPageScroll (0.10s)
+    --- FAIL: TestImportFailureTailAvailableInPageScroll/light (0.10s)
+    --- FAIL: TestImportFailureTailAvailableInPageScroll/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.112s
+FAIL

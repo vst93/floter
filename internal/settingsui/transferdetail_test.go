@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"fmt"
 	"image/png"
 	"os"
 	"strings"
@@ -94,7 +95,8 @@ func TestImportFailureTailHasReadableDetails(t *testing.T) {
 			tt.Advance(700 * time.Millisecond)
 			tt.Frame()
 			transferDetailDump(t, tt, "failure-tail", dark)
-			detail := "dev.workspace: bad manifest\ndev.build: missing script\ndev.archive: missing descriptor\ndev.notes: permission denied"
+			// P13-jg S: temporary hover-only tail -> persistent page detail.
+			detail := "dev.notes: permission denied"
 			if !tt.HasText(detail) {
 				t.Error("failure tail cannot reveal the fourth integration or reason")
 			}
@@ -104,9 +106,36 @@ func TestImportFailureTailHasReadableDetails(t *testing.T) {
 			tt.Move(0, 0)
 			tt.Frame()
 			tt.Frame()
-			if tt.HasText(detail) {
-				t.Error("failure details remain after pointer leaves")
+			if !tt.HasText(detail) {
+				t.Error("failure details depend on hover")
 			}
+		})
+	}
+}
+
+func TestImportFailureTailAvailableInPageScroll(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := noticeApp(t, dark)
+			a.TransferReport = &ImportReport{Path: "/home/user/workspace.json"}
+			for n := 0; n < 40; n++ {
+				a.TransferReport.Failed = append(a.TransferReport.Failed, TransferFailure{ID: fmt.Sprintf("dev.workspace.%02d", n), Reason: "missing descriptor"})
+			}
+			tt := noticeExitPage(t, a, dark)
+			// Necessary diagnostics must be available on the existing page,
+			// including without a pointer and beyond a tooltip's height.
+			label := "dev.workspace.39: missing descriptor"
+			if !tt.HasText(label) {
+				t.Fatal("failure tail is unavailable without hover")
+			}
+			tt.Scroll(400, 300, 0, 2000)
+			tt.Frame()
+			tt.Frame()
+			last := mustFind(t, tt, label)
+			if last.Y < 0 || last.Y+last.H > 900 {
+				t.Errorf("last failure cannot be scrolled into view: %+v", last)
+			}
+			transferDetailDump(t, tt, "failure-scroll", dark)
 		})
 	}
 }

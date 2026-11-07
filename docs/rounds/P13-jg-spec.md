@@ -8,7 +8,7 @@
 
 1. `internal/settingsui/transfer.go:71-90`：失败分支 return 藏掉成功/跳过数量 → 部分成功仍显示原汇总。
 2. `internal/shell/sync.go:157-174`：Skipped 只有数量 → 将 ID 和原因带回报告，显示已有诊断。
-3. `internal/settingsui/transfer.go:79-86`：第 4 条及以后失败只剩数量 → 保留前三条正文，既有提示入口接通完整详情。原“长来源路径越界”候选在深浅事件中均未复现，取消修改；不计完成项。
+3. `internal/settingsui/transfer.go:79-86`：第 4 条及以后失败只剩数量 → 保留前三条正文，其余逐条进入已有页面滚动区（第二轮纠正临时 tooltip 方案）。原“长来源路径越界”候选在深浅事件中均未复现，取消修改；不计完成项。
 4. `internal/settingsui/transfer.go:65-70`：ExcludedFields.FieldCount 不可见 → 在既有详情提示中展示每个对象的排除数量，保持原警告正文。
 5. `internal/extensions/sync.go:262`：负版本通过版本校验 → 拒绝不支持的负版本，保留 v1/v2。
 6. `internal/extensions/sync.go:258`：JSON 解码可将非法 UTF-8 替换成 U+FFFD → 拒绝损坏文本，防止静默改写配置。

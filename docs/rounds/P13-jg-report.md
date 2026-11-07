@@ -26,10 +26,10 @@
 
 第三项原候选长来源路径越界未复现，深浅均通过；保留边界验证、不计修复，改查失败尾部详情。
 
-3. 现象：第四个失败只剩“and 1 more”，具体集成与原因不可查看。改动：保留三条正文与计数，原报告提示机制接入完整失败列表。验证：原产品深浅指针事件均报 `failure tail cannot reveal the fourth integration or reason`；修后验证完整四条、原行不移位、移开即消失。
+3. 现象：第四个失败只剩“and 1 more”，具体集成与原因不可查看。最终改动：保留三条正文与计数，后续失败逐条放入现有页面滚动区。验证：原产品深浅均报 `failure tail cannot reveal the fourth integration or reason`；第二轮再验 40 个失败，无须悬停即可读取，最后一条能滚进视口。首批临时 tooltip 方案已被后续修正取代。
 4. 现象：报告收到每个工具的排除字段数量，却只有名称可见。改动：警告行的详情提示展示逐工具数量；常驻正文保持原样。验证：原产品深浅均报 `excluded-fields notice hides per-integration field counts`；修后验证 2/5 两个数量、布局与退场。此提示只承载补充数量；警告本身一直可见。
 
-第二批相关 **21 PASS / 0 FAIL**，settingsui vet 净。首轮图像复核：浅色混合导入现在同时看得到成功计数和两种未生效原因；深色排除详情在原警告之上显示 2/5，报告原行不移动。工具提示沿用框架 600ms 和现有 E2 材质。完整失败列表是前三条正文的补充；未增加展开按钮或键盘步骤。
+第二批相关 **21 PASS / 0 FAIL**，settingsui vet 净。首轮图像复核：浅色混合导入现在同时看得到成功计数和两种未生效原因；深色排除详情在原警告之上显示 2/5，报告原行不移动。数量工具提示沿用框架 600ms 和现有 E2 材质。未增加展开按钮或键盘步骤。
 
 5. 现象：version=-1 的真实 JSON 导入会写仓库、配置并报告成功。改动：版本范围从 `==0` 拒绝改为 `<1` 拒绝，v1/v2 保持兼容。验证：改前报 `invalid document changed repository` 与 `invalid document wrote configuration`；修后检查本地化错误标题、具体版本原因、无写入及修正文件可重试。
 6. 现象：配置字符串内的 0xff 被 JSON 解码替换，损坏值静默写入配置。改动：解析前拒绝非法 UTF-8 字节。验证：改前报 `invalid document wrote configuration`；修后验证具体原因、无写入、busy 释放和同入口恢复。合法中文与合法 U+FFFD 不误拒。
@@ -40,3 +40,7 @@
 8. 现象：已声明 static descriptor 的文件丢失，同样导出不完整备份。改动：descriptor 读错返回原因；无包集成的兼容路径不变。验证：两主题真实删除事件复现；修后同样保护备份，补回 descriptor 后完整 JSON 内容相等。独立覆盖 script 和 static-descriptor 两类现有组件。
 
 第四批相关 **19 PASS / 0 FAIL**，extensions/shell vet 净。八项均已完成首轮修后验证，正式 mutation 与最终门槛尚未结束。
+
+第二轮诊断：失败尾部不应依赖鼠标提示，长列表也不适合不可滚动浮层。新真实页面事件在临时 tooltip 产品上报 `failure tail is unavailable without hover`。因此第三项修正为原滚动区内逐条正文；原三条摘要字串与 B 测试不改。只调整本轮新测试的 S 断言（临时 hover-only → 常驻详情），没有动开盘旧断言。
+
+第二轮修正相关 **24 PASS / 0 FAIL**，settingsui vet 净；40 条失败最后一条可滚进 720×900 视口。该修正单独提交，不把它冒充第九项。
