@@ -888,7 +888,7 @@ func New(opts Options) *App {
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
 				if err != nil {
 					log.Printf("floter: could not install %s: %v", name, err)
-					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(name) })
+					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(name) })
 					return
 				}
 				approved := true
@@ -902,7 +902,7 @@ func New(opts Options) *App {
 						return
 					}
 					log.Printf("floter: could not install %s: %v", name, err)
-					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(name) })
+					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(name) })
 					return
 				}
 				log.Printf("floter: installed %s %s", entry.Name, entry.PackageVersion)
@@ -928,7 +928,7 @@ func New(opts Options) *App {
 					// The dialog stays open on failure, so the notice says what the
 					// panel could not: the removal did not land. Same sentence the
 					// plain removal's failure raises.
-					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
+					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
 					if done != nil {
 						a.onMain(func() { done(err) })
 					}
@@ -953,7 +953,7 @@ func New(opts Options) *App {
 			go func() {
 				if err := extensions.Uninstall(a.Paths, id, false); err != nil {
 					log.Printf("floter: could not uninstall %s: %v", id, err)
-					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
+					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
 					// The band stays up with the failure on it, so the notice says
 					// what the panel could not: the removal did not land.
 					if done != nil {
@@ -992,7 +992,7 @@ func New(opts Options) *App {
 				prepared, err := extensions.PrepareAdopt(a.Paths, id)
 				if err != nil {
 					log.Printf("floter: could not adopt %s: %v", id, err)
-					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
+					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
 					return
 				}
 				approved := true
@@ -1002,7 +1002,7 @@ func New(opts Options) *App {
 				entry, err := prepared.Commit(approved)
 				if err != nil {
 					log.Printf("floter: could not adopt %s: %v", id, err)
-					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
+					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
 					return
 				}
 				a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
@@ -2696,7 +2696,7 @@ func (a *App) connectRecommended(id string) {
 		entry, err := prepared.Commit(true)
 		if err != nil {
 			log.Printf("floter: could not connect %s: %v", id, err)
-			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
+			a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
 			return
 		}
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })

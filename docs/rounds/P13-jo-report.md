@@ -32,3 +32,12 @@
 4. 现象：修复失败文案带成功勾。改动：Repair 的失败分支使用同一警告出口。验证：设置动作真实错误回调、深浅截图，改前 `repair-failed failure wears a success mark: type="success" timeout=4s`，改后失败类型与6s既有警告窗口正确。
 
 第二批相关 **21 PASS / 0 FAIL**，shell vet 退出0。首稿测试导入误落在函数外导致编译错误，修正后才记录有效红绿；旧测试未修改。旧 V/B/S **0/0/0**。
+
+第二批 f46a5dd1 已推送。
+
+5. 现象：安装/接管失败被提示为成功；推荐连接的提交失败同源。改动：注册表准备/提交、孤包接管准备/提交及推荐连接提交五个失败出口统一警告。验证：本地 HTTP 503 与不存在的孤包触发真实动作，深浅均从 type="success" 实红到 error；原安装成功回归保留。
+6. 现象：普通移除与组件卸载失败显示成功。改动：两个卸载错误分支使用失败出口。验证：真实 Uninstall/UninstallComponentized 错误回调，两个场景各深浅类型、时效、可见句子均断言；改前 `remove-failed failure wears a success mark` / `uninstall-failed failure wears a success mark`。
+
+第三批相关 **30 PASS / 0 FAIL**，shell vet 退出0，旧 V/B/S **0/0/0**。范围内所有 notifyCompletion 的明确失败分支已排查。
+
+基线首轮错误 locale 的进程在重跑中文基线后主动终止，原日志保留但不作门槛通过依据；中文基线继续。

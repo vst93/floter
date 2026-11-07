@@ -2,6 +2,8 @@ package shell
 
 import (
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -136,4 +138,42 @@ func TestCompletionSeverityRepair(t *testing.T) {
 		completionFailureDone(t, func(done func(error)) { f.a.Settings.Actions.RepairIntegration("missing-tool", done) })
 		return i18n.NotificationsFor("zh").IntegrationCheckFailed("missing-tool")
 	})
+}
+
+func TestCompletionSeverityInstall(t *testing.T) {
+	t.Run("registry", func(t *testing.T) {
+		checkCompletionSeverity(t, "install-failed", func(t *testing.T, f *diagnosisFixture) string {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				http.Error(w, "registry unavailable", http.StatusServiceUnavailable)
+			}))
+			t.Cleanup(server.Close)
+			f.a.Registry = &extensions.Registry{BaseURL: server.URL, Client: server.Client()}
+			f.a.Settings.Actions.InstallFromRegistry("floter-test-tool", "1.0.0")
+			return i18n.NotificationsFor("zh").IntegrationInstallFailed("floter-test-tool")
+		})
+	})
+	t.Run("adoption", func(t *testing.T) {
+		checkCompletionSeverity(t, "adopt-failed", func(t *testing.T, f *diagnosisFixture) string {
+			f.a.Settings.Actions.AdoptIntegration("missing-tool")
+			return i18n.NotificationsFor("zh").IntegrationInstallFailed("missing-tool")
+		})
+	})
+}
+
+func TestCompletionSeverityRemoval(t *testing.T) {
+	for _, components := range []bool{false, true} {
+		name := map[bool]string{false: "remove-failed", true: "uninstall-failed"}[components]
+		t.Run(name, func(t *testing.T) {
+			checkCompletionSeverity(t, name, func(t *testing.T, f *diagnosisFixture) string {
+				completionFailureDone(t, func(done func(error)) {
+					if components {
+						f.a.Settings.Actions.UninstallComponents("missing-tool", "检查工具", settingsui.RemovalPackage, settingsui.UninstallComponents{RemoveHostConfig: true}, done)
+					} else {
+						f.a.Settings.Actions.UninstallIntegration("missing-tool", "检查工具", settingsui.RemovalPackage, done)
+					}
+				})
+				return i18n.NotificationsFor("zh").IntegrationRemoveFailed("检查工具")
+			})
+		})
+	}
 }

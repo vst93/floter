@@ -1,0 +1,80 @@
+=== RUN   TestCompletionSeverityDiagnosis
+=== RUN   TestCompletionSeverityDiagnosis/light
+=== RUN   TestCompletionSeverityDiagnosis/dark
+--- PASS: TestCompletionSeverityDiagnosis (0.76s)
+    --- PASS: TestCompletionSeverityDiagnosis/light (0.37s)
+    --- PASS: TestCompletionSeverityDiagnosis/dark (0.38s)
+=== RUN   TestCompletionSeverityClipboard
+=== RUN   TestCompletionSeverityClipboard/light
+2026/11/08 04:59:08 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboardlight4038836369/003/clipboard-history/.floter-state-2759173583.tmp /tmp/TestCompletionSeverityClipboardlight4038836369/003/clipboard-history/index.json: file exists
+=== RUN   TestCompletionSeverityClipboard/dark
+2026/11/08 04:59:09 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboarddark1613926419/003/clipboard-history/.floter-state-3676314154.tmp /tmp/TestCompletionSeverityClipboarddark1613926419/003/clipboard-history/index.json: file exists
+--- PASS: TestCompletionSeverityClipboard (0.73s)
+    --- PASS: TestCompletionSeverityClipboard/light (0.36s)
+    --- PASS: TestCompletionSeverityClipboard/dark (0.37s)
+=== RUN   TestCompletionSeverityReconnect
+=== RUN   TestCompletionSeverityReconnect/light
+2026/11/08 04:59:09 floter: could not reconnect missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityReconnect/dark
+2026/11/08 04:59:10 floter: could not reconnect missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityReconnect (0.92s)
+    --- PASS: TestCompletionSeverityReconnect/light (0.48s)
+    --- PASS: TestCompletionSeverityReconnect/dark (0.44s)
+=== RUN   TestCompletionSeverityRepair
+=== RUN   TestCompletionSeverityRepair/light
+2026/11/08 04:59:10 floter: could not re-check missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRepair/dark
+2026/11/08 04:59:10 floter: could not re-check missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityRepair (0.84s)
+    --- PASS: TestCompletionSeverityRepair/light (0.43s)
+    --- PASS: TestCompletionSeverityRepair/dark (0.41s)
+=== RUN   TestCompletionSeverityInstall
+=== RUN   TestCompletionSeverityInstall/registry
+=== RUN   TestCompletionSeverityInstall/registry/light
+2026/11/08 04:59:11 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+=== RUN   TestCompletionSeverityInstall/registry/dark
+2026/11/08 04:59:11 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+=== RUN   TestCompletionSeverityInstall/adoption
+=== RUN   TestCompletionSeverityInstall/adoption/light
+2026/11/08 04:59:12 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+=== RUN   TestCompletionSeverityInstall/adoption/dark
+2026/11/08 04:59:12 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+--- PASS: TestCompletionSeverityInstall (1.36s)
+    --- PASS: TestCompletionSeverityInstall/registry (0.69s)
+        --- PASS: TestCompletionSeverityInstall/registry/light (0.35s)
+        --- PASS: TestCompletionSeverityInstall/registry/dark (0.34s)
+    --- PASS: TestCompletionSeverityInstall/adoption (0.67s)
+        --- PASS: TestCompletionSeverityInstall/adoption/light (0.33s)
+        --- PASS: TestCompletionSeverityInstall/adoption/dark (0.33s)
+=== RUN   TestCompletionSeverityRemoval
+=== RUN   TestCompletionSeverityRemoval/remove-failed
+=== RUN   TestCompletionSeverityRemoval/remove-failed/light
+2026/11/08 04:59:12 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/remove-failed/dark
+2026/11/08 04:59:13 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed/light
+2026/11/08 04:59:13 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed/dark
+2026/11/08 04:59:13 floter: could not uninstall missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityRemoval (1.44s)
+    --- PASS: TestCompletionSeverityRemoval/remove-failed (0.72s)
+        --- PASS: TestCompletionSeverityRemoval/remove-failed/light (0.34s)
+        --- PASS: TestCompletionSeverityRemoval/remove-failed/dark (0.37s)
+    --- PASS: TestCompletionSeverityRemoval/uninstall-failed (0.73s)
+        --- PASS: TestCompletionSeverityRemoval/uninstall-failed/light (0.38s)
+        --- PASS: TestCompletionSeverityRemoval/uninstall-failed/dark (0.34s)
+=== RUN   TestInstallFromRegistryReachesTheStore
+2026/11/08 04:59:14 floter: installed NPM Tool 1.0.0
+--- PASS: TestInstallFromRegistryReachesTheStore (0.17s)
+=== RUN   TestClipboardClearReportsWhereTheUserIsLooking
+--- PASS: TestClipboardClearReportsWhereTheUserIsLooking (0.00s)
+=== RUN   TestComponentizedUninstallReportsBackToTheDialog
+2026/11/08 04:59:14 floter: uninstalled io.github.vst93.v (config=true data=true artifacts=true)
+2026/11/08 04:59:14 floter: could not uninstall nope: extensions: no such integration
+--- PASS: TestComponentizedUninstallReportsBackToTheDialog (0.00s)
+=== RUN   TestPlainRemovalReportsBackToTheBar
+2026/11/08 04:59:14 floter: could not uninstall nope: extensions: no such integration
+--- PASS: TestPlainRemovalReportsBackToTheBar (0.00s)
+PASS
+ok  	floter/internal/shell	6.267s

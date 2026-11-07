@@ -1,0 +1,47 @@
+=== RUN   TestCompletionSeverityInstall
+=== RUN   TestCompletionSeverityInstall/registry
+=== RUN   TestCompletionSeverityInstall/registry/light
+2026/11/08 04:58:36 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+    completionseverity_test.go:61: install-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityInstall/registry/dark
+2026/11/08 04:58:36 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+    completionseverity_test.go:61: install-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityInstall/adoption
+=== RUN   TestCompletionSeverityInstall/adoption/light
+2026/11/08 04:58:37 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+    completionseverity_test.go:61: adopt-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityInstall/adoption/dark
+2026/11/08 04:58:37 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+    completionseverity_test.go:61: adopt-failed failure wears a success mark: type="success" timeout=4s
+--- FAIL: TestCompletionSeverityInstall (1.87s)
+    --- FAIL: TestCompletionSeverityInstall/registry (0.97s)
+        --- FAIL: TestCompletionSeverityInstall/registry/light (0.57s)
+        --- FAIL: TestCompletionSeverityInstall/registry/dark (0.40s)
+    --- FAIL: TestCompletionSeverityInstall/adoption (0.90s)
+        --- FAIL: TestCompletionSeverityInstall/adoption/light (0.46s)
+        --- FAIL: TestCompletionSeverityInstall/adoption/dark (0.44s)
+=== RUN   TestCompletionSeverityRemoval
+=== RUN   TestCompletionSeverityRemoval/remove-failed
+=== RUN   TestCompletionSeverityRemoval/remove-failed/light
+2026/11/08 04:58:38 floter: could not uninstall missing-tool: extensions: no such integration
+    completionseverity_test.go:61: remove-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityRemoval/remove-failed/dark
+2026/11/08 04:58:38 floter: could not uninstall missing-tool: extensions: no such integration
+    completionseverity_test.go:61: remove-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed/light
+2026/11/08 04:58:38 floter: could not uninstall missing-tool: extensions: no such integration
+    completionseverity_test.go:61: uninstall-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed/dark
+2026/11/08 04:58:39 floter: could not uninstall missing-tool: extensions: no such integration
+    completionseverity_test.go:61: uninstall-failed failure wears a success mark: type="success" timeout=4s
+--- FAIL: TestCompletionSeverityRemoval (1.64s)
+    --- FAIL: TestCompletionSeverityRemoval/remove-failed (0.81s)
+        --- FAIL: TestCompletionSeverityRemoval/remove-failed/light (0.44s)
+        --- FAIL: TestCompletionSeverityRemoval/remove-failed/dark (0.37s)
+    --- FAIL: TestCompletionSeverityRemoval/uninstall-failed (0.83s)
+        --- FAIL: TestCompletionSeverityRemoval/uninstall-failed/light (0.39s)
+        --- FAIL: TestCompletionSeverityRemoval/uninstall-failed/dark (0.43s)
+FAIL
+FAIL	floter/internal/shell	3.529s
+FAIL
