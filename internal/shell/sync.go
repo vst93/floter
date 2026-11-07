@@ -186,7 +186,7 @@ func (a *App) exportScript(name, content string) {
 		path, err := a.saveFile(name)
 		if err != nil {
 			log.Printf("floter: could not pick a path for %s: %v", name, err)
-			a.queueNotice(copy.LocalToolExportFailed, refusalNotice)
+			a.transferFailedCause(copy.LocalToolExportFailed, err)
 			return
 		}
 		if path == "" {
@@ -194,7 +194,7 @@ func (a *App) exportScript(name, content string) {
 		}
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			log.Printf("floter: could not write %s: %v", path, err)
-			a.queueNotice(copy.LocalToolExportFailed, refusalNotice)
+			a.transferFailedCause(copy.LocalToolExportFailed, err)
 			return
 		}
 		a.queueToast(ui.Toast{

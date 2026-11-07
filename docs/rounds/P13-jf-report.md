@@ -32,3 +32,10 @@
 4. 现象：仓库损坏被当空仓库，合法导入误显示跳过 1 项。改动：ImportSync 在任何应用动作前返回 RepositoryErr，宿主显示实际错误。验证：两主题原产品 `unreadable repository was treated as empty` 与 `unreadable repository fabricated import report`；修后仓库字节不变、无虚假报告，恢复仓库后成功 1/跳过 0/失败 0。
 
 第二批相关 **62 PASS / 0 FAIL**，extensions/shell vet 净。旧标题 B pin、原单行 toast 的结构和键盘规则未改；新增详情列以 2u 间隔排原文，无新增浮层。
+
+第二批 9c0871c6 已推送。第一次目视：浅色浮层原标题下一行明确显示不支持 version 99；关闭键完整，单一浮面不再只有笼统拒绝。深色报告的普通多段路径本来就能换行，未计修复；进一步测试无断点文件名。
+
+5. 现象：脚本保存选择器不可用只显示“导出失败”，无恢复线索。改动：保留原标题并显示选择器返回原因。验证：深浅两主题，原产品 `script-picker hides failure cause`；修后可见“restart the desktop portal”，恢复选择器后导出成功，原取消静默 B 测试仍绿。
+6. 现象：脚本写入目录等真实磁盘错误也被压成笼统失败。改动：接回路径与文件系统原因。验证：原产品 `script-write hides failure cause`；修后原因可见，改用合法路径重试文件字节等于原脚本。
+
+第三批相关 **16 PASS / 0 FAIL**，shell vet 净。没有改变导出脚本、选择器或成功提示的时机。
