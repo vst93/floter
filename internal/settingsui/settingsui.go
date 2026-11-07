@@ -5378,6 +5378,11 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 	choices = append(choices, "never", residencyCustom)
 
 	selected := selectValue
+	// Custom is an uncommitted UI choice. Keep it selected while its field
+	// is open so reselecting the stored preset can actually dismiss it.
+	if a.residencyCustomOpen {
+		selected = residencyCustom
+	}
 
 	t := c.Theme()
 	a.row(c, copy.SurfaceResidency, copy.SurfaceResidencyHint, func() {
@@ -5394,6 +5399,9 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 		ui.Text(c, copy.SurfaceResidencyCustomUnit).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
 		if input.Submitted() || a.pageButton(c, copy.SurfaceResidencyCustomApply).Clicked() {
 			a.commitResidencyDraft()
+			if !a.residencyCustomOpen {
+				e.Focus()
+			}
 		}
 	})
 }

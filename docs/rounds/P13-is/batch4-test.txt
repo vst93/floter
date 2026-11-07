@@ -1,0 +1,72 @@
+=== RUN   TestMenuExitResidencyCustomChoice
+=== RUN   TestMenuExitResidencyCustomChoice/light
+=== RUN   TestMenuExitResidencyCustomChoice/dark
+--- PASS: TestMenuExitResidencyCustomChoice (0.17s)
+    --- PASS: TestMenuExitResidencyCustomChoice/light (0.15s)
+    --- PASS: TestMenuExitResidencyCustomChoice/dark (0.02s)
+=== RUN   TestMenuExitResidencyApply
+=== RUN   TestMenuExitResidencyApply/light
+=== RUN   TestMenuExitResidencyApply/dark
+--- PASS: TestMenuExitResidencyApply (0.03s)
+    --- PASS: TestMenuExitResidencyApply/light (0.02s)
+    --- PASS: TestMenuExitResidencyApply/dark (0.02s)
+=== RUN   TestMenuLanguageParameter
+=== RUN   TestMenuLanguageParameter/light
+=== RUN   TestMenuLanguageParameter/dark
+--- PASS: TestMenuLanguageParameter (0.15s)
+    --- PASS: TestMenuLanguageParameter/light (0.11s)
+    --- PASS: TestMenuLanguageParameter/dark (0.05s)
+=== RUN   TestMenuLanguageResidency
+=== RUN   TestMenuLanguageResidency/light
+=== RUN   TestMenuLanguageResidency/dark
+--- PASS: TestMenuLanguageResidency (0.04s)
+    --- PASS: TestMenuLanguageResidency/light (0.02s)
+    --- PASS: TestMenuLanguageResidency/dark (0.02s)
+=== RUN   TestCustomMenuExternalSelection
+=== RUN   TestCustomMenuExternalSelection/light
+=== RUN   TestCustomMenuExternalSelection/dark
+--- PASS: TestCustomMenuExternalSelection (0.01s)
+    --- PASS: TestCustomMenuExternalSelection/light (0.01s)
+    --- PASS: TestCustomMenuExternalSelection/dark (0.01s)
+=== RUN   TestCustomMenuReorder
+=== RUN   TestCustomMenuReorder/light
+=== RUN   TestCustomMenuReorder/dark
+--- PASS: TestCustomMenuReorder (0.01s)
+    --- PASS: TestCustomMenuReorder/light (0.00s)
+    --- PASS: TestCustomMenuReorder/dark (0.00s)
+=== RUN   TestPaletteMenuExternalSelection
+=== RUN   TestPaletteMenuExternalSelection/light
+=== RUN   TestPaletteMenuExternalSelection/dark
+--- PASS: TestPaletteMenuExternalSelection (0.01s)
+    --- PASS: TestPaletteMenuExternalSelection/light (0.01s)
+    --- PASS: TestPaletteMenuExternalSelection/dark (0.00s)
+=== RUN   TestPaletteMenuReorder
+=== RUN   TestPaletteMenuReorder/light
+=== RUN   TestPaletteMenuReorder/dark
+--- PASS: TestPaletteMenuReorder (0.01s)
+    --- PASS: TestPaletteMenuReorder/light (0.00s)
+    --- PASS: TestPaletteMenuReorder/dark (0.00s)
+=== RUN   TestCustomMenuDuplicateLabels
+=== RUN   TestCustomMenuDuplicateLabels/light
+=== RUN   TestCustomMenuDuplicateLabels/dark
+--- PASS: TestCustomMenuDuplicateLabels (0.01s)
+    --- PASS: TestCustomMenuDuplicateLabels/light (0.00s)
+    --- PASS: TestCustomMenuDuplicateLabels/dark (0.00s)
+=== RUN   TestPaletteMenuDuplicateLabels
+=== RUN   TestPaletteMenuDuplicateLabels/light
+=== RUN   TestPaletteMenuDuplicateLabels/dark
+--- PASS: TestPaletteMenuDuplicateLabels (0.01s)
+    --- PASS: TestPaletteMenuDuplicateLabels/light (0.00s)
+    --- PASS: TestPaletteMenuDuplicateLabels/dark (0.00s)
+=== RUN   TestResidencyMenuExternalSelection
+=== RUN   TestResidencyMenuExternalSelection/light
+=== RUN   TestResidencyMenuExternalSelection/dark
+--- PASS: TestResidencyMenuExternalSelection (0.01s)
+    --- PASS: TestResidencyMenuExternalSelection/light (0.01s)
+    --- PASS: TestResidencyMenuExternalSelection/dark (0.01s)
+=== RUN   TestResidencySelectMapping
+--- PASS: TestResidencySelectMapping (0.00s)
+=== RUN   TestSurfaceResidencyControlIsOneRow
+--- PASS: TestSurfaceResidencyControlIsOneRow (0.06s)
+PASS
+ok  	floter/internal/settingsui	0.537s

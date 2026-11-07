@@ -101,3 +101,6 @@ func checkResidencyDraftExit(t *testing.T, apply bool) {
 		})
 	}
 }
+
+func TestMenuExitResidencyCustomChoice(t *testing.T) { checkResidencyDraftExit(t, false) }
+func TestMenuExitResidencyApply(t *testing.T)        { checkResidencyDraftExit(t, true) }

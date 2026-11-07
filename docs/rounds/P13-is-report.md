@@ -49,3 +49,12 @@ P13-hx 已覆盖任务书中目标仍在但 owner/schema/状态变化的八条�
 6. 现象：参数类型菜单展开时宿主移除声明，浮层撤走但键盘没有出口。改动：参数板跟踪覆盖菜单触发器的焦点归属。验证：深浅 Down 展开后移除，Add 保有焦点，Enter 可新增。
 
 相关测试与包 vet 通过。M3 回注旧实现，原串 `param-editor-removed lost Add outlet`、`param-menu-removed lost Add outlet`，以及各自 `could not add after refresh`；MD5 还原 touch 后两主题复验。旧 V/B/S **0/0/0**。驻留两项仅见红，尚未计为完成。
+
+第三批 `8e786da8` 已推送；相关 **20 PASS**，M3 **6 FAIL → MD5 OK → touch → 6 PASS**。
+
+## 第四批：驻留自定义选择与提交出口
+
+7. 现象：存储为关闭，选择自定义后触发器仍读关闭；再选关闭不触发 Changed，输入无法收起。改动：输入展开期间选择器保持 custom 这个尚未保存的 UI 选择。验证：深浅真实 Down/End/Enter 打开，再 Home/Enter 选关闭，输入收起、存储仍为 0。
+8. 现象：自定义输入 30 秒后 Enter，值已存且输入退场，键盘焦点随输入消失。改动：提交落在预设值导致输入关闭时，同帧聚焦原选择器；按钮提交共用出口。验证：深浅真实 Tab/Type/Enter，存储 30、输入关闭、原驻留入口聚焦。
+
+相关测试和包 vet 通过；M4 回注旧实现原串 `selecting stored Off cannot dismiss custom draft`、`preset apply removed focused input without returning to selector`；MD5 还原 touch 后复验。旧 V/B/S **0/0/0**。八项跨参数编辑、驻留、动作与调色板组件；不新增系统、依赖、页面，不改确认窗口或终端语义。
