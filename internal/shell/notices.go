@@ -113,6 +113,10 @@ func (a *App) beginNotice(owner string) noticeAttempt {
 func (a *App) queueOwnedToast(toast ui.Toast, attempt noticeAttempt) {
 	a.noticeMu.Lock()
 	if toast.ID == "floter-notice" {
+		if attempt.owner != "" && a.noticeOwner == attempt.owner && a.noticeVersion > attempt.version {
+			a.noticeMu.Unlock()
+			return
+		}
 		a.noticeOwner, a.noticeVersion = attempt.owner, attempt.version
 	}
 	a.notices = append(a.notices, toast)

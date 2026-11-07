@@ -423,11 +423,18 @@ type pendingInstall struct {
 // configuration values the document carries. A value the document excluded
 // (a secret, a path) is left as this machine has it.
 func applySyncEntry(paths Paths, integration Integration, entry SyncEntry) error {
-	if integration.Entry.Enabled != entry.Enabled {
-		repo, err := LoadRepository(paths.RepositoryFile)
-		if err != nil {
-			return err
-		}
+	// Earlier entries in this same document may have changed this flag.
+	// Configuration already merges against disk; enabled must do so too.
+	repo, err := LoadRepository(paths.RepositoryFile)
+	if err != nil {
+		return err
+	}
+	current, ok := repo.Extensions[entry.ID]
+	if !ok {
+		return ErrNoIntegration
+	}
+	changedEnabled := current.Enabled != entry.Enabled
+	if changedEnabled {
 		if _, ok := repo.SetEnabled(entry.ID, entry.Enabled); !ok {
 			return ErrNoIntegration
 		}
@@ -441,7 +448,7 @@ func applySyncEntry(paths Paths, integration Integration, entry SyncEntry) error
 	// The enabled flag is already durable. Keep the existing partial-apply
 	// order, but do not describe a later failure as if nothing changed.
 	configurationFailure := func(err error) error {
-		if err != nil && integration.Entry.Enabled != entry.Enabled {
+		if err != nil && changedEnabled {
 			return fmt.Errorf("enabled state was set to %t; configuration was not applied: %w", entry.Enabled, err)
 		}
 		return err
