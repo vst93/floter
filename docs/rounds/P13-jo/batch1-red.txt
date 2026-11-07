@@ -1,0 +1,19 @@
+=== RUN   TestCompletionSeverityDiagnosis
+=== RUN   TestCompletionSeverityDiagnosis/light
+    completionseverity_test.go:57: diagnosis-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityDiagnosis/dark
+    completionseverity_test.go:57: diagnosis-failed failure wears a success mark: type="success" timeout=4s
+--- FAIL: TestCompletionSeverityDiagnosis (1.09s)
+    --- FAIL: TestCompletionSeverityDiagnosis/light (0.63s)
+    --- FAIL: TestCompletionSeverityDiagnosis/dark (0.46s)
+=== RUN   TestCompletionSeverityClipboard
+=== RUN   TestCompletionSeverityClipboard/light
+    completionseverity_test.go:57: clipboard-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityClipboard/dark
+    completionseverity_test.go:57: clipboard-failed failure wears a success mark: type="success" timeout=4s
+--- FAIL: TestCompletionSeverityClipboard (0.94s)
+    --- FAIL: TestCompletionSeverityClipboard/light (0.48s)
+    --- FAIL: TestCompletionSeverityClipboard/dark (0.45s)
+FAIL
+FAIL	floter/internal/shell	2.041s
+FAIL

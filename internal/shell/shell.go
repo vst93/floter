@@ -2069,12 +2069,12 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 	if !a.rememberDiagnosis(integration, epoch, result) {
 		return
 	}
-	a.notifyCompletion(func(c i18n.Notifications) string {
+	a.notifyCompletionResult(func(c i18n.Notifications) string {
 		if result.DiagnosisFailed {
 			return c.IntegrationCheckFailed(integration.Name)
 		}
 		return c.IntegrationChecked(integration.Name)
-	})
+	}, result.DiagnosisFailed)
 	// The probes may have written a report (and marked the integration
 	// broken): the list is re-read from the repository, so the row shows
 	// it.
@@ -3438,6 +3438,14 @@ func (a *App) notifyIntegrationRemoval(kind, name string) {
 // result itself, so a notification there would be a second copy of the same
 // news.
 func (a *App) notifyCompletion(render func(i18n.Notifications) string) {
+	a.notifyCompletionResult(render, false)
+}
+
+func (a *App) notifyFailure(render func(i18n.Notifications) string) {
+	a.notifyCompletionResult(render, true)
+}
+
+func (a *App) notifyCompletionResult(render func(i18n.Notifications) string, warning bool) {
 	copy := i18n.NotificationsFor(a.Store.Snapshot().Language)
 	message := render(copy)
 	// The window that is on screen is told in its own panel: a system
@@ -3447,7 +3455,7 @@ func (a *App) notifyCompletion(render func(i18n.Notifications) string) {
 	// the terminal's note, or — on the settings page, which has no row — the
 	// app's toast stack.
 	if a.panelOnScreen() {
-		a.panelFeedback(message, false)
+		a.panelFeedback(message, warning)
 		return
 	}
 	a.Notify(copy.Title, message)
@@ -3460,12 +3468,12 @@ func (a *App) notifyCompletion(render func(i18n.Notifications) string) {
 // is the plugin page, so the name is that page's own localized name.
 func (a *App) notifyClipboardClear(success bool) {
 	name := i18n.For(a.Store.Snapshot().Language).Settings.ClipboardPlugin
-	a.notifyCompletion(func(c i18n.Notifications) string {
+	a.notifyCompletionResult(func(c i18n.Notifications) string {
 		if success {
 			return c.ClipboardCleared(name)
 		}
 		return c.ClipboardClearFailed(name)
-	})
+	}, !success)
 }
 
 // Notify shows a system notification, through the framework unless a test
