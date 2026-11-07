@@ -43,3 +43,12 @@ done.log 开盘不存在。按本轮实测创建交接，不追认历史日志�
 6. 草稿菜单 Escape：现象 → Escape 取消草稿录制而留下菜单，下一键不能录入。改动 → 菜单优先接收 Escape，关闭后归还原捕获。验证 → Escape 写入 0 次，原草稿仍在录制，下一键及 Bind 完成同一条绑定。
 
 相关 361 PASS / 0 FAIL，settingsui vet 净。M3 回注上一批 custom.go，原串 `draft menu could not select command mode`、`menu exit canceled or lost the original recorder`、`menu return did not record into the same draft` 实红；MD5 还原、touch 后 6 PASS。旧 V/B/S 0/0/0。
+
+第三批 **83aa9b08** 已推送。
+
+## 第四批：长键读全
+
+7. 保存行长键：现象 → 大字号 720px 设置页显示 `Ctrl+Alt+S…`，没有全文入口。改动 → 原 recorder 接到现有 tokens.Tip。验证 → 深浅实际悬停 700ms，完整文本从 1 份变 2 份；移开恢复 1 份，录制钮矩形不变，随后可正常改键。
+8. 草稿长键：现象 → 未绑定的长组合键同样截断。改动 → 草稿复用同一 recorder 提示。验证 → 真实 Add/录键/选命令/输入后悬停读全，读键写入 0 次，随后 Bind 恰提交 1 次且保留完整键。
+
+相关 373 PASS / 0 FAIL，settingsui vet 净。M4 去掉新 tip 实红 `truncated shortcut has no full hover text: got 1 copies, want 2`；MD5 还原、touch 后 6 PASS。V 0 / B 0 / S 1：仅现有 tip 站点 census 从 10 → 11、settingsui.go 6 → 7，注释写明结构新增；不放宽像素/行为断言，不加 Skip。

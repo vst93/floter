@@ -4335,6 +4335,9 @@ func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()
 	button.Children(func() {
 		ui.Text(c, label).Font(deepLinkValueFont).FontSize(t.FontSize).TextColor(ink).SingleLine().Shrink(1).MinWidth(0)
 	})
+	if label != "" && label != "-" {
+		button = tokens.Tip(c, button, label)
+	}
 	if button.Clicked() {
 		clicked()
 	}
