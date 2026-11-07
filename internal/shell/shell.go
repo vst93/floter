@@ -1852,6 +1852,7 @@ func (a *App) integrationList() []settingsui.Integration {
 				delete(a.diagnosisSources, item.ID)
 			} else {
 				item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
+				item.DiagnosisLifecycleFailed = diagnosis.DiagnosisLifecycleFailed
 				item.DiagnosisStatus, item.DiagnosisChecks = diagnosis.DiagnosisStatus, diagnosis.DiagnosisChecks
 				// Health is projected from the current report above, in the current
 				// language. A provider diagnosis does not own that persisted fact.
@@ -2031,6 +2032,7 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 			})
 		}
 	}
+	result.DiagnosisLifecycleFailed = result.DiagnosisFailed
 	diagnosis, err := extensions.Diagnose(context.Background(), integration)
 	switch {
 	case err != nil:
@@ -2058,12 +2060,18 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 				problems = append(problems, message)
 			}
 		}
-		if diagnosis.Status != "" && diagnosis.Status != "ok" || len(problems) > 0 {
-			result.DiagnosisFailed = true
-			result.Diagnosis = strings.Join(problems, "; ")
-			if result.Diagnosis == "" {
-				result.Diagnosis = diagnosis.Status
+		status := strings.TrimSpace(diagnosis.Status)
+		if status != "" && !strings.EqualFold(status, "ok") || len(problems) > 0 {
+			problem := strings.Join(problems, "; ")
+			if problem == "" {
+				problem = diagnosis.Status
 			}
+			if result.DiagnosisFailed {
+				result.Diagnosis += "; " + problem
+			} else {
+				result.Diagnosis = problem
+			}
+			result.DiagnosisFailed = true
 		} else if !result.DiagnosisFailed {
 			// A provider's successful check cannot undo a failed lifecycle
 			// probe that ran just before it. Keep that failure's explanation.

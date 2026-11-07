@@ -347,6 +347,9 @@ type Integration struct {
 	Diagnosis string
 	// DiagnosisFailed marks a check that reported a problem.
 	DiagnosisFailed bool
+	// DiagnosisLifecycleFailed keeps a prior probe failure visible alongside
+	// the provider's independent verdict, without replacing that raw status.
+	DiagnosisLifecycleFailed bool
 	// DiagnosisChecks is what the last check looked at, in the provider's own
 	// order: each check's id, the provider's status word for it and its
 	// sentence. The reference's `.extension-diagnostics` grid prints one row
@@ -2625,8 +2628,9 @@ func (a *App) diagnosisCheckRow(c *ui.Context, check DiagnosisCheck, last bool) 
 // status when it gave one, and the integration's state word when the check
 // itself said nothing (`Diagnosis` is that fallback's spelling).
 func diagnosisVerdict(integration Integration, copy i18n.Settings) string {
-	// A provider's overall "ok" does not cancel a failed individual check.
-	if integration.DiagnosisFailed && strings.TrimSpace(integration.DiagnosisStatus) == "ok" {
+	// The provider cannot hide a prior lifecycle failure behind its own
+	// verdict. A standalone provider keeps its existing summary vocabulary.
+	if integration.DiagnosisFailed && (integration.DiagnosisLifecycleFailed || strings.EqualFold(strings.TrimSpace(integration.DiagnosisStatus), "ok")) {
 		if problem := strings.TrimSpace(integration.Diagnosis); problem != "" {
 			return problem
 		}

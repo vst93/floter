@@ -34,3 +34,10 @@
 4. 现象：lifecycle 失败后 provider 协议损坏，摘要仅剩 JSON 错误。改动：协议失败追加到已有失败原因，不覆盖。验证：真实子进程输出错误类型 JSON，原串 `provider protocol failure erased lifecycle reason` 深浅均红；恢复后摘要完整显示 `Unhealthy; extensions: invalid diagnose answer...`。
 
 开盘基线完成：**5808 PASS / 0 FAIL / 3345 测试函数**。第二批相关 **59 PASS / 0 FAIL**、shell vet 净；旧 V/B/S 断言 0/0/0。六个节点实红后绿。
+
+第二批 9506c8b5 已推送。
+
+5. 现象：两个阶段同时返回结构化失败，lifecycle 的 unhealthy 丢失，界面只显示 provider 的 Error。改动：合并已有摘要，并投影“有前阶段失败”这一事实使原摘要位置显示两阶段原因；独立 provider 的状态标题不改。验证：`provider findings erased lifecycle reason` 与 `combined failure summary hides one stage behind provider status` 深浅均红；恢复后保留原 status/error、明细和完整摘要。
+6. 现象：顶层成功词为带空格的 ok 或大写 OK 时，状态墨能识别成功，失败标志和通知却按失败处理。改动：按既有 UI 分类方式 trim/equal-fold，仅归类、保留原值。验证：真实提供者四场景的 `successful provider status is painted/notified as failure` 实红；通知队列在首次帧移交 toastViewport，因此通知断言在首次 Tester 帧前读取，画面仍在帧后验。
+
+第三批两包相关 **81 PASS / 0 FAIL**、两包 vet 净，旧 V/B/S 断言 0/0/0。独立 provider 原 status 标题的旧 pin 全部保留。

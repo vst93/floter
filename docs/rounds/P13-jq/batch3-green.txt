@@ -1,0 +1,170 @@
+=== RUN   TestDiagnosisRecoveryCommands
+=== RUN   TestDiagnosisRecoveryCommands/light
+2026/11/08 06:07:07 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 06:07:07 floter: re-probed dev.floter.drifttool (commands=3, was 0x3325c88a6020)
+=== RUN   TestDiagnosisRecoveryCommands/dark
+2026/11/08 06:07:08 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 06:07:08 floter: re-probed dev.floter.drifttool (commands=3, was 0x3325c897de60)
+--- PASS: TestDiagnosisRecoveryCommands (0.69s)
+    --- PASS: TestDiagnosisRecoveryCommands/light (0.34s)
+    --- PASS: TestDiagnosisRecoveryCommands/dark (0.35s)
+=== RUN   TestDiagnosisBoundaryRemovedProbes
+=== RUN   TestDiagnosisBoundaryRemovedProbes/light
+=== RUN   TestDiagnosisBoundaryRemovedProbes/dark
+--- PASS: TestDiagnosisBoundaryRemovedProbes (0.57s)
+    --- PASS: TestDiagnosisBoundaryRemovedProbes/light (0.33s)
+    --- PASS: TestDiagnosisBoundaryRemovedProbes/dark (0.24s)
+=== RUN   TestDiagnosisBoundaryDiskOwner
+=== RUN   TestDiagnosisBoundaryDiskOwner/light
+=== RUN   TestDiagnosisBoundaryDiskOwner/dark
+--- PASS: TestDiagnosisBoundaryDiskOwner (1.24s)
+    --- PASS: TestDiagnosisBoundaryDiskOwner/light (0.56s)
+    --- PASS: TestDiagnosisBoundaryDiskOwner/dark (0.68s)
+=== RUN   TestDiagnosisCurrentProvider
+--- PASS: TestDiagnosisCurrentProvider (0.00s)
+=== RUN   TestDiagnosisCurrentVerdictIsVisible
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/light
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/dark
+--- PASS: TestDiagnosisCurrentVerdictIsVisible (0.46s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/light (0.25s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/dark (0.21s)
+=== RUN   TestDiagnosisCurrentChecksAreVisible
+=== RUN   TestDiagnosisCurrentChecksAreVisible/light
+=== RUN   TestDiagnosisCurrentChecksAreVisible/dark
+--- PASS: TestDiagnosisCurrentChecksAreVisible (0.40s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/light (0.19s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/dark (0.20s)
+=== RUN   TestDiagnosisCurrentHealthRefresh
+=== RUN   TestDiagnosisCurrentHealthRefresh/light
+=== RUN   TestDiagnosisCurrentHealthRefresh/dark
+--- PASS: TestDiagnosisCurrentHealthRefresh (0.48s)
+    --- PASS: TestDiagnosisCurrentHealthRefresh/light (0.26s)
+    --- PASS: TestDiagnosisCurrentHealthRefresh/dark (0.23s)
+=== RUN   TestDiagnosisCurrentHealthLanguage
+=== RUN   TestDiagnosisCurrentHealthLanguage/light
+=== RUN   TestDiagnosisCurrentHealthLanguage/dark
+--- PASS: TestDiagnosisCurrentHealthLanguage (0.43s)
+    --- PASS: TestDiagnosisCurrentHealthLanguage/light (0.21s)
+    --- PASS: TestDiagnosisCurrentHealthLanguage/dark (0.22s)
+=== RUN   TestDiagnosisCurrentPackageOwner
+=== RUN   TestDiagnosisCurrentPackageOwner/light
+=== RUN   TestDiagnosisCurrentPackageOwner/dark
+--- PASS: TestDiagnosisCurrentPackageOwner (0.77s)
+    --- PASS: TestDiagnosisCurrentPackageOwner/light (0.36s)
+    --- PASS: TestDiagnosisCurrentPackageOwner/dark (0.42s)
+=== RUN   TestDiagnosisCurrentPendingOwner
+=== RUN   TestDiagnosisCurrentPendingOwner/light
+=== RUN   TestDiagnosisCurrentPendingOwner/dark
+--- PASS: TestDiagnosisCurrentPendingOwner (0.55s)
+    --- PASS: TestDiagnosisCurrentPendingOwner/light (0.28s)
+    --- PASS: TestDiagnosisCurrentPendingOwner/dark (0.27s)
+=== RUN   TestDiagnosisCurrentLatestResult
+=== RUN   TestDiagnosisCurrentLatestResult/light
+=== RUN   TestDiagnosisCurrentLatestResult/dark
+--- PASS: TestDiagnosisCurrentLatestResult (0.39s)
+    --- PASS: TestDiagnosisCurrentLatestResult/light (0.19s)
+    --- PASS: TestDiagnosisCurrentLatestResult/dark (0.19s)
+=== RUN   TestDiagnosisCurrentLatestNotice
+=== RUN   TestDiagnosisCurrentLatestNotice/light
+=== RUN   TestDiagnosisCurrentLatestNotice/dark
+--- PASS: TestDiagnosisCurrentLatestNotice (0.69s)
+    --- PASS: TestDiagnosisCurrentLatestNotice/light (0.36s)
+    --- PASS: TestDiagnosisCurrentLatestNotice/dark (0.33s)
+=== RUN   TestDiagnosisPhaseLiveHealth
+=== RUN   TestDiagnosisPhaseLiveHealth/light
+=== RUN   TestDiagnosisPhaseLiveHealth/dark
+--- PASS: TestDiagnosisPhaseLiveHealth (0.55s)
+    --- PASS: TestDiagnosisPhaseLiveHealth/light (0.28s)
+    --- PASS: TestDiagnosisPhaseLiveHealth/dark (0.27s)
+=== RUN   TestDiagnosisPhaseProtocolFailure
+=== RUN   TestDiagnosisPhaseProtocolFailure/light
+=== RUN   TestDiagnosisPhaseProtocolFailure/dark
+--- PASS: TestDiagnosisPhaseProtocolFailure (0.52s)
+    --- PASS: TestDiagnosisPhaseProtocolFailure/light (0.27s)
+    --- PASS: TestDiagnosisPhaseProtocolFailure/dark (0.25s)
+=== RUN   TestDiagnosisRecoverySupersededHealth
+=== RUN   TestDiagnosisRecoverySupersededHealth/light
+=== RUN   TestDiagnosisRecoverySupersededHealth/dark
+--- PASS: TestDiagnosisRecoverySupersededHealth (0.29s)
+    --- PASS: TestDiagnosisRecoverySupersededHealth/light (0.14s)
+    --- PASS: TestDiagnosisRecoverySupersededHealth/dark (0.15s)
+=== RUN   TestDiagnosisRecoveryRuntimeVersion
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/light
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/dark
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/light
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/dark
+--- PASS: TestDiagnosisRecoveryRuntimeVersion (0.69s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/complete/light (0.17s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/complete/dark (0.17s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/pending/light (0.18s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/pending/dark (0.17s)
+=== RUN   TestDiagnosisRecoveryRuntimeRoot
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/light
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/dark
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/light
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/dark
+--- PASS: TestDiagnosisRecoveryRuntimeRoot (0.70s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/complete/light (0.17s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/complete/dark (0.18s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/pending/light (0.18s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/pending/dark (0.18s)
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK/light
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK/dark
+--- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK (0.22s)
+    --- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK/light (0.11s)
+    --- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK/dark (0.11s)
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/light
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/dark
+--- PASS: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK (0.34s)
+    --- PASS: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/light (0.17s)
+    --- PASS: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/dark (0.17s)
+=== RUN   TestDiagnosisSummaryCombinedFailures
+=== RUN   TestDiagnosisSummaryCombinedFailures/light
+=== RUN   TestDiagnosisSummaryCombinedFailures/dark
+--- PASS: TestDiagnosisSummaryCombinedFailures (0.54s)
+    --- PASS: TestDiagnosisSummaryCombinedFailures/light (0.27s)
+    --- PASS: TestDiagnosisSummaryCombinedFailures/dark (0.27s)
+=== RUN   TestDiagnosisSummarySuccessSpelling
+=== RUN   TestDiagnosisSummarySuccessSpelling/_ok_/light
+=== RUN   TestDiagnosisSummarySuccessSpelling/_ok_/dark
+=== RUN   TestDiagnosisSummarySuccessSpelling/OK/light
+=== RUN   TestDiagnosisSummarySuccessSpelling/OK/dark
+--- PASS: TestDiagnosisSummarySuccessSpelling (1.46s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/_ok_/light (0.39s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/_ok_/dark (0.36s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/OK/light (0.36s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/OK/dark (0.35s)
+PASS
+ok  	floter/internal/shell	12.005s
+=== RUN   TestTheDiagnosticsBlockSitsOnTheCardsTextColumn
+--- PASS: TestTheDiagnosticsBlockSitsOnTheCardsTextColumn (0.24s)
+=== RUN   TestDiagnosisDetailEmptyMessage
+=== RUN   TestDiagnosisDetailEmptyMessage/light
+=== RUN   TestDiagnosisDetailEmptyMessage/dark
+--- PASS: TestDiagnosisDetailEmptyMessage (0.01s)
+    --- PASS: TestDiagnosisDetailEmptyMessage/light (0.01s)
+    --- PASS: TestDiagnosisDetailEmptyMessage/dark (0.00s)
+=== RUN   TestDiagnosisDetailFailureInk
+=== RUN   TestDiagnosisDetailFailureInk/light
+=== RUN   TestDiagnosisDetailFailureInk/dark
+--- PASS: TestDiagnosisDetailFailureInk (0.00s)
+    --- PASS: TestDiagnosisDetailFailureInk/light (0.00s)
+    --- PASS: TestDiagnosisDetailFailureInk/dark (0.00s)
+=== RUN   TestTheHealthStatusChipFaces
+--- PASS: TestTheHealthStatusChipFaces (0.00s)
+=== RUN   TestTheHealthVerdictWearsItsOwnChip
+--- PASS: TestTheHealthVerdictWearsItsOwnChip (0.12s)
+=== RUN   TestTheHealthGroupsAreLabelledNotRuledRows
+--- PASS: TestTheHealthGroupsAreLabelledNotRuledRows (0.07s)
+=== RUN   TestTheDiagnosticsWordsAreCapitalised
+--- PASS: TestTheDiagnosticsWordsAreCapitalised (0.05s)
+=== RUN   TestTheHealthChipReadsTheRawStatusNotTheWord
+--- PASS: TestTheHealthChipReadsTheRawStatusNotTheWord (0.06s)
+=== RUN   TestTheHealthBlockRerunsItsOwnChecks
+--- PASS: TestTheHealthBlockRerunsItsOwnChecks (0.12s)
+=== RUN   TestTheHealthBlockSitsInTheCardsLabelColumn
+--- PASS: TestTheHealthBlockSitsInTheCardsLabelColumn (0.18s)
+PASS
+ok  	floter/internal/settingsui	0.914s
