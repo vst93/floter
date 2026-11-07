@@ -21,12 +21,13 @@ type selectLifetime[T comparable] struct {
 	open       bool
 	keyboard   bool
 	trigger    ui.Handle
+	source     T
 }
 
 // valueSelect keeps the framework's Select geometry and keyboard model while
 // separating a choice's identity from its display name. Labels need not be
 // unique; an unavailable stored value remains visible until explicitly replaced.
-func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, values []T, fallback string, tokens theme.Tokens, enabled bool) ui.Element {
+func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, values []T, fallback string, tokens theme.Tokens, enabled bool, sources ...T) ui.Element {
 	t := c.Theme()
 	// Distinct names may share an ID in an external schema. They are still
 	// one action; preserve the first name and the caller's slices.
@@ -51,7 +52,10 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 		(lifetime.selected != *selected || !slices.Equal(lifetime.values, values))
 	// Preserve an active keyboard path when a stale menu closes. Mouse-only
 	// dismissal retains its existing behavior: Enter must not reopen it.
-	invalidated := unknownChanged || lifetime.enabled != enabled
+	// Several command strings share one displayed command slot. A new raw
+	// command still retires the menu that was opened for its predecessor.
+	sourceChanged := len(sources) > 0 && lifetime.source != sources[0] && lifetime.selected == *selected
+	invalidated := unknownChanged || lifetime.enabled != enabled || sourceChanged
 	focused := lifetime.trigger.Focused(c)
 	keepFocus := enabled && invalidated && (!lifetime.open || lifetime.keyboard) && focused
 	// Keep a keyboard-owned trigger's identity while unavailable. It cannot
@@ -143,5 +147,8 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	lifetime.selected, lifetime.enabled = *selected, enabled
 	lifetime.open = sel.Open()
 	lifetime.keyboard = b.FocusVisible()
+	if len(sources) > 0 {
+		lifetime.source = sources[0]
+	}
 	return b
 }

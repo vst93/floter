@@ -1,0 +1,186 @@
+=== RUN   TestMenuFallbackCommandRefresh
+=== RUN   TestMenuFallbackCommandRefresh/light
+=== RUN   TestMenuFallbackCommandRefresh/dark
+--- PASS: TestMenuFallbackCommandRefresh (0.08s)
+    --- PASS: TestMenuFallbackCommandRefresh/light (0.07s)
+    --- PASS: TestMenuFallbackCommandRefresh/dark (0.01s)
+=== RUN   TestMenuFallbackPaletteUnknown
+=== RUN   TestMenuFallbackPaletteUnknown/light
+=== RUN   TestMenuFallbackPaletteUnknown/dark
+--- PASS: TestMenuFallbackPaletteUnknown (0.04s)
+    --- PASS: TestMenuFallbackPaletteUnknown/light (0.03s)
+    --- PASS: TestMenuFallbackPaletteUnknown/dark (0.01s)
+=== RUN   TestMenuBindingRefreshKeepsOwner
+--- PASS: TestMenuBindingRefreshKeepsOwner (0.20s)
+=== RUN   TestCustomMenuExternalSelection
+=== RUN   TestCustomMenuExternalSelection/light
+=== RUN   TestCustomMenuExternalSelection/dark
+--- PASS: TestCustomMenuExternalSelection (0.01s)
+    --- PASS: TestCustomMenuExternalSelection/light (0.00s)
+    --- PASS: TestCustomMenuExternalSelection/dark (0.00s)
+=== RUN   TestCustomMenuReorder
+=== RUN   TestCustomMenuReorder/light
+=== RUN   TestCustomMenuReorder/dark
+--- PASS: TestCustomMenuReorder (0.00s)
+    --- PASS: TestCustomMenuReorder/light (0.00s)
+    --- PASS: TestCustomMenuReorder/dark (0.00s)
+=== RUN   TestPaletteMenuExternalSelection
+=== RUN   TestPaletteMenuExternalSelection/light
+=== RUN   TestPaletteMenuExternalSelection/dark
+--- PASS: TestPaletteMenuExternalSelection (0.01s)
+    --- PASS: TestPaletteMenuExternalSelection/light (0.00s)
+    --- PASS: TestPaletteMenuExternalSelection/dark (0.00s)
+=== RUN   TestPaletteMenuReorder
+=== RUN   TestPaletteMenuReorder/light
+=== RUN   TestPaletteMenuReorder/dark
+--- PASS: TestPaletteMenuReorder (0.00s)
+    --- PASS: TestPaletteMenuReorder/light (0.00s)
+    --- PASS: TestPaletteMenuReorder/dark (0.00s)
+=== RUN   TestCustomMenuDuplicateLabels
+=== RUN   TestCustomMenuDuplicateLabels/light
+=== RUN   TestCustomMenuDuplicateLabels/dark
+--- PASS: TestCustomMenuDuplicateLabels (0.00s)
+    --- PASS: TestCustomMenuDuplicateLabels/light (0.00s)
+    --- PASS: TestCustomMenuDuplicateLabels/dark (0.00s)
+=== RUN   TestPaletteMenuDuplicateLabels
+=== RUN   TestPaletteMenuDuplicateLabels/light
+=== RUN   TestPaletteMenuDuplicateLabels/dark
+--- PASS: TestPaletteMenuDuplicateLabels (0.00s)
+    --- PASS: TestPaletteMenuDuplicateLabels/light (0.00s)
+    --- PASS: TestPaletteMenuDuplicateLabels/dark (0.00s)
+=== RUN   TestOptionExitSelectExternal
+=== RUN   TestOptionExitSelectExternal/light
+=== RUN   TestOptionExitSelectExternal/dark
+--- PASS: TestOptionExitSelectExternal (0.01s)
+    --- PASS: TestOptionExitSelectExternal/light (0.01s)
+    --- PASS: TestOptionExitSelectExternal/dark (0.00s)
+=== RUN   TestOptionExitSelectRemoved
+=== RUN   TestOptionExitSelectRemoved/light
+=== RUN   TestOptionExitSelectRemoved/dark
+--- PASS: TestOptionExitSelectRemoved (0.01s)
+    --- PASS: TestOptionExitSelectRemoved/light (0.00s)
+    --- PASS: TestOptionExitSelectRemoved/dark (0.00s)
+=== RUN   TestOptionExitSelectEmpty
+=== RUN   TestOptionExitSelectEmpty/light
+=== RUN   TestOptionExitSelectEmpty/dark
+--- PASS: TestOptionExitSelectEmpty (0.01s)
+    --- PASS: TestOptionExitSelectEmpty/light (0.01s)
+    --- PASS: TestOptionExitSelectEmpty/dark (0.00s)
+=== RUN   TestOptionExitSelectUnlock
+=== RUN   TestOptionExitSelectUnlock/light
+=== RUN   TestOptionExitSelectUnlock/dark
+--- PASS: TestOptionExitSelectUnlock (0.01s)
+    --- PASS: TestOptionExitSelectUnlock/light (0.00s)
+    --- PASS: TestOptionExitSelectUnlock/dark (0.00s)
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus/light/busy
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus/dark/busy
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus/light/empty
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus/dark/empty
+--- PASS: TestOptionExitSelectDoesNotReclaimFocus (0.01s)
+    --- PASS: TestOptionExitSelectDoesNotReclaimFocus/light/busy (0.00s)
+    --- PASS: TestOptionExitSelectDoesNotReclaimFocus/dark/busy (0.00s)
+    --- PASS: TestOptionExitSelectDoesNotReclaimFocus/light/empty (0.00s)
+    --- PASS: TestOptionExitSelectDoesNotReclaimFocus/dark/empty (0.00s)
+=== RUN   TestOptionExitMultiRemoved
+=== RUN   TestOptionExitMultiRemoved/light
+=== RUN   TestOptionExitMultiRemoved/dark
+--- PASS: TestOptionExitMultiRemoved (0.01s)
+    --- PASS: TestOptionExitMultiRemoved/light (0.01s)
+    --- PASS: TestOptionExitMultiRemoved/dark (0.01s)
+=== RUN   TestOptionExitMultiEmpty
+=== RUN   TestOptionExitMultiEmpty/light
+=== RUN   TestOptionExitMultiEmpty/dark
+--- PASS: TestOptionExitMultiEmpty (0.01s)
+    --- PASS: TestOptionExitMultiEmpty/light (0.01s)
+    --- PASS: TestOptionExitMultiEmpty/dark (0.01s)
+=== RUN   TestOptionExitPluginCheckbox
+=== RUN   TestOptionExitPluginCheckbox/light
+=== RUN   TestOptionExitPluginCheckbox/dark
+--- PASS: TestOptionExitPluginCheckbox (0.03s)
+    --- PASS: TestOptionExitPluginCheckbox/light (0.02s)
+    --- PASS: TestOptionExitPluginCheckbox/dark (0.00s)
+=== RUN   TestOptionExitPluginRadio
+=== RUN   TestOptionExitPluginRadio/light
+=== RUN   TestOptionExitPluginRadio/dark
+--- PASS: TestOptionExitPluginRadio (0.02s)
+    --- PASS: TestOptionExitPluginRadio/light (0.01s)
+    --- PASS: TestOptionExitPluginRadio/dark (0.01s)
+=== RUN   TestOptionExitGroupsDoNotReclaimFocus
+=== RUN   TestOptionExitGroupsDoNotReclaimFocus/light/radio
+=== RUN   TestOptionExitGroupsDoNotReclaimFocus/light/checkbox
+=== RUN   TestOptionExitGroupsDoNotReclaimFocus/dark/radio
+=== RUN   TestOptionExitGroupsDoNotReclaimFocus/dark/checkbox
+--- PASS: TestOptionExitGroupsDoNotReclaimFocus (0.01s)
+    --- PASS: TestOptionExitGroupsDoNotReclaimFocus/light/radio (0.00s)
+    --- PASS: TestOptionExitGroupsDoNotReclaimFocus/light/checkbox (0.00s)
+    --- PASS: TestOptionExitGroupsDoNotReclaimFocus/dark/radio (0.00s)
+    --- PASS: TestOptionExitGroupsDoNotReclaimFocus/dark/checkbox (0.00s)
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape/light
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape/dark
+--- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape (0.02s)
+    --- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape/light (0.01s)
+    --- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape/dark (0.01s)
+=== RUN   TestSelectAvailabilityEmptyOptions
+=== RUN   TestSelectAvailabilityEmptyOptions/light
+=== RUN   TestSelectAvailabilityEmptyOptions/dark
+--- PASS: TestSelectAvailabilityEmptyOptions (0.01s)
+    --- PASS: TestSelectAvailabilityEmptyOptions/light (0.00s)
+    --- PASS: TestSelectAvailabilityEmptyOptions/dark (0.00s)
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu/light
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu/dark
+--- PASS: TestSelectAvailabilityLockClosesOpenMenu (0.01s)
+    --- PASS: TestSelectAvailabilityLockClosesOpenMenu/light (0.01s)
+    --- PASS: TestSelectAvailabilityLockClosesOpenMenu/dark (0.00s)
+=== RUN   TestSelectClearReservedDisplayName
+=== RUN   TestSelectClearReservedDisplayName/light
+=== RUN   TestSelectClearReservedDisplayName/dark
+--- PASS: TestSelectClearReservedDisplayName (0.01s)
+    --- PASS: TestSelectClearReservedDisplayName/light (0.00s)
+    --- PASS: TestSelectClearReservedDisplayName/dark (0.00s)
+=== RUN   TestSelectClearEmptySchemaOption
+=== RUN   TestSelectClearEmptySchemaOption/light
+=== RUN   TestSelectClearEmptySchemaOption/dark
+--- PASS: TestSelectClearEmptySchemaOption (0.00s)
+    --- PASS: TestSelectClearEmptySchemaOption/light (0.00s)
+    --- PASS: TestSelectClearEmptySchemaOption/dark (0.00s)
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue/light
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue/dark
+--- PASS: TestSelectDynamicReorderKeepsHighlightedValue (0.01s)
+    --- PASS: TestSelectDynamicReorderKeepsHighlightedValue/light (0.00s)
+    --- PASS: TestSelectDynamicReorderKeepsHighlightedValue/dark (0.00s)
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/light
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/dark
+--- PASS: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour (0.01s)
+    --- PASS: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/light (0.01s)
+    --- PASS: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/dark (0.01s)
+=== RUN   TestControlRefreshClosedSelectExternalValue
+=== RUN   TestControlRefreshClosedSelectExternalValue/light
+=== RUN   TestControlRefreshClosedSelectExternalValue/dark
+--- PASS: TestControlRefreshClosedSelectExternalValue (0.01s)
+    --- PASS: TestControlRefreshClosedSelectExternalValue/light (0.00s)
+    --- PASS: TestControlRefreshClosedSelectExternalValue/dark (0.00s)
+=== RUN   TestControlRefreshClosedSelectRemovedValue
+=== RUN   TestControlRefreshClosedSelectRemovedValue/light
+=== RUN   TestControlRefreshClosedSelectRemovedValue/dark
+--- PASS: TestControlRefreshClosedSelectRemovedValue (0.01s)
+    --- PASS: TestControlRefreshClosedSelectRemovedValue/light (0.01s)
+    --- PASS: TestControlRefreshClosedSelectRemovedValue/dark (0.00s)
+=== RUN   TestSelectValueDuplicateNames
+=== RUN   TestSelectValueDuplicateNames/light
+=== RUN   TestSelectValueDuplicateNames/dark
+--- PASS: TestSelectValueDuplicateNames (0.01s)
+    --- PASS: TestSelectValueDuplicateNames/light (0.00s)
+    --- PASS: TestSelectValueDuplicateNames/dark (0.00s)
+=== RUN   TestSelectValueUnknownIDMatchingALabel
+=== RUN   TestSelectValueUnknownIDMatchingALabel/light
+=== RUN   TestSelectValueUnknownIDMatchingALabel/dark
+--- PASS: TestSelectValueUnknownIDMatchingALabel (0.01s)
+    --- PASS: TestSelectValueUnknownIDMatchingALabel/light (0.00s)
+    --- PASS: TestSelectValueUnknownIDMatchingALabel/dark (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.601s

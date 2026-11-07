@@ -31,3 +31,12 @@ P13-hx 已覆盖任务书中目标仍在但 owner/schema/状态变化的八条�
 相关 **25 PASS / 0 FAIL**，包 vet 净。回注两处旧实现 **6 FAIL**，原串 `translation lost parameter highlight: text`、`translation lost residency highlight: 0, want 10`。MD5 两文件 OK，touch 后 **6 PASS**。V/B/S 旧断言修改 **0/0/0**。原帧已入仓。
 
 整行动作菜单移除和重排探针为绿，不计修复。下一批已复现 command-refresh 和 palette-unknown 覆盖新值；其测试暂放 /tmp，待修后单独提交。
+
+第一批 `8662be1f` 已推送。目视深色：切中文后“数字”仍蓝色高亮，焦点环留在类型入口；原图菜单已缩回，准备选择的位置丢失。
+
+## 第二批：显示回落不能掩盖原值刷新
+
+3. 现象：动作菜单展开后，宿主把命令从 say original 改为 say updated，两者都显示命令行；Enter 却提交旧高亮 plugin:browser。改动：选择器额外观察原始命令源值，源变而显示槽不变时退役旧菜单、保留键盘入口。验证：深浅真实 Down/Home/Enter，宿主新命令保留、写入 0 次，入口仍有焦点。
+4. 现象：调色板被宿主更新为未知 ID 后，控件把它伪装为首项，Enter 写回旧 contrast。改动：保留未知 ID，复用现有未知值菜单退役路径。验证：深浅真实事件保留 retired-palette、写入 0 次，焦点可继续选择。
+
+包 vet 净；相关与 mutation 实测计数见同目录 batch2-test/M2 日志。回注旧实现原串 `command-refresh overwrote refreshed value: "plugin:browser" writes=1`、`palette-unknown overwrote refreshed value: "contrast" writes=1`；MD5 还原、touch 后复验。V/B/S 旧断言修改 **0/0/0**。

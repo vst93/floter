@@ -1,0 +1,21 @@
+=== RUN   TestMenuFallbackCommandRefresh
+=== RUN   TestMenuFallbackCommandRefresh/light
+    menufallback_test.go:50: command-refresh overwrote refreshed value: "plugin:browser" writes=1
+=== RUN   TestMenuFallbackCommandRefresh/dark
+    menufallback_test.go:50: command-refresh overwrote refreshed value: "plugin:browser" writes=1
+--- FAIL: TestMenuFallbackCommandRefresh (0.08s)
+    --- FAIL: TestMenuFallbackCommandRefresh/light (0.06s)
+    --- FAIL: TestMenuFallbackCommandRefresh/dark (0.02s)
+=== RUN   TestMenuFallbackPaletteUnknown
+=== RUN   TestMenuFallbackPaletteUnknown/light
+    menufallback_test.go:50: palette-unknown overwrote refreshed value: "contrast" writes=1
+=== RUN   TestMenuFallbackPaletteUnknown/dark
+    menufallback_test.go:50: palette-unknown overwrote refreshed value: "contrast" writes=1
+--- FAIL: TestMenuFallbackPaletteUnknown (0.05s)
+    --- FAIL: TestMenuFallbackPaletteUnknown/light (0.03s)
+    --- FAIL: TestMenuFallbackPaletteUnknown/dark (0.02s)
+=== RUN   TestMenuBindingRefreshProbe
+--- PASS: TestMenuBindingRefreshProbe (0.33s)
+FAIL
+FAIL	floter/internal/settingsui	0.472s
+FAIL

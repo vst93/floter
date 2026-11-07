@@ -5002,17 +5002,13 @@ func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, lab
 // in the row, never an overlay, and `inherit` follows the app's appearance.
 func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, apply func(string)) {
 	options := copy.Palettes
-	index := optionIndex(options, current)
 	labels := make([]string, len(options))
 	values := make([]string, len(options))
 	for i, option := range options {
 		labels[i] = option.Label
 		values[i] = option.ID
 	}
-	selected, fallback := current, ""
-	if index >= 0 && index < len(options) {
-		selected, fallback = options[index].ID, options[index].Label
-	}
+	selected, fallback := current, current
 	chosen := ""
 	// No sublabel: the reference's palette row is `stacked: true` with no
 	// hint (the card-only `terminalAppearanceHint` belongs to the font-size
