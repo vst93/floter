@@ -21,7 +21,7 @@
 
 ## 门槛
 
-统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。开盘真实全量运行中，基线数字等待日志；不照抄上轮 5808。每两项定向事件回归和相关包 vet 通过后立即 commit/push；完整 gofmt、三平台 vet、普通和 verbose 全量 test、三平台 build 在轮末各执行一次，失败必须修复。
+统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。开盘真实全量 **5808 PASS / 0 FAIL / 3345 测试函数**。每两项定向事件回归和相关包 vet 通过后立即 commit/push；完整 gofmt、三平台 vet、普通和 verbose 全量 test、三平台 build 在轮末各执行一次，失败必须修复。
 
 ## mutation 计划
 

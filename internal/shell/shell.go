@@ -2018,6 +2018,9 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 			result.Diagnosis, result.DiagnosisFailed = err.Error(), true
 		default:
 			result.Diagnosis, result.DiagnosisFailed = report.Status, report.Status != extensions.HealthHealthy && report.Status != extensions.HealthDegraded
+			// The next provider operation may take seconds. Show the report
+			// already persisted by the lifecycle check before waiting for it.
+			a.Integrations.Refresh(context.Background())
 			if !a.rememberDiagnosis(integration, epoch, result) {
 				return
 			}
@@ -2031,7 +2034,12 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 	diagnosis, err := extensions.Diagnose(context.Background(), integration)
 	switch {
 	case err != nil:
-		result.Diagnosis, result.DiagnosisFailed = err.Error(), true
+		if result.DiagnosisFailed {
+			result.Diagnosis += "; " + err.Error()
+		} else {
+			result.Diagnosis = err.Error()
+		}
+		result.DiagnosisFailed = true
 	default:
 		// The provider's own checks are kept fact by fact: the reference's
 		// `.extension-diagnostics` grid prints one row per check and the
