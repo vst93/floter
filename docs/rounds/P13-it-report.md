@@ -25,3 +25,12 @@
 2. 现象：自定义草稿 47 秒、菜单高亮 Off 时宿主改为 53 秒，旧 Enter 写成 0 且抹掉草稿。改动：菜单观察原始秒数，原值变更即退役旧菜单。验证：两主题旧菜单撤走、宿主 53 保留、草稿 47 保留、选择器焦点保留；旧实现两主题均红。
 
 相关 **16 PASS / 0 FAIL**，包 vet 净。M1 回注旧文件 **6 FAIL**，原串 `stored custom duration opened as "", want 45`、`stale draft menu overwrote host duration with 0`；MD5 OK，touch 后 **6 PASS**。旧 V/B/S 0/0/0。新菜单测试最初用 HasText("关闭") 匹配到了说明文字，已改为只存在于菜单的 20 秒选项；数值、草稿、焦点断言全部保留。目视浅色：旧浮层消失，左侧自定义（53 秒）、右侧草稿 47，2px 蓝环仍在原入口。
+
+第一批 `6d0d46fa` 已推送。
+
+## 第二批
+
+3. 现象：45 秒原值下输入 30，切换 Off 写文件失败后，输入仍退场，草稿变回 45。改动：存储接受预设后才收起输入。验证：真实下拉键盘选择 + 本地文件 rename 失败，原值 45、原草稿 30、重试入口保留；恢复文件后 Enter 恰再写一次成功。
+4. 现象：直接 Enter 提交 30 秒失败也提前关闭并覆盖输入。改动：存储接受后再规范化草稿及决定展开状态。验证：两主题真实输入、失败、恢复后重试，写次数 1 → 2，未提前改写原值。
+
+相关 **30 PASS / 0 FAIL**，包 vet 净。M2 回注旧文件 **6 FAIL**，原串 `preset-save-failure discarded retry draft: open=false draft="45"`、`custom-save-failure discarded retry draft: open=false draft="45"`；MD5 OK，touch 后 **6 PASS**。旧 V/B/S 0/0/0。参数 Required 与即时校验探针均为绿，不计修复、不改实现。

@@ -1,0 +1,23 @@
+=== RUN   TestResidencyFailurePresetChoice
+=== RUN   TestResidencyFailurePresetChoice/light
+    residencyfailure_test.go:52: preset-save-failure discarded retry draft: open=false draft="45"
+    residencyfailure_test.go:55: failed save removed retry controls
+=== RUN   TestResidencyFailurePresetChoice/dark
+    residencyfailure_test.go:52: preset-save-failure discarded retry draft: open=false draft="45"
+    residencyfailure_test.go:55: failed save removed retry controls
+--- FAIL: TestResidencyFailurePresetChoice (0.12s)
+    --- FAIL: TestResidencyFailurePresetChoice/light (0.10s)
+    --- FAIL: TestResidencyFailurePresetChoice/dark (0.02s)
+=== RUN   TestResidencyFailureCustomCommit
+=== RUN   TestResidencyFailureCustomCommit/light
+    residencyfailure_test.go:52: custom-save-failure discarded retry draft: open=false draft="45"
+    residencyfailure_test.go:55: failed save removed retry controls
+=== RUN   TestResidencyFailureCustomCommit/dark
+    residencyfailure_test.go:52: custom-save-failure discarded retry draft: open=false draft="45"
+    residencyfailure_test.go:55: failed save removed retry controls
+--- FAIL: TestResidencyFailureCustomCommit (0.03s)
+    --- FAIL: TestResidencyFailureCustomCommit/light (0.02s)
+    --- FAIL: TestResidencyFailureCustomCommit/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.160s
+FAIL

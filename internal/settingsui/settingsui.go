@@ -5417,8 +5417,10 @@ func (a *App) residencyChoice(choice string, stored uint32) {
 		a.residencyCustomOpen = true
 		return
 	}
-	a.residencyCustomOpen = false
 	a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = next })
+	if a.settings().SurfaceResidencySeconds == next {
+		a.residencyCustomOpen = false
+	}
 }
 
 // commitResidencyDraft writes the inline field's duration: it normalizes the
@@ -5426,9 +5428,12 @@ func (a *App) residencyChoice(choice string, stored uint32) {
 // field when that number lands on a named entry — the reference's commitCustom.
 func (a *App) commitResidencyDraft() {
 	next := parseResidencyDraft(a.residencyDraft)
+	a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = next })
+	if a.settings().SurfaceResidencySeconds != next {
+		return
+	}
 	a.residencyDraft = strconv.FormatUint(uint64(next), 10)
 	a.residencyCustomOpen = residencySelectValue(next) == residencyCustom
-	a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = next })
 }
 
 func optionIndex(options []i18n.Option, id string) int {

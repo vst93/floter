@@ -1,0 +1,62 @@
+=== RUN   TestTheSaveFailureBannerWakesAtItsDeadline
+--- PASS: TestTheSaveFailureBannerWakesAtItsDeadline (0.99s)
+=== RUN   TestMenuExitResidencyCustomChoice
+=== RUN   TestMenuExitResidencyCustomChoice/light
+=== RUN   TestMenuExitResidencyCustomChoice/dark
+--- PASS: TestMenuExitResidencyCustomChoice (0.04s)
+    --- PASS: TestMenuExitResidencyCustomChoice/light (0.04s)
+    --- PASS: TestMenuExitResidencyCustomChoice/dark (0.01s)
+=== RUN   TestMenuExitResidencyApply
+=== RUN   TestMenuExitResidencyApply/light
+=== RUN   TestMenuExitResidencyApply/dark
+--- PASS: TestMenuExitResidencyApply (0.01s)
+    --- PASS: TestMenuExitResidencyApply/light (0.01s)
+    --- PASS: TestMenuExitResidencyApply/dark (0.01s)
+=== RUN   TestMenuLanguageResidency
+=== RUN   TestMenuLanguageResidency/light
+=== RUN   TestMenuLanguageResidency/dark
+--- PASS: TestMenuLanguageResidency (0.01s)
+    --- PASS: TestMenuLanguageResidency/light (0.01s)
+    --- PASS: TestMenuLanguageResidency/dark (0.01s)
+=== RUN   TestResidencyMenuExternalSelection
+=== RUN   TestResidencyMenuExternalSelection/light
+=== RUN   TestResidencyMenuExternalSelection/dark
+--- PASS: TestResidencyMenuExternalSelection (0.01s)
+    --- PASS: TestResidencyMenuExternalSelection/light (0.01s)
+    --- PASS: TestResidencyMenuExternalSelection/dark (0.01s)
+=== RUN   TestResidencyFailurePresetChoice
+=== RUN   TestResidencyFailurePresetChoice/light
+=== RUN   TestResidencyFailurePresetChoice/dark
+--- PASS: TestResidencyFailurePresetChoice (0.04s)
+    --- PASS: TestResidencyFailurePresetChoice/light (0.02s)
+    --- PASS: TestResidencyFailurePresetChoice/dark (0.02s)
+=== RUN   TestResidencyFailureCustomCommit
+=== RUN   TestResidencyFailureCustomCommit/light
+=== RUN   TestResidencyFailureCustomCommit/dark
+--- PASS: TestResidencyFailureCustomCommit (0.03s)
+    --- PASS: TestResidencyFailureCustomCommit/light (0.02s)
+    --- PASS: TestResidencyFailureCustomCommit/dark (0.01s)
+=== RUN   TestResidencyRefreshInitialCustom
+=== RUN   TestResidencyRefreshInitialCustom/light
+=== RUN   TestResidencyRefreshInitialCustom/dark
+--- PASS: TestResidencyRefreshInitialCustom (0.03s)
+    --- PASS: TestResidencyRefreshInitialCustom/light (0.01s)
+    --- PASS: TestResidencyRefreshInitialCustom/dark (0.01s)
+=== RUN   TestResidencyRefreshOpenDraftMenu
+=== RUN   TestResidencyRefreshOpenDraftMenu/light
+=== RUN   TestResidencyRefreshOpenDraftMenu/dark
+--- PASS: TestResidencyRefreshOpenDraftMenu (0.04s)
+    --- PASS: TestResidencyRefreshOpenDraftMenu/light (0.02s)
+    --- PASS: TestResidencyRefreshOpenDraftMenu/dark (0.02s)
+=== RUN   TestTheSaveFailureBannerAppearsAndExpires
+--- PASS: TestTheSaveFailureBannerAppearsAndExpires (0.05s)
+=== RUN   TestTheSaveFailureBannerEntersOnItsOwnMotion
+--- PASS: TestTheSaveFailureBannerEntersOnItsOwnMotion (0.69s)
+=== RUN   TestTheSaveFailureBannerDismisses
+--- PASS: TestTheSaveFailureBannerDismisses (0.05s)
+=== RUN   TestResidencySelectMapping
+--- PASS: TestResidencySelectMapping (0.00s)
+=== RUN   TestSurfaceResidencyControlIsOneRow
+--- PASS: TestSurfaceResidencyControlIsOneRow (0.04s)
+PASS
+ok  	floter/internal/settingsui	2.068s

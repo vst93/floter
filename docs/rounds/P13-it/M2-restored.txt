@@ -1,0 +1,15 @@
+internal/settingsui/settingsui.go: OK
+=== RUN   TestResidencyFailurePresetChoice
+=== RUN   TestResidencyFailurePresetChoice/light
+=== RUN   TestResidencyFailurePresetChoice/dark
+--- PASS: TestResidencyFailurePresetChoice (0.06s)
+    --- PASS: TestResidencyFailurePresetChoice/light (0.06s)
+    --- PASS: TestResidencyFailurePresetChoice/dark (0.01s)
+=== RUN   TestResidencyFailureCustomCommit
+=== RUN   TestResidencyFailureCustomCommit/light
+=== RUN   TestResidencyFailureCustomCommit/dark
+--- PASS: TestResidencyFailureCustomCommit (0.01s)
+    --- PASS: TestResidencyFailureCustomCommit/light (0.01s)
+    --- PASS: TestResidencyFailureCustomCommit/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.082s
