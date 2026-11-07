@@ -24,4 +24,4 @@
 1. 配置复制完成：现象 → 已报成功但剪贴板未写入，且绕过已有写入接口；旧代码探针报 `configuration copy bypassed the configured clipboard backend`、`configuration copy announced success before clipboard delivery`。改动 → 走原 writeClipboard，完成后才发成功与 done。验证 → 阻塞注入后端期间无成功、无完成；释放后成功，文本含 REDACTED、不含测试密钥。
 2. 配置复制校验：现象 → 缺必填 endpoint 的草稿被误报为“不是集成导出文件”。改动 → toast 显示原校验器错误，不改字典。验证 → 深浅两帧均可读校验原因，失败不写剪贴板，回调错误等于校验器原错误。
 
-第一批相关 6 PASS / 0 FAIL，shell vet 退出 0；旧 V/B/S 0/0/0。其余探针保留为非 Test helper，随各批启用，未将未修项算完成。
+第一批首次相关实际 5 PASS / 1 FAIL，shell vet 退出 0。原复制测试直连系统剪贴板，无桌面事件循环，完成移到写入后旧固定等待不再适用；给共享 provider 夹具接上已有 WriteClipboard 注入，所有旧行为断言保留。提交脚本未向 commit 传播测试退出码，02e87cbf 被提前提交推送，提交消息的“6 PASS”是错误记录；此处明确纠正，不冒充首次绿。后续所有提交使用 set -e 门禁。其余探针保留为非 Test helper，随各批启用，未将未修项算完成。

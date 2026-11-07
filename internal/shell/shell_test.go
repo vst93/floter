@@ -3936,8 +3936,11 @@ func configuredIntegrationFixture(t *testing.T, saveDialog func(string) (string,
 		RunSilentCommand:     func(string) error { return nil },
 		OpenExternalTerminal: func() error { return nil },
 		SaveFileDialog:       saveDialog,
-		OpenFileDialog:       func() (string, error) { return "", nil },
-		ConfirmPermissions:   func(extensions.PermissionApproval) bool { return true },
+		// P13-jd: completion now follows delivery; keep this provider fixture
+		// on the existing injectable clipboard, without a desktop event loop.
+		WriteClipboard:     func(ClipboardPayload) {},
+		OpenFileDialog:     func() (string, error) { return "", nil },
+		ConfirmPermissions: func(extensions.PermissionApproval) bool { return true },
 	})
 	a.RefreshIntegrations(context.Background())
 	return a, paths
