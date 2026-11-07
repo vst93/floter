@@ -6,3 +6,4 @@ windows build PASS
 darwin vet PASS
 darwin build PASS
 ordinary PASS (GOMAXPROCS=4)
+verbose PASS (GOMAXPROCS=4)
