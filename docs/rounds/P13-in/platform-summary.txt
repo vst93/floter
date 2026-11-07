@@ -1,0 +1,4 @@
+LC_ALL=zh_CN.UTF-8
+linux vet/build exit=0
+windows vet/build exit=0
+darwin vet/build exit=0
