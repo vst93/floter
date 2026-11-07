@@ -1503,6 +1503,9 @@ func (a *App) labelRow(c *ui.Context, label, sublabel string, below ...func()) {
 // and the inner keyline that goes with it. The zero value is a plain row — the
 // card's own plane, no rule, no keyline.
 type rowFace struct {
+	// Custom shortcut rows need both their recorder/remove cluster and a
+	// command editor. Let only those trailing controls yield horizontal space.
+	FlexibleControls bool
 	// Bar is the leading rule's colour (the reference's
 	// `.extension-row::before`); a transparent colour draws no rule, though the
 	// 1px slot is always reserved so a row never reflows when the rule lights.
@@ -1663,11 +1666,18 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 				// row above it. Stretching the column puts every label on one origin; the
 				// control slot below keeps its own alignment.
 				names := ui.Column(c).Grow(1).MinWidth(0).Gap(a.rowLineGap())
+				if face.FlexibleControls {
+					names.MinWidth(t.Space(30))
+				}
 				names.Children(draw)
 				if names.Clicked() {
 					clicked = true
 				}
-				ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(align).Children(control)
+				controls := ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(align)
+				if face.FlexibleControls {
+					controls.Shrink(1).MinWidth(0)
+				}
+				controls.Children(control)
 			})
 		})
 		// What belongs *under* the row but inside the card: an unfolding

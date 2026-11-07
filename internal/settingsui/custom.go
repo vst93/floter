@@ -273,7 +273,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 	focus := rows[entry.Key]
 	action := entry.Action
 	commandLine := !strings.HasPrefix(action, "plugin:") && !strings.HasPrefix(action, "action:")
-	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{FlexibleControls: true}, func() {
 		picker := a.customActionPicker(c, copy, action, func(next string) {
 			a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: next})
 			if next == commandAction {
@@ -298,7 +298,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 				text = draft
 			}
 			field := a.textInput(c, &text).Bind(&focus.command).Label(copy.ShortcutsCommand).
-				Placeholder(copy.ShortcutsCommandHint).Width(220).
+				Placeholder(copy.ShortcutsCommandHint).Width(220).Shrink(1).MinWidth(0).
 				MinHeight(t.Space(7)).Padding(0, t.Space(2.5)).Radius(999)
 			if field.Changed() {
 				if a.customEdits == nil {
@@ -341,14 +341,14 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 // `--muted`），「没过完」由它唯一缺的那一格说：录制槽是空的。
 func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 	tokens := a.tokens(c)
-	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{FlexibleControls: true}, func() {
 		a.customActionPicker(c, copy, a.customAction, func(action string) {
 			a.customAction = action
 		})
 		if a.customAction == commandAction {
 			command := a.customCommand
 			field := a.textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
-				Label(copy.ShortcutsCommand).Grow(1)
+				Label(copy.ShortcutsCommand).Grow(1).Shrink(1).MinWidth(0)
 			if a.customFocusDraft {
 				field.Focus()
 				a.customFocusDraft = false
