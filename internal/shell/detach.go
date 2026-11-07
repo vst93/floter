@@ -825,7 +825,13 @@ func (a *App) rerunDetached(detached *detachedOutput) {
 	}
 	entry := *detached.entry
 	generation := detached.generation
-	a.runCommandCaptured(entry, nil, func(run extensions.CapturedRun, err error) {
+	// Use the same captured-run action as the launcher. Besides sharing the
+	// host hand-off, this keeps an injected runner authoritative for reruns.
+	run := a.Launcher.Actions.RunCommandCaptured
+	if run == nil {
+		run = a.runCommandCaptured
+	}
+	run(entry, nil, func(run extensions.CapturedRun, err error) {
 		a.applyDetachedRun(detached, generation, a.Launcher.OutputFor(run, err, &entry), err)
 	})
 }
