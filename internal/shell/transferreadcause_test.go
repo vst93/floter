@@ -19,6 +19,10 @@ func transferCauseFrame(t *testing.T, a *App, dark bool) *ui.Tester {
 	}
 	a.Open(SurfaceSettings)
 	a.Settings.Page = settingsui.PageIntegrations
+	// Transfer tests exercise their installed fixture. Host discovery can
+	// insert unrelated rows between pointer-down and pointer-up; keep that
+	// independent asynchronous data source out of this fixture's geometry.
+	a.Settings.Actions.Detected = nil
 	tt := ui.NewTester(a.View, 720, 1000)
 	tt.SetDark(dark)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})

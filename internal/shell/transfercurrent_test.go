@@ -181,6 +181,14 @@ func TestConfigurationCopyFailureRetiresSuccess(t *testing.T) {
 	checkTransferFailureRetiresSuccess(t, "copy")
 }
 
+func TestConfigurationExportFailureRetiresSuccess(t *testing.T) {
+	checkTransferFailureRetiresSuccess(t, "config-export")
+}
+
+func TestScriptExportFailureRetiresSuccess(t *testing.T) {
+	checkTransferFailureRetiresSuccess(t, "script")
+}
+
 func checkTransferFailureRetiresSuccess(t *testing.T, operation string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {

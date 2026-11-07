@@ -206,12 +206,12 @@ func (a *App) exportScript(name, content string) {
 			return
 		}
 		a.resolveNotice(attempt)
-		a.queueToast(ui.Toast{
+		a.queueOwnedToast(ui.Toast{
 			ID:      scriptExportNoticeID,
 			Title:   copy.LocalToolScriptExported,
 			Type:    "success",
 			Timeout: successNotice,
-		})
+		}, attempt)
 	}()
 }
 
@@ -432,7 +432,7 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 			return
 		}
 		a.resolveNotice(owner)
-		a.transferSucceeded(a.SettingsCopy().ConfigExported)
+		a.transferSucceededFor(owner, a.SettingsCopy().ConfigExported)
 		finish(nil)
 	}()
 }
