@@ -295,24 +295,52 @@ func TestResolvedNoticeKeepsAnotherOperationsError(t *testing.T) {
 			t.Run(replacement+map[bool]string{false: "/painted", true: "/queued"}[pending], func(t *testing.T) {
 				a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", nil })
 				tt := transferCauseFrame(t, a, false)
-				a.transferFailedFor("integrations-export", "initial export failure", nil)
+				attempt := a.beginNotice("integrations-export")
+				a.transferFailedFor(attempt, "initial export failure", nil)
 				if !pending {
 					tt.Frame()
 				}
 				if replacement == "external" {
 					a.queueNotice("unrelated failure", refusalNotice)
 				} else {
-					a.transferFailedFor("another-operation", "unrelated failure", nil)
+					a.transferFailedFor(a.beginNotice("another-operation"), "unrelated failure", nil)
 				}
 				if !pending {
 					tt.Frame()
 				}
-				a.resolveNotice("integrations-export")
+				a.resolveNotice(attempt)
 				tt.Frame()
 				if !tt.HasText("unrelated failure") {
 					t.Fatal("retry erased another operation's error")
 				}
 			})
 		}
+	}
+}
+
+func TestScriptExportRetryRetiresResolvedError(t *testing.T)      { checkTransferRecovery(t, "script") }
+func TestIntegrationImportRetryRetiresResolvedError(t *testing.T) { checkTransferRecovery(t, "import") }
+
+func TestOlderCompletionKeepsNewerFailure(t *testing.T) {
+	a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", nil })
+	tt := transferCauseFrame(t, a, false)
+	older := a.beginNotice("script-export:diagnose.py")
+	newer := a.beginNotice("script-export:diagnose.py")
+	a.transferFailedFor(newer, "newer export failure", nil)
+	tt.Frame()
+	a.resolveNotice(older)
+	tt.Frame()
+	if !tt.HasText("newer export failure") {
+		t.Fatal("older completion erased a newer failure")
+	}
+	a.resolveNotice(a.beginNotice("script-export:other.py"))
+	tt.Frame()
+	if !tt.HasText("newer export failure") {
+		t.Fatal("another script erased this failure")
+	}
+	a.resolveNotice(a.beginNotice("script-export:diagnose.py"))
+	tt.Frame()
+	if tt.HasText("newer export failure") {
+		t.Fatal("current retry did not resolve its old error")
 	}
 }

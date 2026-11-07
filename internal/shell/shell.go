@@ -298,8 +298,10 @@ type App struct {
 	refusals *refusalGate
 	// The shared error slot can be resolved by its own operation only.
 	// Both fields are protected by noticeMu, like the pending notices.
-	noticeOwner string
-	closeNotice bool
+	noticeOwner   string
+	closeNotice   bool
+	noticeVersion uint64
+	noticeNext    uint64
 	// toastSeen is when each showing toast first appeared, keyed by its id: the
 	// entrance animation's clock (the old build's `app-toast-in` keyframes ran
 	// from the element's own mount, which React gave it on the frame the toast

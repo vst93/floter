@@ -95,13 +95,25 @@ func (a *App) queueNotice(message string, window time.Duration) {
 // toast and asks for a frame. The caller owns the id and the kind, so notices
 // of different sorts do not replace one another.
 func (a *App) queueToast(toast ui.Toast) {
-	a.queueOwnedToast(toast, "")
+	a.queueOwnedToast(toast, noticeAttempt{})
 }
 
-func (a *App) queueOwnedToast(toast ui.Toast, owner string) {
+type noticeAttempt struct {
+	owner   string
+	version uint64
+}
+
+func (a *App) beginNotice(owner string) noticeAttempt {
+	a.noticeMu.Lock()
+	defer a.noticeMu.Unlock()
+	a.noticeNext++
+	return noticeAttempt{owner: owner, version: a.noticeNext}
+}
+
+func (a *App) queueOwnedToast(toast ui.Toast, attempt noticeAttempt) {
 	a.noticeMu.Lock()
 	if toast.ID == "floter-notice" {
-		a.noticeOwner = owner
+		a.noticeOwner, a.noticeVersion = attempt.owner, attempt.version
 	}
 	a.notices = append(a.notices, toast)
 	a.noticeMu.Unlock()
@@ -112,9 +124,9 @@ func (a *App) queueOwnedToast(toast ui.Toast, owner string) {
 
 // Resolve only the error raised by this action. Another action or a deep
 // link may have replaced the shared slot while the retry was running.
-func (a *App) resolveNotice(owner string) {
+func (a *App) resolveNotice(attempt noticeAttempt) {
 	a.noticeMu.Lock()
-	if owner == "" || a.noticeOwner != owner {
+	if attempt.owner == "" || a.noticeOwner != attempt.owner || a.noticeVersion > attempt.version {
 		a.noticeMu.Unlock()
 		return
 	}

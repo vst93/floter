@@ -63,18 +63,19 @@ func (a *App) exportIntegrations() {
 	if !a.beginTransfer("export") {
 		return
 	}
+	attempt := a.beginNotice("integrations-export")
 	go func() {
 		defer a.finishTransfer()
 		copy := a.SettingsCopy()
 		document, err := extensions.ExportSync(a.Paths)
 		if err != nil {
 			log.Printf("floter: could not export the integrations: %v", err)
-			a.transferFailedFor("integrations-export", err.Error(), nil)
+			a.transferFailedFor(attempt, err.Error(), nil)
 			return
 		}
 		path, err := a.saveFile("floter-integrations-" + time.Now().Format("2006-01-02") + ".json")
 		if err != nil {
-			a.transferFailedFor("integrations-export", err.Error(), nil)
+			a.transferFailedFor(attempt, err.Error(), nil)
 			return
 		}
 		if path == "" {
@@ -83,17 +84,17 @@ func (a *App) exportIntegrations() {
 		data, err := document.Marshal()
 		if err != nil {
 			log.Printf("floter: could not encode the integrations: %v", err)
-			a.transferFailedFor("integrations-export", err.Error(), nil)
+			a.transferFailedFor(attempt, err.Error(), nil)
 			return
 		}
 		if err := os.WriteFile(path, append(data, '\n'), 0o600); err != nil {
 			log.Printf("floter: could not write %s: %v", path, err)
-			a.transferFailedFor("integrations-export", err.Error(), nil)
+			a.transferFailedFor(attempt, err.Error(), nil)
 			return
 		}
 		// The reference reports a clean export as a success toast naming the
 		// count and the two things that never travel.
-		a.resolveNotice("integrations-export")
+		a.resolveNotice(attempt)
 		a.transferSucceeded(copy.IntegrationsExported(len(document.Extensions)))
 	}()
 }
@@ -103,12 +104,13 @@ func (a *App) importIntegrations() {
 	if !a.beginTransfer("import") {
 		return
 	}
+	attempt := a.beginNotice("integrations-import")
 	go func() {
 		defer a.finishTransfer()
 		copy := a.SettingsCopy()
 		path, err := a.openFile()
 		if err != nil {
-			a.transferFailed(err.Error())
+			a.transferFailedFor(attempt, err.Error(), nil)
 			return
 		}
 		if path == "" {
@@ -117,13 +119,13 @@ func (a *App) importIntegrations() {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			log.Printf("floter: could not read %s: %v", path, err)
-			a.transferFailed(err.Error())
+			a.transferFailedFor(attempt, err.Error(), nil)
 			return
 		}
 		document, err := extensions.ReadSync(data)
 		if err != nil {
 			log.Printf("floter: could not read %s: %v", path, err)
-			a.transferFailedCause(copy.IntegrationsTransferBad, err)
+			a.transferFailedFor(attempt, copy.IntegrationsTransferBad, err)
 			return
 		}
 		report, err := extensions.ImportSync(a.Paths, document, func(approvals []extensions.PermissionApproval) bool {
@@ -138,7 +140,7 @@ func (a *App) importIntegrations() {
 		})
 		if err != nil {
 			log.Printf("floter: could not import %s: %v", path, err)
-			a.transferFailed(err.Error())
+			a.transferFailedFor(attempt, err.Error(), nil)
 			return
 		}
 		for _, failure := range report.Failed {
@@ -149,6 +151,7 @@ func (a *App) importIntegrations() {
 		}
 		// The report is the page's own notice block, drawn until the next
 		// transfer clears it (the reference's `setImportReport`).
+		a.resolveNotice(attempt)
 		a.setTransferReport(importReport(path, report))
 		a.RefreshIntegrations(context.Background())
 	}()
@@ -185,12 +188,13 @@ func importReport(path string, report extensions.SyncReport) *settingsui.ImportR
 // build raised. name is the file name the dialog offers, already carrying the
 // language's extension (`settingsui.scriptExportName`).
 func (a *App) exportScript(name, content string) {
+	attempt := a.beginNotice("script-export:" + name)
 	go func() {
 		copy := a.SettingsCopy()
 		path, err := a.saveFile(name)
 		if err != nil {
 			log.Printf("floter: could not pick a path for %s: %v", name, err)
-			a.transferFailedCause(copy.LocalToolExportFailed, err)
+			a.transferFailedFor(attempt, copy.LocalToolExportFailed, err)
 			return
 		}
 		if path == "" {
@@ -198,9 +202,10 @@ func (a *App) exportScript(name, content string) {
 		}
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			log.Printf("floter: could not write %s: %v", path, err)
-			a.transferFailedCause(copy.LocalToolExportFailed, err)
+			a.transferFailedFor(attempt, copy.LocalToolExportFailed, err)
 			return
 		}
+		a.resolveNotice(attempt)
 		a.queueToast(ui.Toast{
 			ID:      scriptExportNoticeID,
 			Title:   copy.LocalToolScriptExported,
@@ -229,12 +234,12 @@ func (a *App) transferFailed(message string) {
 	a.queueNotice(message, refusalNotice)
 }
 
-func (a *App) transferFailedFor(owner, title string, cause error) {
+func (a *App) transferFailedFor(attempt noticeAttempt, title string, cause error) {
 	toast := ui.Toast{ID: "floter-notice", Title: title, Type: "error", Timeout: refusalNotice}
 	if cause != nil {
 		toast.Description = cause.Error()
 	}
-	a.queueOwnedToast(toast, owner)
+	a.queueOwnedToast(toast, attempt)
 }
 
 // Keep the existing localized heading while exposing the operation's cause.
@@ -339,7 +344,7 @@ func (a *App) configurationForAction(id string) (*extensions.Configuration, erro
 // still redacts correctly, and the clipboard write is the one place a secret
 // could leak: the redaction is what stops it.
 func (a *App) copyConfiguration(id string, values map[string]any, done func(error)) {
-	owner := "configuration-copy:" + id
+	owner := a.beginNotice("configuration-copy:" + id)
 	finish := func(err error) {
 		if done != nil {
 			a.onMain(func() { done(err) })
@@ -382,7 +387,7 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 // dialog or a failed document is silent-or-noticed the same way the
 // integrations export is.
 func (a *App) exportConfiguration(id string, values map[string]any, done func(error)) {
-	owner := "configuration-export:" + id
+	owner := a.beginNotice("configuration-export:" + id)
 	finish := func(err error) {
 		if done != nil {
 			a.onMain(func() { done(err) })

@@ -1,0 +1,113 @@
+=== RUN   TestScriptExportPickerExplainsFailure
+=== RUN   TestScriptExportPickerExplainsFailure/light
+2026/11/08 02:08:46 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportPickerExplainsFailure/dark
+2026/11/08 02:08:46 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+--- PASS: TestScriptExportPickerExplainsFailure (0.62s)
+    --- PASS: TestScriptExportPickerExplainsFailure/light (0.31s)
+    --- PASS: TestScriptExportPickerExplainsFailure/dark (0.31s)
+=== RUN   TestScriptExportWriteExplainsFailure
+=== RUN   TestScriptExportWriteExplainsFailure/light
+2026/11/08 02:08:47 floter: could not write /tmp/TestScriptExportWriteExplainsFailurelight902526471/001: open /tmp/TestScriptExportWriteExplainsFailurelight902526471/001: is a directory
+=== RUN   TestScriptExportWriteExplainsFailure/dark
+2026/11/08 02:08:47 floter: could not write /tmp/TestScriptExportWriteExplainsFailuredark2498972061/001: open /tmp/TestScriptExportWriteExplainsFailuredark2498972061/001: is a directory
+--- PASS: TestScriptExportWriteExplainsFailure (0.66s)
+    --- PASS: TestScriptExportWriteExplainsFailure/light (0.30s)
+    --- PASS: TestScriptExportWriteExplainsFailure/dark (0.36s)
+=== RUN   TestIntegrationExportAndImport
+2026/11/08 02:08:47 floter: could not read /tmp/TestIntegrationExportAndImport2038623049/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationExportAndImport (0.12s)
+=== RUN   TestTheScriptExportWritesTheFile
+--- PASS: TestTheScriptExportWritesTheFile (0.01s)
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]}
+2026/11/08 02:08:48 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselight{versio281260633/002/backup.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document
+2026/11/08 02:08:48 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselightnot_a_do582721707/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]}
+2026/11/08 02:08:48 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedark{version1258529369/002/backup.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document
+2026/11/08 02:08:48 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedarknot_a_doc423429355/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationImportDocumentFailureExplainsCause (0.56s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]} (0.14s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document (0.14s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]} (0.14s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document (0.14s)
+=== RUN   TestImportEnabledFailureReportsCommittedState
+=== RUN   TestImportEnabledFailureReportsCommittedState/light
+2026/11/08 02:08:48 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight555828190/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+=== RUN   TestImportEnabledFailureReportsCommittedState/dark
+2026/11/08 02:08:49 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark2004977354/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+--- PASS: TestImportEnabledFailureReportsCommittedState (1.24s)
+    --- PASS: TestImportEnabledFailureReportsCommittedState/light (0.63s)
+    --- PASS: TestImportEnabledFailureReportsCommittedState/dark (0.62s)
+=== RUN   TestImportPackageFailureReportsCommittedState
+=== RUN   TestImportPackageFailureReportsCommittedState/light
+2026/11/08 02:08:50 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight1123383451/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+=== RUN   TestImportPackageFailureReportsCommittedState/dark
+2026/11/08 02:08:50 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatedark2408064007/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+--- PASS: TestImportPackageFailureReportsCommittedState (1.57s)
+    --- PASS: TestImportPackageFailureReportsCommittedState/light (0.81s)
+    --- PASS: TestImportPackageFailureReportsCommittedState/dark (0.75s)
+=== RUN   TestImportTemplateFailureReportsCommittedState
+=== RUN   TestImportTemplateFailureReportsCommittedState/light
+2026/11/08 02:08:51 floter: dev.floter.imported was not imported: package was installed; configuration templates were not completed: mkdir /tmp/TestImportTemplateFailureReportsCommittedStatelight3321120245/001/extension-data/dev.floter.imported: not a directory
+=== RUN   TestImportTemplateFailureReportsCommittedState/dark
+2026/11/08 02:08:52 floter: dev.floter.imported was not imported: package was installed; configuration templates were not completed: mkdir /tmp/TestImportTemplateFailureReportsCommittedStatedark203122836/001/extension-data/dev.floter.imported: not a directory
+--- PASS: TestImportTemplateFailureReportsCommittedState (1.35s)
+    --- PASS: TestImportTemplateFailureReportsCommittedState/light (0.56s)
+    --- PASS: TestImportTemplateFailureReportsCommittedState/dark (0.79s)
+=== RUN   TestIntegrationExportRetryRetiresResolvedError
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/light
+2026/11/08 02:08:52 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrorlight1287555449/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/dark
+2026/11/08 02:08:53 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrordark4293752156/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRetryRetiresResolvedError (1.45s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/light (0.79s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/dark (0.66s)
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/light
+2026/11/08 02:08:54 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/dark
+2026/11/08 02:08:54 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationCopyRetryRetiresResolvedError (0.27s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/light (0.14s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/dark (0.13s)
+=== RUN   TestConfigurationExportRetryRetiresResolvedError
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/light
+2026/11/08 02:08:54 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/dark
+2026/11/08 02:08:54 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigurationExportRetryRetiresResolvedError (0.25s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/light (0.12s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/dark (0.12s)
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/external/painted
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/another-operation/painted
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/external/queued
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/another-operation/queued
+--- PASS: TestResolvedNoticeKeepsAnotherOperationsError (0.29s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/external/painted (0.07s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/another-operation/painted (0.07s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/external/queued (0.08s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/another-operation/queued (0.08s)
+=== RUN   TestScriptExportRetryRetiresResolvedError
+=== RUN   TestScriptExportRetryRetiresResolvedError/light
+2026/11/08 02:08:55 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportRetryRetiresResolvedError/dark
+2026/11/08 02:08:55 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+--- PASS: TestScriptExportRetryRetiresResolvedError (0.29s)
+    --- PASS: TestScriptExportRetryRetiresResolvedError/light (0.15s)
+    --- PASS: TestScriptExportRetryRetiresResolvedError/dark (0.14s)
+=== RUN   TestIntegrationImportRetryRetiresResolvedError
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/light
+2026/11/08 02:08:55 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrorlight2441989871/003/import.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/dark
+2026/11/08 02:08:55 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrordark464978251/003/import.json: extensions: import version 99 is not supported
+--- PASS: TestIntegrationImportRetryRetiresResolvedError (1.20s)
+    --- PASS: TestIntegrationImportRetryRetiresResolvedError/light (0.59s)
+    --- PASS: TestIntegrationImportRetryRetiresResolvedError/dark (0.61s)
+=== RUN   TestOlderCompletionKeepsNewerFailure
+--- PASS: TestOlderCompletionKeepsNewerFailure (0.10s)
+PASS
+ok  	floter/internal/shell	10.038s
