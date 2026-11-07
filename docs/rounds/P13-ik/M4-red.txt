@@ -1,0 +1,23 @@
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+    paramrecovery_test.go:38: last removal lost add focus
+    paramrecovery_test.go:43: last removal cannot add with keyboard
+=== RUN   TestParamRecoveryRemovedLast/dark
+    paramrecovery_test.go:38: last removal lost add focus
+    paramrecovery_test.go:43: last removal cannot add with keyboard
+--- FAIL: TestParamRecoveryRemovedLast (0.45s)
+    --- FAIL: TestParamRecoveryRemovedLast/light (0.36s)
+    --- FAIL: TestParamRecoveryRemovedLast/dark (0.08s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+    paramrecovery_test.go:47: first removal lost remaining label focus
+    paramrecovery_test.go:53: first removal lost next input: [{key:0x1fe03af80040 ID:second Label:Second Kind:text Placeholder: Default: Flag: Required:false Options:}]
+=== RUN   TestParamRecoveryRemovedFirst/dark
+    paramrecovery_test.go:47: first removal lost remaining label focus
+    paramrecovery_test.go:53: first removal lost next input: [{key:0x1fe03ad98070 ID:second Label:Second Kind:text Placeholder: Default: Flag: Required:false Options:}]
+--- FAIL: TestParamRecoveryRemovedFirst (0.20s)
+    --- FAIL: TestParamRecoveryRemovedFirst/light (0.10s)
+    --- FAIL: TestParamRecoveryRemovedFirst/dark (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	0.672s
+FAIL

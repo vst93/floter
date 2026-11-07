@@ -1,0 +1,231 @@
+=== RUN   TestActionAvailabilityCommandWithdrawal
+=== RUN   TestActionAvailabilityCommandWithdrawal/light
+=== RUN   TestActionAvailabilityCommandWithdrawal/dark
+--- PASS: TestActionAvailabilityCommandWithdrawal (0.83s)
+    --- PASS: TestActionAvailabilityCommandWithdrawal/light (0.52s)
+    --- PASS: TestActionAvailabilityCommandWithdrawal/dark (0.31s)
+=== RUN   TestActionAvailabilityPlanWithdrawal
+=== RUN   TestActionAvailabilityPlanWithdrawal/light
+=== RUN   TestActionAvailabilityPlanWithdrawal/dark
+--- PASS: TestActionAvailabilityPlanWithdrawal (0.57s)
+    --- PASS: TestActionAvailabilityPlanWithdrawal/light (0.29s)
+    --- PASS: TestActionAvailabilityPlanWithdrawal/dark (0.28s)
+=== RUN   TestActionAvailabilityScriptWithdrawal
+=== RUN   TestActionAvailabilityScriptWithdrawal/light
+=== RUN   TestActionAvailabilityScriptWithdrawal/dark
+--- PASS: TestActionAvailabilityScriptWithdrawal (0.66s)
+    --- PASS: TestActionAvailabilityScriptWithdrawal/light (0.32s)
+    --- PASS: TestActionAvailabilityScriptWithdrawal/dark (0.33s)
+=== RUN   TestActionAvailabilityExportWithdrawal
+=== RUN   TestActionAvailabilityExportWithdrawal/light
+=== RUN   TestActionAvailabilityExportWithdrawal/dark
+--- PASS: TestActionAvailabilityExportWithdrawal (0.55s)
+    --- PASS: TestActionAvailabilityExportWithdrawal/light (0.27s)
+    --- PASS: TestActionAvailabilityExportWithdrawal/dark (0.28s)
+=== RUN   TestActionAvailabilityConnectWithdrawal
+=== RUN   TestActionAvailabilityConnectWithdrawal/light
+=== RUN   TestActionAvailabilityConnectWithdrawal/dark
+--- PASS: TestActionAvailabilityConnectWithdrawal (0.16s)
+    --- PASS: TestActionAvailabilityConnectWithdrawal/light (0.10s)
+    --- PASS: TestActionAvailabilityConnectWithdrawal/dark (0.06s)
+=== RUN   TestActionAvailabilityRegisterWithdrawal
+=== RUN   TestActionAvailabilityRegisterWithdrawal/light
+=== RUN   TestActionAvailabilityRegisterWithdrawal/dark
+--- PASS: TestActionAvailabilityRegisterWithdrawal (0.14s)
+    --- PASS: TestActionAvailabilityRegisterWithdrawal/light (0.07s)
+    --- PASS: TestActionAvailabilityRegisterWithdrawal/dark (0.07s)
+=== RUN   TestActionAvailabilityChooserWithdrawal
+=== RUN   TestActionAvailabilityChooserWithdrawal/light
+=== RUN   TestActionAvailabilityChooserWithdrawal/dark
+--- PASS: TestActionAvailabilityChooserWithdrawal (0.73s)
+    --- PASS: TestActionAvailabilityChooserWithdrawal/light (0.36s)
+    --- PASS: TestActionAvailabilityChooserWithdrawal/dark (0.37s)
+=== RUN   TestActionAvailabilityRegisterRestored
+=== RUN   TestActionAvailabilityRegisterRestored/light
+=== RUN   TestActionAvailabilityRegisterRestored/dark
+--- PASS: TestActionAvailabilityRegisterRestored (0.17s)
+    --- PASS: TestActionAvailabilityRegisterRestored/light (0.10s)
+    --- PASS: TestActionAvailabilityRegisterRestored/dark (0.07s)
+=== RUN   TestTheCopyButtonsDoNotReflowTheRow
+    contentjitter_test.go:74: dark=false: label {X:222 Y:730.5 W:62 H:17}, confirmation {X:217 Y:730.5 W:72 H:17}, export 315.0 → 315.0
+    contentjitter_test.go:74: dark=true: label {X:222 Y:730.5 W:62 H:17}, confirmation {X:217 Y:730.5 W:72 H:17}, export 315.0 → 315.0
+--- PASS: TestTheCopyButtonsDoNotReflowTheRow (1.43s)
+=== RUN   TestContentRecoveryEmptyScriptCopy
+=== RUN   TestContentRecoveryEmptyScriptCopy/light
+=== RUN   TestContentRecoveryEmptyScriptCopy/dark
+--- PASS: TestContentRecoveryEmptyScriptCopy (0.33s)
+    --- PASS: TestContentRecoveryEmptyScriptCopy/light (0.18s)
+    --- PASS: TestContentRecoveryEmptyScriptCopy/dark (0.15s)
+=== RUN   TestContentRecoveryEmptyScriptExport
+=== RUN   TestContentRecoveryEmptyScriptExport/light
+=== RUN   TestContentRecoveryEmptyScriptExport/dark
+--- PASS: TestContentRecoveryEmptyScriptExport (0.25s)
+    --- PASS: TestContentRecoveryEmptyScriptExport/light (0.13s)
+    --- PASS: TestContentRecoveryEmptyScriptExport/dark (0.12s)
+=== RUN   TestContentRecoveryPlanCommandEmpty
+=== RUN   TestContentRecoveryPlanCommandEmpty/light
+=== RUN   TestContentRecoveryPlanCommandEmpty/dark
+--- PASS: TestContentRecoveryPlanCommandEmpty (0.63s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/light (0.28s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/dark (0.35s)
+=== RUN   TestContentRecoveryPlanCommandRestored
+=== RUN   TestContentRecoveryPlanCommandRestored/light
+=== RUN   TestContentRecoveryPlanCommandRestored/dark
+--- PASS: TestContentRecoveryPlanCommandRestored (0.67s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/light (0.33s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/dark (0.34s)
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.40s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.22s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.19s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.26s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.13s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.13s)
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+--- PASS: TestCopyLifecycleProgramModeRetiresSuccess (1.00s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.24s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.29s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.22s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.25s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+--- PASS: TestCopyLifecycleScriptModeRetiresSuccess (0.71s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.33s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.38s)
+=== RUN   TestCopyLifecycleFoldRetiresSuccess
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/light
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/dark
+--- PASS: TestCopyLifecycleFoldRetiresSuccess (0.69s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/light (0.33s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/dark (0.36s)
+=== RUN   TestCopyLifecyclePageRetiresSuccess
+=== RUN   TestCopyLifecyclePageRetiresSuccess/light
+=== RUN   TestCopyLifecyclePageRetiresSuccess/dark
+--- PASS: TestCopyLifecyclePageRetiresSuccess (1.27s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/light (0.64s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/dark (0.63s)
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/light
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/dark
+--- PASS: TestCopyLifecycleAboutUnavailableIsInert (0.20s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/light (0.12s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/dark (0.08s)
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/light
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/dark
+--- PASS: TestCopyLifecycleAboutPageRetiresSuccess (0.59s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/light (0.28s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/dark (0.31s)
+=== RUN   TestLocalDraftEmptyScriptStaysEmpty
+=== RUN   TestLocalDraftEmptyScriptStaysEmpty/light
+=== RUN   TestLocalDraftEmptyScriptStaysEmpty/dark
+--- PASS: TestLocalDraftEmptyScriptStaysEmpty (0.83s)
+    --- PASS: TestLocalDraftEmptyScriptStaysEmpty/light (0.26s)
+    --- PASS: TestLocalDraftEmptyScriptStaysEmpty/dark (0.57s)
+=== RUN   TestLocalDraftNewToolHasItsOwnUndoHistory
+--- PASS: TestLocalDraftNewToolHasItsOwnUndoHistory (0.22s)
+=== RUN   TestLocalDraftNewConnectionDefaultsToTerminal
+--- PASS: TestLocalDraftNewConnectionDefaultsToTerminal (0.37s)
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool/light
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool/dark
+--- PASS: TestLocalDraftCopyConfirmationBelongsToTool (0.53s)
+    --- PASS: TestLocalDraftCopyConfirmationBelongsToTool/light (0.20s)
+    --- PASS: TestLocalDraftCopyConfirmationBelongsToTool/dark (0.32s)
+=== RUN   TestLocalDraftScriptLinesDoNotOverlap
+=== RUN   TestLocalDraftScriptLinesDoNotOverlap/light
+=== RUN   TestLocalDraftScriptLinesDoNotOverlap/dark
+--- PASS: TestLocalDraftScriptLinesDoNotOverlap (0.21s)
+    --- PASS: TestLocalDraftScriptLinesDoNotOverlap/light (0.06s)
+    --- PASS: TestLocalDraftScriptLinesDoNotOverlap/dark (0.15s)
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent/light
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent/dark
+--- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent (0.51s)
+    --- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent/light (0.19s)
+    --- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent/dark (0.32s)
+=== RUN   TestLocalFormNewToolHasItsOwnTextHistory
+--- PASS: TestLocalFormNewToolHasItsOwnTextHistory (0.44s)
+=== RUN   TestLocalFormLocalePreservesParameterInput
+=== RUN   TestLocalFormLocalePreservesParameterInput/light
+=== RUN   TestLocalFormLocalePreservesParameterInput/dark
+--- PASS: TestLocalFormLocalePreservesParameterInput (0.11s)
+    --- PASS: TestLocalFormLocalePreservesParameterInput/light (0.06s)
+    --- PASS: TestLocalFormLocalePreservesParameterInput/dark (0.05s)
+=== RUN   TestLocalFormCommandSurvivesModeSwitch
+=== RUN   TestLocalFormCommandSurvivesModeSwitch/light
+=== RUN   TestLocalFormCommandSurvivesModeSwitch/dark
+--- PASS: TestLocalFormCommandSurvivesModeSwitch (0.49s)
+    --- PASS: TestLocalFormCommandSurvivesModeSwitch/light (0.07s)
+    --- PASS: TestLocalFormCommandSurvivesModeSwitch/dark (0.42s)
+=== RUN   TestLocalFormVersionSurvivesModeSwitch
+--- PASS: TestLocalFormVersionSurvivesModeSwitch (0.39s)
+=== RUN   TestLocalDraftParameterRemovalKeepsRemainingInput
+--- PASS: TestLocalDraftParameterRemovalKeepsRemainingInput (0.07s)
+=== RUN   TestLocalDraftParameterKindKeepsDefaultInput
+--- PASS: TestLocalDraftParameterKindKeepsDefaultInput (0.05s)
+=== RUN   TestContentRecoveryModeOutput
+=== RUN   TestContentRecoveryModeOutput/light
+=== RUN   TestContentRecoveryModeOutput/dark
+--- PASS: TestContentRecoveryModeOutput (0.17s)
+    --- PASS: TestContentRecoveryModeOutput/light (0.09s)
+    --- PASS: TestContentRecoveryModeOutput/dark (0.08s)
+=== RUN   TestContentRecoveryModePlatform
+=== RUN   TestContentRecoveryModePlatform/light
+=== RUN   TestContentRecoveryModePlatform/dark
+--- PASS: TestContentRecoveryModePlatform (0.14s)
+    --- PASS: TestContentRecoveryModePlatform/light (0.07s)
+    --- PASS: TestContentRecoveryModePlatform/dark (0.07s)
+=== RUN   TestContentRecoveryModeAdvanced
+=== RUN   TestContentRecoveryModeAdvanced/light
+=== RUN   TestContentRecoveryModeAdvanced/dark
+--- PASS: TestContentRecoveryModeAdvanced (0.64s)
+    --- PASS: TestContentRecoveryModeAdvanced/light (0.32s)
+    --- PASS: TestContentRecoveryModeAdvanced/dark (0.31s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.15s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.09s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.07s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.10s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.05s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.05s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.13s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.07s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.06s)
+=== RUN   TestLocalToolFormBuildsAScript
+--- PASS: TestLocalToolFormBuildsAScript (0.91s)
+=== RUN   TestLocalToolFormRefusesAnEmptyScript
+--- PASS: TestLocalToolFormRefusesAnEmptyScript (0.61s)
+=== RUN   TestLocalToolFormCopiesItsContent
+--- PASS: TestLocalToolFormCopiesItsContent (0.51s)
+=== RUN   TestLocalToolFormCopiesTheScript
+    toolcontent_test.go:145: copied script = "#!/usr/bin/env node\n\n// Floter provider script\n// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n// Read them with process.argv.slice(2).\n// 编辑器里声明的参数会作为 argv 传入，可用 process.argv.slice(2) 读取。\n"
+--- PASS: TestLocalToolFormCopiesTheScript (0.61s)
+=== RUN   TestLocalToolFormExportsTheScript
+--- PASS: TestLocalToolFormExportsTheScript (0.52s)
+=== RUN   TestLocalToolFormNamesTheIntegrationBeingEdited
+--- PASS: TestLocalToolFormNamesTheIntegrationBeingEdited (0.30s)
+=== RUN   TestLocalToolForm
+--- PASS: TestLocalToolForm (0.67s)
+=== RUN   TestLocalToolFormNamesTheShapeRules
+--- PASS: TestLocalToolFormNamesTheShapeRules (0.78s)
+PASS
+ok  	floter/internal/settingsui	22.738s

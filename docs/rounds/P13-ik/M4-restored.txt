@@ -1,0 +1,14 @@
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.39s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.30s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.09s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.21s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.10s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.11s)
+PASS
+ok  	floter/internal/settingsui	0.608s

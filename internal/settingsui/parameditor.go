@@ -64,10 +64,11 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	// vocabulary with the argument editor beside it.
 	heading := ui.Row(c).FillWidth().MinHeight(t.Space(paramEditorHeadingMin)).
 		AlignItems(ui.Center).Justify(ui.SpaceBetween).Gap(t.Space(2))
+	var add ui.Element
 	heading.Children(func() {
 		ui.Text(c, copy.ParamsTitle).FontSize(tokens.Caption).FontWeight(600).
 			TextColor(t.TextMuted)
-		add := a.paramIconButton(c, "plus", copy.ParamsAdd)
+		add = a.paramIconButton(c, "plus", copy.ParamsAdd)
 		if add.Clicked() {
 			a.toolParams = append(a.toolParams, toolParam{Kind: extensions.ParamText})
 		}
@@ -106,6 +107,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	// where it happened rather than bounced back from the backend.
 	issues := extensions.ParamRowIssues(a.editorParams())
 	removed := -1
+	labels := make([]ui.Handle, len(a.toolParams))
 	ui.Column(c).FillWidth().Gap(t.Space(paramEditorPlateGap)).Children(func() {
 		for index := range a.toolParams {
 			index := index
@@ -113,12 +115,23 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 			if param.key == nil {
 				param.key = new(int)
 			}
-			if a.paramPlate(c.Key(param.key), copy, param, issues[index]) {
+			if a.paramPlate(c.Key(param.key), copy, param, issues[index], &labels[index]) {
 				removed = index
 			}
 		}
 	})
 	if removed >= 0 {
+		// Continue at the next surviving declaration (or the previous one
+		// when deleting the tail). An empty list returns to its add button.
+		if len(labels) == 1 {
+			add.Focus()
+		} else {
+			next := removed + 1
+			if next == len(labels) {
+				next = removed - 1
+			}
+			c.Resolve(labels[next]).Focus()
+		}
 		a.toolParams = append(a.toolParams[:removed], a.toolParams[removed+1:]...)
 	}
 }
@@ -126,7 +139,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 // paramPlate draws one parameter definition: the hairline record plate with its
 // fields grid, its controls line, the choice options and the row's refusal. It
 // reports whether the remove key was pressed this frame.
-func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, issue extensions.ParamRowIssue) bool {
+func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, issue extensions.ParamRowIssue, labelFocus *ui.Handle) bool {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 
@@ -151,7 +164,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		ui.Row(c).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(paramEditorPlateGap)).
 			Children(func() {
 				a.paramField(c, "label", copy.ParamsLabel, func() {
-					a.extensionField(c, &label, customFieldMetrics).Label(copy.ParamsLabel)
+					a.extensionField(c, &label, customFieldMetrics).Bind(labelFocus).Label(copy.ParamsLabel)
 				})
 				a.paramField(c, "id", copy.ParamsID, func() {
 					a.extensionField(c, &id, customFieldMetrics).Label(copy.ParamsID).Placeholder("target")

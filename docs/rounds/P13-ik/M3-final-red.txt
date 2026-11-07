@@ -1,0 +1,25 @@
+=== RUN   TestContentRecoveryModeAdvanced
+=== RUN   TestContentRecoveryModeAdvanced/light
+    moderecovery_test.go:45: mode refresh lost advanced focus
+    moderecovery_test.go:60: mode refresh blocked disclosure keyboard
+=== RUN   TestContentRecoveryModeAdvanced/dark
+    moderecovery_test.go:45: mode refresh lost advanced focus
+    moderecovery_test.go:60: mode refresh blocked disclosure keyboard
+--- FAIL: TestContentRecoveryModeAdvanced (1.11s)
+    --- FAIL: TestContentRecoveryModeAdvanced/light (0.77s)
+    --- FAIL: TestContentRecoveryModeAdvanced/dark (0.34s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+    paramoptionsrecovery_test.go:32: withdrawn options lost kind focus
+    paramoptionsrecovery_test.go:40: options keyboard recovery failed: {key:0x12796ab42020 ID:target Label:Target Kind:text Placeholder: Default: Flag: Required:false Options:one
+        two}
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+    paramoptionsrecovery_test.go:32: withdrawn options lost kind focus
+    paramoptionsrecovery_test.go:40: options keyboard recovery failed: {key:0x12796b18e010 ID:target Label:Target Kind:text Placeholder: Default: Flag: Required:false Options:one
+        two}
+--- FAIL: TestParamRecoveryOptionsWithdrawn (0.19s)
+    --- FAIL: TestParamRecoveryOptionsWithdrawn/light (0.10s)
+    --- FAIL: TestParamRecoveryOptionsWithdrawn/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	1.315s
+FAIL

@@ -19,6 +19,11 @@ func TestParamRecoveryOptionsWithdrawn(t *testing.T) {
 			if !tt.Focused(copy.ParamsOptions) {
 				t.Fatal("options did not take focus")
 			}
+			tt.Key(0, ui.KeyTab)
+			tt.Key(ui.Shift, ui.KeyTab)
+			if !tt.Focused(copy.ParamsOptions) {
+				t.Fatal("options keyboard roundtrip lost focus")
+			}
 			a.toolParams[0].Kind = extensions.ParamText
 			tt.Frame()
 			tt.Frame()
