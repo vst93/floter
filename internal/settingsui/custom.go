@@ -276,9 +276,6 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 	a.cardRow(c, ui.Center, nil, rowFace{FlexibleControls: true}, func() {
 		picker := a.customActionPicker(c, copy, action, func(next string) {
 			a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: next})
-			if next == commandAction {
-				a.customFocusDraft = true
-			}
 		}).Bind(&focus.picker)
 		if !commandLine && focus.command.Focused(c) {
 			picker.Focus()
@@ -594,6 +591,7 @@ func (a *App) updateCustomShortcut(index int, entry settings.CustomShortcut) {
 		delete(a.customEdits, entry.Key)
 		a.customKey, a.customCommand, a.customAction = entry.Key, "", commandAction
 		a.customDraftOpen = true
+		a.customFocusDraft = true
 		a.rebaseCustomRecorder(index)
 		return
 	}

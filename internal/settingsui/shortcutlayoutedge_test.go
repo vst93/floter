@@ -39,8 +39,10 @@ func TestShortcutLayoutEdges(t *testing.T) {
 						tt.Key(ui.Ctrl|ui.Shift, ui.KeyZ)
 					}
 					if scenario == "draft-large" {
-						a.customAction = commandAction
-						tt.Frame()
+						ownershipChoose(t, tt, copy.ShortcutsActions[0].Label, true)
+						if a.customAction != commandAction {
+							t.Fatal("draft did not enter command mode")
+						}
 					}
 				}
 				if scenario == "recording-large" {

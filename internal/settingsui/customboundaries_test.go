@@ -64,6 +64,9 @@ func TestCustomCommandRowsStayInsideSettings(t *testing.T) {
 			if scenario == "long-key" {
 				(*entries)[0].Key = "Ctrl+Alt+Shift+Super+PageDown"
 			}
+			if scenario == "long-action" {
+				(*entries)[0].Action = "action:open_external_terminal"
+			}
 			a.Page = PageShortcuts
 			tt := ui.NewTester(func(c *ui.Context) { c.SetTheme(a.tokens(c).Theme); a.View(c) }, 720, 1000)
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})

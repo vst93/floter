@@ -25,7 +25,7 @@
 
 ## 验证计划
 
-基线全量 verbose 正在运行；测试函数实测 3165。每批 1–2 个修复跑相关事件测试和包 vet 后 commit/push；全轮一次 gofmt、三平台 vet、普通与 verbose 全量、三平台 build，数字只记录实测。统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4，必要时 -p 1 控制包并发。
+基线全量 verbose 实测 **5206 PASS / 0 FAIL**；测试函数实测 **3165**。每批 1–2 个修复跑相关事件测试和包 vet 后 commit/push；全轮一次 gofmt、三平台 vet、普通与 verbose 全量、三平台 build，数字只记录实测。统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4，必要时 -p 1 控制包并发。
 
 Mutation 至少两组：恢复命令 Enter 的 sentinel 路径，应令命令保留 pin 红；恢复焦点/状态旧出口，应令对应真实事件 pin 红。每次 MD5 保存→注入→实红→还原校验→touch→-count=1 复跑。
 
