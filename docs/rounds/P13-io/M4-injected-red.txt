@@ -1,0 +1,23 @@
+=== RUN   TestParameterOptionsHonorReboundNewCommand
+=== RUN   TestParameterOptionsHonorReboundNewCommand/light
+    editorbinding_test.go:56: options-shortcut swallowed rebound new-command: closed=0
+    editorbinding_test.go:59: shortcut modified editor draft
+=== RUN   TestParameterOptionsHonorReboundNewCommand/dark
+    editorbinding_test.go:56: options-shortcut swallowed rebound new-command: closed=0
+    editorbinding_test.go:59: shortcut modified editor draft
+--- FAIL: TestParameterOptionsHonorReboundNewCommand (0.11s)
+    --- FAIL: TestParameterOptionsHonorReboundNewCommand/light (0.09s)
+    --- FAIL: TestParameterOptionsHonorReboundNewCommand/dark (0.02s)
+=== RUN   TestConfigurationInputHonorsReboundNewCommand
+=== RUN   TestConfigurationInputHonorsReboundNewCommand/light
+    editorbinding_test.go:56: config-shortcut swallowed rebound new-command: closed=0
+    editorbinding_test.go:59: shortcut modified editor draft
+=== RUN   TestConfigurationInputHonorsReboundNewCommand/dark
+    editorbinding_test.go:56: config-shortcut swallowed rebound new-command: closed=0
+    editorbinding_test.go:59: shortcut modified editor draft
+--- FAIL: TestConfigurationInputHonorsReboundNewCommand (0.14s)
+    --- FAIL: TestConfigurationInputHonorsReboundNewCommand/light (0.10s)
+    --- FAIL: TestConfigurationInputHonorsReboundNewCommand/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.270s
+FAIL

@@ -1,0 +1,240 @@
+=== RUN   TestCommandEnableHonorsTheRowLock
+--- PASS: TestCommandEnableHonorsTheRowLock (0.88s)
+=== RUN   TestCommandAliasHonorsTheRowLock
+--- PASS: TestCommandAliasHonorsTheRowLock (0.77s)
+=== RUN   TestCommandBusyAliasReturnsKeyboard
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/repair
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/disable
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/remove
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/uninstall
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/toggle
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/repair
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/disable
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/remove
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/uninstall
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/toggle
+--- PASS: TestCommandBusyAliasReturnsKeyboard (1.21s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/repair (0.16s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/disable (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/remove (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/uninstall (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/toggle (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/repair (0.11s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/disable (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/remove (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/uninstall (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/toggle (0.11s)
+=== RUN   TestCommandBusySwitchReturnsKeyboard
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/repair
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/disable
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/remove
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/uninstall
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/toggle
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/repair
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/disable
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/remove
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/uninstall
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/toggle
+--- PASS: TestCommandBusySwitchReturnsKeyboard (1.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/repair (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/disable (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/remove (0.12s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/uninstall (0.12s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/toggle (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/repair (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/disable (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/remove (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/uninstall (0.10s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/toggle (0.11s)
+=== RUN   TestCommandBusyDoesNotStealUnrelatedFocus
+--- PASS: TestCommandBusyDoesNotStealUnrelatedFocus (0.07s)
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping/light
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping/dark
+--- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping (0.19s)
+    --- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping/light (0.10s)
+    --- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping/dark (0.09s)
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/undeclared
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/orphan
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/removed
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/empty
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/undeclared
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/orphan
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/removed
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/empty
+--- PASS: TestCommandDraftReturnsWithRedeclaredEditor (1.23s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/undeclared (0.16s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/orphan (0.16s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/removed (0.16s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/empty (0.15s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/undeclared (0.15s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/orphan (0.15s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/removed (0.15s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/empty (0.15s)
+=== RUN   TestCommandAliasKeepsVerticalArrows
+=== RUN   TestCommandAliasKeepsVerticalArrows/light/14
+=== RUN   TestCommandAliasKeepsVerticalArrows/light/15
+=== RUN   TestCommandAliasKeepsVerticalArrows/dark/14
+=== RUN   TestCommandAliasKeepsVerticalArrows/dark/15
+--- PASS: TestCommandAliasKeepsVerticalArrows (0.32s)
+    --- PASS: TestCommandAliasKeepsVerticalArrows/light/14 (0.08s)
+    --- PASS: TestCommandAliasKeepsVerticalArrows/light/15 (0.08s)
+    --- PASS: TestCommandAliasKeepsVerticalArrows/dark/14 (0.08s)
+    --- PASS: TestCommandAliasKeepsVerticalArrows/dark/15 (0.08s)
+=== RUN   TestCommandAliasHonorsReboundNewCommand
+=== RUN   TestCommandAliasHonorsReboundNewCommand/light
+=== RUN   TestCommandAliasHonorsReboundNewCommand/dark
+--- PASS: TestCommandAliasHonorsReboundNewCommand (0.19s)
+    --- PASS: TestCommandAliasHonorsReboundNewCommand/light (0.10s)
+    --- PASS: TestCommandAliasHonorsReboundNewCommand/dark (0.09s)
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/id,_name_and_aliases
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/a_multi-word_name_contributes_its_first_token_only
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/a_blank_name_leaves_the_id_and_aliases
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/case-insensitive_duplicates_collapse
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/blank_aliases_are_dropped
+--- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/id,_name_and_aliases (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/a_multi-word_name_contributes_its_first_token_only (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/a_blank_name_leaves_the_id_and_aliases (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/case-insensitive_duplicates_collapse (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/blank_aliases_are_dropped (0.00s)
+=== RUN   TestCommandAliasDebouncesAndFlushesOnPageSwitch
+--- PASS: TestCommandAliasDebouncesAndFlushesOnPageSwitch (0.05s)
+=== RUN   TestCommandAliasFieldDebouncesTyping
+--- PASS: TestCommandAliasFieldDebouncesTyping (0.18s)
+=== RUN   TestParameterOptionsHonorReboundNewCommand
+=== RUN   TestParameterOptionsHonorReboundNewCommand/light
+=== RUN   TestParameterOptionsHonorReboundNewCommand/dark
+--- PASS: TestParameterOptionsHonorReboundNewCommand (0.15s)
+    --- PASS: TestParameterOptionsHonorReboundNewCommand/light (0.08s)
+    --- PASS: TestParameterOptionsHonorReboundNewCommand/dark (0.07s)
+=== RUN   TestConfigurationInputHonorsReboundNewCommand
+=== RUN   TestConfigurationInputHonorsReboundNewCommand/light
+=== RUN   TestConfigurationInputHonorsReboundNewCommand/dark
+--- PASS: TestConfigurationInputHonorsReboundNewCommand (0.22s)
+    --- PASS: TestConfigurationInputHonorsReboundNewCommand/light (0.13s)
+    --- PASS: TestConfigurationInputHonorsReboundNewCommand/dark (0.10s)
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk/light
+    inputstateink_test.go:102: light run: disabled ink=81
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk/dark
+    inputstateink_test.go:102: dark run: disabled ink=86
+--- PASS: TestInputStateLockedRunParameterUsesDisabledInk (0.07s)
+    --- PASS: TestInputStateLockedRunParameterUsesDisabledInk/light (0.06s)
+    --- PASS: TestInputStateLockedRunParameterUsesDisabledInk/dark (0.01s)
+=== RUN   TestLocalFormLocalePreservesParameterInput
+=== RUN   TestLocalFormLocalePreservesParameterInput/light
+=== RUN   TestLocalFormLocalePreservesParameterInput/dark
+--- PASS: TestLocalFormLocalePreservesParameterInput (0.11s)
+    --- PASS: TestLocalFormLocalePreservesParameterInput/light (0.07s)
+    --- PASS: TestLocalFormLocalePreservesParameterInput/dark (0.04s)
+=== RUN   TestLocalDraftParameterRemovalKeepsRemainingInput
+--- PASS: TestLocalDraftParameterRemovalKeepsRemainingInput (0.04s)
+=== RUN   TestLocalDraftParameterKindKeepsDefaultInput
+--- PASS: TestLocalDraftParameterKindKeepsDefaultInput (0.04s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.09s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.05s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.04s)
+=== RUN   TestParamReasonLayoutLocal
+=== RUN   TestParamReasonLayoutLocal/light
+=== RUN   TestParamReasonLayoutLocal/dark
+--- PASS: TestParamReasonLayoutLocal (0.08s)
+    --- PASS: TestParamReasonLayoutLocal/light (0.04s)
+    --- PASS: TestParamReasonLayoutLocal/dark (0.04s)
+=== RUN   TestParamReasonLayoutBackend
+=== RUN   TestParamReasonLayoutBackend/light
+=== RUN   TestParamReasonLayoutBackend/dark
+--- PASS: TestParamReasonLayoutBackend (0.10s)
+    --- PASS: TestParamReasonLayoutBackend/light (0.05s)
+    --- PASS: TestParamReasonLayoutBackend/dark (0.05s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.08s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.05s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.04s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.08s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.04s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.04s)
+=== RUN   TestTheParamEditorDrawsTheReferencePlates
+--- PASS: TestTheParamEditorDrawsTheReferencePlates (0.58s)
+=== RUN   TestRunEpochParametersReplacedDuringCallback
+=== RUN   TestRunEpochParametersReplacedDuringCallback/light
+=== RUN   TestRunEpochParametersReplacedDuringCallback/dark
+--- PASS: TestRunEpochParametersReplacedDuringCallback (0.11s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/light (0.06s)
+    --- PASS: TestRunEpochParametersReplacedDuringCallback/dark (0.05s)
+=== RUN   TestRunEpochUnknownParameterNowExists
+=== RUN   TestRunEpochUnknownParameterNowExists/light
+=== RUN   TestRunEpochUnknownParameterNowExists/dark
+--- PASS: TestRunEpochUnknownParameterNowExists (0.14s)
+    --- PASS: TestRunEpochUnknownParameterNowExists/light (0.07s)
+    --- PASS: TestRunEpochUnknownParameterNowExists/dark (0.07s)
+=== RUN   TestRunExitParameterWithdrawn
+=== RUN   TestRunExitParameterWithdrawn/light
+=== RUN   TestRunExitParameterWithdrawn/dark
+--- PASS: TestRunExitParameterWithdrawn (0.06s)
+    --- PASS: TestRunExitParameterWithdrawn/light (0.03s)
+    --- PASS: TestRunExitParameterWithdrawn/dark (0.03s)
+=== RUN   TestRunExitAllParametersWithdrawn
+=== RUN   TestRunExitAllParametersWithdrawn/light
+=== RUN   TestRunExitAllParametersWithdrawn/dark
+--- PASS: TestRunExitAllParametersWithdrawn (0.10s)
+    --- PASS: TestRunExitAllParametersWithdrawn/light (0.05s)
+    --- PASS: TestRunExitAllParametersWithdrawn/dark (0.05s)
+=== RUN   TestRunExitUnfocusedParameterDoesNotSteal
+--- PASS: TestRunExitUnfocusedParameterDoesNotSteal (0.04s)
+=== RUN   TestRunParamKindLabelNamesEveryKind
+--- PASS: TestRunParamKindLabelNamesEveryKind (0.00s)
+=== RUN   TestRunFormInputFollowsParameterIdentity
+=== RUN   TestRunFormInputFollowsParameterIdentity/light
+=== RUN   TestRunFormInputFollowsParameterIdentity/dark
+--- PASS: TestRunFormInputFollowsParameterIdentity (0.14s)
+    --- PASS: TestRunFormInputFollowsParameterIdentity/light (0.04s)
+    --- PASS: TestRunFormInputFollowsParameterIdentity/dark (0.10s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.06s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.04s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.03s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.12s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.06s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.06s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.07s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.03s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.03s)
+=== RUN   TestRunResultAllParametersRetired
+=== RUN   TestRunResultAllParametersRetired/light
+=== RUN   TestRunResultAllParametersRetired/dark
+--- PASS: TestRunResultAllParametersRetired (0.12s)
+    --- PASS: TestRunResultAllParametersRetired/light (0.06s)
+    --- PASS: TestRunResultAllParametersRetired/dark (0.06s)
+=== RUN   TestRunParamForm
+--- PASS: TestRunParamForm (0.29s)
+=== RUN   TestRunParamFormShowsPerRowReasons
+--- PASS: TestRunParamFormShowsPerRowReasons (0.28s)
+=== RUN   TestRunParamRefusalIsWorded
+--- PASS: TestRunParamRefusalIsWorded (0.00s)
+=== RUN   TestRunParamFormShowsTheBackendRefusal
+--- PASS: TestRunParamFormShowsTheBackendRefusal (0.23s)
+=== RUN   TestParamOptionsNewlineCodec
+--- PASS: TestParamOptionsNewlineCodec (0.00s)
+=== RUN   TestSingleLineFieldsKeepTheirArrows
+--- PASS: TestSingleLineFieldsKeepTheirArrows (0.18s)
+PASS
+ok  	floter/internal/settingsui	9.866s

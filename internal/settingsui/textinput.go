@@ -53,20 +53,7 @@ func (a *App) textInputLit(c *ui.Context, value *string, lit bool) ui.Element {
 	// claimed here, because it is the one the settings surface answers:
 	// `DISMISS_TABLE.settings["new-command"]` closes the panel
 	// (`main:src/surface-policy.ts:216`), which is `Actions.Close`.
-	e.HandleInput(func(ev ui.InputEvent) bool {
-		if ev.Kind != ui.InputKeyDown {
-			return false
-		}
-		mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand))
-		if !ok || ev.Mods != mods || ev.Key != key {
-			return false
-		}
-		if a.Actions.Close != nil {
-			a.Actions.Close()
-		}
-		return true
-	})
-	return e
+	return a.editorDismissKeys(e)
 }
 
 // fieldFace lays the reference's field material over an element: one quiet

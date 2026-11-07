@@ -1,0 +1,14 @@
+=== RUN   TestParameterOptionsHonorReboundNewCommand
+=== RUN   TestParameterOptionsHonorReboundNewCommand/light
+=== RUN   TestParameterOptionsHonorReboundNewCommand/dark
+--- PASS: TestParameterOptionsHonorReboundNewCommand (0.12s)
+    --- PASS: TestParameterOptionsHonorReboundNewCommand/light (0.10s)
+    --- PASS: TestParameterOptionsHonorReboundNewCommand/dark (0.03s)
+=== RUN   TestConfigurationInputHonorsReboundNewCommand
+=== RUN   TestConfigurationInputHonorsReboundNewCommand/light
+=== RUN   TestConfigurationInputHonorsReboundNewCommand/dark
+--- PASS: TestConfigurationInputHonorsReboundNewCommand (0.16s)
+    --- PASS: TestConfigurationInputHonorsReboundNewCommand/light (0.11s)
+    --- PASS: TestConfigurationInputHonorsReboundNewCommand/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.294s

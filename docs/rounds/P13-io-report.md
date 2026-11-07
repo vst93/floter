@@ -49,3 +49,12 @@
 M3 以修正后的实体 Ctrl 夹具重新实跑，结果在后文记录。新测试曾因 Key→string 转换被 vet 拒绝，改用 fmt.Sprint 后才进入事件验证，没有跳过 vet。
 
 修正夹具后的第 6 项成立：Ctrl+Backspace 先删别名、Close=0。改动：OnTextKey 在编辑动作前回答已配置的退出键；其他键仍由编辑器处理。真实窗口快捷键 + 输入键事件在深浅均 Close=1，pendingAliases 为空。M3 两类共 **8 FAIL**，原串 `alias swallowed rebound new-command: closed=0`；MD5 恢复、touch 后相关回归 **68 PASS / 0 FAIL**，包 vet 净。最终日志覆盖最初错误夹具，不用错误夹具计修复。
+
+第三批 11f5703b 已推送。
+
+### 第四批：配置与参数选项的同类按键遗漏
+
+7. 现象：参数选项多行框中，Ctrl+Backspace 已绑定退出却删除 apps，关闭 0 次。改动：多行选项接入同一编辑前快捷键处理。验证：深浅真实键盘事件，退出恰好 1 次，files/apps 原文保留；重绑到 Alt+N 后，原全选、复制、换行并输入 notes 全部仍可用。
+8. 现象：普通配置 Token 输入已有 HandleInput，但被窗口已注册的快捷键绕过，Ctrl+Backspace 仍删除 stored。改动：普通设置字段也通过原生编辑前回调回答已绑定操作。验证：深浅配置真实输入路径，退出 1 次、stored 不变；重绑后标准选择/复制继续正常。
+
+M4 回注两处旧接线实跑红，原串 `options-shortcut swallowed rebound new-command: closed=0`、`config-shortcut swallowed rebound new-command: closed=0`、`shortcut modified editor draft`；MD5 恢复并 touch 后通过。精确计数与完整门槛集中记录于末尾。旧 V/B/S 断言修改仍为 0/0/0，新增 Skip 0。
