@@ -1,0 +1,23 @@
+=== RUN   TestRunKindFocusTextToNumber
+=== RUN   TestRunKindFocusTextToNumber/light
+    runkindfocus_test.go:42: parameter kind refresh lost current control focus
+    runkindfocus_test.go:55: new number did not accept keyboard input: map[target:12]
+=== RUN   TestRunKindFocusTextToNumber/dark
+    runkindfocus_test.go:42: parameter kind refresh lost current control focus
+    runkindfocus_test.go:55: new number did not accept keyboard input: map[target:12]
+--- FAIL: TestRunKindFocusTextToNumber (0.25s)
+    --- FAIL: TestRunKindFocusTextToNumber/light (0.22s)
+    --- FAIL: TestRunKindFocusTextToNumber/dark (0.03s)
+=== RUN   TestRunKindFocusChoiceToBoolean
+=== RUN   TestRunKindFocusChoiceToBoolean/light
+    runkindfocus_test.go:42: parameter kind refresh lost current control focus
+    runkindfocus_test.go:48: new boolean did not accept keyboard toggle
+=== RUN   TestRunKindFocusChoiceToBoolean/dark
+    runkindfocus_test.go:42: parameter kind refresh lost current control focus
+    runkindfocus_test.go:48: new boolean did not accept keyboard toggle
+--- FAIL: TestRunKindFocusChoiceToBoolean (0.06s)
+    --- FAIL: TestRunKindFocusChoiceToBoolean/light (0.03s)
+    --- FAIL: TestRunKindFocusChoiceToBoolean/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.324s
+FAIL

@@ -1,0 +1,35 @@
+=== RUN   TestParamReasonLayoutLocal
+=== RUN   TestParamReasonLayoutLocal/light
+=== RUN   TestParamReasonLayoutLocal/dark
+--- PASS: TestParamReasonLayoutLocal (0.31s)
+    --- PASS: TestParamReasonLayoutLocal/light (0.23s)
+    --- PASS: TestParamReasonLayoutLocal/dark (0.08s)
+=== RUN   TestParamReasonLayoutBackend
+=== RUN   TestParamReasonLayoutBackend/light
+=== RUN   TestParamReasonLayoutBackend/dark
+--- PASS: TestParamReasonLayoutBackend (0.18s)
+    --- PASS: TestParamReasonLayoutBackend/light (0.08s)
+    --- PASS: TestParamReasonLayoutBackend/dark (0.10s)
+=== RUN   TestRunKindFocusTextToNumber
+=== RUN   TestRunKindFocusTextToNumber/light
+    runkindfocus_test.go:42: parameter kind refresh lost current control focus
+    runkindfocus_test.go:55: new number did not accept keyboard input: map[target:12]
+=== RUN   TestRunKindFocusTextToNumber/dark
+    runkindfocus_test.go:42: parameter kind refresh lost current control focus
+    runkindfocus_test.go:55: new number did not accept keyboard input: map[target:12]
+--- FAIL: TestRunKindFocusTextToNumber (0.20s)
+    --- FAIL: TestRunKindFocusTextToNumber/light (0.10s)
+    --- FAIL: TestRunKindFocusTextToNumber/dark (0.10s)
+=== RUN   TestRunKindFocusChoiceToBoolean
+=== RUN   TestRunKindFocusChoiceToBoolean/light
+    runkindfocus_test.go:42: parameter kind refresh lost current control focus
+    runkindfocus_test.go:48: new boolean did not accept keyboard toggle
+=== RUN   TestRunKindFocusChoiceToBoolean/dark
+    runkindfocus_test.go:42: parameter kind refresh lost current control focus
+    runkindfocus_test.go:48: new boolean did not accept keyboard toggle
+--- FAIL: TestRunKindFocusChoiceToBoolean (0.22s)
+    --- FAIL: TestRunKindFocusChoiceToBoolean/light (0.10s)
+    --- FAIL: TestRunKindFocusChoiceToBoolean/dark (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.941s
+FAIL

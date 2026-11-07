@@ -1,0 +1,18 @@
+=== RUN   TestRunKindFocusTextToNumber
+=== RUN   TestRunKindFocusTextToNumber/light
+=== RUN   TestRunKindFocusTextToNumber/dark
+--- PASS: TestRunKindFocusTextToNumber (0.23s)
+    --- PASS: TestRunKindFocusTextToNumber/light (0.17s)
+    --- PASS: TestRunKindFocusTextToNumber/dark (0.05s)
+=== RUN   TestRunKindFocusChoiceToBoolean
+=== RUN   TestRunKindFocusChoiceToBoolean/light
+=== RUN   TestRunKindFocusChoiceToBoolean/dark
+--- PASS: TestRunKindFocusChoiceToBoolean (0.10s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/light (0.05s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/dark (0.05s)
+=== RUN   TestRunKindFocusDuplicateIDsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIDsDoNotShareHandles (0.02s)
+=== RUN   TestRunKindFocusDoesNotStealFromCancel
+--- PASS: TestRunKindFocusDoesNotStealFromCancel (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.380s

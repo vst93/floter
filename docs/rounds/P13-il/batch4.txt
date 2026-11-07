@@ -1,0 +1,184 @@
+=== RUN   TestParamReasonLayoutLocal
+=== RUN   TestParamReasonLayoutLocal/light
+=== RUN   TestParamReasonLayoutLocal/dark
+--- PASS: TestParamReasonLayoutLocal (0.18s)
+    --- PASS: TestParamReasonLayoutLocal/light (0.16s)
+    --- PASS: TestParamReasonLayoutLocal/dark (0.02s)
+=== RUN   TestParamReasonLayoutBackend
+=== RUN   TestParamReasonLayoutBackend/light
+=== RUN   TestParamReasonLayoutBackend/dark
+--- PASS: TestParamReasonLayoutBackend (0.07s)
+    --- PASS: TestParamReasonLayoutBackend/light (0.03s)
+    --- PASS: TestParamReasonLayoutBackend/dark (0.03s)
+=== RUN   TestDeclarationRefreshNumberDefault
+=== RUN   TestDeclarationRefreshNumberDefault/light
+=== RUN   TestDeclarationRefreshNumberDefault/dark
+--- PASS: TestDeclarationRefreshNumberDefault (0.41s)
+    --- PASS: TestDeclarationRefreshNumberDefault/light (0.23s)
+    --- PASS: TestDeclarationRefreshNumberDefault/dark (0.18s)
+=== RUN   TestDeclarationRefreshBooleanDefault
+=== RUN   TestDeclarationRefreshBooleanDefault/light
+=== RUN   TestDeclarationRefreshBooleanDefault/dark
+--- PASS: TestDeclarationRefreshBooleanDefault (0.41s)
+    --- PASS: TestDeclarationRefreshBooleanDefault/light (0.21s)
+    --- PASS: TestDeclarationRefreshBooleanDefault/dark (0.20s)
+=== RUN   TestDeclarationRefreshSelectDefault
+=== RUN   TestDeclarationRefreshSelectDefault/light
+=== RUN   TestDeclarationRefreshSelectDefault/dark
+--- PASS: TestDeclarationRefreshSelectDefault (0.43s)
+    --- PASS: TestDeclarationRefreshSelectDefault/light (0.22s)
+    --- PASS: TestDeclarationRefreshSelectDefault/dark (0.21s)
+=== RUN   TestDeclarationRefreshPlaceholderExit
+=== RUN   TestDeclarationRefreshPlaceholderExit/light
+=== RUN   TestDeclarationRefreshPlaceholderExit/dark
+--- PASS: TestDeclarationRefreshPlaceholderExit (0.05s)
+    --- PASS: TestDeclarationRefreshPlaceholderExit/light (0.03s)
+    --- PASS: TestDeclarationRefreshPlaceholderExit/dark (0.03s)
+=== RUN   TestRunFormBooleanLocksBothEntrances
+=== RUN   TestRunFormBooleanLocksBothEntrances/light/switch
+=== RUN   TestRunFormBooleanLocksBothEntrances/light/label
+=== RUN   TestRunFormBooleanLocksBothEntrances/dark/switch
+=== RUN   TestRunFormBooleanLocksBothEntrances/dark/label
+--- PASS: TestRunFormBooleanLocksBothEntrances (0.16s)
+    --- PASS: TestRunFormBooleanLocksBothEntrances/light/switch (0.03s)
+    --- PASS: TestRunFormBooleanLocksBothEntrances/light/label (0.03s)
+    --- PASS: TestRunFormBooleanLocksBothEntrances/dark/switch (0.05s)
+    --- PASS: TestRunFormBooleanLocksBothEntrances/dark/label (0.05s)
+=== RUN   TestRunFormSelectHonorsRowLock
+=== RUN   TestRunFormSelectHonorsRowLock/light
+=== RUN   TestRunFormSelectHonorsRowLock/dark
+--- PASS: TestRunFormSelectHonorsRowLock (0.11s)
+    --- PASS: TestRunFormSelectHonorsRowLock/light (0.03s)
+    --- PASS: TestRunFormSelectHonorsRowLock/dark (0.07s)
+=== RUN   TestRunDefaultRefreshKnownLater
+=== RUN   TestRunDefaultRefreshKnownLater/light
+=== RUN   TestRunDefaultRefreshKnownLater/dark
+--- PASS: TestRunDefaultRefreshKnownLater (0.08s)
+    --- PASS: TestRunDefaultRefreshKnownLater/light (0.04s)
+    --- PASS: TestRunDefaultRefreshKnownLater/dark (0.04s)
+=== RUN   TestRunDefaultRefreshUnknownLater
+=== RUN   TestRunDefaultRefreshUnknownLater/light
+=== RUN   TestRunDefaultRefreshUnknownLater/dark
+--- PASS: TestRunDefaultRefreshUnknownLater (0.08s)
+    --- PASS: TestRunDefaultRefreshUnknownLater/light (0.04s)
+    --- PASS: TestRunDefaultRefreshUnknownLater/dark (0.04s)
+=== RUN   TestRunDefaultRefreshKnownCallback
+=== RUN   TestRunDefaultRefreshKnownCallback/light
+=== RUN   TestRunDefaultRefreshKnownCallback/dark
+--- PASS: TestRunDefaultRefreshKnownCallback (0.07s)
+    --- PASS: TestRunDefaultRefreshKnownCallback/light (0.03s)
+    --- PASS: TestRunDefaultRefreshKnownCallback/dark (0.03s)
+=== RUN   TestRunDefaultRefreshUnknownCallback
+=== RUN   TestRunDefaultRefreshUnknownCallback/light
+=== RUN   TestRunDefaultRefreshUnknownCallback/dark
+--- PASS: TestRunDefaultRefreshUnknownCallback (0.07s)
+    --- PASS: TestRunDefaultRefreshUnknownCallback/light (0.04s)
+    --- PASS: TestRunDefaultRefreshUnknownCallback/dark (0.04s)
+=== RUN   TestRunFormDrawsTheReferenceFrame
+=== RUN   TestRunFormDrawsTheReferenceFrame/background
+=== RUN   TestRunFormDrawsTheReferenceFrame/terminal
+--- PASS: TestRunFormDrawsTheReferenceFrame (0.22s)
+    --- PASS: TestRunFormDrawsTheReferenceFrame/background (0.12s)
+    --- PASS: TestRunFormDrawsTheReferenceFrame/terminal (0.09s)
+=== RUN   TestRunKindFocusTextToNumber
+=== RUN   TestRunKindFocusTextToNumber/light
+=== RUN   TestRunKindFocusTextToNumber/dark
+--- PASS: TestRunKindFocusTextToNumber (0.08s)
+    --- PASS: TestRunKindFocusTextToNumber/light (0.04s)
+    --- PASS: TestRunKindFocusTextToNumber/dark (0.03s)
+=== RUN   TestRunKindFocusChoiceToBoolean
+=== RUN   TestRunKindFocusChoiceToBoolean/light
+=== RUN   TestRunKindFocusChoiceToBoolean/dark
+--- PASS: TestRunKindFocusChoiceToBoolean (0.07s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/light (0.03s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/dark (0.04s)
+=== RUN   TestRunKindFocusDuplicateIDsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIDsDoNotShareHandles (0.02s)
+=== RUN   TestRunFormErrorsBelongToTheirIntegration
+=== RUN   TestRunFormErrorsBelongToTheirIntegration/light
+=== RUN   TestRunFormErrorsBelongToTheirIntegration/dark
+--- PASS: TestRunFormErrorsBelongToTheirIntegration (0.23s)
+    --- PASS: TestRunFormErrorsBelongToTheirIntegration/light (0.10s)
+    --- PASS: TestRunFormErrorsBelongToTheirIntegration/dark (0.14s)
+=== RUN   TestRunFormInputFollowsParameterIdentity
+=== RUN   TestRunFormInputFollowsParameterIdentity/light
+=== RUN   TestRunFormInputFollowsParameterIdentity/dark
+--- PASS: TestRunFormInputFollowsParameterIdentity (0.11s)
+    --- PASS: TestRunFormInputFollowsParameterIdentity/light (0.03s)
+    --- PASS: TestRunFormInputFollowsParameterIdentity/dark (0.08s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.06s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.03s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.02s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.10s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.05s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.05s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.05s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.03s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.03s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.07s)
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (0.40s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.20s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.20s)
+=== RUN   TestRunFormSubmitHonorsAvailability
+=== RUN   TestRunFormSubmitHonorsAvailability/light/repair
+=== RUN   TestRunFormSubmitHonorsAvailability/light/disable
+=== RUN   TestRunFormSubmitHonorsAvailability/light/remove
+=== RUN   TestRunFormSubmitHonorsAvailability/light/uninstall
+=== RUN   TestRunFormSubmitHonorsAvailability/light/toggle
+=== RUN   TestRunFormSubmitHonorsAvailability/light/stopped
+=== RUN   TestRunFormSubmitHonorsAvailability/light/broken
+=== RUN   TestRunFormSubmitHonorsAvailability/light/orphan
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/repair
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/disable
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/remove
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/uninstall
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/toggle
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/stopped
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/broken
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/orphan
+--- PASS: TestRunFormSubmitHonorsAvailability (0.79s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/repair (0.05s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/disable (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/remove (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/uninstall (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/toggle (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/stopped (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/broken (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/orphan (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/repair (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/disable (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/remove (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/uninstall (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/toggle (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/stopped (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/broken (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/orphan (0.06s)
+=== RUN   TestRunFormTextInputsHonorRowLock
+=== RUN   TestRunFormTextInputsHonorRowLock/light/text
+=== RUN   TestRunFormTextInputsHonorRowLock/light/number
+=== RUN   TestRunFormTextInputsHonorRowLock/light/path
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/text
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/number
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/path
+--- PASS: TestRunFormTextInputsHonorRowLock (0.30s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/text (0.02s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/number (0.02s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/path (0.02s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/text (0.07s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/number (0.08s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/path (0.08s)
+PASS
+ok  	floter/internal/settingsui	4.655s

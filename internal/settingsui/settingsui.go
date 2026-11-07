@@ -7328,6 +7328,13 @@ type runRefusal struct {
 	answers    map[string]string
 }
 
+// A new kind gets a new widget (and undo history), but a focused parameter
+// remains the keyboard destination when that widget is replaced.
+type runParamFocus struct {
+	kind    string
+	control ui.Handle
+}
+
 // A manifest may refresh synchronously inside RunWithParams. Compare semantic
 // input constraints by ID, allowing labels and ordering to change freely.
 func runParametersMatch(submitted []extensions.ParamDefinition, current []Param) bool {
@@ -7423,8 +7430,24 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			ui.Text(c, copy.RunValuesHint).FontSize(a.tokens(c).Caption).TextColor(theme.TextMuted)
 		})
 		a.runParamsBox(c, func() {
+			occurrences := map[string]int{}
 			for index, param := range integration.Params {
 				index, param := index, param
+				occurrence := occurrences[param.ID]
+				occurrences[param.ID]++
+				focus := ui.Local(c.Root(), struct {
+					app                *App
+					integration, param string
+					occurrence         int
+				}{a, integration.ID, param.ID, occurrence}, func() runParamFocus { return runParamFocus{} })
+				refocus := focus.kind != param.Kind && focus.control.FocusWithin(c)
+				focus.kind = param.Kind
+				bindFocus := func(control ui.Element) {
+					control.Bind(&focus.control)
+					if refocus && !locked {
+						control.Focus()
+					}
+				}
 				label := param.Label
 				if label == "" {
 					label = param.ID
@@ -7453,6 +7476,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					on := truthyValue(values[param.ID])
 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						sw := a.switchControl(c, &on).Label(label)
+						bindFocus(sw)
 						if locked {
 							lockedControl(sw)
 						}
@@ -7472,6 +7496,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					}
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						picker := a.segmentedControl(c, &index, param.Options...)
+						bindFocus(picker)
 						if locked {
 							lockedControl(picker)
 						}
@@ -7484,6 +7509,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					value := values[param.ID]
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						input := a.extensionFieldLit(c, &value, configFieldMetrics, !locked).Label(label).Width(220).Placeholder(param.Placeholder)
+						bindFocus(input)
 						if locked {
 							lockedControl(input.TextColor(a.tokens(c).Disabled))
 						}
