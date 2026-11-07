@@ -33,6 +33,8 @@ func (a *App) setCustomShortcuts(entries []settings.CustomShortcut) []settingsui
 	a.customSignature = customShortcutSignatureOf(registered)
 	if err := a.Store.Update(func(s *settings.Settings) { s.SetCustomShortcuts(registered) }); err != nil {
 		log.Printf("floter: could not save the custom shortcuts: %v", err)
+		// Restore both the confirmed keys and their original action closures.
+		a.ApplyCustomShortcuts()
 	}
 	out := make([]settingsui.CustomShortcutRejection, 0, len(rejections))
 	for _, rejection := range rejections {
