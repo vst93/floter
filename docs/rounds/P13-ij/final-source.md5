@@ -1,0 +1,4 @@
+2832c6330292b41f1befd171b697df98  internal/settingsui/settingsui.go
+0ce0bb7d71afd6e9979c2f3a31e1692f  internal/settingsui/rows.go
+f57172a6968df13190a0321f3f452bb9  internal/settingsui/contentfocus.go
+fb1384e41ce3cc5fa76a9a919c9b94cd  internal/settingsui/actionavailability_test.go

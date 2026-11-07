@@ -1,0 +1,8 @@
+ordinary exit=0
+verbose exit=0 PASS=4689 FAIL=0 functions=3019
+linux vet exit=0
+linux build exit=0
+windows vet exit=0
+windows build exit=0
+darwin vet exit=0
+darwin build exit=0
