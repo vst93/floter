@@ -418,7 +418,9 @@ func (a *App) toastViewport(c *ui.Context) {
 						ui.Icon(c, glyph).Size(t.Space(3.75), t.Space(3.75)).TextColor(tone)
 					}
 				}
-				sentence := ui.Text(c, toast.Title).TextColor(tone).Grow(1)
+				// A path can be one long word. Let its text column shrink to the
+				// available width instead of pushing the dismiss control off-pane.
+				sentence := ui.Text(c, toast.Title).TextColor(tone).Grow(1).MinWidth(0)
 				if collapsed {
 					sentence.FontSize(tokens.Caption).SingleLine().Ellipsis("\u2026")
 				} else {

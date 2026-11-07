@@ -1,0 +1,70 @@
+=== RUN   TestNoticeLongPathKeepsDismissReachable
+=== RUN   TestNoticeLongPathKeepsDismissReachable/light
+=== RUN   TestNoticeLongPathKeepsDismissReachable/dark
+--- PASS: TestNoticeLongPathKeepsDismissReachable (0.82s)
+    --- PASS: TestNoticeLongPathKeepsDismissReachable/light (0.37s)
+    --- PASS: TestNoticeLongPathKeepsDismissReachable/dark (0.45s)
+=== RUN   TestToastTonesAndMarksFollowTheirKind
+--- PASS: TestToastTonesAndMarksFollowTheirKind (0.00s)
+=== RUN   TestTheToastIsDrawnByTheAppsOwnViewport
+--- PASS: TestTheToastIsDrawnByTheAppsOwnViewport (0.31s)
+=== RUN   TestTheToastActionRunsAndClosesTheToast
+--- PASS: TestTheToastActionRunsAndClosesTheToast (0.28s)
+=== RUN   TestTheToastStackAnchorsPerSurface
+--- PASS: TestTheToastStackAnchorsPerSurface (0.32s)
+=== RUN   TestTheLauncherToastStackKeepsOnlyTheNewest
+--- PASS: TestTheLauncherToastStackKeepsOnlyTheNewest (0.32s)
+=== RUN   TestTheToastSpringsInOverTheSurfaceDuration
+--- PASS: TestTheToastSpringsInOverTheSurfaceDuration (0.09s)
+=== RUN   TestTheToastFloatsOnTheElevationLadder
+--- PASS: TestTheToastFloatsOnTheElevationLadder (0.09s)
+=== RUN   TestTheToastDismissKeyIsAnE1Face
+    notices_test.go:569: light/toast dismiss: crown y=65 +0 (face -26) shade y=86 -39
+    notices_test.go:569: dark/toast dismiss: crown y=66 +51 (face +33) shade y=86 +22
+--- PASS: TestTheToastDismissKeyIsAnE1Face (0.27s)
+=== RUN   TestTheToastControlsStepThePointer
+    pointerstep_test.go:123: light/toast / dismiss: rest 0 → f0 0 → settled -26114
+    pointerstep_test.go:123: dark/toast / dismiss: rest 0 → f0 0 → settled 32886
+    pointerstep_test.go:153: light/toast / action: rest -14000 → f0 -14000 → settled -21114
+    pointerstep_test.go:153: dark/toast / action: rest -14000 → f0 -14000 → settled -21114
+--- PASS: TestTheToastControlsStepThePointer (0.83s)
+=== RUN   TestTheToastEntranceRestsUnderReduceMotion
+--- PASS: TestTheToastEntranceRestsUnderReduceMotion (0.00s)
+=== RUN   TestTheToastActionChipIsAFaceNotARing
+=== RUN   TestTheToastActionChipIsAFaceNotARing/light
+    toastactionface_test.go:184: [light] box={X:622.6 Y:66.7 W:42.400024 H:19.800003} face={231 231 233 255 [0 0 0]} crown={234 234 235 255 [0 0 0]} shade={224 224 226 255 [0 0 0]} left={231 231 233 255 [0 0 0]} right={231 231 233 255 [0 0 0]} pane={249 249 251 255 [0 0 0]} near={249 249 251 255 [0 0 0]}
+=== RUN   TestTheToastActionChipIsAFaceNotARing/dark
+    toastactionface_test.go:184: [dark] box={X:622.6 Y:66.7 W:42.400024 H:19.800003} face={48 48 50 255 [0 0 0]} crown={57 57 59 255 [0 0 0]} shade={43 43 45 255 [0 0 0]} left={48 48 50 255 [0 0 0]} right={47 47 49 255 [0 0 0]} pane={24 24 27 255 [0 0 0]} near={24 24 27 255 [0 0 0]}
+--- PASS: TestTheToastActionChipIsAFaceNotARing (0.24s)
+    --- PASS: TestTheToastActionChipIsAFaceNotARing/light (0.06s)
+    --- PASS: TestTheToastActionChipIsAFaceNotARing/dark (0.18s)
+=== RUN   TestTheToastFaceOnlyAttenuatesItsBackdrop
+=== RUN   TestTheToastFaceOnlyAttenuatesItsBackdrop/light
+=== RUN   TestTheToastFaceOnlyAttenuatesItsBackdrop/dark
+--- PASS: TestTheToastFaceOnlyAttenuatesItsBackdrop (0.68s)
+    --- PASS: TestTheToastFaceOnlyAttenuatesItsBackdrop/light (0.16s)
+    --- PASS: TestTheToastFaceOnlyAttenuatesItsBackdrop/dark (0.51s)
+=== RUN   TestTheToastThrowFollowsTheFrameTransparency
+    toastthrow_test.go:108: deepest relative darkening: 100% = 0.156, 10% = 0.413
+--- PASS: TestTheToastThrowFollowsTheFrameTransparency (0.17s)
+=== RUN   TestTheLauncherToastKeepsItsContactLayer
+    toastthrow_test.go:169: alpha added under the strip: +1 row = 65, +5 rows = 32
+--- PASS: TestTheLauncherToastKeepsItsContactLayer (0.04s)
+=== RUN   TestConfigExportWriteCause
+=== RUN   TestConfigExportWriteCause/light
+2026/11/07 23:48:10 floter: could not write /tmp/TestConfigExportWriteCauselight115723601/001: open /tmp/TestConfigExportWriteCauselight115723601/001: is a directory
+=== RUN   TestConfigExportWriteCause/dark
+2026/11/07 23:48:10 floter: could not write /tmp/TestConfigExportWriteCausedark2078580981/001: open /tmp/TestConfigExportWriteCausedark2078580981/001: is a directory
+--- PASS: TestConfigExportWriteCause (0.75s)
+    --- PASS: TestConfigExportWriteCause/light (0.37s)
+    --- PASS: TestConfigExportWriteCause/dark (0.37s)
+=== RUN   TestIntegrationsExportWriteCause
+=== RUN   TestIntegrationsExportWriteCause/light
+2026/11/07 23:48:10 floter: could not write /tmp/TestIntegrationsExportWriteCauselight3549566433/001: open /tmp/TestIntegrationsExportWriteCauselight3549566433/001: is a directory
+=== RUN   TestIntegrationsExportWriteCause/dark
+2026/11/07 23:48:11 floter: could not write /tmp/TestIntegrationsExportWriteCausedark4232378632/001: open /tmp/TestIntegrationsExportWriteCausedark4232378632/001: is a directory
+--- PASS: TestIntegrationsExportWriteCause (0.96s)
+    --- PASS: TestIntegrationsExportWriteCause/light (0.48s)
+    --- PASS: TestIntegrationsExportWriteCause/dark (0.48s)
+PASS
+ok  	floter/internal/shell	6.209s

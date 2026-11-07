@@ -1,0 +1,8 @@
+=== RUN   TestNoticeLongPathKeepsDismissReachable
+=== RUN   TestNoticeLongPathKeepsDismissReachable/light
+=== RUN   TestNoticeLongPathKeepsDismissReachable/dark
+--- PASS: TestNoticeLongPathKeepsDismissReachable (0.81s)
+    --- PASS: TestNoticeLongPathKeepsDismissReachable/light (0.38s)
+    --- PASS: TestNoticeLongPathKeepsDismissReachable/dark (0.43s)
+PASS
+ok  	floter/internal/shell	0.823s

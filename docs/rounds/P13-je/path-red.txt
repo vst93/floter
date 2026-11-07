@@ -1,0 +1,13 @@
+=== RUN   TestNoticeLongPathKeepsDismissReachable
+=== RUN   TestNoticeLongPathKeepsDismissReachable/light
+    noticepath_test.go:25: long path overlaps dismiss or viewport: body={414.09998 65.799995 305.90002 51} dismiss={1085.3 80.5 0 0}
+    noticepath_test.go:28: ui: "Dismiss notice" is at (1085.3, 80.5), outside the window
+=== RUN   TestNoticeLongPathKeepsDismissReachable/dark
+    noticepath_test.go:25: long path overlaps dismiss or viewport: body={414.09998 65.799995 305.90002 51} dismiss={1085.3 80.5 0 0}
+    noticepath_test.go:28: ui: "Dismiss notice" is at (1085.3, 80.5), outside the window
+--- FAIL: TestNoticeLongPathKeepsDismissReachable (0.68s)
+    --- FAIL: TestNoticeLongPathKeepsDismissReachable/light (0.36s)
+    --- FAIL: TestNoticeLongPathKeepsDismissReachable/dark (0.32s)
+FAIL
+FAIL	floter/internal/shell	0.692s
+FAIL
