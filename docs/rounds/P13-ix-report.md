@@ -40,3 +40,12 @@
 4. 现象：草稿已有 Z，再点其录制器后直接 Bind，草稿消失但不可见的录制状态继续暂停全部系统键。改动：成功绑定复用草稿关闭出口，结束其录制，焦点仍归新保存行。验证：真实重录→Bind 后 Z、B、唤起三键全部可用，暂停为 false，原录制入口仍可继续。
 
 第二批相关 **163 PASS / 0 FAIL**、包 vet 净。原串 `canceling draft stopped saved binding recorder` 与 `bound draft left an invisible recorder suspending all keys`。M2 恢复两处旧状态处理后 **6 FAIL**，MD5 OK、touch 后 **6 PASS**。旧 V/B/S **0/0/0**。
+
+第二批 **a602fce1** 已推送。
+
+### 第三批（7–8）
+
+7. 现象：录好 Z 后系统占用 Z，Bind 被宿主拒绝，但草稿消失且 occupied 提示没有承载行。改动：宿主仍只保存接受的绑定，UI 保留被拒的草稿及既有拒绝说明。验证：真实 Add/录键/Bind，occupied 和 Bind 仍可见，重新录 R 后成功保存且旧提示退场。原串 `draft-occupied discarded draft or hid refusal`。
+8. 现象：草稿录 Z 后配置刷新增加同键已有动作，Bind 被 normalize 去重，原动作虽保住但新草稿静默丢失。改动：提交前重新检查当前绑定集合，复用录键时的本地冲突提示，保留草稿，不提交无效列表。验证：真实录键→外部增加 Z→Bind，原动作和写入次数不变，冲突可见；换 R 后可绑定。原串 `draft-duplicate discarded draft or hid refusal`。
+
+第三批相关 **169 PASS / 0 FAIL**、包 vet 净。M3 撤去两条草稿保护后 **6 FAIL**，MD5 OK、touch 后 **6 PASS**。旧 V/B/S **0/0/0**，未改现有 normalize/保存接受列表的行为。

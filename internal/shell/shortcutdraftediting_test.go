@@ -83,6 +83,9 @@ func checkDraftRecorderExit(t *testing.T, bind bool) {
 	}
 }
 
+func TestShortcutDraftOccupiedRetainsRetry(t *testing.T)     { checkDraftRejection(t, false) }
+func TestShortcutDraftDuplicateRetainsOriginal(t *testing.T) { checkDraftRejection(t, true) }
+
 func checkDraftRejection(t *testing.T, duplicate bool) {
 	for _, dark := range []bool{false, true} {
 		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {

@@ -506,10 +506,29 @@ func (a *App) addCustomShortcut() {
 	if strings.TrimSpace(a.customKey) == "" {
 		return
 	}
-	entries := append(append([]settings.CustomShortcut{}, a.customShortcuts()...),
-		settings.CustomShortcut{Key: a.customKey, Action: action})
+	entries := append([]settings.CustomShortcut{}, a.customShortcuts()...)
+	keys := make([]string, len(entries))
+	for i, entry := range entries {
+		keys[i] = entry.Key
+	}
+	// Another binding can acquire this chord after it was recorded. Keep
+	// the same local rejection and retry path as an immediately duplicated
+	// capture, instead of silently dropping the draft during normalization.
+	if shortcuts.Duplicate(a.customKey, keys, -1) != "" {
+		a.customDuplicate, a.customDuplicateRow = a.customKey, customDraftRow
+		return
+	}
+	a.customDuplicate = ""
+	entries = append(entries, settings.CustomShortcut{Key: a.customKey, Action: action})
 	if !a.commitCustomShortcuts(entries) {
 		return
+	}
+	for _, rejection := range a.customRejections {
+		if shortcuts.Equal(rejection.Key, a.customKey) {
+			// The host intentionally stores only accepted bindings. Its
+			// refusal still needs the draft row as a visible retry outlet.
+			return
+		}
 	}
 	a.cancelCustomDraft()
 }
