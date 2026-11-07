@@ -1,0 +1,18 @@
+=== RUN   TestShortcutLifecycleResumeSummonFeedback
+=== RUN   TestShortcutLifecycleResumeSummonFeedback/light
+2026/11/07 17:52:10 floter: could not re-register Ctrl+Alt+J: occupied
+=== RUN   TestShortcutLifecycleResumeSummonFeedback/dark
+2026/11/07 17:52:11 floter: could not re-register Ctrl+Alt+J: occupied
+--- PASS: TestShortcutLifecycleResumeSummonFeedback (0.47s)
+    --- PASS: TestShortcutLifecycleResumeSummonFeedback/light (0.23s)
+    --- PASS: TestShortcutLifecycleResumeSummonFeedback/dark (0.23s)
+=== RUN   TestShortcutLifecycleResumeCustomFeedback
+=== RUN   TestShortcutLifecycleResumeCustomFeedback/light
+2026/11/07 17:52:11 floter: custom shortcut Ctrl+Shift+B: occupied
+=== RUN   TestShortcutLifecycleResumeCustomFeedback/dark
+2026/11/07 17:52:11 floter: custom shortcut Ctrl+Shift+B: occupied
+--- PASS: TestShortcutLifecycleResumeCustomFeedback (0.27s)
+    --- PASS: TestShortcutLifecycleResumeCustomFeedback/light (0.06s)
+    --- PASS: TestShortcutLifecycleResumeCustomFeedback/dark (0.21s)
+PASS
+ok  	floter/internal/shell	0.745s

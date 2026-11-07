@@ -1,0 +1,23 @@
+=== RUN   TestShortcutLifecycleResumeSummonFeedback
+=== RUN   TestShortcutLifecycleResumeSummonFeedback/light
+2026/11/07 17:52:09 floter: could not re-register Ctrl+Alt+J: occupied
+    shortcutlifecycle_test.go:116: resume refusal has no visible row feedback
+=== RUN   TestShortcutLifecycleResumeSummonFeedback/dark
+2026/11/07 17:52:09 floter: could not re-register Ctrl+Alt+J: occupied
+    shortcutlifecycle_test.go:116: resume refusal has no visible row feedback
+--- FAIL: TestShortcutLifecycleResumeSummonFeedback (0.40s)
+    --- FAIL: TestShortcutLifecycleResumeSummonFeedback/light (0.17s)
+    --- FAIL: TestShortcutLifecycleResumeSummonFeedback/dark (0.23s)
+=== RUN   TestShortcutLifecycleResumeCustomFeedback
+=== RUN   TestShortcutLifecycleResumeCustomFeedback/light
+2026/11/07 17:52:09 floter: custom shortcut Ctrl+Shift+B: occupied
+    shortcutlifecycle_test.go:116: resume refusal has no visible row feedback
+=== RUN   TestShortcutLifecycleResumeCustomFeedback/dark
+2026/11/07 17:52:09 floter: custom shortcut Ctrl+Shift+B: occupied
+    shortcutlifecycle_test.go:116: resume refusal has no visible row feedback
+--- FAIL: TestShortcutLifecycleResumeCustomFeedback (0.25s)
+    --- FAIL: TestShortcutLifecycleResumeCustomFeedback/light (0.05s)
+    --- FAIL: TestShortcutLifecycleResumeCustomFeedback/dark (0.21s)
+FAIL
+FAIL	floter/internal/shell	0.655s
+FAIL

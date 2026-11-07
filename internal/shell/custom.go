@@ -70,6 +70,11 @@ func (a *App) ApplyCustomShortcuts() []CustomShortcutRejection {
 	snapshot := a.Store.Snapshot()
 	a.customSignature = customShortcutSignature(snapshot)
 	_, rejections := a.applyCustomShortcuts(settings.CustomShortcutsOf(snapshot))
+	a.Settings.CustomUnavailable = nil
+	for _, rejection := range rejections {
+		a.Settings.CustomUnavailable = append(a.Settings.CustomUnavailable,
+			settingsui.CustomShortcutRejection{Key: rejection.Key, Reason: rejection.Reason})
+	}
 	return rejections
 }
 

@@ -1037,6 +1037,10 @@ type App struct {
 	customDuplicateRow int
 	customDuplicateKey string // binding whose recording was refused
 	customRejections   []CustomShortcutRejection
+	// Availability is the host's current registration result, independent of
+	// the page's history of refused edits.
+	CustomUnavailable []CustomShortcutRejection
+	SummonUnavailable bool
 	// customEdits holds a saved row's command line while it is being typed in
 	// place, keyed by the binding. The reference kept the same draft on the row
 	// (`row.command`) and committed it on Enter/blur (`ShortcutsPage.tsx:204-216`);
@@ -1147,7 +1151,15 @@ func (a *App) syncShortcutSuspension() {
 
 // View builds the settings surface: the page list beside the body.
 func (a *App) View(c *ui.Context) {
-	defer a.syncShortcutSuspension()
+	defer func() {
+		changed := a.shortcutsSuspended != (a.recording || a.customRecording)
+		a.syncShortcutSuspension()
+		if changed {
+			// Resume runs after this tree was built. Draw its registration
+			// result without waiting for an unrelated input event.
+			c.AnimationFrame()
+		}
+	}()
 	copy := i18n.For(a.settings().Language).Settings
 	t := c.Theme()
 	a.retireMissingConfirmations()
@@ -4175,7 +4187,7 @@ func (a *App) shortcutMapRow(c *ui.Context, copy i18n.Settings, action string) {
 // row whose recording was refused (the page draws the same sentence at its top,
 // as `src/settings/ShortcutsPage.tsx:382,404-406` did).
 func (a *App) shortcutWarning(action string, copy i18n.Settings) string {
-	if a.rejectedShortcut == action {
+	if a.rejectedShortcut == action || (action == settings.ShortcutToggleWindow && a.SummonUnavailable) {
 		return copy.ShortcutRejected
 	}
 	return ""

@@ -197,7 +197,7 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 // until the next recording starts, which is what the old page's
 // `setRejectedAction(null)` on every `capture`/`toggle` amounted to.
 func (a *App) shortcutRejectedAlert(c *ui.Context, copy i18n.Settings) {
-	if a.rejectedShortcut == "" {
+	if a.rejectedShortcut == "" && !a.SummonUnavailable {
 		return
 	}
 	t := c.Theme()

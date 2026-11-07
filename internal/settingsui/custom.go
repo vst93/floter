@@ -248,7 +248,7 @@ func (a *App) customWarning(copy i18n.Settings, key string, row int) string {
 	if strings.TrimSpace(key) == "" {
 		return ""
 	}
-	for _, rejection := range a.customRejections {
+	for _, rejection := range append(append([]CustomShortcutRejection{}, a.customRejections...), a.CustomUnavailable...) {
 		if !shortcuts.Equal(rejection.Key, key) {
 			continue
 		}

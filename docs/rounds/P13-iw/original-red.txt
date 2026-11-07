@@ -1,0 +1,52 @@
+=== RUN   TestShortcutLifecycleResumeSummonFeedback
+=== RUN   TestShortcutLifecycleResumeSummonFeedback/light
+2026/11/07 17:49:14 floter: could not re-register Ctrl+Alt+J: occupied
+    shortcutlifecycle_test.go:116: resume refusal has no visible row feedback
+=== RUN   TestShortcutLifecycleResumeSummonFeedback/dark
+2026/11/07 17:49:14 floter: could not re-register Ctrl+Alt+J: occupied
+    shortcutlifecycle_test.go:116: resume refusal has no visible row feedback
+--- FAIL: TestShortcutLifecycleResumeSummonFeedback (0.86s)
+    --- FAIL: TestShortcutLifecycleResumeSummonFeedback/light (0.41s)
+    --- FAIL: TestShortcutLifecycleResumeSummonFeedback/dark (0.45s)
+=== RUN   TestShortcutLifecycleResumeCustomFeedback
+=== RUN   TestShortcutLifecycleResumeCustomFeedback/light
+2026/11/07 17:49:15 floter: custom shortcut Ctrl+Shift+B: occupied
+    shortcutlifecycle_test.go:116: resume refusal has no visible row feedback
+=== RUN   TestShortcutLifecycleResumeCustomFeedback/dark
+2026/11/07 17:49:15 floter: custom shortcut Ctrl+Shift+B: occupied
+    shortcutlifecycle_test.go:116: resume refusal has no visible row feedback
+--- FAIL: TestShortcutLifecycleResumeCustomFeedback (0.65s)
+    --- FAIL: TestShortcutLifecycleResumeCustomFeedback/light (0.20s)
+    --- FAIL: TestShortcutLifecycleResumeCustomFeedback/dark (0.45s)
+=== RUN   TestShortcutLifecycleCapturedSummonStaysRegistered
+2026/11/07 17:49:15 floter: could not re-register Ctrl+Shift+Z: occupied
+    shortcutlifecycle_test.go:155: accepted chord was claimed again or lost on resume: claims=2 live=true
+--- FAIL: TestShortcutLifecycleCapturedSummonStaysRegistered (0.06s)
+=== RUN   TestShortcutLifecycleCapturedCustomStaysRegistered
+2026/11/07 17:49:15 floter: custom shortcut Ctrl+Shift+Z: occupied
+    shortcutlifecycle_test.go:155: accepted chord was claimed again or lost on resume: claims=2 live=false
+--- FAIL: TestShortcutLifecycleCapturedCustomStaysRegistered (0.11s)
+=== RUN   TestShortcutLifecycleSummonRefreshStaysSuspended
+    shortcutlifecycle_test.go:194: settings refresh re-enabled global keys while recording: [Ctrl+Shift+Z]
+2026/11/07 17:49:15 floter: could not re-register Ctrl+Shift+Z: occupied
+--- FAIL: TestShortcutLifecycleSummonRefreshStaysSuspended (0.05s)
+=== RUN   TestShortcutLifecycleCustomRefreshStaysSuspended
+    shortcutlifecycle_test.go:194: settings refresh re-enabled global keys while recording: [Ctrl+Shift+Z]
+--- FAIL: TestShortcutLifecycleCustomRefreshStaysSuspended (0.05s)
+=== RUN   TestShortcutLifecycleInitialSummonFailureVisible
+=== RUN   TestShortcutLifecycleInitialSummonFailureVisible/light
+2026/11/07 17:49:15 floter: could not register Ctrl+Alt+J: occupied
+    shortcutlifecycle_test.go:215: initial unavailable summon key looks usable
+=== RUN   TestShortcutLifecycleInitialSummonFailureVisible/dark
+2026/11/07 17:49:16 floter: could not register Ctrl+Alt+J: occupied
+    shortcutlifecycle_test.go:215: initial unavailable summon key looks usable
+--- FAIL: TestShortcutLifecycleInitialSummonFailureVisible (0.24s)
+    --- FAIL: TestShortcutLifecycleInitialSummonFailureVisible/light (0.09s)
+    --- FAIL: TestShortcutLifecycleInitialSummonFailureVisible/dark (0.15s)
+=== RUN   TestShortcutLifecycleDefaultResetRetriesUnavailableKey
+2026/11/07 17:49:16 floter: could not re-register Ctrl+Space: occupied
+    shortcutlifecycle_test.go:239: reset of unavailable default key did not retry registration
+--- FAIL: TestShortcutLifecycleDefaultResetRetriesUnavailableKey (0.13s)
+FAIL
+FAIL	floter/internal/shell	2.172s
+FAIL

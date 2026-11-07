@@ -424,6 +424,9 @@ type App struct {
 	// shortcutsSuspended is true while a settings recorder holds the keyboard:
 	// the global shortcuts are released then.
 	shortcutsSuspended bool
+	// A captured replacement can already be registered before the view's
+	// deferred resume. Only a key still released needs to be acquired there.
+	summonNeedsRestore bool
 	// The terminal's size write-back: the size the last resize settled on,
 	// its generation, and the timer that writes it.
 	sizeMu         sync.Mutex
@@ -1515,6 +1518,8 @@ func (a *App) setShortcut(id, accelerator string) {
 		a.unregisterShortcut(a.summonKey)
 	}
 	a.summonKey = normalized
+	a.summonNeedsRestore = false
+	a.Settings.SummonUnavailable = false
 	a.Settings.Shortcut = normalized
 	a.ShortcutErr = nil
 	a.shortcutRefusal = ""
@@ -2297,12 +2302,20 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 		}
 		a.customKeys = nil
 		a.shortcutsSuspended = true
+		a.summonNeedsRestore = true
 		return
 	}
 	a.shortcutsSuspended = false
-	if a.summonKey != "" {
-		if err := a.registerShortcut(a.summonKey, a.Toggle); err != nil {
+	if a.summonKey != "" && a.summonNeedsRestore {
+		wasUnavailable := a.Settings.SummonUnavailable
+		err := a.registerShortcut(a.summonKey, a.Toggle)
+		a.Settings.SummonUnavailable = err != nil
+		a.summonNeedsRestore = err != nil
+		if err != nil {
 			log.Printf("floter: could not re-register %s: %v", a.summonKey, err)
+			a.ShortcutErr = err
+		} else if wasUnavailable {
+			a.ShortcutErr = nil
 		}
 	}
 	a.ApplyCustomShortcuts()
