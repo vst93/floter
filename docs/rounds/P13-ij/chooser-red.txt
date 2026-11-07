@@ -1,0 +1,13 @@
+=== RUN   TestActionAvailabilityChooserWithdrawal
+=== RUN   TestActionAvailabilityChooserWithdrawal/light
+    actionavailability_test.go:76: choose withdrawal lost source-field focus: want 程序
+    actionavailability_test.go:90: restored capability stole source focus
+=== RUN   TestActionAvailabilityChooserWithdrawal/dark
+    actionavailability_test.go:76: choose withdrawal lost source-field focus: want 程序
+    actionavailability_test.go:90: restored capability stole source focus
+--- FAIL: TestActionAvailabilityChooserWithdrawal (0.34s)
+    --- FAIL: TestActionAvailabilityChooserWithdrawal/light (0.25s)
+    --- FAIL: TestActionAvailabilityChooserWithdrawal/dark (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	0.349s
+FAIL

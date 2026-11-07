@@ -1,0 +1,14 @@
+=== RUN   TestActionAvailabilityChooserWithdrawal
+=== RUN   TestActionAvailabilityChooserWithdrawal/light
+=== RUN   TestActionAvailabilityChooserWithdrawal/dark
+--- PASS: TestActionAvailabilityChooserWithdrawal (0.36s)
+    --- PASS: TestActionAvailabilityChooserWithdrawal/light (0.21s)
+    --- PASS: TestActionAvailabilityChooserWithdrawal/dark (0.15s)
+=== RUN   TestActionAvailabilityRegisterRestored
+=== RUN   TestActionAvailabilityRegisterRestored/light
+=== RUN   TestActionAvailabilityRegisterRestored/dark
+--- PASS: TestActionAvailabilityRegisterRestored (0.19s)
+    --- PASS: TestActionAvailabilityRegisterRestored/light (0.10s)
+    --- PASS: TestActionAvailabilityRegisterRestored/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	0.560s

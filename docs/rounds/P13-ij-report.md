@@ -49,3 +49,14 @@
 6. 现象：register链接撤回能力后同样失焦，不能继续从当前行取值。改动：第二行使用自己的URL身份，焦点不串到首行。验证：两主题侧栏第二次Tab进入register，禁用后焦点及剪贴板均为register全文。
 
 当批相关53 PASS / 0 FAIL，包vet净；M3撤回三个产品文件的当批差异实红6条FAIL记录，原串 `connect-withdraw lost the current link's keyboard focus`、`register-withdraw lost the current link's keyboard focus`、`fallback copied "", want "floter://register?cmd=rg"`。三文件MD5还原全部一致，touch后6 PASS / 0 FAIL。旧V/B/S 0/0/0。
+
+## 第四批（7–8）
+
+第三批eb711546已推送。
+
+7. 现象：已聚焦的“选择程序”在ChooseProgram能力撤回后消失，程序框却不接焦点。改动：文件选择动作绑定其程序输入框，仅在原按钮持焦点时归还。验证：深浅真实点击选择后撤回，程序框持焦点，Enter不重开选择器，恢复后保持原焦点、明确再点才多一次选择。
+8. 现象：在无CopyText时Tab到第二条register文本，恢复能力后Tab+Enter实际复制首条connect。改动：能力恢复时让正在聚焦的文本继续作为临时Tab锚点，离开后恢复原本只有操作按钮的顺序。验证：深浅仅复制register一次，焦点环/“已复制链接”均在第二行。
+
+当批相关59 PASS / 0 FAIL，包vet净；M4实红6条FAIL记录（4个叶子），原串 `choose withdrawal lost source-field focus: want 程序`、`restored link Tab copied ["floter://connect?manifest=/path/to/tool.json"], want only "floter://register?cmd=rg"`。两产品文件MD5还原一致，touch复验6 PASS / 0 FAIL。旧V/B/S 0/0/0。
+
+过程勘误：首条链接恢复后的反向Tab断言曾假定侧栏是Tab站点；对照未恢复能力时亦绕到第二条文本，框架List为FocusTarget，侧栏原本不在循环。本轮排除该假缺陷，没有改键盘模型。原候选红日志仅为调查记录，不能计入有效变异/修复。第7项由真实复现的程序选择按钮撤回替代。临时Element与持久Handle两种判断均未改变该对照结论；最终使用持久Handle读前帧焦点。

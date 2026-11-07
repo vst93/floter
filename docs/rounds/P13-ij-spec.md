@@ -16,7 +16,7 @@
 | 4 | settingsui.go:5793、6016 | 导出能力撤回后按钮消失、焦点丢失 → 回脚本编辑器 | 恢复后文件名/完整内容正确且只导出一次 |
 | 5 | settingsui.go:4508、rows.go:1409 | connect 复制入口禁用后失焦 → 回本行链接 | selectAll/copy 得到 connect 全文 |
 | 6 | 同上 | register 复制入口禁用后失焦 → 回本行链接 | selectAll/copy 得到 register，不能误归第一行 |
-| 7 | rows.go:1424 | 首链接能力恢复后移出 Tab 序列 → 保留正在使用的文本焦点至离开 | Shift-Tab 返回侧栏，再 Tab 到本行复制 |
+| 7 | settingsui.go:5526 | 程序文件选择入口撤回能力后失焦 → 回程序输入框 | 选择→撤回→恢复，不自动再开选择器 |
 | 8 | 同上 | 次链接能力恢复后 Tab 从头走、复制首链接 → 保留当前文本为临时 Tab 锚点 | Tab+Enter 只复制 register |
 
 空脚本导出恢复另外做对照，若原版已经正确不计修复。新功能、页面、依赖、架构均不引入。
@@ -25,7 +25,9 @@
 
 高度链、快捷键含义、会话、保存/导出时机、i18n 文案、命令接线、3000ms 问题窗口和1600ms复制窗口零改动。只补已有操作退场时的焦点归还和当前文本的暂时可达性；正常焦点顺序保持。
 
-实测基线：LC_ALL=zh_CN.UTF-8 go test -count=1 -v ./... 退出0，4665 PASS / 0 FAIL。cmd/internal 测试函数3009（前轮3011的统计范围另核），未复用旧数字。四批各跑定向与包 vet、mutation后提交；整轮一次 gofmt -l cmd internal、三平台 go vet ./...、普通与verbose go test -count=1 ./...、三平台 go build ./...。失败修复后仅按影响复跑。
+实测基线：LC_ALL=zh_CN.UTF-8 go test -count=1 -v ./... 退出0，4665 PASS / 0 FAIL。cmd/internal 测试函数3009，全仓3011（另2条在docs/extensions/sdk/templates/go-provider/main_test.go），未复用旧数字。四批各跑定向与包 vet、mutation后提交；整轮一次 gofmt -l cmd internal、三平台 go vet ./...、普通与verbose go test -count=1 ./...、三平台 go build ./...。失败修复后仅按影响复跑。
+
+候选勘误：首链接恢复后的反向Tab回侧栏是假设错误；未恢复能力时同样不回侧栏，因为框架List为FocusTarget，原本不在Tab循环。没有修改该模型，不计为缺陷。改查现有ChooseProgram撤回，深浅真实选择按钮事件均复现失焦，因此替换第7项；原候选日志保留但不计mutation或修复数。
 
 M1–M4 每批撤回当批产品差异，令对应事件断言变红；git apply 还原后 md5sum -c 验逐字节，touch 后同组复跑。测试不加容差、不删旧断言、不新增Skip。深浅原图输出 /tmp/floter-P13-ij-<场景>-<dark|light>-<before|after>.png，归档并目视。
 

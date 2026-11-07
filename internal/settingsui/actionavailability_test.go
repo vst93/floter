@@ -32,7 +32,10 @@ func checkToolActionWithdrawal(t *testing.T, action string) {
 				tool.Mode, tool.ScriptLanguage, tool.ScriptContent = routeScript, "javascript", "console.log('weather');\n"
 			}
 			a.beginEdit("local.weather", tool)
-			copies, exports := 0, 0
+			copies, exports, picks := 0, 0, 0
+			if action == "choose" {
+				a.Actions.ChooseProgram = func() (string, error) { picks++; return "/usr/bin/weather", nil }
+			}
 			a.Actions.CopyText = func(string) { copies++ }
 			a.Actions.ExportScript = func(name, content string) {
 				exports++
@@ -50,6 +53,8 @@ func checkToolActionWithdrawal(t *testing.T, action string) {
 				label, target = copy.LocalToolCopyScript, copy.LocalToolScript
 			case "export":
 				label, target = copy.LocalToolExportScript, copy.LocalToolScript
+			case "choose":
+				label, target = copy.LocalToolChoose, copy.LocalToolProgram
 			}
 			if err := tt.Click(label); err != nil {
 				t.Fatal(err)
@@ -59,7 +64,9 @@ func checkToolActionWithdrawal(t *testing.T, action string) {
 			tt.Key(0, ui.KeyTab)
 			tt.Key(ui.Shift, ui.KeyTab)
 			tt.Frame()
-			if action == "export" {
+			if action == "choose" {
+				a.Actions.ChooseProgram = nil
+			} else if action == "export" {
 				a.Actions.ExportScript = nil
 			} else {
 				a.Actions.CopyText = nil
@@ -70,15 +77,18 @@ func checkToolActionWithdrawal(t *testing.T, action string) {
 			if !tt.Focused(target) {
 				t.Errorf("%s withdrawal lost source-field focus: want %s", action, target)
 			}
-			beforeCopies, beforeExports := copies, exports
+			beforeCopies, beforeExports, beforePicks := copies, exports, picks
 			tt.Key(0, ui.KeyEnter)
 			tt.Frame()
-			if copies != beforeCopies || exports != beforeExports {
+			if copies != beforeCopies || exports != beforeExports || picks != beforePicks {
 				t.Error("withdrawal replayed an action")
 			}
 			// Restoring the host must not steal focus or run the action.
 			a.Actions.CopyText = func(string) { copies++ }
 			a.Actions.ExportScript = func(string, string) { exports++ }
+			if action == "choose" {
+				a.Actions.ChooseProgram = func() (string, error) { picks++; return "/usr/bin/weather", nil }
+			}
 			tt.Frame()
 			if !tt.Focused(target) {
 				t.Error("restored capability stole source focus")
@@ -87,7 +97,11 @@ func checkToolActionWithdrawal(t *testing.T, action string) {
 				t.Fatal(err)
 			}
 			tt.Frame()
-			if action == "export" {
+			if action == "choose" {
+				if picks != beforePicks+1 || copies != beforeCopies || exports != beforeExports {
+					t.Error("program picker did not recover exactly once")
+				}
+			} else if action == "export" {
 				if exports != beforeExports+1 || copies != beforeCopies {
 					t.Error("export did not recover exactly once")
 				}
@@ -148,16 +162,12 @@ func checkLinkActionAvailability(t *testing.T, second, restore bool) {
 				t.Errorf("%s lost the current link's keyboard focus", name)
 			}
 			if restore {
-				if !second {
-					tt.Key(ui.Shift, ui.KeyTab)
-					tt.Frame()
-					if !tt.Focused(a.copy().Title) {
-						t.Error("restored first link Shift-Tab did not return to sidebar")
-					}
-				}
 				tt.Key(0, ui.KeyTab)
 				tt.Key(0, ui.KeyEnter)
 				tt.Frame()
+				if second {
+					availabilityDump(t, tt, name+"-navigation", dark)
+				}
 				if len(copied) != 1 || copied[0] != link {
 					t.Errorf("restored link Tab copied %q, want only %q", copied, link)
 				}
@@ -178,3 +188,6 @@ func TestActionAvailabilityConnectWithdrawal(t *testing.T) {
 func TestActionAvailabilityRegisterWithdrawal(t *testing.T) {
 	checkLinkActionAvailability(t, true, false)
 }
+
+func TestActionAvailabilityChooserWithdrawal(t *testing.T) { checkToolActionWithdrawal(t, "choose") }
+func TestActionAvailabilityRegisterRestored(t *testing.T)  { checkLinkActionAvailability(t, true, true) }

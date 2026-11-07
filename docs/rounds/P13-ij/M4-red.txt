@@ -1,0 +1,21 @@
+=== RUN   TestActionAvailabilityChooserWithdrawal
+=== RUN   TestActionAvailabilityChooserWithdrawal/light
+    actionavailability_test.go:78: choose withdrawal lost source-field focus: want 程序
+    actionavailability_test.go:94: restored capability stole source focus
+=== RUN   TestActionAvailabilityChooserWithdrawal/dark
+    actionavailability_test.go:78: choose withdrawal lost source-field focus: want 程序
+    actionavailability_test.go:94: restored capability stole source focus
+--- FAIL: TestActionAvailabilityChooserWithdrawal (0.54s)
+    --- FAIL: TestActionAvailabilityChooserWithdrawal/light (0.38s)
+    --- FAIL: TestActionAvailabilityChooserWithdrawal/dark (0.16s)
+=== RUN   TestActionAvailabilityRegisterRestored
+=== RUN   TestActionAvailabilityRegisterRestored/light
+    actionavailability_test.go:172: restored link Tab copied ["floter://connect?manifest=/path/to/tool.json"], want only "floter://register?cmd=rg"
+=== RUN   TestActionAvailabilityRegisterRestored/dark
+    actionavailability_test.go:172: restored link Tab copied ["floter://connect?manifest=/path/to/tool.json"], want only "floter://register?cmd=rg"
+--- FAIL: TestActionAvailabilityRegisterRestored (0.20s)
+    --- FAIL: TestActionAvailabilityRegisterRestored/light (0.11s)
+    --- FAIL: TestActionAvailabilityRegisterRestored/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	0.751s
+FAIL

@@ -5520,14 +5520,17 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.scriptRows(c, copy, &language, &script, issues)
 			} else {
 				a.row(c, copy.LocalToolProgram, copy.LocalToolProgramHint, func() {
+					pickerFocus := a.contentFocus(c, "choose")
 					a.extensionField(c, &program, customFieldMetrics).Bind(&a.contentFocus(c, "plan").source).Label(copy.LocalToolProgram).Width(240).Grow(1).
-						Placeholder(copy.LocalToolProgramPlaceholder)
+						Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source)
 					if a.Actions.ChooseProgram != nil {
-						if a.actionButton(c, copy.LocalToolChoose).Clicked() {
+						if a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button).Clicked() {
 							if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {
 								program = picked
 							}
 						}
+					} else {
+						pickerFocus.restore(c)
 					}
 				})
 			}

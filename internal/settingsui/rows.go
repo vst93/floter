@@ -1422,8 +1422,12 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
 				TextColor(tokens.TextSecondary).Selectable().Bind(&focus.source)
 			// Without the host copy action, the value itself is the useful
 			// keyboard destination. Keep the usual action's tab order intact.
-			if a.Actions.CopyText == nil {
+			// A capability refresh must not remove the current selection from
+			// Tab order. Once it leaves, the normal action-only order resumes.
+			if a.Actions.CopyText == nil || focus.source.Focused(c) {
 				text.Focusable()
+			}
+			if a.Actions.CopyText == nil {
 				focus.restore(c)
 			}
 		})

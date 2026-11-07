@@ -1,0 +1,42 @@
+diff --git a/internal/settingsui/rows.go b/internal/settingsui/rows.go
+index e75bbd67..e9ddb8d1 100644
+--- a/internal/settingsui/rows.go
++++ b/internal/settingsui/rows.go
+@@ -1422,8 +1422,12 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
+ 				TextColor(tokens.TextSecondary).Selectable().Bind(&focus.source)
+ 			// Without the host copy action, the value itself is the useful
+ 			// keyboard destination. Keep the usual action's tab order intact.
+-			if a.Actions.CopyText == nil {
++			// A capability refresh must not remove the current selection from
++			// Tab order. Once it leaves, the normal action-only order resumes.
++			if a.Actions.CopyText == nil || focus.source.Focused(c) {
+ 				text.Focusable()
++			}
++			if a.Actions.CopyText == nil {
+ 				focus.restore(c)
+ 			}
+ 		})
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index 4e48a36f..c4da8c88 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -5520,14 +5520,17 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
+ 				a.scriptRows(c, copy, &language, &script, issues)
+ 			} else {
+ 				a.row(c, copy.LocalToolProgram, copy.LocalToolProgramHint, func() {
++					pickerFocus := a.contentFocus(c, "choose")
+ 					a.extensionField(c, &program, customFieldMetrics).Bind(&a.contentFocus(c, "plan").source).Label(copy.LocalToolProgram).Width(240).Grow(1).
+-						Placeholder(copy.LocalToolProgramPlaceholder)
++						Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source)
+ 					if a.Actions.ChooseProgram != nil {
+-						if a.actionButton(c, copy.LocalToolChoose).Clicked() {
++						if a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button).Clicked() {
+ 							if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {
+ 								program = picked
+ 							}
+ 						}
++					} else {
++						pickerFocus.restore(c)
+ 					}
+ 				})
+ 			}

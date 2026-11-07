@@ -1,0 +1,120 @@
+=== RUN   TestActionAvailabilityCommandWithdrawal
+=== RUN   TestActionAvailabilityCommandWithdrawal/light
+=== RUN   TestActionAvailabilityCommandWithdrawal/dark
+--- PASS: TestActionAvailabilityCommandWithdrawal (0.38s)
+    --- PASS: TestActionAvailabilityCommandWithdrawal/light (0.27s)
+    --- PASS: TestActionAvailabilityCommandWithdrawal/dark (0.12s)
+=== RUN   TestActionAvailabilityPlanWithdrawal
+=== RUN   TestActionAvailabilityPlanWithdrawal/light
+=== RUN   TestActionAvailabilityPlanWithdrawal/dark
+--- PASS: TestActionAvailabilityPlanWithdrawal (0.23s)
+    --- PASS: TestActionAvailabilityPlanWithdrawal/light (0.12s)
+    --- PASS: TestActionAvailabilityPlanWithdrawal/dark (0.12s)
+=== RUN   TestActionAvailabilityScriptWithdrawal
+=== RUN   TestActionAvailabilityScriptWithdrawal/light
+=== RUN   TestActionAvailabilityScriptWithdrawal/dark
+--- PASS: TestActionAvailabilityScriptWithdrawal (0.22s)
+    --- PASS: TestActionAvailabilityScriptWithdrawal/light (0.11s)
+    --- PASS: TestActionAvailabilityScriptWithdrawal/dark (0.11s)
+=== RUN   TestActionAvailabilityExportWithdrawal
+=== RUN   TestActionAvailabilityExportWithdrawal/light
+=== RUN   TestActionAvailabilityExportWithdrawal/dark
+--- PASS: TestActionAvailabilityExportWithdrawal (0.21s)
+    --- PASS: TestActionAvailabilityExportWithdrawal/light (0.11s)
+    --- PASS: TestActionAvailabilityExportWithdrawal/dark (0.10s)
+=== RUN   TestActionAvailabilityConnectWithdrawal
+=== RUN   TestActionAvailabilityConnectWithdrawal/light
+=== RUN   TestActionAvailabilityConnectWithdrawal/dark
+--- PASS: TestActionAvailabilityConnectWithdrawal (0.09s)
+    --- PASS: TestActionAvailabilityConnectWithdrawal/light (0.05s)
+    --- PASS: TestActionAvailabilityConnectWithdrawal/dark (0.04s)
+=== RUN   TestActionAvailabilityRegisterWithdrawal
+=== RUN   TestActionAvailabilityRegisterWithdrawal/light
+=== RUN   TestActionAvailabilityRegisterWithdrawal/dark
+--- PASS: TestActionAvailabilityRegisterWithdrawal (0.09s)
+    --- PASS: TestActionAvailabilityRegisterWithdrawal/light (0.04s)
+    --- PASS: TestActionAvailabilityRegisterWithdrawal/dark (0.04s)
+=== RUN   TestActionAvailabilityChooserWithdrawal
+=== RUN   TestActionAvailabilityChooserWithdrawal/light
+=== RUN   TestActionAvailabilityChooserWithdrawal/dark
+--- PASS: TestActionAvailabilityChooserWithdrawal (0.19s)
+    --- PASS: TestActionAvailabilityChooserWithdrawal/light (0.10s)
+    --- PASS: TestActionAvailabilityChooserWithdrawal/dark (0.10s)
+=== RUN   TestActionAvailabilityRegisterRestored
+=== RUN   TestActionAvailabilityRegisterRestored/light
+=== RUN   TestActionAvailabilityRegisterRestored/dark
+--- PASS: TestActionAvailabilityRegisterRestored (0.13s)
+    --- PASS: TestActionAvailabilityRegisterRestored/light (0.07s)
+    --- PASS: TestActionAvailabilityRegisterRestored/dark (0.06s)
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.09s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.05s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.05s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.07s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.03s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.03s)
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+--- PASS: TestCopyLifecycleProgramModeRetiresSuccess (0.21s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.05s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.05s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.05s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.05s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+--- PASS: TestCopyLifecycleScriptModeRetiresSuccess (0.14s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.07s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.07s)
+=== RUN   TestCopyLifecycleFoldRetiresSuccess
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/light
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/dark
+--- PASS: TestCopyLifecycleFoldRetiresSuccess (0.16s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/light (0.08s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/dark (0.08s)
+=== RUN   TestCopyLifecyclePageRetiresSuccess
+=== RUN   TestCopyLifecyclePageRetiresSuccess/light
+=== RUN   TestCopyLifecyclePageRetiresSuccess/dark
+--- PASS: TestCopyLifecyclePageRetiresSuccess (0.28s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/light (0.15s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/dark (0.13s)
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/light
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/dark
+--- PASS: TestCopyLifecycleAboutUnavailableIsInert (0.05s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/light (0.03s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/dark (0.02s)
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/light
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/dark
+--- PASS: TestCopyLifecycleAboutPageRetiresSuccess (0.15s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/light (0.07s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/dark (0.08s)
+=== RUN   TestDeepLinkCopyRaisesTheSuccessToast
+--- PASS: TestDeepLinkCopyRaisesTheSuccessToast (0.04s)
+=== RUN   TestDeepLinkCopyUsesTheReferenceGlyphs
+--- PASS: TestDeepLinkCopyUsesTheReferenceGlyphs (0.00s)
+=== RUN   TestTheDeepLinkValueIsTheReferenceCodeChip
+--- PASS: TestTheDeepLinkValueIsTheReferenceCodeChip (0.08s)
+=== RUN   TestTheDeepLinkValueUsesTheReferenceCodeFont
+--- PASS: TestTheDeepLinkValueUsesTheReferenceCodeFont (0.00s)
+=== RUN   TestTheDeepLinkCopyActionWearsItsIcon
+--- PASS: TestTheDeepLinkCopyActionWearsItsIcon (0.02s)
+=== RUN   TestNoOneTakesTheKeyboardRingAway
+--- PASS: TestNoOneTakesTheKeyboardRingAway (0.05s)
+=== RUN   TestTheDeepLinkHintRidesInsideItsHeading
+--- PASS: TestTheDeepLinkHintRidesInsideItsHeading (0.02s)
+=== RUN   TestTheSettingsPanelTakesTheSidebarAsItsKeyboardHome
+--- PASS: TestTheSettingsPanelTakesTheSidebarAsItsKeyboardHome (0.03s)
+=== RUN   TestDeepLinkCopyConfirmsOnTheButton
+--- PASS: TestDeepLinkCopyConfirmsOnTheButton (0.03s)
+PASS
+ok  	floter/internal/settingsui	2.993s
