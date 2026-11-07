@@ -23,7 +23,7 @@ func externalResultDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 	}
 }
 
-func checkExternalConfigAcceptance(t *testing.T) {
+func TestExternalConfigAcceptanceRetiresSaveFailure(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			in := Integration{ID: "local.external", Config: []ConfigField{{Key: "path", Label: "工作目录", Type: "path"}}, ConfigValues: map[string]any{"path": "/workspace/before"}}
@@ -107,7 +107,7 @@ func TestExternalConfigTextRetainsCurrentValidity(t *testing.T) {
 	checkExternalConfigValidity(t, false)
 }
 
-func checkExternalConfigAcceptedRange(t *testing.T) {
+func TestExternalConfigAcceptedSelectionEndsRange(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			field := ConfigField{Key: "sources", Label: "数据来源", Type: "multiselect", Options: []string{"alpha", "beta", "gamma"}}

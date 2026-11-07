@@ -1,0 +1,64 @@
+=== RUN   TestTheConfigFormSitsOnTheCardsTextColumn
+--- PASS: TestTheConfigFormSitsOnTheCardsTextColumn (0.23s)
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure/light
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure/dark
+--- PASS: TestExternalConfigAcceptanceRetiresSaveFailure (0.07s)
+    --- PASS: TestExternalConfigAcceptanceRetiresSaveFailure/light (0.04s)
+    --- PASS: TestExternalConfigAcceptanceRetiresSaveFailure/dark (0.03s)
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity/light
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity/dark
+--- PASS: TestExternalConfigNumberRetainsCurrentValidity (0.05s)
+    --- PASS: TestExternalConfigNumberRetainsCurrentValidity/light (0.04s)
+    --- PASS: TestExternalConfigNumberRetainsCurrentValidity/dark (0.01s)
+=== RUN   TestExternalConfigTextRetainsCurrentValidity
+=== RUN   TestExternalConfigTextRetainsCurrentValidity/light
+=== RUN   TestExternalConfigTextRetainsCurrentValidity/dark
+--- PASS: TestExternalConfigTextRetainsCurrentValidity (0.03s)
+    --- PASS: TestExternalConfigTextRetainsCurrentValidity/light (0.01s)
+    --- PASS: TestExternalConfigTextRetainsCurrentValidity/dark (0.01s)
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange/light
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange/dark
+--- PASS: TestExternalConfigAcceptedSelectionEndsRange (0.03s)
+    --- PASS: TestExternalConfigAcceptedSelectionEndsRange/light (0.02s)
+    --- PASS: TestExternalConfigAcceptedSelectionEndsRange/dark (0.01s)
+=== RUN   TestTheFailedSaveKeepsOneAlarmOnTheCard
+--- PASS: TestTheFailedSaveKeepsOneAlarmOnTheCard (0.35s)
+=== RUN   TestTheConfigFormWearsTheToolbarAndItsDirtyWord
+--- PASS: TestTheConfigFormWearsTheToolbarAndItsDirtyWord (0.08s)
+=== RUN   TestTheConfigFormActionsAreDefaultsAndTheDirtyGatedSave
+--- PASS: TestTheConfigFormActionsAreDefaultsAndTheDirtyGatedSave (0.15s)
+=== RUN   TestTheConfigMultiselectIsOneListBox
+--- PASS: TestTheConfigMultiselectIsOneListBox (0.12s)
+=== RUN   TestTheConfigMultiselectScrollsInsideItsViewport
+--- PASS: TestTheConfigMultiselectScrollsInsideItsViewport (0.10s)
+=== RUN   TestTheConfigMultiselectExtendsARangeOnShift
+--- PASS: TestTheConfigMultiselectExtendsARangeOnShift (0.12s)
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default
+--- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault (0.01s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default (0.00s)
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/light
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/dark
+--- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues (0.02s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/light (0.01s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/dark (0.01s)
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange/light
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange/dark
+--- PASS: TestConflictRecoveryExternalSelectionRetiresOldRange (0.01s)
+    --- PASS: TestConflictRecoveryExternalSelectionRetiresOldRange/light (0.01s)
+    --- PASS: TestConflictRecoveryExternalSelectionRetiresOldRange/dark (0.00s)
+=== RUN   TestTheConfigFormFieldGoesUnlitWhenTheRowIsBusy
+--- PASS: TestTheConfigFormFieldGoesUnlitWhenTheRowIsBusy (0.08s)
+PASS
+ok  	floter/internal/settingsui	1.511s

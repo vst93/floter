@@ -176,6 +176,7 @@ func (a *App) draft(integration Integration) *configDraft {
 		draft.saved = cloneConfigValues(draft.values)
 	}
 	incoming := make(map[string]any, len(integration.Config))
+	acceptedEdit := false
 	for _, field := range integration.Config {
 		value, exists := integration.ConfigValues[field.Key]
 		if !exists {
@@ -195,8 +196,10 @@ func (a *App) draft(integration Integration) *configDraft {
 			// An external writer can land the exact same edit. It is now
 			// saved too; only partial/invalid display text keeps its ownership.
 			if parsed, problem := ConfigValueProblem(field, edit, a.copy()); !editing || (problem == "" && configValuesEqual(parsed, value)) {
+				acceptedEdit = acceptedEdit || !hasSaved || !configValuesEqual(current, saved)
 				draft.saved[field.Key] = value
 				draft.clearLiveField(field)
+				delete(draft.multiAnchor, field.Key)
 				a.clearConfigFieldError(integration.ID, field.Key)
 				continue
 			}
@@ -262,6 +265,12 @@ func (a *App) draft(integration Integration) *configDraft {
 			draft.values[field.Key] = value
 			draft.saved[field.Key] = value
 		}
+	}
+	// An external writer can finish the exact edit whose save failed here.
+	// Retire that failure only once the whole draft is confirmed; unrelated
+	// refreshes, partial edits and in-flight saves retain their own feedback.
+	if acceptedEdit && !a.configSaveBusy[integration.ID] && !a.configDirty(integration, draft) {
+		delete(a.configError, integration.ID)
 	}
 	return draft
 }

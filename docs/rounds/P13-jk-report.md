@@ -39,3 +39,8 @@
 
 5. 现象：数字 15 超过上限 10，Enter 已出现错误；外部配置改为 20 后，错误反而消失。改动：已校验字段被外部值替换后，用当前值重算现有边界提示。验证：深浅实际 Enter 和配置刷新，修前 `external invalid replacement erased the current field problem`，修后 20 仍提示、更新为 5 后自然恢复。
 6. 现象：已校验的过长文字换成另一段过长外部值，长度提示消失。改动：沿同一替换路径重新检查当前长度。验证：深浅 Enter、长文替换及恢复为 ok；不强制校验从未编辑/提交的字段，不改保存验证时机。
+
+第三批 **21adb46f** 已提交推送，相关 **20 PASS / 0 FAIL**、settingsui vet 净。
+
+7. 现象：保存失败后，外部导入/写入已确认完全相同的草稿，界面读 Saved 但仍留旧保存失败条。改动：本地改动被外部实际值接受且整个草稿不再有差异时，撤掉这条旧失败；不触发保存或新成功通知。验证：真实输入、点击 Save 失败、配置值刷新，深浅修前 `external acceptance left an obsolete save failure`。
+8. 现象：选 alpha 后外部确认相同选择，再 Shift 点 gamma，会连 beta 一起带上。改动：外部接受当前多选值时退役旧范围锚点。验证：真实点击与 Shift 点击，修前 `[alpha beta gamma]`，修后 `[alpha gamma]`。首版四选项夹具最后一行在滚动区外，未派发点击；正式三选项事件与 batch4-red.txt 已排除该夹具错误。
