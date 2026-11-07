@@ -1,0 +1,12 @@
+literal-command light: 6101 changed pixels
+rekey-command light: 506 changed pixels
+saved-large light: 4696 changed pixels
+draft-large light: 32546 changed pixels
+bind-neighbor-conflict light: 42787 changed pixels
+failed-conversion-focus light: 545 changed pixels
+literal-command dark: 7998 changed pixels
+rekey-command dark: 505 changed pixels
+saved-large dark: 4786 changed pixels
+draft-large dark: 32611 changed pixels
+bind-neighbor-conflict dark: 42790 changed pixels
+failed-conversion-focus dark: 545 changed pixels
