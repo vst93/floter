@@ -1,0 +1,23 @@
+=== RUN   TestCustomMenuExternalSelection
+=== RUN   TestCustomMenuExternalSelection/light
+    menurefresh_test.go:81: custom external selected "plugin:browser", want "plugin:calculator"
+    menurefresh_test.go:88: custom external wrote 1 choices, want 0
+=== RUN   TestCustomMenuExternalSelection/dark
+    menurefresh_test.go:81: custom external selected "plugin:browser", want "plugin:calculator"
+    menurefresh_test.go:88: custom external wrote 1 choices, want 0
+--- FAIL: TestCustomMenuExternalSelection (0.06s)
+    --- FAIL: TestCustomMenuExternalSelection/light (0.05s)
+    --- FAIL: TestCustomMenuExternalSelection/dark (0.01s)
+=== RUN   TestCustomMenuReorder
+=== RUN   TestCustomMenuReorder/light
+    menurefresh_test.go:81: custom reorder selected "plugin:clipboard", want "plugin:browser"
+    menurefresh_test.go:88: custom reorder wrote 0 choices, want 1
+=== RUN   TestCustomMenuReorder/dark
+    menurefresh_test.go:81: custom reorder selected "plugin:clipboard", want "plugin:browser"
+    menurefresh_test.go:88: custom reorder wrote 0 choices, want 1
+--- FAIL: TestCustomMenuReorder (0.02s)
+    --- FAIL: TestCustomMenuReorder/light (0.01s)
+    --- FAIL: TestCustomMenuReorder/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.081s
+FAIL

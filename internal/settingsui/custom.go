@@ -425,7 +425,8 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	}
 	selected := labels[index]
 	chosen := ""
-	picker := a.fieldFace(c, ui.Select(c, &selected, labels).Radius(999).Label(copy.ShortcutsAction), true)
+	picker := a.fieldFace(c, valueSelect(c, &selected, labels, labels, selected, a.tokens(c), true).
+		Radius(999).Label(copy.ShortcutsAction), true)
 	if picker.Changed() {
 		for _, option := range options {
 			if option.Label == selected {
