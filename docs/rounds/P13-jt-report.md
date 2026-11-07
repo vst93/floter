@@ -45,3 +45,16 @@ done.log 开盘不存在，收尾按指定路径创建。基线运行中；以�
 6. 现象：等待中运行时已经换绑，旧程序的帮助仍追加到新目标的命令目录。改动：复核 ExecutablePath、RuntimeRoot 与包版本/路径后才接受输出。验证：深浅文件和 freshness 断言，当前行保持新运行时事实。
 
 改前两类均实红：`late command reprobe overwrote current publisher descriptor`、`late command reprobe overwrote current runtime descriptor`；均错误写了 freshness。旧 V/B/S 仍 0/0/0。
+
+第三批 **940ad2a6**，相关 **28 PASS / 0 FAIL**，shell/extensions vet 净。
+
+## 第四批：读取失败的反馈与重试
+
+7. 现象：开始时仓库 JSON 损坏，重新探测结束却没有任何失败通知。改动：保留实际读取错误，刷新后用既有失败通知收尾，释放行锁。验证：真实损坏文件、Click 与深浅可见错误文案，文件恢复后原入口重试成功。
+8. 现象：帮助已开始、仓库随后损坏，操作也静默结束。改动：完成阶段区分读取错误与目标退役；不提交旧描述文件，当前 epoch 使用原通知反馈失败。验证：两主题通知类型/标题/实际文本，以及 descriptor 字节保留、freshness 不写、修复文件后的命令数恢复到 2。
+
+改前四场景红：`command reprobe repository-start read failure is silent`、`command reprobe repository-completion read failure is silent`。旧 V/B/S 仍 0/0/0。
+
+第四批新夹具首次回归暴露测试观察对象错误：生成命令默认未开启搜索，不能用启动器数组数目验证描述文件刷新。改为当前 Store 描述的准确两个命令（第二个 ID=fresh）以及设置页真实可见的 Original command fresh；未改任何旧 B 断言。保留首次失败日志并在修正后重跑变异。
+
+函数数更正：按开盘树 `git grep '^func Test' 2afab0d9 -- cmd internal` 为 **3369**。前述 3371 是基线结束时工作树已新增两函数后的统计，不是开盘树；完整 PASS 基线 5902 不变。

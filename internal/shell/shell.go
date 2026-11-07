@@ -3136,6 +3136,9 @@ func (a *App) runCommandReprobe(integration extensions.Integration, epoch uint64
 	report, err := extensions.ReprobeCommands(context.Background(), a.Paths, id)
 	// Resolve the result against the current declaration before publishing it.
 	a.RefreshIntegrations(context.Background())
+	if a.diagnosisReadFailed(integration, epoch) {
+		return
+	}
 	if errors.Is(err, extensions.ErrCommandReprobeSuperseded) || errors.Is(err, extensions.ErrNoIntegration) {
 		return
 	}

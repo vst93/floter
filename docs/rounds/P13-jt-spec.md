@@ -23,6 +23,6 @@
 
 可控 Go 子进程回答 --help，以 started/release 文件安排事件；ui.Tester 真实 Click，深浅两套，检查实际派发与当前文件/命令。每两项定向 test/vet 后 commit/push；完整 gofmt、三平台 vet/build、普通与 verbose 全量在收尾各一次。开盘全量正在实测，基线只按日志补录，不引用旧数冒充。
 
-开盘基线完成：中文 locale **5902 PASS / 0 FAIL / 3371 测试函数**，全量 exit0。
+开盘基线完成：中文 locale **5902 PASS / 0 FAIL / 3369 测试函数**，全量 exit0。函数数按开盘 git 树计，避免异步基线结束时把新函数算进去。
 
 Mutation 计划：M1 撤掉入口忙态；M2 撤掉声明与文件复核；M3 撤掉目标/绑定复核；M4 撤掉读取失败出口。每组必须运行到行为断言红、还原、md5sum -c、touch 后重跑。

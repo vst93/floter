@@ -126,7 +126,11 @@ var reprobeMu sync.Mutex
 func ReprobeCommands(ctx context.Context, paths Paths, id string) (ReprobeReport, error) {
 	reprobeMu.Lock()
 	defer reprobeMu.Unlock()
-	integration, ok := LoadInventory(paths).WithID(id)
+	inventory := LoadInventory(paths)
+	if inventory.RepositoryErr != nil {
+		return ReprobeReport{}, inventory.RepositoryErr
+	}
+	integration, ok := inventory.WithID(id)
 	if !ok {
 		return ReprobeReport{}, ErrNoIntegration
 	}
@@ -170,7 +174,11 @@ func ReprobeCommands(ctx context.Context, paths Paths, id string) (ReprobeReport
 	derivation := probeDeriveWith(ctx, binding, integration)
 	// Help is external work. A declaration or command edit made while it was
 	// running owns the current package; the old derivation cannot replace it.
-	current, present := LoadInventory(paths).WithID(id)
+	currentInventory := LoadInventory(paths)
+	if currentInventory.RepositoryErr != nil {
+		return ReprobeReport{}, currentInventory.RepositoryErr
+	}
+	current, present := currentInventory.WithID(id)
 	if !present {
 		return ReprobeReport{}, ErrNoIntegration
 	}

@@ -90,8 +90,14 @@ func checkCommandReprobeCurrent(t *testing.T, change string) {
 						t.Fatal("restored repository could not retry command reprobe")
 					}
 				}
-				if len(f.a.launcherCommands()) != 2 {
-					t.Error("restored repository did not refresh commands")
+				description, exists := f.a.Integrations.Description(f.entry.ID)
+				if !exists || len(description.Commands) != 2 || description.Commands[1].ID != "fresh" {
+					t.Errorf("restored repository did not refresh commands: %+v", description)
+				}
+				tt.Frame()
+				tt.Frame()
+				if !tt.HasText("Original command fresh") {
+					t.Error("retried commands did not reach the settings list")
 				}
 			} else {
 				if toast.Title != "" {
@@ -116,4 +122,11 @@ func TestCommandReprobeKeepsCurrentPublisher(t *testing.T) {
 }
 func TestCommandReprobeKeepsCurrentRuntime(t *testing.T) {
 	checkCommandReprobeCurrent(t, "runtime")
+}
+
+func TestCommandReprobeRepositoryStartFailure(t *testing.T) {
+	checkCommandReprobeCurrent(t, "repository-start")
+}
+func TestCommandReprobeRepositoryCompletionFailure(t *testing.T) {
+	checkCommandReprobeCurrent(t, "repository-completion")
 }

@@ -1,0 +1,27 @@
+=== RUN   TestCommandReprobeRepositoryStartFailure
+=== RUN   TestCommandReprobeRepositoryStartFailure/light
+    commandreprobecurrent_test.go:79: command reprobe repository-start read failure is silent: {ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+2026/11/08 07:44:10 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:94: restored repository did not refresh commands
+=== RUN   TestCommandReprobeRepositoryStartFailure/dark
+    commandreprobecurrent_test.go:79: command reprobe repository-start read failure is silent: {ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+2026/11/08 07:44:10 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:94: restored repository did not refresh commands
+--- FAIL: TestCommandReprobeRepositoryStartFailure (1.64s)
+    --- FAIL: TestCommandReprobeRepositoryStartFailure/light (0.92s)
+    --- FAIL: TestCommandReprobeRepositoryStartFailure/dark (0.72s)
+=== RUN   TestCommandReprobeRepositoryCompletionFailure
+=== RUN   TestCommandReprobeRepositoryCompletionFailure/light
+    commandreprobecurrent_test.go:79: command reprobe repository-completion read failure is silent: {ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+2026/11/08 07:44:11 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:94: restored repository did not refresh commands
+=== RUN   TestCommandReprobeRepositoryCompletionFailure/dark
+    commandreprobecurrent_test.go:79: command reprobe repository-completion read failure is silent: {ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+2026/11/08 07:44:12 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:94: restored repository did not refresh commands
+--- FAIL: TestCommandReprobeRepositoryCompletionFailure (1.50s)
+    --- FAIL: TestCommandReprobeRepositoryCompletionFailure/light (0.75s)
+    --- FAIL: TestCommandReprobeRepositoryCompletionFailure/dark (0.75s)
+FAIL
+FAIL	floter/internal/shell	3.144s
+FAIL
