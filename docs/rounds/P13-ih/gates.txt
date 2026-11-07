@@ -1,0 +1,9 @@
+linux vet PASS
+linux build PASS
+windows vet PASS
+windows build PASS
+darwin vet PASS
+darwin build PASS
+ordinary test PASS
+verbose PASS=4639
+test functions=3003

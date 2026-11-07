@@ -1,0 +1,16 @@
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index 4d17cdf0..b5f4f964 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -5654,6 +5654,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
+ 			} else {
+ 				a.Actions.ConnectLocalTool(tool)
+ 			}
++			// The completed submission may have opened the next editor. Only
++			// retire the form that actually dispatched this submission.
++			if a.toolFormKey != form {
++				return
++			}
+ 			a.toolOpen = false
+ 			a.toolIssue = false
+ 			a.endEdit()

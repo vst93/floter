@@ -1,0 +1,21 @@
+=== RUN   TestToolCallbackPickerKeepsNewDraft
+=== RUN   TestToolCallbackPickerKeepsNewDraft/light
+    toolcallback_test.go:76: picker overwrote new draft: editing="local.new" name="oldtool" program="/usr/bin/selected-for-old" args="--oldtool"
+=== RUN   TestToolCallbackPickerKeepsNewDraft/dark
+    toolcallback_test.go:76: picker overwrote new draft: editing="local.new" name="oldtool" program="/usr/bin/selected-for-old" args="--oldtool"
+--- FAIL: TestToolCallbackPickerKeepsNewDraft (0.66s)
+    --- FAIL: TestToolCallbackPickerKeepsNewDraft/light (0.45s)
+    --- FAIL: TestToolCallbackPickerKeepsNewDraft/dark (0.21s)
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/light
+    toolcallback_test.go:64: closed picker resurrected draft: open=false name="oldtool" program="/usr/bin/selected-for-old" command="oldtool"
+    toolcallback_test.go:73: fresh connection inherited closed picker values
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/dark
+    toolcallback_test.go:64: closed picker resurrected draft: open=false name="oldtool" program="/usr/bin/selected-for-old" command="oldtool"
+    toolcallback_test.go:73: fresh connection inherited closed picker values
+--- FAIL: TestToolCallbackPickerKeepsClosedDraftEmpty (0.49s)
+    --- FAIL: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.24s)
+    --- FAIL: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.25s)
+FAIL
+FAIL	floter/internal/settingsui	1.174s
+FAIL

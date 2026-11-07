@@ -1,0 +1,23 @@
+=== RUN   TestConfigFetchKeepsNewerSheet
+=== RUN   TestConfigFetchKeepsNewerSheet/light
+    configfetch_test.go:57: fetch-new lookup overwrote latest configuration: open=true
+    configfetch_test.go:63: latest limit 25 was replaced by old limit 10
+=== RUN   TestConfigFetchKeepsNewerSheet/dark
+    configfetch_test.go:57: fetch-new lookup overwrote latest configuration: open=true
+    configfetch_test.go:63: latest limit 25 was replaced by old limit 10
+--- FAIL: TestConfigFetchKeepsNewerSheet (0.50s)
+    --- FAIL: TestConfigFetchKeepsNewerSheet/light (0.42s)
+    --- FAIL: TestConfigFetchKeepsNewerSheet/dark (0.08s)
+=== RUN   TestConfigFetchKeepsNewerEmptyResult
+=== RUN   TestConfigFetchKeepsNewerEmptyResult/light
+    configfetch_test.go:57: fetch-empty lookup overwrote latest configuration: open=true
+    configfetch_test.go:60: empty latest lookup resurrected old controls
+=== RUN   TestConfigFetchKeepsNewerEmptyResult/dark
+    configfetch_test.go:57: fetch-empty lookup overwrote latest configuration: open=true
+    configfetch_test.go:60: empty latest lookup resurrected old controls
+--- FAIL: TestConfigFetchKeepsNewerEmptyResult (0.14s)
+    --- FAIL: TestConfigFetchKeepsNewerEmptyResult/light (0.05s)
+    --- FAIL: TestConfigFetchKeepsNewerEmptyResult/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	0.659s
+FAIL

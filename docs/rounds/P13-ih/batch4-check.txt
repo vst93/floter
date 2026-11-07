@@ -1,0 +1,7 @@
+--- FAIL: TestToolCallbackLookupKeepsNewEditor (0.67s)
+    --- FAIL: TestToolCallbackLookupKeepsNewEditor/light (0.46s)
+    --- FAIL: TestToolCallbackLookupKeepsNewEditor/dark (0.21s)
+--- FAIL: TestToolCallbackLookupRechecksEligibility (0.41s)
+    --- FAIL: TestToolCallbackLookupRechecksEligibility/light (0.21s)
+    --- FAIL: TestToolCallbackLookupRechecksEligibility/dark (0.19s)
+batch 4 PASS=50

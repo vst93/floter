@@ -1,0 +1,4 @@
+2b3f11d6539dfdb7049de4663e2ab96d  internal/launcher/config.go
+abe8d77882c567c252faa30bbca0a5e3  internal/settingsui/settingsui.go
+3b9f22c167225def0145cad99357be47  internal/settingsui/configfetch_test.go
+4021287b8a1766ba857a45938e861759  internal/settingsui/toolcallback_test.go

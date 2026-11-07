@@ -1,0 +1,19 @@
+=== RUN   TestToolCallbackLookupKeepsNewEditor
+=== RUN   TestToolCallbackLookupKeepsNewEditor/light
+    toolcallback_test.go:211: old tool lookup replaced newer editor: id="local.old" name="oldtool"
+=== RUN   TestToolCallbackLookupKeepsNewEditor/dark
+    toolcallback_test.go:211: old tool lookup replaced newer editor: id="local.old" name="oldtool"
+--- FAIL: TestToolCallbackLookupKeepsNewEditor (1.17s)
+    --- FAIL: TestToolCallbackLookupKeepsNewEditor/light (0.81s)
+    --- FAIL: TestToolCallbackLookupKeepsNewEditor/dark (0.35s)
+=== RUN   TestToolCallbackLookupRechecksEligibility
+=== RUN   TestToolCallbackLookupRechecksEligibility/light
+    toolcallback_test.go:208: retired generated tool opened stale editor
+=== RUN   TestToolCallbackLookupRechecksEligibility/dark
+    toolcallback_test.go:208: retired generated tool opened stale editor
+--- FAIL: TestToolCallbackLookupRechecksEligibility (0.68s)
+    --- FAIL: TestToolCallbackLookupRechecksEligibility/light (0.33s)
+    --- FAIL: TestToolCallbackLookupRechecksEligibility/dark (0.34s)
+FAIL
+FAIL	floter/internal/settingsui	1.862s
+FAIL

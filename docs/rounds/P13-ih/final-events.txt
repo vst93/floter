@@ -1,0 +1,50 @@
+=== RUN   TestConfigFetchKeepsNewerSheet
+=== RUN   TestConfigFetchKeepsNewerSheet/light
+=== RUN   TestConfigFetchKeepsNewerSheet/dark
+--- PASS: TestConfigFetchKeepsNewerSheet (0.26s)
+    --- PASS: TestConfigFetchKeepsNewerSheet/light (0.19s)
+    --- PASS: TestConfigFetchKeepsNewerSheet/dark (0.07s)
+=== RUN   TestConfigFetchKeepsNewerEmptyResult
+=== RUN   TestConfigFetchKeepsNewerEmptyResult/light
+=== RUN   TestConfigFetchKeepsNewerEmptyResult/dark
+--- PASS: TestConfigFetchKeepsNewerEmptyResult (0.07s)
+    --- PASS: TestConfigFetchKeepsNewerEmptyResult/light (0.03s)
+    --- PASS: TestConfigFetchKeepsNewerEmptyResult/dark (0.04s)
+=== RUN   TestToolCallbackPickerKeepsNewDraft
+=== RUN   TestToolCallbackPickerKeepsNewDraft/light
+=== RUN   TestToolCallbackPickerKeepsNewDraft/dark
+--- PASS: TestToolCallbackPickerKeepsNewDraft (0.60s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/light (0.38s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/dark (0.22s)
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/light
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/dark
+--- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty (0.66s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.31s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.35s)
+=== RUN   TestToolCallbackSaveKeepsNewEditor
+=== RUN   TestToolCallbackSaveKeepsNewEditor/light
+=== RUN   TestToolCallbackSaveKeepsNewEditor/dark
+--- PASS: TestToolCallbackSaveKeepsNewEditor (0.51s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/light (0.26s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/dark (0.25s)
+=== RUN   TestToolCallbackConnectKeepsNewEditor
+=== RUN   TestToolCallbackConnectKeepsNewEditor/light
+=== RUN   TestToolCallbackConnectKeepsNewEditor/dark
+--- PASS: TestToolCallbackConnectKeepsNewEditor (0.50s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/light (0.25s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/dark (0.25s)
+=== RUN   TestToolCallbackLookupKeepsNewEditor
+=== RUN   TestToolCallbackLookupKeepsNewEditor/light
+=== RUN   TestToolCallbackLookupKeepsNewEditor/dark
+--- PASS: TestToolCallbackLookupKeepsNewEditor (0.66s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/light (0.33s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/dark (0.33s)
+=== RUN   TestToolCallbackLookupRechecksEligibility
+=== RUN   TestToolCallbackLookupRechecksEligibility/light
+=== RUN   TestToolCallbackLookupRechecksEligibility/dark
+--- PASS: TestToolCallbackLookupRechecksEligibility (0.40s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/light (0.20s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/dark (0.20s)
+PASS
+ok  	floter/internal/settingsui	3.671s

@@ -1,0 +1,105 @@
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-refused
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-accepted
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-refused
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-accepted
+--- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet (0.00s)
+    --- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-refused (0.00s)
+    --- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-accepted (0.00s)
+    --- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-refused (0.00s)
+    --- PASS: TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-accepted (0.00s)
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/close-refused
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/close-accepted
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-refused
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-accepted
+--- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/close-refused (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/close-accepted (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-refused (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-accepted (0.00s)
+=== RUN   TestConfigLifetimeRemovedAction
+=== RUN   TestConfigLifetimeRemovedAction/armed
+=== RUN   TestConfigLifetimeRemovedAction/failed
+--- PASS: TestConfigLifetimeRemovedAction (0.00s)
+    --- PASS: TestConfigLifetimeRemovedAction/armed (0.00s)
+    --- PASS: TestConfigLifetimeRemovedAction/failed (0.00s)
+=== RUN   TestConfigLifetimeRetypedAction
+=== RUN   TestConfigLifetimeRetypedAction/armed
+=== RUN   TestConfigLifetimeRetypedAction/failed
+--- PASS: TestConfigLifetimeRetypedAction (0.00s)
+    --- PASS: TestConfigLifetimeRetypedAction/armed (0.00s)
+    --- PASS: TestConfigLifetimeRetypedAction/failed (0.00s)
+=== RUN   TestConfigLifetimeRunRequiresConfirmation
+--- PASS: TestConfigLifetimeRunRequiresConfirmation (0.00s)
+=== RUN   TestConfigLifetimeStaleActionCannotConsumeAnother
+--- PASS: TestConfigLifetimeStaleActionCannotConsumeAnother (0.00s)
+PASS
+ok  	floter/internal/launcher	0.166s
+=== RUN   TestConfigEpochReopenedWrite
+=== RUN   TestConfigEpochReopenedWrite/light/accepted=false
+=== RUN   TestConfigEpochReopenedWrite/light/accepted=true
+=== RUN   TestConfigEpochReopenedWrite/dark/accepted=false
+=== RUN   TestConfigEpochReopenedWrite/dark/accepted=true
+--- PASS: TestConfigEpochReopenedWrite (0.35s)
+    --- PASS: TestConfigEpochReopenedWrite/light/accepted=false (0.25s)
+    --- PASS: TestConfigEpochReopenedWrite/light/accepted=true (0.01s)
+    --- PASS: TestConfigEpochReopenedWrite/dark/accepted=false (0.05s)
+    --- PASS: TestConfigEpochReopenedWrite/dark/accepted=true (0.04s)
+=== RUN   TestConfigEpochReopenedAction
+=== RUN   TestConfigEpochReopenedAction/light
+=== RUN   TestConfigEpochReopenedAction/dark
+--- PASS: TestConfigEpochReopenedAction (0.17s)
+    --- PASS: TestConfigEpochReopenedAction/light (0.09s)
+    --- PASS: TestConfigEpochReopenedAction/dark (0.08s)
+=== RUN   TestConfigEpochSiblingAdded
+=== RUN   TestConfigEpochSiblingAdded/light/accepted=false
+=== RUN   TestConfigEpochSiblingAdded/light/accepted=true
+=== RUN   TestConfigEpochSiblingAdded/dark/accepted=false
+=== RUN   TestConfigEpochSiblingAdded/dark/accepted=true
+--- PASS: TestConfigEpochSiblingAdded (0.16s)
+    --- PASS: TestConfigEpochSiblingAdded/light/accepted=false (0.03s)
+    --- PASS: TestConfigEpochSiblingAdded/light/accepted=true (0.02s)
+    --- PASS: TestConfigEpochSiblingAdded/dark/accepted=false (0.05s)
+    --- PASS: TestConfigEpochSiblingAdded/dark/accepted=true (0.05s)
+=== RUN   TestConfigEpochSiblingRemoved
+=== RUN   TestConfigEpochSiblingRemoved/light/accepted=false
+=== RUN   TestConfigEpochSiblingRemoved/light/accepted=true
+=== RUN   TestConfigEpochSiblingRemoved/dark/accepted=false
+=== RUN   TestConfigEpochSiblingRemoved/dark/accepted=true
+--- PASS: TestConfigEpochSiblingRemoved (0.10s)
+    --- PASS: TestConfigEpochSiblingRemoved/light/accepted=false (0.01s)
+    --- PASS: TestConfigEpochSiblingRemoved/light/accepted=true (0.01s)
+    --- PASS: TestConfigEpochSiblingRemoved/dark/accepted=false (0.03s)
+    --- PASS: TestConfigEpochSiblingRemoved/dark/accepted=true (0.03s)
+=== RUN   TestLocalToolFormBuildsAScript
+--- PASS: TestLocalToolFormBuildsAScript (0.83s)
+=== RUN   TestLocalToolFormRefusesAnEmptyScript
+--- PASS: TestLocalToolFormRefusesAnEmptyScript (0.54s)
+=== RUN   TestToolCallbackSaveKeepsNewEditor
+=== RUN   TestToolCallbackSaveKeepsNewEditor/light
+=== RUN   TestToolCallbackSaveKeepsNewEditor/dark
+--- PASS: TestToolCallbackSaveKeepsNewEditor (0.64s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/light (0.36s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/dark (0.28s)
+=== RUN   TestToolCallbackConnectKeepsNewEditor
+=== RUN   TestToolCallbackConnectKeepsNewEditor/light
+=== RUN   TestToolCallbackConnectKeepsNewEditor/dark
+--- PASS: TestToolCallbackConnectKeepsNewEditor (0.48s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/light (0.24s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/dark (0.24s)
+=== RUN   TestLocalToolFormCopiesItsContent
+--- PASS: TestLocalToolFormCopiesItsContent (0.55s)
+=== RUN   TestLocalToolFormCopiesTheScript
+    toolcontent_test.go:145: copied script = "#!/usr/bin/env node\n\n// Floter provider script\n// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n// Read them with process.argv.slice(2).\n// 编辑器里声明的参数会作为 argv 传入，可用 process.argv.slice(2) 读取。\n"
+--- PASS: TestLocalToolFormCopiesTheScript (0.46s)
+=== RUN   TestLocalToolFormExportsTheScript
+--- PASS: TestLocalToolFormExportsTheScript (0.46s)
+=== RUN   TestLocalToolFormNamesTheIntegrationBeingEdited
+--- PASS: TestLocalToolFormNamesTheIntegrationBeingEdited (0.34s)
+=== RUN   TestLocalToolForm
+--- PASS: TestLocalToolForm (0.72s)
+=== RUN   TestLocalToolFormNamesTheShapeRules
+--- PASS: TestLocalToolFormNamesTheShapeRules (0.93s)
+PASS
+ok  	floter/internal/settingsui	6.769s

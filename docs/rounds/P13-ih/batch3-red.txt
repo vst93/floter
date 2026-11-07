@@ -1,0 +1,19 @@
+=== RUN   TestToolCallbackSaveKeepsNewEditor
+=== RUN   TestToolCallbackSaveKeepsNewEditor/light
+    toolcallback_test.go:130: save-new completion erased newer editor: open=false id="" name="" program=""
+=== RUN   TestToolCallbackSaveKeepsNewEditor/dark
+    toolcallback_test.go:130: save-new completion erased newer editor: open=false id="" name="" program=""
+--- FAIL: TestToolCallbackSaveKeepsNewEditor (0.74s)
+    --- FAIL: TestToolCallbackSaveKeepsNewEditor/light (0.59s)
+    --- FAIL: TestToolCallbackSaveKeepsNewEditor/dark (0.15s)
+=== RUN   TestToolCallbackConnectKeepsNewEditor
+=== RUN   TestToolCallbackConnectKeepsNewEditor/light
+    toolcallback_test.go:130: connect-new completion erased newer editor: open=false id="" name="" program=""
+=== RUN   TestToolCallbackConnectKeepsNewEditor/dark
+    toolcallback_test.go:130: connect-new completion erased newer editor: open=false id="" name="" program=""
+--- FAIL: TestToolCallbackConnectKeepsNewEditor (0.29s)
+    --- FAIL: TestToolCallbackConnectKeepsNewEditor/light (0.15s)
+    --- FAIL: TestToolCallbackConnectKeepsNewEditor/dark (0.14s)
+FAIL
+FAIL	floter/internal/settingsui	1.051s
+FAIL

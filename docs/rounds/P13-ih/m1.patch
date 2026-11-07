@@ -1,0 +1,20 @@
+diff --git a/internal/launcher/config.go b/internal/launcher/config.go
+index 7f0a8b77..327bf5bf 100644
+--- a/internal/launcher/config.go
++++ b/internal/launcher/config.go
+@@ -89,7 +89,14 @@ func (a *App) openConfig(plugin string) {
+ 		return
+ 	}
+ 	a.configGeneration++
+-	a.config = a.Actions.ConfigFor(plugin)
++	opening := a.configGeneration
++	config := a.Actions.ConfigFor(plugin)
++	// A lookup may itself open or close a sheet. The most recent request
++	// owns the band, including a newer lookup that found no configuration.
++	if a.configGeneration != opening {
++		return
++	}
++	a.config = config
+ 	a.FocusSearch()
+ }
+ 

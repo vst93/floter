@@ -1,0 +1,7 @@
+--- FAIL: TestToolCallbackPickerKeepsNewDraft (0.66s)
+    --- FAIL: TestToolCallbackPickerKeepsNewDraft/light (0.45s)
+    --- FAIL: TestToolCallbackPickerKeepsNewDraft/dark (0.21s)
+--- FAIL: TestToolCallbackPickerKeepsClosedDraftEmpty (0.49s)
+    --- FAIL: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.24s)
+    --- FAIL: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.25s)
+batch 2 PASS=50
