@@ -68,6 +68,21 @@ func checkRunChoiceRefresh(t *testing.T, removed bool) {
 func TestRunExitChoiceReordered(t *testing.T) { checkRunChoiceRefresh(t, false) }
 func TestRunExitChoiceWithdrawn(t *testing.T) { checkRunChoiceRefresh(t, true) }
 
+func TestRunExitDuplicateOptionsRemainUsable(t *testing.T) {
+	param := Param{ID: "target", Label: "Target", Kind: extensions.ParamSelect, Default: "one", Options: []string{"one", "one", "two"}}
+	if err := extensions.ValidateParams([]extensions.ParamDefinition{{ID: param.ID, Kind: param.Kind, Options: param.Options}}); err != nil {
+		t.Fatal(err)
+	}
+	a, in := runStateApp(param)
+	tt := runRecoveryFrame(t, a, in, true)
+	optionExitFocus(t, tt, "one")
+	tt.Key(0, ui.KeyEnd)
+	tt.Frame()
+	if a.runValues[in.ID]["target"] != "two" {
+		t.Error("duplicate options blocked the last choice")
+	}
+}
+
 func TestRunExitParameterWithdrawn(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {

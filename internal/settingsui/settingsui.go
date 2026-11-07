@@ -7508,13 +7508,19 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					}
 				case extensions.ParamSelect:
 					index := 0
+					keys := make([]string, len(param.Options))
+					seen := map[string]int{}
 					for i, option := range param.Options {
+						// Duplicate option values are valid legacy declarations.
+						// Keep each occurrence distinct without using its position.
+						keys[i] = strconv.Itoa(seen[option]) + "\x00" + option
+						seen[option]++
 						if option == values[param.ID] {
 							index = i
 						}
 					}
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
-						picker := a.segmentedControlKeyed(c, &index, param.Options, param.Options)
+						picker := a.segmentedControlKeyed(c, &index, param.Options, keys)
 						bindFocus(picker)
 						if locked {
 							lockedControl(picker)
