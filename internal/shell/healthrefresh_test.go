@@ -4,6 +4,7 @@ import (
 	"context"
 	"image/png"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"floter/internal/extensions"
@@ -110,3 +111,69 @@ func TestHealthRefreshInvalidDeclaration(t *testing.T) {
 		t.Run(change, func(t *testing.T) { checkHealthRefreshDeclaration(t, change) })
 	}
 }
+
+func checkHealthRefreshFailure(t *testing.T, failure string) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := newDiagnosisFixture(t, dark)
+			program := f.entry.ExecutablePath
+			base := filepath.Join(f.dir, "retry")
+			f.manifest.Lifecycle.Probes = []extensions.Probe{{ID: "connection", Required: true, Args: []string{"-test.run=^TestHealthCompletionProvider$", "--", "--floter-health", base}}}
+			if failure == "binding" {
+				f.entry.ExecutablePath = filepath.Join(f.dir, "missing-program")
+			}
+			f.write(t)
+			f.a.Integrations.Refresh(context.Background())
+			owner, _ := f.a.Integrations.Inventory().WithID(f.entry.ID)
+			if failure == "repository" {
+				if err := os.WriteFile(f.paths.RepositoryFile, []byte("{"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			f.a.onScreen = func() bool { return true }
+			f.a.Open(SurfaceSettings)
+			clearNotices(f.a)
+			if !f.a.Settings.BeginHealthReprobe(f.entry.ID) {
+				t.Fatal("health check could not start")
+			}
+			f.a.runHealthReprobe(owner)
+			toast := queuedToast(f.a, "floter-notice")
+			want := i18n.NotificationsFor("zh").IntegrationCheckFailed(f.manifest.Name)
+			healthRefreshFrame(t, f, failure, dark)
+			if toast.Type != "error" || toast.Title != want {
+				t.Errorf("health refresh %s failure is silent: toast=%+v", failure, toast)
+			}
+			if !f.a.Settings.BeginHealthReprobe(f.entry.ID) {
+				t.Fatal("failed health refresh leaves the row locked")
+			}
+			f.a.Settings.FinishHealthReprobe(f.entry.ID)
+			if failure == "binding" {
+				current, _ := f.a.Integrations.Inventory().WithID(f.entry.ID)
+				if current.Entry.ProbeReport == nil || current.Entry.ProbeReport.CheckedAt != f.entry.ProbeReport.CheckedAt || current.Entry.LastErrorCode == nil {
+					t.Error("binding failure lost history or its recorded reason")
+				}
+			}
+			f.entry.ExecutablePath = program
+			f.write(t)
+			if err := os.WriteFile(base+".release", []byte("0"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			f.a.Integrations.Refresh(context.Background())
+			owner, _ = f.a.Integrations.Inventory().WithID(f.entry.ID)
+			clearNotices(f.a)
+			f.a.Settings.BeginHealthReprobe(f.entry.ID)
+			f.a.runHealthReprobe(owner)
+			if f.a.integrationList()[0].HealthStatus != extensions.HealthHealthy || len(noticeTitles(f.a)) != 0 {
+				t.Error("repaired health refresh does not recover cleanly")
+			}
+			if !f.a.Settings.BeginHealthReprobe(f.entry.ID) {
+				t.Error("successful health refresh leaves the row locked")
+			}
+			f.a.Settings.FinishHealthReprobe(f.entry.ID)
+		})
+	}
+}
+
+func TestHealthRefreshBindingFailure(t *testing.T)    { checkHealthRefreshFailure(t, "binding") }
+func TestHealthRefreshRepositoryFailure(t *testing.T) { checkHealthRefreshFailure(t, "repository") }

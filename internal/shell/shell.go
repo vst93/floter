@@ -1939,17 +1939,23 @@ func (a *App) runHealthReprobe(integration extensions.Integration) {
 			a.Win.Invalidate()
 		}
 	})
-	if _, err := extensions.Reprobe(context.Background(), a.Paths, id); err != nil {
-		// A tool whose probes cannot run at all says so through the row's
-		// own failure line rather than a silent no-op; the previous report
-		// stays on screen either way (the repository is only written when
-		// the run finished).
+	_, err := extensions.Reprobe(context.Background(), a.Paths, id)
+	if err != nil {
 		log.Printf("floter: health re-check of %s: %v", id, err)
 	}
-	// The report lives on the repository entry, so the inventory is
-	// re-read before the frame; a failed run changed nothing and the
-	// refresh is then a no-op that costs one read.
+	// Binding failures can persist a broken state even without a new report.
+	// Refresh before publishing the result, just as repair/reconnect do.
 	a.Integrations.Refresh(context.Background())
+	if err != nil && !errors.Is(err, extensions.ErrProbeSuperseded) &&
+		!errors.Is(err, extensions.ErrNoIntegration) && !errors.Is(err, extensions.ErrNoProbes) {
+		current := a.Integrations.Inventory()
+		owner, present := current.WithID(id)
+		// A read failure has no inventory to compare. Other errors belong
+		// only to the declaration that started this request.
+		if current.RepositoryErr != nil || (present && integrationDiagnosisSource(owner) == integrationDiagnosisSource(integration)) {
+			a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationCheckFailed(integration.Name) })
+		}
+	}
 }
 
 // diagnoseIntegration asks a provider to check itself, off the main thread,
