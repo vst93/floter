@@ -27,3 +27,12 @@
 第一批开盘实红：`current declaration cannot run probes but still offers health refresh`、`stale health refresh still dispatches a request`，三个条件深浅均复现。before 为修改前真实事件帧；after 使用相同夹具。
 
 第一批相关 **44 PASS / 0 FAIL**，shell/settingsui vet净，diff --check净。原V/B/S断言0/0/0。开盘全量仍在运行，未拿局部数字冒充完整门槛。
+
+第一批 9ea9f128 已提交推送，退出0。开盘完整基线 **5840 PASS / 0 FAIL / 3353函数**，退出0。
+
+## 第二批：执行中的操作出口
+
+3. 现象：健康刷新执行中重复点击会启动多份进程。改动：shell 在启动前进入健康忙态，所有结束路径在主线程退出忙态。验证：真实点击与宿主重复请求均须只接受一次，结束后可再点，按钮尺寸不变。
+4. 现象：健康刷新期间同行检查/重连/停用仍可并行写同一记录。改动：健康忙态接入既有 rowBusy 与 rowBusyExceptRepair。验证：健康刷新期间点击检查、重新检查不得调用；另一工具可执行；结束后原出口恢复。
+
+第二批相关 **20 PASS / 0 FAIL**，两包vet净。M2撤回两处行锁后，重复启动和竞争操作断言实红；原文件通过MD5逐字节恢复并touch复验。before 图为该组缺陷回注，非开盘整仓。

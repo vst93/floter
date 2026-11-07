@@ -1,0 +1,23 @@
+=== RUN   TestHealthRefreshRejectsRepeatedPress
+=== RUN   TestHealthRefreshRejectsRepeatedPress/light
+    healthrefresh_test.go:69: health refresh starts twice while pending: 2
+    healthrefresh_test.go:72: host accepts a duplicate pending health refresh
+    healthrefresh_test.go:86: settled refresh cannot run again
+=== RUN   TestHealthRefreshRejectsRepeatedPress/dark
+    healthrefresh_test.go:69: health refresh starts twice while pending: 2
+    healthrefresh_test.go:72: host accepts a duplicate pending health refresh
+    healthrefresh_test.go:86: settled refresh cannot run again
+--- FAIL: TestHealthRefreshRejectsRepeatedPress (0.98s)
+    --- FAIL: TestHealthRefreshRejectsRepeatedPress/light (0.59s)
+    --- FAIL: TestHealthRefreshRejectsRepeatedPress/dark (0.39s)
+=== RUN   TestHealthRefreshLocksCompetingActions
+=== RUN   TestHealthRefreshLocksCompetingActions/light
+    healthrefresh_test.go:116: health refresh permits competing row actions: repairs=1 checks=0
+=== RUN   TestHealthRefreshLocksCompetingActions/dark
+    healthrefresh_test.go:116: health refresh permits competing row actions: repairs=1 checks=0
+--- FAIL: TestHealthRefreshLocksCompetingActions (0.79s)
+    --- FAIL: TestHealthRefreshLocksCompetingActions/light (0.40s)
+    --- FAIL: TestHealthRefreshLocksCompetingActions/dark (0.39s)
+FAIL
+FAIL	floter/internal/settingsui	1.782s
+FAIL

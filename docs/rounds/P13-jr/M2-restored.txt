@@ -1,0 +1,14 @@
+=== RUN   TestHealthRefreshRejectsRepeatedPress
+=== RUN   TestHealthRefreshRejectsRepeatedPress/light
+=== RUN   TestHealthRefreshRejectsRepeatedPress/dark
+--- PASS: TestHealthRefreshRejectsRepeatedPress (0.64s)
+    --- PASS: TestHealthRefreshRejectsRepeatedPress/light (0.33s)
+    --- PASS: TestHealthRefreshRejectsRepeatedPress/dark (0.30s)
+=== RUN   TestHealthRefreshLocksCompetingActions
+=== RUN   TestHealthRefreshLocksCompetingActions/light
+=== RUN   TestHealthRefreshLocksCompetingActions/dark
+--- PASS: TestHealthRefreshLocksCompetingActions (0.63s)
+    --- PASS: TestHealthRefreshLocksCompetingActions/light (0.29s)
+    --- PASS: TestHealthRefreshLocksCompetingActions/dark (0.34s)
+PASS
+ok  	floter/internal/settingsui	1.281s

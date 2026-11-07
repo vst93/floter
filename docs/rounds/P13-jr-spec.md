@@ -19,7 +19,7 @@
 
 高度链、键盘模型、确认的三秒窗口、会话管理、设置写回、i18n 文案、命令执行接线不变。新增的锁只接上已有行操作模型；不改变确认/保存语义。不加系统、依赖或外部执行器。原 V/B/S 断言均不改。
 
-每两项先跑定向事件测试和相关包 vet，再 commit/push；完整门槛一轮一次：gofmt -l cmd internal；三平台 go vet ./...；go test -count=1 ./...；verbose 全量 PASS 计数；三平台 go build ./...。开盘中文 locale 全量已启动，实测退出后填基线；测试函数以 git grep '^func Test' 统计，初次命令只算两级目录为3351，最终必须采用全仓同口径。
+每两项先跑定向事件测试和相关包 vet，再 commit/push；完整门槛一轮一次：gofmt -l cmd internal；三平台 go vet ./...；go test -count=1 ./...；verbose 全量 PASS 计数；三平台 go build ./...。开盘中文 locale 全量实测 **5840 PASS / 0 FAIL**，退出0；全仓 `git grep '^func Test' ecc53976 -- '*_test.go'` 为 **3353**。初次两级目录统计3351不含嵌套包，不作最终对比口径。
 
 mutation：M1 撤回当前声明门槛（1/2 的点击断言红）；M2 撤回忙态/行级锁（3/4 的重复次数和操作断言红）；M3 撤回错误通知（5/6 的 error toast 断言红）；M4 撤回命令目录刷新（7/8 的可达性断言红）。实跑后逐字节 MD5 还原、touch 再验。
 

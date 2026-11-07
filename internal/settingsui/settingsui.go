@@ -762,6 +762,9 @@ type App struct {
 	// and its `disabled={busy}` face until the shell reports back
 	// (`src/extensions/ExtensionRow.tsx:313-330,345-372`).
 	repairBusy map[string]bool
+	// healthBusy is the Health block's own refresh, separate from repair so
+	// the re-check/reconnect pill does not pretend to own that operation.
+	healthBusy map[string]bool
 	// toggleBusy marks the integrations whose enable write is in flight, so
 	// the row's switch swaps its thumb for the reference's turning LoaderCircle
 	// and holds its `disabled` face until the shell reports back
@@ -4098,7 +4101,7 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
 // `src/extensions/ExtensionRow.tsx:131,301-419,447`); here the in-flight marks
 // live on the row's own maps, so the union is what the whole-row lock reads.
 func (a *App) rowBusy(id string) bool {
-	return a.repairBusy[id] || a.disableBusy[id] || a.removeBusy[id] ||
+	return a.healthBusy[id] || a.repairBusy[id] || a.disableBusy[id] || a.removeBusy[id] ||
 		a.uninstallBusy[id] || a.toggleBusy[id]
 }
 
@@ -4107,8 +4110,31 @@ func (a *App) rowBusy(id string) bool {
 // busy pill instead of a plain disabled face, so it asks only about the row's
 // *other* operations.
 func (a *App) rowBusyExceptRepair(id string) bool {
-	return a.disableBusy[id] || a.removeBusy[id] || a.uninstallBusy[id] ||
+	return a.healthBusy[id] || a.disableBusy[id] || a.removeBusy[id] || a.uninstallBusy[id] ||
 		a.toggleBusy[id]
+}
+
+// BeginHealthReprobe and FinishHealthReprobe use the existing row operation
+// lock. The shell calls them on the UI thread, including every failure exit.
+func (a *App) BeginHealthReprobe(id string) bool {
+	if a.rowBusy(id) {
+		return false
+	}
+	if a.healthBusy == nil {
+		a.healthBusy = map[string]bool{}
+	}
+	a.healthBusy[id] = true
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
+	return true
+}
+
+func (a *App) FinishHealthReprobe(id string) {
+	delete(a.healthBusy, id)
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 // startRepair marks a row's re-check or reconnect as in flight and hands the

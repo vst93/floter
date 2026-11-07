@@ -1924,24 +1924,32 @@ func healthReportView(report *extensions.HealthReport, schema []extensions.Probe
 // repository keeps, so the Health block's chip and detail lines change — the
 // reference's own split of the two controls.
 func (a *App) reprobeHealth(id string) {
-	go func() {
-		if _, err := extensions.Reprobe(context.Background(), a.Paths, id); err != nil {
-			// A tool whose probes cannot run at all says so through the row's
-			// own failure line rather than a silent no-op; the previous report
-			// stays on screen either way (the repository is only written when
-			// the run finished).
-			log.Printf("floter: health re-check of %s: %v", id, err)
+	integration, ok := a.Integrations.Inventory().WithID(id)
+	if !ok || !a.Settings.BeginHealthReprobe(id) {
+		return
+	}
+	go a.runHealthReprobe(integration)
+}
+
+func (a *App) runHealthReprobe(integration extensions.Integration) {
+	id := integration.Entry.ID
+	defer a.onMain(func() {
+		a.Settings.FinishHealthReprobe(id)
+		if a.Win != nil {
+			a.Win.Invalidate()
 		}
-		// The report lives on the repository entry, so the inventory is
-		// re-read before the frame; a failed run changed nothing and the
-		// refresh is then a no-op that costs one read.
-		a.Integrations.Refresh(context.Background())
-		a.onMain(func() {
-			if a.Win != nil {
-				a.Win.Invalidate()
-			}
-		})
-	}()
+	})
+	if _, err := extensions.Reprobe(context.Background(), a.Paths, id); err != nil {
+		// A tool whose probes cannot run at all says so through the row's
+		// own failure line rather than a silent no-op; the previous report
+		// stays on screen either way (the repository is only written when
+		// the run finished).
+		log.Printf("floter: health re-check of %s: %v", id, err)
+	}
+	// The report lives on the repository entry, so the inventory is
+	// re-read before the frame; a failed run changed nothing and the
+	// refresh is then a no-op that costs one read.
+	a.Integrations.Refresh(context.Background())
 }
 
 // diagnoseIntegration asks a provider to check itself, off the main thread,
