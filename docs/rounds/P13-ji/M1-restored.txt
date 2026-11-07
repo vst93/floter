@@ -1,0 +1,19 @@
+internal/extensions/sync.go: OK
+=== RUN   TestImportEnabledFailureReportsCommittedState
+=== RUN   TestImportEnabledFailureReportsCommittedState/light
+2026/11/08 02:10:50 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight2311168180/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+=== RUN   TestImportEnabledFailureReportsCommittedState/dark
+2026/11/08 02:10:50 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark989060763/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+--- PASS: TestImportEnabledFailureReportsCommittedState (0.51s)
+    --- PASS: TestImportEnabledFailureReportsCommittedState/light (0.30s)
+    --- PASS: TestImportEnabledFailureReportsCommittedState/dark (0.21s)
+=== RUN   TestImportPackageFailureReportsCommittedState
+=== RUN   TestImportPackageFailureReportsCommittedState/light
+2026/11/08 02:10:51 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight151154184/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+=== RUN   TestImportPackageFailureReportsCommittedState/dark
+2026/11/08 02:10:51 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatedark3920443328/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+--- PASS: TestImportPackageFailureReportsCommittedState (0.65s)
+    --- PASS: TestImportPackageFailureReportsCommittedState/light (0.33s)
+    --- PASS: TestImportPackageFailureReportsCommittedState/dark (0.32s)
+PASS
+ok  	floter/internal/shell	1.170s

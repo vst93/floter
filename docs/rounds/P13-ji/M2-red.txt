@@ -1,0 +1,53 @@
+=== RUN   TestIntegrationExportRetryRetiresResolvedError
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/light
+2026/11/08 02:10:54 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrorlight794906402/002/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferrecovery_test.go:245: successful export retry retains its resolved error
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/dark
+2026/11/08 02:10:54 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrordark814956302/002/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferrecovery_test.go:245: successful export retry retains its resolved error
+--- FAIL: TestIntegrationExportRetryRetiresResolvedError (0.63s)
+    --- FAIL: TestIntegrationExportRetryRetiresResolvedError/light (0.33s)
+    --- FAIL: TestIntegrationExportRetryRetiresResolvedError/dark (0.30s)
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/light
+2026/11/08 02:10:54 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+    transferrecovery_test.go:245: successful copy retry retains its resolved error
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/dark
+2026/11/08 02:10:54 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+    transferrecovery_test.go:245: successful copy retry retains its resolved error
+--- FAIL: TestConfigurationCopyRetryRetiresResolvedError (0.08s)
+    --- FAIL: TestConfigurationCopyRetryRetiresResolvedError/light (0.04s)
+    --- FAIL: TestConfigurationCopyRetryRetiresResolvedError/dark (0.04s)
+=== RUN   TestConfigurationExportRetryRetiresResolvedError
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/light
+2026/11/08 02:10:54 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+    transferrecovery_test.go:245: successful config-export retry retains its resolved error
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/dark
+2026/11/08 02:10:54 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+    transferrecovery_test.go:245: successful config-export retry retains its resolved error
+--- FAIL: TestConfigurationExportRetryRetiresResolvedError (0.08s)
+    --- FAIL: TestConfigurationExportRetryRetiresResolvedError/light (0.04s)
+    --- FAIL: TestConfigurationExportRetryRetiresResolvedError/dark (0.04s)
+=== RUN   TestScriptExportRetryRetiresResolvedError
+=== RUN   TestScriptExportRetryRetiresResolvedError/light
+2026/11/08 02:10:54 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+    transferrecovery_test.go:245: successful script retry retains its resolved error
+=== RUN   TestScriptExportRetryRetiresResolvedError/dark
+2026/11/08 02:10:55 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+    transferrecovery_test.go:245: successful script retry retains its resolved error
+--- FAIL: TestScriptExportRetryRetiresResolvedError (0.11s)
+    --- FAIL: TestScriptExportRetryRetiresResolvedError/light (0.06s)
+    --- FAIL: TestScriptExportRetryRetiresResolvedError/dark (0.05s)
+=== RUN   TestIntegrationImportRetryRetiresResolvedError
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/light
+2026/11/08 02:10:55 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrorlight3252611320/003/import.json: extensions: import version 99 is not supported
+    transferrecovery_test.go:245: successful import retry retains its resolved error
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/dark
+2026/11/08 02:10:55 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrordark2664240685/003/import.json: extensions: import version 99 is not supported
+    transferrecovery_test.go:245: successful import retry retains its resolved error
+--- FAIL: TestIntegrationImportRetryRetiresResolvedError (0.55s)
+    --- FAIL: TestIntegrationImportRetryRetiresResolvedError/light (0.28s)
+    --- FAIL: TestIntegrationImportRetryRetiresResolvedError/dark (0.28s)
+FAIL
+FAIL	floter/internal/shell	1.457s
+FAIL

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"floter/internal/extensions"
+	"floter/internal/settings"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -50,8 +51,12 @@ func recoveryTransfer(t *testing.T, a *App, tt *ui.Tester, export bool) {
 		a.Settings.Actions.ExportIntegrations = func() { called = true; exportOriginal() }
 		defer func() { a.Settings.Actions.ExportIntegrations = exportOriginal }()
 	}
-	if r, ok := tt.Find(label); ok && r.Y > 850 {
-		tt.Scroll(500, 500, 0, r.Y-500)
+	limit, target := float32(850), float32(500)
+	if os.Getenv("FLOTER_P13JI_COMPACT") != "" {
+		limit, target = 400, 300
+	}
+	if r, ok := tt.Find(label); ok && r.Y > limit {
+		tt.Scroll(500, target, 0, r.Y-target)
 		tt.Frame()
 		tt.Frame()
 	}
@@ -178,6 +183,14 @@ func checkTransferRecovery(t *testing.T, operation string) {
 			a, paths := configuredIntegrationFixture(t, func(string) (string, error) { return destination, pickerError })
 			tt := transferCauseFrame(t, a, dark)
 			values := transferFeedbackValues()
+			if os.Getenv("FLOTER_P13JI_COMPACT") != "" {
+				if err := a.Store.Update(func(s *settings.Settings) { s.Language = "zh" }); err != nil {
+					t.Fatal(err)
+				}
+				tt.SetSize(720, 520)
+				tt.Frame()
+				tt.Frame()
+			}
 			var copied string
 			a.writeClipboard = func(p ClipboardPayload) { copied = p.Text }
 			done := make(chan error, 1)
@@ -342,5 +355,108 @@ func TestOlderCompletionKeepsNewerFailure(t *testing.T) {
 	tt.Frame()
 	if tt.HasText("newer export failure") {
 		t.Fatal("current retry did not resolve its old error")
+	}
+}
+
+func TestResolvedNoticeBeforePaintKeepsLaterNotice(t *testing.T) {
+	a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", nil })
+	tt := transferCauseFrame(t, a, false)
+	first := a.beginNotice("configuration-copy:workspace")
+	a.transferFailedFor(first, "resolved before paint", nil)
+	a.resolveNotice(a.beginNotice("configuration-copy:workspace"))
+	// Another error arrives after resolution but before the queued close is
+	// flushed. It must be added after the close, not erased with the old one.
+	a.queueNotice("new external failure", refusalNotice)
+	tt.Frame()
+	if tt.HasText("resolved before paint") || !tt.HasText("new external failure") {
+		t.Fatal("queued resolution resurrected the old error or erased the new one")
+	}
+}
+
+func TestConfigurationRecoveryKeepsAnotherTargetsError(t *testing.T) {
+	for _, export := range []bool{false, true} {
+		t.Run(map[bool]string{false: "copy", true: "export"}[export], func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.json")
+			a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return path, nil })
+			tt := transferCauseFrame(t, a, false)
+			action := a.Settings.Actions.CopyConfiguration
+			if export {
+				action = a.Settings.Actions.ExportConfiguration
+			}
+			done := make(chan error, 1)
+			action("dev.floter.missing", transferFeedbackValues(), func(err error) { done <- err })
+			cause := transferFeedbackAwait(t, done)
+			if cause == nil {
+				t.Fatal("missing target unexpectedly copied configuration")
+			}
+			tt.Frame()
+			action("dev.floter.configured", transferFeedbackValues(), func(err error) { done <- err })
+			if err := transferFeedbackAwait(t, done); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(cause.Error()) {
+				t.Fatal("another target's recovery erased this target's error")
+			}
+		})
+	}
+}
+
+func TestCancelledConfigurationExportDoesNotResolveFailure(t *testing.T) {
+	cause := errors.New("file picker unavailable")
+	pickerError := error(cause)
+	a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", pickerError })
+	tt := transferCauseFrame(t, a, false)
+	done := make(chan error, 1)
+	run := func() error {
+		a.Settings.Actions.ExportConfiguration("dev.floter.configured", transferFeedbackValues(), func(err error) { done <- err })
+		return transferFeedbackAwait(t, done)
+	}
+	if !errors.Is(run(), cause) {
+		t.Fatal("fixture did not fail")
+	}
+	tt.Frame()
+	pickerError = nil
+	if err := run(); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText(cause.Error()) || tt.HasText(a.SettingsCopy().ConfigExported) {
+		t.Fatal("cancel was mistaken for a successful retry")
+	}
+}
+
+func TestScriptOlderSuccessKeepsNewerFailure(t *testing.T) {
+	type answer struct {
+		path string
+		err  error
+	}
+	requests := make(chan chan answer, 2)
+	a, _ := configuredIntegrationFixture(t, func(string) (string, error) {
+		reply := make(chan answer, 1)
+		requests <- reply
+		got := <-reply
+		return got.path, got.err
+	})
+	tt := transferCauseFrame(t, a, false)
+	a.Settings.Actions.ExportScript("diagnose.py", "print('older')\n")
+	older := <-requests
+	defer close(older)
+	a.Settings.Actions.ExportScript("diagnose.py", "print('newer')\n")
+	newer := <-requests
+	defer close(newer)
+	newer <- answer{err: errors.New("newer picker failed")}
+	waitForToast(t, a, "floter-notice")
+	tt.Frame()
+	path := filepath.Join(t.TempDir(), "diagnose.py")
+	older <- answer{path: path}
+	waitForToast(t, a, scriptExportNoticeID)
+	tt.Frame()
+	if !tt.HasText("newer picker failed") {
+		t.Fatal("older real export erased newer picker failure")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "print('older')\n" {
+		t.Fatal("older export did not actually finish")
 	}
 }

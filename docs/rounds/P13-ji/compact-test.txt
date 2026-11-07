@@ -1,0 +1,10 @@
+=== RUN   TestConfigurationExportRetryRetiresResolvedError
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/light
+2026/11/08 02:12:01 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/dark
+2026/11/08 02:12:01 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigurationExportRetryRetiresResolvedError (0.24s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/light (0.17s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/dark (0.07s)
+PASS
+ok  	floter/internal/shell	0.247s

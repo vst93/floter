@@ -1,0 +1,43 @@
+internal/shell/notices.go: OK
+=== RUN   TestIntegrationExportRetryRetiresResolvedError
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/light
+2026/11/08 02:10:56 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrorlight558330590/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/dark
+2026/11/08 02:10:56 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrordark1883444124/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRetryRetiresResolvedError (0.62s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/light (0.33s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/dark (0.29s)
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/light
+2026/11/08 02:10:56 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/dark
+2026/11/08 02:10:56 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationCopyRetryRetiresResolvedError (0.08s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/light (0.04s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/dark (0.04s)
+=== RUN   TestConfigurationExportRetryRetiresResolvedError
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/light
+2026/11/08 02:10:56 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/dark
+2026/11/08 02:10:56 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigurationExportRetryRetiresResolvedError (0.08s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/light (0.04s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/dark (0.04s)
+=== RUN   TestScriptExportRetryRetiresResolvedError
+=== RUN   TestScriptExportRetryRetiresResolvedError/light
+2026/11/08 02:10:56 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportRetryRetiresResolvedError/dark
+2026/11/08 02:10:57 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+--- PASS: TestScriptExportRetryRetiresResolvedError (0.10s)
+    --- PASS: TestScriptExportRetryRetiresResolvedError/light (0.05s)
+    --- PASS: TestScriptExportRetryRetiresResolvedError/dark (0.05s)
+=== RUN   TestIntegrationImportRetryRetiresResolvedError
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/light
+2026/11/08 02:10:57 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrorlight813881147/003/import.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/dark
+2026/11/08 02:10:57 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrordark3742164263/003/import.json: extensions: import version 99 is not supported
+--- PASS: TestIntegrationImportRetryRetiresResolvedError (0.53s)
+    --- PASS: TestIntegrationImportRetryRetiresResolvedError/light (0.26s)
+    --- PASS: TestIntegrationImportRetryRetiresResolvedError/dark (0.27s)
+PASS
+ok  	floter/internal/shell	1.418s

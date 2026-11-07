@@ -1,0 +1,2 @@
+ordinary exit=0
+verbose exit=0 PASS=5591 FAIL=0

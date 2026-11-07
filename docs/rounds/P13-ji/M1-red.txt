@@ -1,0 +1,27 @@
+=== RUN   TestImportEnabledFailureReportsCommittedState
+=== RUN   TestImportEnabledFailureReportsCommittedState/light
+2026/11/08 02:10:48 floter: dev.floter.configured was not imported: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight2186231636/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+    transferrecovery_test.go:135: partial enabled hides committed state: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight2186231636/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+    transferrecovery_test.go:138: partial enabled state is absent from the visible report
+=== RUN   TestImportEnabledFailureReportsCommittedState/dark
+2026/11/08 02:10:48 floter: dev.floter.configured was not imported: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark4167903078/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+    transferrecovery_test.go:135: partial enabled hides committed state: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark4167903078/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+    transferrecovery_test.go:138: partial enabled state is absent from the visible report
+--- FAIL: TestImportEnabledFailureReportsCommittedState (0.53s)
+    --- FAIL: TestImportEnabledFailureReportsCommittedState/light (0.32s)
+    --- FAIL: TestImportEnabledFailureReportsCommittedState/dark (0.22s)
+=== RUN   TestImportPackageFailureReportsCommittedState
+=== RUN   TestImportPackageFailureReportsCommittedState/light
+2026/11/08 02:10:49 floter: dev.floter.imported was not imported: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight3840129519/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+    transferrecovery_test.go:135: partial package hides committed state: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight3840129519/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+    transferrecovery_test.go:138: partial package state is absent from the visible report
+=== RUN   TestImportPackageFailureReportsCommittedState/dark
+2026/11/08 02:10:49 floter: dev.floter.imported was not imported: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatedark3826161677/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+    transferrecovery_test.go:135: partial package hides committed state: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatedark3826161677/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+    transferrecovery_test.go:138: partial package state is absent from the visible report
+--- FAIL: TestImportPackageFailureReportsCommittedState (0.70s)
+    --- FAIL: TestImportPackageFailureReportsCommittedState/light (0.36s)
+    --- FAIL: TestImportPackageFailureReportsCommittedState/dark (0.33s)
+FAIL
+FAIL	floter/internal/shell	1.235s
+FAIL

@@ -1,0 +1,5 @@
+4c3d9feed00199842ca8905b047ced87  internal/extensions/sync.go
+a8ef573841e544941e91c3c4f152d4bd  internal/shell/notices.go
+3fcf50c18b14920c56de5efe66570f96  internal/shell/shell.go
+6aafe3e73e7ee7f1f4a40272ff4920e9  internal/shell/sync.go
+8a8e84ae0579466487c9087328b3e822  internal/shell/transferrecovery_test.go

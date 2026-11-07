@@ -1,0 +1,16 @@
+=== RUN   TestResolvedNoticeBeforePaintKeepsLaterNotice
+--- PASS: TestResolvedNoticeBeforePaintKeepsLaterNotice (0.10s)
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError/copy
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError/export
+--- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError (0.08s)
+    --- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError/copy (0.04s)
+    --- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError/export (0.04s)
+=== RUN   TestCancelledConfigurationExportDoesNotResolveFailure
+2026/11/08 02:12:00 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable
+--- PASS: TestCancelledConfigurationExportDoesNotResolveFailure (0.04s)
+=== RUN   TestScriptOlderSuccessKeepsNewerFailure
+2026/11/08 02:12:00 floter: could not pick a path for diagnose.py: newer picker failed
+--- PASS: TestScriptOlderSuccessKeepsNewerFailure (0.05s)
+PASS
+ok  	floter/internal/shell	0.289s
