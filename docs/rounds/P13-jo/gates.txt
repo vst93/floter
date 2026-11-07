@@ -1,0 +1,17 @@
+gofmt: empty
+vet-linux: exit=0
+vet-windows: exit=0
+vet-darwin: exit=0
+build-linux: exit=0
+build-windows: exit=0
+build-darwin: exit=0
+full-test: exit=0
+full-verbose: exit=0
+race: exit=0
+PASS=5780
+functions=3337
+internal/shell/shell.go: 成功
+internal/extensions/probes.go: 成功
+internal/extensions/reconnect.go: 成功
+internal/shell/completionseverity_test.go: 成功
+internal/shell/healthcompletion_test.go: 成功

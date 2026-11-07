@@ -1,0 +1,16 @@
+=== RUN   TestCompletionSeverityDiagnosis
+=== RUN   TestCompletionSeverityDiagnosis/light
+=== RUN   TestCompletionSeverityDiagnosis/dark
+--- PASS: TestCompletionSeverityDiagnosis (0.57s)
+    --- PASS: TestCompletionSeverityDiagnosis/light (0.29s)
+    --- PASS: TestCompletionSeverityDiagnosis/dark (0.28s)
+=== RUN   TestCompletionSeverityClipboard
+=== RUN   TestCompletionSeverityClipboard/light
+2026/11/08 05:04:54 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboardlight2746351817/003/clipboard-history/.floter-state-2184420534.tmp /tmp/TestCompletionSeverityClipboardlight2746351817/003/clipboard-history/index.json: file exists
+=== RUN   TestCompletionSeverityClipboard/dark
+2026/11/08 05:04:54 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboarddark331350868/003/clipboard-history/.floter-state-212804686.tmp /tmp/TestCompletionSeverityClipboarddark331350868/003/clipboard-history/index.json: file exists
+--- PASS: TestCompletionSeverityClipboard (0.56s)
+    --- PASS: TestCompletionSeverityClipboard/light (0.28s)
+    --- PASS: TestCompletionSeverityClipboard/dark (0.27s)
+PASS
+ok  	floter/internal/shell	1.137s

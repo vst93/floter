@@ -1,0 +1,18 @@
+=== RUN   TestCompletionSeverityReconnect
+=== RUN   TestCompletionSeverityReconnect/light
+2026/11/08 05:04:59 floter: could not reconnect missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityReconnect/dark
+2026/11/08 05:05:00 floter: could not reconnect missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityReconnect (0.61s)
+    --- PASS: TestCompletionSeverityReconnect/light (0.31s)
+    --- PASS: TestCompletionSeverityReconnect/dark (0.30s)
+=== RUN   TestCompletionSeverityRepair
+=== RUN   TestCompletionSeverityRepair/light
+2026/11/08 05:05:00 floter: could not re-check missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRepair/dark
+2026/11/08 05:05:00 floter: could not re-check missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityRepair (0.61s)
+    --- PASS: TestCompletionSeverityRepair/light (0.31s)
+    --- PASS: TestCompletionSeverityRepair/dark (0.30s)
+PASS
+ok  	floter/internal/shell	1.228s

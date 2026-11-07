@@ -1,0 +1,21 @@
+=== RUN   TestCompletionSeverityDiagnosis
+=== RUN   TestCompletionSeverityDiagnosis/light
+    completionseverity_test.go:61: diagnosis-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityDiagnosis/dark
+    completionseverity_test.go:61: diagnosis-failed failure wears a success mark: type="success" timeout=4s
+--- FAIL: TestCompletionSeverityDiagnosis (0.57s)
+    --- FAIL: TestCompletionSeverityDiagnosis/light (0.29s)
+    --- FAIL: TestCompletionSeverityDiagnosis/dark (0.28s)
+=== RUN   TestCompletionSeverityClipboard
+=== RUN   TestCompletionSeverityClipboard/light
+2026/11/08 05:04:52 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboardlight1434987715/003/clipboard-history/.floter-state-2039441673.tmp /tmp/TestCompletionSeverityClipboardlight1434987715/003/clipboard-history/index.json: file exists
+    completionseverity_test.go:61: clipboard-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityClipboard/dark
+2026/11/08 05:04:52 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboarddark238840423/003/clipboard-history/.floter-state-934566910.tmp /tmp/TestCompletionSeverityClipboarddark238840423/003/clipboard-history/index.json: file exists
+    completionseverity_test.go:61: clipboard-failed failure wears a success mark: type="success" timeout=4s
+--- FAIL: TestCompletionSeverityClipboard (0.57s)
+    --- FAIL: TestCompletionSeverityClipboard/light (0.28s)
+    --- FAIL: TestCompletionSeverityClipboard/dark (0.29s)
+FAIL
+FAIL	floter/internal/shell	1.147s
+FAIL

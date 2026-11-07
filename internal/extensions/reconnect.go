@@ -76,7 +76,7 @@ func ReconnectAt(paths Paths, id, executablePath string) (ReconnectReport, error
 		if err != nil {
 			var failure *BindingFailure
 			if errors.As(err, &failure) {
-			if recordErr := recordBindingFailure(paths, integration, failure); recordErr != nil {
+				if recordErr := recordBindingFailure(paths, integration, failure); recordErr != nil {
 					return ReconnectReport{}, recordErr
 				}
 			}

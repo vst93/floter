@@ -1,0 +1,73 @@
+=== RUN   TestHealthCompletionOwnership
+=== RUN   TestHealthCompletionOwnership/package
+=== RUN   TestHealthCompletionOwnership/package/light
+    healthcompletion_test.go:132: package: outdated probe overwrote current repository health (err=<nil>)
+=== RUN   TestHealthCompletionOwnership/package/dark
+    healthcompletion_test.go:132: package: outdated probe overwrote current repository health (err=<nil>)
+=== RUN   TestHealthCompletionOwnership/manifest
+=== RUN   TestHealthCompletionOwnership/manifest/light
+    healthcompletion_test.go:132: manifest: outdated probe overwrote current repository health (err=<nil>)
+=== RUN   TestHealthCompletionOwnership/manifest/dark
+    healthcompletion_test.go:132: manifest: outdated probe overwrote current repository health (err=<nil>)
+=== RUN   TestHealthCompletionOwnership/executable
+=== RUN   TestHealthCompletionOwnership/executable/light
+    healthcompletion_test.go:132: executable: outdated probe overwrote current repository health (err=<nil>)
+=== RUN   TestHealthCompletionOwnership/executable/dark
+    healthcompletion_test.go:132: executable: outdated probe overwrote current repository health (err=<nil>)
+=== RUN   TestHealthCompletionOwnership/new-report
+=== RUN   TestHealthCompletionOwnership/new-report/light
+    healthcompletion_test.go:132: new-report: outdated probe overwrote current repository health (err=<nil>)
+=== RUN   TestHealthCompletionOwnership/new-report/dark
+    healthcompletion_test.go:132: new-report: outdated probe overwrote current repository health (err=<nil>)
+=== RUN   TestHealthCompletionOwnership/removed
+=== RUN   TestHealthCompletionOwnership/removed/light
+=== RUN   TestHealthCompletionOwnership/removed/dark
+--- FAIL: TestHealthCompletionOwnership (1.99s)
+    --- FAIL: TestHealthCompletionOwnership/package (0.64s)
+        --- FAIL: TestHealthCompletionOwnership/package/light (0.44s)
+        --- FAIL: TestHealthCompletionOwnership/package/dark (0.20s)
+    --- FAIL: TestHealthCompletionOwnership/manifest (0.38s)
+        --- FAIL: TestHealthCompletionOwnership/manifest/light (0.19s)
+        --- FAIL: TestHealthCompletionOwnership/manifest/dark (0.19s)
+    --- FAIL: TestHealthCompletionOwnership/executable (0.35s)
+        --- FAIL: TestHealthCompletionOwnership/executable/light (0.18s)
+        --- FAIL: TestHealthCompletionOwnership/executable/dark (0.17s)
+    --- FAIL: TestHealthCompletionOwnership/new-report (0.34s)
+        --- FAIL: TestHealthCompletionOwnership/new-report/light (0.17s)
+        --- FAIL: TestHealthCompletionOwnership/new-report/dark (0.17s)
+    --- PASS: TestHealthCompletionOwnership/removed (0.29s)
+        --- PASS: TestHealthCompletionOwnership/removed/light (0.14s)
+        --- PASS: TestHealthCompletionOwnership/removed/dark (0.14s)
+=== RUN   TestHealthCompletionRecovery
+=== RUN   TestHealthCompletionRecovery/enabled
+=== RUN   TestHealthCompletionRecovery/enabled/light
+    healthcompletion_test.go:174: successful health retry left wrong availability: state="broken" running=false want="enabled"
+    healthcompletion_test.go:181: recovered tool retained stale failure metadata
+=== RUN   TestHealthCompletionRecovery/enabled/dark
+    healthcompletion_test.go:174: successful health retry left wrong availability: state="broken" running=false want="enabled"
+    healthcompletion_test.go:181: recovered tool retained stale failure metadata
+=== RUN   TestHealthCompletionRecovery/disabled
+=== RUN   TestHealthCompletionRecovery/disabled/light
+    healthcompletion_test.go:174: successful health retry left wrong availability: state="broken" running=false want="disabled"
+    healthcompletion_test.go:181: recovered tool retained stale failure metadata
+=== RUN   TestHealthCompletionRecovery/disabled/dark
+    healthcompletion_test.go:174: successful health retry left wrong availability: state="broken" running=false want="disabled"
+    healthcompletion_test.go:181: recovered tool retained stale failure metadata
+=== RUN   TestHealthCompletionRecovery/other-failure
+=== RUN   TestHealthCompletionRecovery/other-failure/light
+    healthcompletion_test.go:178: health retry erased an unrelated package failure
+=== RUN   TestHealthCompletionRecovery/other-failure/dark
+    healthcompletion_test.go:178: health retry erased an unrelated package failure
+--- FAIL: TestHealthCompletionRecovery (1.37s)
+    --- FAIL: TestHealthCompletionRecovery/enabled (0.44s)
+        --- FAIL: TestHealthCompletionRecovery/enabled/light (0.22s)
+        --- FAIL: TestHealthCompletionRecovery/enabled/dark (0.22s)
+    --- FAIL: TestHealthCompletionRecovery/disabled (0.43s)
+        --- FAIL: TestHealthCompletionRecovery/disabled/light (0.22s)
+        --- FAIL: TestHealthCompletionRecovery/disabled/dark (0.22s)
+    --- FAIL: TestHealthCompletionRecovery/other-failure (0.49s)
+        --- FAIL: TestHealthCompletionRecovery/other-failure/light (0.23s)
+        --- FAIL: TestHealthCompletionRecovery/other-failure/dark (0.26s)
+FAIL
+FAIL	floter/internal/shell	3.364s
+FAIL

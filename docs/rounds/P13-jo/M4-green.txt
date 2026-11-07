@@ -1,0 +1,54 @@
+=== RUN   TestHealthCompletionOwnership
+=== RUN   TestHealthCompletionOwnership/package
+=== RUN   TestHealthCompletionOwnership/package/light
+=== RUN   TestHealthCompletionOwnership/package/dark
+=== RUN   TestHealthCompletionOwnership/manifest
+=== RUN   TestHealthCompletionOwnership/manifest/light
+=== RUN   TestHealthCompletionOwnership/manifest/dark
+=== RUN   TestHealthCompletionOwnership/executable
+=== RUN   TestHealthCompletionOwnership/executable/light
+=== RUN   TestHealthCompletionOwnership/executable/dark
+=== RUN   TestHealthCompletionOwnership/new-report
+=== RUN   TestHealthCompletionOwnership/new-report/light
+=== RUN   TestHealthCompletionOwnership/new-report/dark
+=== RUN   TestHealthCompletionOwnership/removed
+=== RUN   TestHealthCompletionOwnership/removed/light
+=== RUN   TestHealthCompletionOwnership/removed/dark
+--- PASS: TestHealthCompletionOwnership (2.38s)
+    --- PASS: TestHealthCompletionOwnership/package (0.63s)
+        --- PASS: TestHealthCompletionOwnership/package/light (0.40s)
+        --- PASS: TestHealthCompletionOwnership/package/dark (0.23s)
+    --- PASS: TestHealthCompletionOwnership/manifest (0.45s)
+        --- PASS: TestHealthCompletionOwnership/manifest/light (0.23s)
+        --- PASS: TestHealthCompletionOwnership/manifest/dark (0.22s)
+    --- PASS: TestHealthCompletionOwnership/executable (0.46s)
+        --- PASS: TestHealthCompletionOwnership/executable/light (0.23s)
+        --- PASS: TestHealthCompletionOwnership/executable/dark (0.23s)
+    --- PASS: TestHealthCompletionOwnership/new-report (0.45s)
+        --- PASS: TestHealthCompletionOwnership/new-report/light (0.23s)
+        --- PASS: TestHealthCompletionOwnership/new-report/dark (0.22s)
+    --- PASS: TestHealthCompletionOwnership/removed (0.39s)
+        --- PASS: TestHealthCompletionOwnership/removed/light (0.19s)
+        --- PASS: TestHealthCompletionOwnership/removed/dark (0.19s)
+=== RUN   TestHealthCompletionRecovery
+=== RUN   TestHealthCompletionRecovery/enabled
+=== RUN   TestHealthCompletionRecovery/enabled/light
+=== RUN   TestHealthCompletionRecovery/enabled/dark
+=== RUN   TestHealthCompletionRecovery/disabled
+=== RUN   TestHealthCompletionRecovery/disabled/light
+=== RUN   TestHealthCompletionRecovery/disabled/dark
+=== RUN   TestHealthCompletionRecovery/other-failure
+=== RUN   TestHealthCompletionRecovery/other-failure/light
+=== RUN   TestHealthCompletionRecovery/other-failure/dark
+--- PASS: TestHealthCompletionRecovery (1.78s)
+    --- PASS: TestHealthCompletionRecovery/enabled (0.60s)
+        --- PASS: TestHealthCompletionRecovery/enabled/light (0.30s)
+        --- PASS: TestHealthCompletionRecovery/enabled/dark (0.30s)
+    --- PASS: TestHealthCompletionRecovery/disabled (0.58s)
+        --- PASS: TestHealthCompletionRecovery/disabled/light (0.29s)
+        --- PASS: TestHealthCompletionRecovery/disabled/dark (0.29s)
+    --- PASS: TestHealthCompletionRecovery/other-failure (0.59s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/light (0.29s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/dark (0.30s)
+PASS
+ok  	floter/internal/shell	4.162s

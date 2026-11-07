@@ -1,0 +1,5 @@
+9f64aec1099c8a2ab5141b38d1fd41d0  internal/shell/shell.go
+fe964b0e9fcbc7b57f5eb3d77382477c  internal/extensions/probes.go
+434ce7831495ff80d1053a80414861f3  internal/extensions/reconnect.go
+db333d1e7baabb4ebf395168e1ff0a5c  internal/shell/completionseverity_test.go
+868ca89be9aec296552083b51f8d175b  internal/shell/healthcompletion_test.go

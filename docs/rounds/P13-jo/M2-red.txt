@@ -1,0 +1,23 @@
+=== RUN   TestCompletionSeverityReconnect
+=== RUN   TestCompletionSeverityReconnect/light
+2026/11/08 05:04:57 floter: could not reconnect missing-tool: extensions: no such integration
+    completionseverity_test.go:61: reconnect-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityReconnect/dark
+2026/11/08 05:04:58 floter: could not reconnect missing-tool: extensions: no such integration
+    completionseverity_test.go:61: reconnect-failed failure wears a success mark: type="success" timeout=4s
+--- FAIL: TestCompletionSeverityReconnect (0.61s)
+    --- FAIL: TestCompletionSeverityReconnect/light (0.31s)
+    --- FAIL: TestCompletionSeverityReconnect/dark (0.31s)
+=== RUN   TestCompletionSeverityRepair
+=== RUN   TestCompletionSeverityRepair/light
+2026/11/08 05:04:58 floter: could not re-check missing-tool: extensions: no such integration
+    completionseverity_test.go:61: repair-failed failure wears a success mark: type="success" timeout=4s
+=== RUN   TestCompletionSeverityRepair/dark
+2026/11/08 05:04:58 floter: could not re-check missing-tool: extensions: no such integration
+    completionseverity_test.go:61: repair-failed failure wears a success mark: type="success" timeout=4s
+--- FAIL: TestCompletionSeverityRepair (0.61s)
+    --- FAIL: TestCompletionSeverityRepair/light (0.30s)
+    --- FAIL: TestCompletionSeverityRepair/dark (0.31s)
+FAIL
+FAIL	floter/internal/shell	1.229s
+FAIL

@@ -1,0 +1,122 @@
+=== RUN   TestCompletionSeverityDiagnosis
+=== RUN   TestCompletionSeverityDiagnosis/light
+=== RUN   TestCompletionSeverityDiagnosis/dark
+--- PASS: TestCompletionSeverityDiagnosis (4.70s)
+    --- PASS: TestCompletionSeverityDiagnosis/light (2.35s)
+    --- PASS: TestCompletionSeverityDiagnosis/dark (2.35s)
+=== RUN   TestCompletionSeverityClipboard
+=== RUN   TestCompletionSeverityClipboard/light
+2026/11/08 05:16:23 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboardlight4009311499/003/clipboard-history/.floter-state-2041624756.tmp /tmp/TestCompletionSeverityClipboardlight4009311499/003/clipboard-history/index.json: file exists
+=== RUN   TestCompletionSeverityClipboard/dark
+2026/11/08 05:16:25 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboarddark3666000593/003/clipboard-history/.floter-state-1958917422.tmp /tmp/TestCompletionSeverityClipboarddark3666000593/003/clipboard-history/index.json: file exists
+--- PASS: TestCompletionSeverityClipboard (2.68s)
+    --- PASS: TestCompletionSeverityClipboard/light (1.36s)
+    --- PASS: TestCompletionSeverityClipboard/dark (1.32s)
+=== RUN   TestCompletionSeverityReconnect
+=== RUN   TestCompletionSeverityReconnect/light
+2026/11/08 05:16:27 floter: could not reconnect missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityReconnect/dark
+2026/11/08 05:16:29 floter: could not reconnect missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityReconnect (4.78s)
+    --- PASS: TestCompletionSeverityReconnect/light (2.40s)
+    --- PASS: TestCompletionSeverityReconnect/dark (2.38s)
+=== RUN   TestCompletionSeverityRepair
+=== RUN   TestCompletionSeverityRepair/light
+2026/11/08 05:16:32 floter: could not re-check missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRepair/dark
+2026/11/08 05:16:34 floter: could not re-check missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityRepair (4.78s)
+    --- PASS: TestCompletionSeverityRepair/light (2.40s)
+    --- PASS: TestCompletionSeverityRepair/dark (2.39s)
+=== RUN   TestCompletionSeverityInstall
+=== RUN   TestCompletionSeverityInstall/registry
+=== RUN   TestCompletionSeverityInstall/registry/light
+2026/11/08 05:16:35 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+=== RUN   TestCompletionSeverityInstall/registry/dark
+2026/11/08 05:16:37 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+=== RUN   TestCompletionSeverityInstall/adoption
+=== RUN   TestCompletionSeverityInstall/adoption/light
+2026/11/08 05:16:38 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+=== RUN   TestCompletionSeverityInstall/adoption/dark
+2026/11/08 05:16:39 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+--- PASS: TestCompletionSeverityInstall (5.24s)
+    --- PASS: TestCompletionSeverityInstall/registry (2.62s)
+        --- PASS: TestCompletionSeverityInstall/registry/light (1.31s)
+        --- PASS: TestCompletionSeverityInstall/registry/dark (1.31s)
+    --- PASS: TestCompletionSeverityInstall/adoption (2.62s)
+        --- PASS: TestCompletionSeverityInstall/adoption/light (1.31s)
+        --- PASS: TestCompletionSeverityInstall/adoption/dark (1.31s)
+=== RUN   TestCompletionSeverityRemoval
+=== RUN   TestCompletionSeverityRemoval/remove-failed
+=== RUN   TestCompletionSeverityRemoval/remove-failed/light
+2026/11/08 05:16:41 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/remove-failed/dark
+2026/11/08 05:16:42 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed/light
+2026/11/08 05:16:43 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed/dark
+2026/11/08 05:16:45 floter: could not uninstall missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityRemoval (5.32s)
+    --- PASS: TestCompletionSeverityRemoval/remove-failed (2.64s)
+        --- PASS: TestCompletionSeverityRemoval/remove-failed/light (1.33s)
+        --- PASS: TestCompletionSeverityRemoval/remove-failed/dark (1.31s)
+    --- PASS: TestCompletionSeverityRemoval/uninstall-failed (2.68s)
+        --- PASS: TestCompletionSeverityRemoval/uninstall-failed/light (1.36s)
+        --- PASS: TestCompletionSeverityRemoval/uninstall-failed/dark (1.32s)
+=== RUN   TestHealthCompletionProvider
+--- PASS: TestHealthCompletionProvider (0.00s)
+=== RUN   TestHealthCompletionOwnership
+=== RUN   TestHealthCompletionOwnership/package
+=== RUN   TestHealthCompletionOwnership/package/light
+=== RUN   TestHealthCompletionOwnership/package/dark
+=== RUN   TestHealthCompletionOwnership/manifest
+=== RUN   TestHealthCompletionOwnership/manifest/light
+=== RUN   TestHealthCompletionOwnership/manifest/dark
+=== RUN   TestHealthCompletionOwnership/executable
+=== RUN   TestHealthCompletionOwnership/executable/light
+=== RUN   TestHealthCompletionOwnership/executable/dark
+=== RUN   TestHealthCompletionOwnership/new-report
+=== RUN   TestHealthCompletionOwnership/new-report/light
+=== RUN   TestHealthCompletionOwnership/new-report/dark
+=== RUN   TestHealthCompletionOwnership/removed
+=== RUN   TestHealthCompletionOwnership/removed/light
+=== RUN   TestHealthCompletionOwnership/removed/dark
+--- PASS: TestHealthCompletionOwnership (18.45s)
+    --- PASS: TestHealthCompletionOwnership/package (4.54s)
+        --- PASS: TestHealthCompletionOwnership/package/light (2.28s)
+        --- PASS: TestHealthCompletionOwnership/package/dark (2.26s)
+    --- PASS: TestHealthCompletionOwnership/manifest (4.51s)
+        --- PASS: TestHealthCompletionOwnership/manifest/light (2.25s)
+        --- PASS: TestHealthCompletionOwnership/manifest/dark (2.25s)
+    --- PASS: TestHealthCompletionOwnership/executable (2.48s)
+        --- PASS: TestHealthCompletionOwnership/executable/light (1.24s)
+        --- PASS: TestHealthCompletionOwnership/executable/dark (1.24s)
+    --- PASS: TestHealthCompletionOwnership/new-report (4.51s)
+        --- PASS: TestHealthCompletionOwnership/new-report/light (2.26s)
+        --- PASS: TestHealthCompletionOwnership/new-report/dark (2.26s)
+    --- PASS: TestHealthCompletionOwnership/removed (2.41s)
+        --- PASS: TestHealthCompletionOwnership/removed/light (1.21s)
+        --- PASS: TestHealthCompletionOwnership/removed/dark (1.21s)
+=== RUN   TestHealthCompletionRecovery
+=== RUN   TestHealthCompletionRecovery/enabled
+=== RUN   TestHealthCompletionRecovery/enabled/light
+=== RUN   TestHealthCompletionRecovery/enabled/dark
+=== RUN   TestHealthCompletionRecovery/disabled
+=== RUN   TestHealthCompletionRecovery/disabled/light
+=== RUN   TestHealthCompletionRecovery/disabled/dark
+=== RUN   TestHealthCompletionRecovery/other-failure
+=== RUN   TestHealthCompletionRecovery/other-failure/light
+=== RUN   TestHealthCompletionRecovery/other-failure/dark
+--- PASS: TestHealthCompletionRecovery (16.76s)
+    --- PASS: TestHealthCompletionRecovery/enabled (6.74s)
+        --- PASS: TestHealthCompletionRecovery/enabled/light (3.37s)
+        --- PASS: TestHealthCompletionRecovery/enabled/dark (3.37s)
+    --- PASS: TestHealthCompletionRecovery/disabled (4.92s)
+        --- PASS: TestHealthCompletionRecovery/disabled/light (2.38s)
+        --- PASS: TestHealthCompletionRecovery/disabled/dark (2.53s)
+    --- PASS: TestHealthCompletionRecovery/other-failure (5.10s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/light (2.56s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/dark (2.54s)
+PASS
+ok  	floter/internal/shell	63.740s

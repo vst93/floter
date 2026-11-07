@@ -1,0 +1,38 @@
+=== RUN   TestCompletionSeverityInstall
+=== RUN   TestCompletionSeverityInstall/registry
+=== RUN   TestCompletionSeverityInstall/registry/light
+2026/11/08 05:05:06 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+=== RUN   TestCompletionSeverityInstall/registry/dark
+2026/11/08 05:05:07 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+=== RUN   TestCompletionSeverityInstall/adoption
+=== RUN   TestCompletionSeverityInstall/adoption/light
+2026/11/08 05:05:07 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+=== RUN   TestCompletionSeverityInstall/adoption/dark
+2026/11/08 05:05:07 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+--- PASS: TestCompletionSeverityInstall (1.10s)
+    --- PASS: TestCompletionSeverityInstall/registry (0.55s)
+        --- PASS: TestCompletionSeverityInstall/registry/light (0.27s)
+        --- PASS: TestCompletionSeverityInstall/registry/dark (0.28s)
+    --- PASS: TestCompletionSeverityInstall/adoption (0.55s)
+        --- PASS: TestCompletionSeverityInstall/adoption/light (0.28s)
+        --- PASS: TestCompletionSeverityInstall/adoption/dark (0.28s)
+=== RUN   TestCompletionSeverityRemoval
+=== RUN   TestCompletionSeverityRemoval/remove-failed
+=== RUN   TestCompletionSeverityRemoval/remove-failed/light
+2026/11/08 05:05:07 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/remove-failed/dark
+2026/11/08 05:05:08 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed/light
+2026/11/08 05:05:08 floter: could not uninstall missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRemoval/uninstall-failed/dark
+2026/11/08 05:05:08 floter: could not uninstall missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityRemoval (1.25s)
+    --- PASS: TestCompletionSeverityRemoval/remove-failed (0.60s)
+        --- PASS: TestCompletionSeverityRemoval/remove-failed/light (0.30s)
+        --- PASS: TestCompletionSeverityRemoval/remove-failed/dark (0.30s)
+    --- PASS: TestCompletionSeverityRemoval/uninstall-failed (0.64s)
+        --- PASS: TestCompletionSeverityRemoval/uninstall-failed/light (0.32s)
+        --- PASS: TestCompletionSeverityRemoval/uninstall-failed/dark (0.32s)
+PASS
+ok  	floter/internal/shell	2.358s

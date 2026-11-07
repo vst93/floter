@@ -1,0 +1,5 @@
+internal/shell/shell.go: OK
+internal/extensions/probes.go: OK
+internal/extensions/reconnect.go: OK
+internal/shell/completionseverity_test.go: OK
+internal/shell/healthcompletion_test.go: OK
