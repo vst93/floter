@@ -94,6 +94,29 @@ func TestRefreshDestinationRunRemoved(t *testing.T)  { checkRunDestination(t, "r
 func TestRefreshDestinationRunOrphan(t *testing.T)   { checkRunDestination(t, "orphan") }
 func TestRefreshDestinationRunBusyKind(t *testing.T) { checkRunDestination(t, "busy-kind") }
 
+func TestRefreshDestinationCommandAliasReorder(t *testing.T) {
+	checkCommandDestination(t, "alias-reorder")
+}
+func TestRefreshDestinationCommandToggleReorder(t *testing.T) {
+	checkCommandDestination(t, "toggle-reorder")
+}
+
+func TestRefreshDestinationDuplicateCommands(t *testing.T) {
+	a := noticeApp(t, true)
+	in := commandListIntegration()
+	in.Commands[1].ID = in.Commands[0].ID
+	a.Integrations = func() []Integration { return []Integration{in} }
+	toggled := ""
+	a.Actions.SetCommandEnabled = func(_, id string, on bool) { toggled = id }
+	tt := noticeExitPage(t, a, true)
+	optionExitFocus(t, tt, a.copy().IntegrationsCommandEnable("Build"))
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if toggled != "jv" {
+		t.Fatal("duplicate command declarations lost keyboard switch")
+	}
+}
+
 func checkCommandDestination(t *testing.T, scenario string) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {

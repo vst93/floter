@@ -1,0 +1,142 @@
+=== RUN   TestActionAvailabilityCommandWithdrawal
+=== RUN   TestActionAvailabilityCommandWithdrawal/light
+=== RUN   TestActionAvailabilityCommandWithdrawal/dark
+--- PASS: TestActionAvailabilityCommandWithdrawal (0.71s)
+    --- PASS: TestActionAvailabilityCommandWithdrawal/light (0.44s)
+    --- PASS: TestActionAvailabilityCommandWithdrawal/dark (0.27s)
+=== RUN   TestCommandEnableHonorsTheRowLock
+--- PASS: TestCommandEnableHonorsTheRowLock (0.57s)
+=== RUN   TestCommandAliasHonorsTheRowLock
+--- PASS: TestCommandAliasHonorsTheRowLock (0.64s)
+=== RUN   TestTheFullCommandListWearsTheCardsInset
+=== RUN   TestTheFullCommandListWearsTheCardsInset/light
+    commandfull_test.go:47: MaxY=2730.30
+=== RUN   TestTheFullCommandListWearsTheCardsInset/dark
+    commandfull_test.go:47: MaxY=2730.30
+--- PASS: TestTheFullCommandListWearsTheCardsInset (1.23s)
+    --- PASS: TestTheFullCommandListWearsTheCardsInset/light (0.62s)
+    --- PASS: TestTheFullCommandListWearsTheCardsInset/dark (0.61s)
+=== RUN   TestDumpP13FWCommandFull
+    commandfull_test.go:243: opt-in screenshot dump: set FLOTER_DUMP_P13FW=1
+--- SKIP: TestDumpP13FWCommandFull (0.00s)
+=== RUN   TestTheCommandListDrawsTheReferencePlates
+--- PASS: TestTheCommandListDrawsTheReferencePlates (0.12s)
+=== RUN   TestOnlyTheCommandSwitchTogglesTheCommand
+--- PASS: TestOnlyTheCommandSwitchTogglesTheCommand (0.16s)
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/id,_name_and_aliases
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/a_multi-word_name_contributes_its_first_token_only
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/a_blank_name_leaves_the_id_and_aliases
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/case-insensitive_duplicates_collapse
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/blank_aliases_are_dropped
+--- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/id,_name_and_aliases (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/a_multi-word_name_contributes_its_first_token_only (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/a_blank_name_leaves_the_id_and_aliases (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/case-insensitive_duplicates_collapse (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/blank_aliases_are_dropped (0.00s)
+=== RUN   TestContentRecoveryPlanCommandEmpty
+=== RUN   TestContentRecoveryPlanCommandEmpty/light
+=== RUN   TestContentRecoveryPlanCommandEmpty/dark
+--- PASS: TestContentRecoveryPlanCommandEmpty (0.45s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/light (0.22s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/dark (0.23s)
+=== RUN   TestContentRecoveryPlanCommandRestored
+=== RUN   TestContentRecoveryPlanCommandRestored/light
+=== RUN   TestContentRecoveryPlanCommandRestored/dark
+--- PASS: TestContentRecoveryPlanCommandRestored (0.43s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/light (0.23s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/dark (0.20s)
+=== RUN   TestCustomCommandFollowsRemainingBinding
+=== RUN   TestCustomCommandFollowsRemainingBinding/light
+=== RUN   TestCustomCommandFollowsRemainingBinding/dark
+--- PASS: TestCustomCommandFollowsRemainingBinding (0.17s)
+    --- PASS: TestCustomCommandFollowsRemainingBinding/light (0.05s)
+    --- PASS: TestCustomCommandFollowsRemainingBinding/dark (0.12s)
+=== RUN   TestCommandAliasDebouncesAndFlushesOnPageSwitch
+--- PASS: TestCommandAliasDebouncesAndFlushesOnPageSwitch (0.03s)
+=== RUN   TestCommandAliasFieldDebouncesTyping
+--- PASS: TestCommandAliasFieldDebouncesTyping (0.15s)
+=== RUN   TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner
+--- PASS: TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner (0.01s)
+=== RUN   TestFormOutletToolCommand
+=== RUN   TestFormOutletToolCommand/light/entry
+=== RUN   TestFormOutletToolCommand/light/elsewhere
+=== RUN   TestFormOutletToolCommand/dark/entry
+=== RUN   TestFormOutletToolCommand/dark/elsewhere
+--- PASS: TestFormOutletToolCommand (1.35s)
+    --- PASS: TestFormOutletToolCommand/light/entry (0.32s)
+    --- PASS: TestFormOutletToolCommand/light/elsewhere (0.37s)
+    --- PASS: TestFormOutletToolCommand/dark/entry (0.31s)
+    --- PASS: TestFormOutletToolCommand/dark/elsewhere (0.36s)
+=== RUN   TestLocalFormCommandSurvivesModeSwitch
+=== RUN   TestLocalFormCommandSurvivesModeSwitch/light
+=== RUN   TestLocalFormCommandSurvivesModeSwitch/dark
+--- PASS: TestLocalFormCommandSurvivesModeSwitch (0.34s)
+    --- PASS: TestLocalFormCommandSurvivesModeSwitch/light (0.08s)
+    --- PASS: TestLocalFormCommandSurvivesModeSwitch/dark (0.26s)
+=== RUN   TestACommandNameStaysInsideItsOwnColumn
+--- PASS: TestACommandNameStaysInsideItsOwnColumn (0.17s)
+=== RUN   TestTheCommandPlateIsAFaceNotARing
+=== RUN   TestTheCommandPlateIsAFaceNotARing/light
+=== RUN   TestTheCommandPlateIsAFaceNotARing/dark
+--- PASS: TestTheCommandPlateIsAFaceNotARing (0.01s)
+    --- PASS: TestTheCommandPlateIsAFaceNotARing/light (0.01s)
+    --- PASS: TestTheCommandPlateIsAFaceNotARing/dark (0.01s)
+=== RUN   TestTheOffCommandPlateTurnsItsCrownOffAndKeepsItsShade
+    platecrown_test.go:116: dark=false  on: ground 742 face 690 crown +18 shade 63  |  off: ground 742 face 709 crown +0 shade 39
+    platecrown_test.go:116: dark=true  on: ground 44 face 118 crown +57 shade 24  |  off: ground 44 face 89 crown +0 shade 12
+--- PASS: TestTheOffCommandPlateTurnsItsCrownOffAndKeepsItsShade (0.11s)
+=== RUN   TestDumpP13CTCommandPlate
+    platecrown_test.go:161: opt-in screenshot dump: set FLOTER_P13CT_DUMP=1 to write /tmp/floter-P13-ct-*.png
+--- SKIP: TestDumpP13CTCommandPlate (0.00s)
+=== RUN   TestRefreshDestinationRunRemoved
+=== RUN   TestRefreshDestinationRunRemoved/light
+=== RUN   TestRefreshDestinationRunRemoved/dark
+--- PASS: TestRefreshDestinationRunRemoved (0.16s)
+    --- PASS: TestRefreshDestinationRunRemoved/light (0.09s)
+    --- PASS: TestRefreshDestinationRunRemoved/dark (0.07s)
+=== RUN   TestRefreshDestinationRunOrphan
+=== RUN   TestRefreshDestinationRunOrphan/light
+=== RUN   TestRefreshDestinationRunOrphan/dark
+--- PASS: TestRefreshDestinationRunOrphan (0.14s)
+    --- PASS: TestRefreshDestinationRunOrphan/light (0.07s)
+    --- PASS: TestRefreshDestinationRunOrphan/dark (0.07s)
+=== RUN   TestRefreshDestinationRunBusyKind
+=== RUN   TestRefreshDestinationRunBusyKind/light
+=== RUN   TestRefreshDestinationRunBusyKind/dark
+--- PASS: TestRefreshDestinationRunBusyKind (0.17s)
+    --- PASS: TestRefreshDestinationRunBusyKind/light (0.08s)
+    --- PASS: TestRefreshDestinationRunBusyKind/dark (0.08s)
+=== RUN   TestRefreshDestinationCommandAliasReorder
+=== RUN   TestRefreshDestinationCommandAliasReorder/light
+=== RUN   TestRefreshDestinationCommandAliasReorder/dark
+--- PASS: TestRefreshDestinationCommandAliasReorder (0.19s)
+    --- PASS: TestRefreshDestinationCommandAliasReorder/light (0.09s)
+    --- PASS: TestRefreshDestinationCommandAliasReorder/dark (0.10s)
+=== RUN   TestRefreshDestinationCommandToggleReorder
+=== RUN   TestRefreshDestinationCommandToggleReorder/light
+=== RUN   TestRefreshDestinationCommandToggleReorder/dark
+--- PASS: TestRefreshDestinationCommandToggleReorder (0.18s)
+    --- PASS: TestRefreshDestinationCommandToggleReorder/light (0.09s)
+    --- PASS: TestRefreshDestinationCommandToggleReorder/dark (0.09s)
+=== RUN   TestRefreshDestinationDuplicateCommands
+--- PASS: TestRefreshDestinationDuplicateCommands (0.04s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.12s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.06s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.06s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.08s)
+=== RUN   TestCustomCommandNoOpEnterDropsTheDraft
+--- PASS: TestCustomCommandNoOpEnterDropsTheDraft (0.03s)
+=== RUN   TestIntegrationCommandSwitches
+--- PASS: TestIntegrationCommandSwitches (0.12s)
+=== RUN   TestCustomShortcutCommandOptionStartsADraft
+--- PASS: TestCustomShortcutCommandOptionStartsADraft (0.20s)
+=== RUN   TestSavedCustomCommandLineEditsInPlace
+--- PASS: TestSavedCustomCommandLineEditsInPlace (0.21s)
+PASS
+ok  	floter/internal/settingsui	8.319s

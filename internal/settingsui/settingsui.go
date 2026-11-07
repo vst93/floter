@@ -3506,9 +3506,14 @@ func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Int
 func (a *App) commandList(c *ui.Context, copy i18n.Settings, extensionID string, commands []Command) {
 	t := a.cardTheme(c)
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+		occurrences := map[string]int{}
 		for _, command := range commands {
 			command := command
-			a.commandPlate(c, copy, extensionID, command)
+			// Discovery may reorder commands while one owns the keyboard.
+			// Distinguish duplicate declarations without keying other IDs by index.
+			occurrence := occurrences[command.ID]
+			occurrences[command.ID]++
+			a.commandPlate(c.Key(strconv.Itoa(occurrence)+"\x00"+command.ID), copy, extensionID, command)
 		}
 	})
 }

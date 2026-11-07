@@ -25,3 +25,10 @@
 2. 现象：卡片成为 orphan 且不再声明参数，原表单消失后 Enter 无出口。改动：orphan 分支接入 run 焦点回收，优先 Adopt。验证：深浅刷新时零动作、Enter 才 Adopt 一次，保留答案。
 
 相关门槛 **233 PASS / 0 FAIL**，settingsui vet 净。M1 撤回两文件到开盘实跑失败，原串 `removed run lost keyboard destination "Close settings"`、`orphan run lost keyboard destination "Adopt"`；MD5 一致并 touch 后 **6 PASS**。旧 V/B/S 断言修改 **0/0/0**。
+
+## 第二批（3–4）
+
+3. 现象：重排后继续输入别名，回调收到邻居 build。改动：命令板身份绑定 ID + 同 ID 出现序号。验证：深浅原 JSON Viewer 的焦点保留，输入 jview 后 Flush 只写 jv。
+4. 现象：重排后按 Space 切换邻居 build。改动：同一身份覆盖板内开关。验证：深浅焦点仍跟随 JSON Viewer，Space 只切 jv；重复 ID 的 Build 开关仍能使用，无 key 冲突。
+
+相关 **65 PASS / 0 FAIL**，包 vet 净。M2 撤回身份接线实跑红，原串 `reordered alias edited wrong command: id="build" value="jview"`、`reordered switch toggled wrong command "build"`；MD5 恢复、touch 后 **6 PASS**。旧 V/B/S 0/0/0。已看浅色前后全幅：蓝色输入边从错误的 Build 回到 JSON Viewer；深色开关环跟着原命令，几何不变。

@@ -1,0 +1,23 @@
+=== RUN   TestRefreshDestinationCommandAliasReorder
+=== RUN   TestRefreshDestinationCommandAliasReorder/light
+    refreshdestination_test.go:167: alias-reorder command lost keyboard destination "Alias for JSON Viewer"
+    refreshdestination_test.go:178: reordered alias edited wrong command: id="build" value="jview"
+=== RUN   TestRefreshDestinationCommandAliasReorder/dark
+    refreshdestination_test.go:167: alias-reorder command lost keyboard destination "Alias for JSON Viewer"
+    refreshdestination_test.go:178: reordered alias edited wrong command: id="build" value="jview"
+--- FAIL: TestRefreshDestinationCommandAliasReorder (0.35s)
+    --- FAIL: TestRefreshDestinationCommandAliasReorder/light (0.29s)
+    --- FAIL: TestRefreshDestinationCommandAliasReorder/dark (0.06s)
+=== RUN   TestRefreshDestinationCommandToggleReorder
+=== RUN   TestRefreshDestinationCommandToggleReorder/light
+    refreshdestination_test.go:167: toggle-reorder command lost keyboard destination "Enable JSON Viewer in the launcher"
+    refreshdestination_test.go:184: reordered switch toggled wrong command "build"
+=== RUN   TestRefreshDestinationCommandToggleReorder/dark
+    refreshdestination_test.go:167: toggle-reorder command lost keyboard destination "Enable JSON Viewer in the launcher"
+    refreshdestination_test.go:184: reordered switch toggled wrong command "build"
+--- FAIL: TestRefreshDestinationCommandToggleReorder (0.12s)
+    --- FAIL: TestRefreshDestinationCommandToggleReorder/light (0.07s)
+    --- FAIL: TestRefreshDestinationCommandToggleReorder/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.488s
+FAIL

@@ -1,0 +1,14 @@
+=== RUN   TestRefreshDestinationCommandAliasReorder
+=== RUN   TestRefreshDestinationCommandAliasReorder/light
+=== RUN   TestRefreshDestinationCommandAliasReorder/dark
+--- PASS: TestRefreshDestinationCommandAliasReorder (0.24s)
+    --- PASS: TestRefreshDestinationCommandAliasReorder/light (0.18s)
+    --- PASS: TestRefreshDestinationCommandAliasReorder/dark (0.06s)
+=== RUN   TestRefreshDestinationCommandToggleReorder
+=== RUN   TestRefreshDestinationCommandToggleReorder/light
+=== RUN   TestRefreshDestinationCommandToggleReorder/dark
+--- PASS: TestRefreshDestinationCommandToggleReorder (0.12s)
+    --- PASS: TestRefreshDestinationCommandToggleReorder/light (0.06s)
+    --- PASS: TestRefreshDestinationCommandToggleReorder/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	0.366s
