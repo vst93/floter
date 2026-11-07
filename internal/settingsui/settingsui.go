@@ -3047,7 +3047,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			return
 		}
 		commandFocus := a.noticeFocus(c, integration.ID, "command")
-		a.restoreNotice(c, integration.ID, "command", c.Resolve(commandFocus.panel).Valid(), ui.Element{})
+		a.restoreNotice(c, integration.ID, "command", !a.rowBusy(integration.ID) && c.Resolve(commandFocus.panel).Valid(), ui.Element{})
 
 		enabled := integration.Enabled
 		enableChanged := false

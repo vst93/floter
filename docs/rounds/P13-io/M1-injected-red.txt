@@ -1,0 +1,109 @@
+=== RUN   TestCommandBusyAliasReturnsKeyboard
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/repair
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/disable
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/remove
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/uninstall
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/toggle
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/repair
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/disable
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/remove
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/uninstall
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/toggle
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=0
+--- FAIL: TestCommandBusyAliasReturnsKeyboard (0.79s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/light/repair (0.20s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/light/disable (0.06s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/light/remove (0.08s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/light/uninstall (0.06s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/light/toggle (0.06s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/dark/repair (0.07s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/dark/disable (0.06s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/dark/remove (0.07s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/dark/uninstall (0.07s)
+    --- FAIL: TestCommandBusyAliasReturnsKeyboard/dark/toggle (0.06s)
+=== RUN   TestCommandBusySwitchReturnsKeyboard
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/repair
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/disable
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/remove
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/uninstall
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/toggle
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/repair
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/disable
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/remove
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/uninstall
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/toggle
+    commandbusyexit_test.go:63: busy command stranded keyboard instead of returning to Close
+    commandbusyexit_test.go:71: unlock reclaimed the keyboard from its exit
+    commandbusyexit_test.go:76: busy roundtrip cannot exit: closed=0 writes=1
+--- FAIL: TestCommandBusySwitchReturnsKeyboard (0.58s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/light/repair (0.06s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/light/disable (0.07s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/light/remove (0.05s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/light/uninstall (0.06s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/light/toggle (0.06s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/dark/repair (0.05s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/dark/disable (0.05s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/dark/remove (0.06s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/dark/uninstall (0.05s)
+    --- FAIL: TestCommandBusySwitchReturnsKeyboard/dark/toggle (0.06s)
+=== RUN   TestCommandBusyDoesNotStealUnrelatedFocus
+--- PASS: TestCommandBusyDoesNotStealUnrelatedFocus (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	1.459s
+FAIL

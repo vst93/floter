@@ -1,0 +1,48 @@
+=== RUN   TestCommandBusyAliasReturnsKeyboard
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/repair
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/disable
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/remove
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/uninstall
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/toggle
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/repair
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/disable
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/remove
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/uninstall
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/toggle
+--- PASS: TestCommandBusyAliasReturnsKeyboard (0.71s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/repair (0.16s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/disable (0.06s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/remove (0.06s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/uninstall (0.06s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/toggle (0.07s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/repair (0.06s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/disable (0.06s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/remove (0.06s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/uninstall (0.06s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/toggle (0.05s)
+=== RUN   TestCommandBusySwitchReturnsKeyboard
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/repair
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/disable
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/remove
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/uninstall
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/toggle
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/repair
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/disable
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/remove
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/uninstall
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/toggle
+--- PASS: TestCommandBusySwitchReturnsKeyboard (0.61s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/repair (0.06s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/disable (0.06s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/remove (0.06s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/uninstall (0.05s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/toggle (0.06s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/repair (0.07s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/disable (0.07s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/remove (0.05s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/uninstall (0.06s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/toggle (0.07s)
+=== RUN   TestCommandBusyDoesNotStealUnrelatedFocus
+--- PASS: TestCommandBusyDoesNotStealUnrelatedFocus (0.08s)
+PASS
+ok  	floter/internal/settingsui	1.409s
