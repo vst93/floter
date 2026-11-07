@@ -40,3 +40,14 @@
 第二批相关 **185 PASS / 0 FAIL**，settingsui vet 退出 0；M2 回注旧成功捕获分支 **6 FAIL**，MD5 OK、touch 后复验通过。V/B/S 0/0/0。
 
 图像复核发现几何探针的边界不够严格：长未知动作的箭头被右侧裁掉；窗口 704 边界检查通过并不表示控件内部完整。后续补测内容盒与箭头位置，不把初始通过冒充已验证。
+
+第二批 bb77a68d 已推送。
+
+### 第三批
+
+5. 现象：B 本地冲突后，Add 成功录 Z（尚未 Bind）也抹掉 B 说明。改动：草稿成功捕获只清草稿拒绝。验证：深浅真实 Add/录键，Z 留草稿、三个保存绑定不变、B 警告保留；原串 `successful draft capture erased saved refusal`。
+6. 现象：草稿 Z 被系统拒绝，删除草稿后重新 Add 并录 Z，新草稿未经注册就继承旧“被占用”。改动：取消草稿时退役它本次的注册拒绝，保留其他键的拒绝。验证：深浅真实 Bind→删除→Add/录 Z，新草稿没有旧占用提示，仍能 Bind；原串 `new draft inherited canceled draft refusal`。
+
+另一个探针确实观察到“命令编辑回原文但未 Enter，外部更新仍被草稿覆盖”；这是仍持有未提交草稿的既有契约，自动认定 pristine 会改变草稿优先级，未修改、不计修复。原始输出保留 batch3-before。
+
+第三批相关 **191 PASS / 0 FAIL**，settingsui vet 净；M3 **6 FAIL**，MD5 OK、touch 后复验。另加真实 shell 宿主路径（实际注册器拒绝、写入成功列表、恢复注册），连同既有草稿拒绝恢复共 **9 PASS / 0 FAIL**，不以单独 fake setter 代替宿主验证。

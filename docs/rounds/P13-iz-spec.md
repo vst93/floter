@@ -24,3 +24,5 @@
 Mutation：M1 撤 Add/邻行录制的归属保护，事件 pin 应丢失原拒绝；M2 撤几何收缩/换行，邻控件或内容边界 pin 应红。每组红后 MD5 恢复、touch、-count=1 复验。
 
 Skill：已读 qiaomu-design、user-preferences、craft-loop、preflight、chinese-typography 与 Apple DESIGN。从 Apple 取单蓝交互角色、2px focus、8px 圆角三项，沿本仓 token。菜单 #3 焦点、#4 即时交接 0ms、#6 编辑细节、#12 既有 1px 受光边；不为凑数添加材质。失效/错位说明退场，焦点与控件各有归属，所以更轻且空间关系更清楚。
+
+探针收敛：原候选 5–8 的粗边界通过，不计修复。第 5 项改为 `custom.go:209` 草稿成功捕获误清保存行拒绝；第 6 项是 `custom.go:389` 的已复现草稿结束后旧拒绝重现。后续检查 `customActionPicker:442` 长未知动作裁箭头与 `selectvalue.go:142` 长选项 popup；只收束现有空间，不改 General 页既有控件列收缩契约。

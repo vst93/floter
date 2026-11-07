@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -204,7 +205,9 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 			a.customDuplicate, a.customDuplicateRow = accelerator, customDraftRow
 			return
 		}
-		a.customDuplicate, a.customDuplicateRow = "", customDraftRow
+		if a.customDuplicateRow == customDraftRow {
+			a.customDuplicate = ""
+		}
 		a.customKey = accelerator
 		return
 	}
@@ -397,6 +400,11 @@ func (a *App) cancelCustomDraft() {
 	if a.customRecordRow == customDraftRow {
 		a.customRecording = false
 	}
+	// A dismissed draft ends its registration attempt. Recreating a row
+	// with the same chord must not inherit that old attempt's refusal.
+	a.customRejections = slices.DeleteFunc(a.customRejections, func(rejection CustomShortcutRejection) bool {
+		return shortcuts.Equal(rejection.Key, a.customKey)
+	})
 	a.customKey, a.customCommand = "", ""
 	if a.customDuplicateRow == customDraftRow {
 		a.customDuplicate = ""
