@@ -72,7 +72,11 @@ func (a *App) exportIntegrations() {
 			return
 		}
 		path, err := a.saveFile("floter-integrations-" + time.Now().Format("2006-01-02") + ".json")
-		if err != nil || path == "" {
+		if err != nil {
+			a.transferFailed(err.Error())
+			return
+		}
+		if path == "" {
 			return // the user closed the dialog
 		}
 		data, err := document.Marshal()
@@ -101,7 +105,11 @@ func (a *App) importIntegrations() {
 		defer a.finishTransfer()
 		copy := a.SettingsCopy()
 		path, err := a.openFile()
-		if err != nil || path == "" {
+		if err != nil {
+			a.transferFailed(err.Error())
+			return
+		}
+		if path == "" {
 			return
 		}
 		data, err := os.ReadFile(path)

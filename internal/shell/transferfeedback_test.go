@@ -169,10 +169,10 @@ func checkTransferDialogFailure(t *testing.T, kind string) {
 }
 
 func TestConfigExportPickerFailureIsVisible(t *testing.T) { checkTransferDialogFailure(t, "config") }
-func probeIntegrationsExportPickerFailureIsVisible(t *testing.T) {
+func TestIntegrationsExportPickerFailureIsVisible(t *testing.T) {
 	checkTransferDialogFailure(t, "export")
 }
-func probeIntegrationsImportPickerFailureIsVisible(t *testing.T) {
+func TestIntegrationsImportPickerFailureIsVisible(t *testing.T) {
 	checkTransferDialogFailure(t, "import")
 }
 
