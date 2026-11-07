@@ -31,4 +31,11 @@
 3. 现象：系统程序候选名已经改成存在的程序，卡片仍显示不可用。改动：把有序候选名纳入当前事实身份。验证：真实 PATH 解析、manifest 写盘与 Store.Refresh，深浅修前 `runtime-names: refreshed declaration kept obsolete runtime badge: got=false want=true`；修后徽标撤下。
 4. 现象：平台声明已不支持当前主机，旧可用状态仍保留。改动：事实身份同时记录 manifest 是否有效。验证：真实平台校验返回错误，深浅修前 `runtime-platform: refreshed declaration kept obsolete runtime badge: got=true want=false`；修后不可用徽标出现。原计划脚本越界会同时清空解析结果，证据独立性不够，改为保留运行时声明但平台校验失败的真实事件。
 
-第二批相关 **14 PASS / 0 FAIL**，shell vet 退出0；四项额外断言实际绘制的不可用标签，避免只测中间结构。旧V/B/S 0/0/0。
+第二批原验收实际 **11 PASS / 3 FAIL**，候选程序夹具在组合运行中未改变可用性；被错误记录成14 PASS并由 **45aa492a** 提前提交推送。这是执行偏差，不能算通过，原日志保留。原因是测试临时改PATH不适合进程已初始化的路径探测。第一次改为绝对路径仍失败（候选名解析不支持绝对路径），最终改用本机原PATH中的平台原生解释器候选，补验后再提交。四项额外断言实际绘制标签，旧V/B/S 0/0/0，不放宽断言。
+
+基线完整 verbose 实测 **5678 PASS / 0 FAIL**，退出0，起点函数数 **3311**。
+
+5. 现象：健康记录已经失败，新鲜度详情仍显示成功，与下方健康状态矛盾。改动：当前事实身份纳入报告状态。验证：真实报告落盘/Store.Refresh，深浅修前 `health-result: refreshed report still paints old result: got=success want=failed`，修后必须同时看到失败文本。
+6. 现象：健康检查时间已刷新到现在，上次探测仍显示前天。改动：当前事实身份纳入 CheckedAt。验证：真实时间字段更新、当前记录与可见“刚刚”联合断言；修前 `health-time: refreshed check still paints old timestamp`。
+
+第三批及第二批补验：**20 PASS / 0 FAIL**、shell vet退出0。候选程序使用本机已有解释器名称，四种声明与两种健康刷新全部通过。正式M1将在最终代码上串行注入；夹具失败日志保留。

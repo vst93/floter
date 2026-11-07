@@ -71,7 +71,6 @@ func checkFactsIdentityRefresh(t *testing.T, scenario string) {
 				manifest.Runtime.Type = "script"
 			case "runtime-names":
 				entry.ExecutablePath = ""
-				t.Setenv("PATH", filepath.Dir(program))
 			}
 			writePackage(pkg)
 			writeRepo()
@@ -109,7 +108,10 @@ func checkFactsIdentityRefresh(t *testing.T, scenario string) {
 					manifest.Runtime.Language = "powershell"
 				}
 			case "runtime-names":
-				manifest.Runtime.ExecutableNames = []string{filepath.Base(program)}
+				manifest.Runtime.ExecutableNames = extensions.InterpreterNames("shell")
+				if runtime.GOOS == "windows" {
+					manifest.Runtime.ExecutableNames = extensions.InterpreterNames("powershell")
+				}
 			case "runtime-platform":
 				manifest.Platforms = []string{"windows"}
 				if runtime.GOOS == "windows" {
@@ -196,3 +198,8 @@ func TestFactsIdentityRuntimeNamesRefresh(t *testing.T) {
 func TestFactsIdentityRuntimePlatformRefresh(t *testing.T) {
 	checkFactsIdentityRefresh(t, "runtime-platform")
 }
+
+func TestFactsIdentityHealthResultRefresh(t *testing.T) {
+	checkFactsIdentityRefresh(t, "health-result")
+}
+func TestFactsIdentityHealthTimeRefresh(t *testing.T) { checkFactsIdentityRefresh(t, "health-time") }

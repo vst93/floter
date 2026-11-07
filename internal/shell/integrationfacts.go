@@ -102,6 +102,9 @@ func integrationFactKey(integration extensions.Integration) string {
 		key += "\x00name=" + strconv.Quote(name)
 	}
 	key += "\x00invalid=" + strconv.FormatBool(integration.ManifestErr != nil)
+	if report := integration.Entry.ProbeReport; report != nil {
+		key += "\x00health=" + strconv.Quote(report.Status) + "\x00checked=" + strconv.Quote(report.CheckedAt)
+	}
 	if integration.Entry.ApprovedAt != 0 {
 		key += "\x00" + strconv.FormatUint(integration.Entry.ApprovedAt, 10)
 	}
