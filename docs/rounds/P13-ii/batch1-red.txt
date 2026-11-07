@@ -1,0 +1,21 @@
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+    copylifecycle_test.go:59: old copy returned success into new editor
+    copylifecycle_test.go:63: ui: no element shows "复制命令"
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+    copylifecycle_test.go:59: old copy returned success into new editor
+    copylifecycle_test.go:63: ui: no element shows "复制命令"
+--- FAIL: TestCopyLifecycleNewEditorRejectsOldSuccess (0.37s)
+    --- FAIL: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.28s)
+    --- FAIL: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.08s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+    copylifecycle_test.go:89: unavailable content copy still accepts focus
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+    copylifecycle_test.go:89: unavailable content copy still accepts focus
+--- FAIL: TestCopyLifecycleUnavailableContentIsInert (0.23s)
+    --- FAIL: TestCopyLifecycleUnavailableContentIsInert/light (0.11s)
+    --- FAIL: TestCopyLifecycleUnavailableContentIsInert/dark (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	0.605s
+FAIL

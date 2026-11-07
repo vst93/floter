@@ -1,0 +1,37 @@
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index a4dfd526..9004ca46 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -5810,7 +5810,7 @@ func scriptExportName(id, command, language string) string {
+ // 现在胶囊的地板取两句里**更宽**的那一句（`MeasureText` 画的同一支画笔、同一档
+ // 字号与字重），确认语换上时盒子一个像素都不动。
+ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
+-	if a.copiedContent == action && a.copiedContentValue != value {
++	if a.Actions.CopyText == nil || (a.copiedContent == action && a.copiedContentValue != value) {
+ 		a.copiedContent, a.copiedContentValue = "", ""
+ 	}
+ 	if strings.TrimSpace(value) == "" {
+@@ -5821,13 +5821,23 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
+ 		c.After(a.copiedContentUntil.Sub(c.Now()))
+ 	}
+ 	floor := a.contentActionFloor(c, label, done)
++	if a.Actions.CopyText == nil {
++		a.disabledActionButton(c, label).MinWidth(floor)
++		return
++	}
+ 	if copied {
+ 		label = done
+ 	}
+ 	button := a.actionButton(c, label).MinWidth(floor)
+ 	if button.Clicked() {
+ 		if a.Actions.CopyText != nil {
++			form, open := a.toolFormKey, a.toolOpen
+ 			a.Actions.CopyText(value)
++			// A clipboard callback can open another tool before returning.
++			// Its success belongs to the form that supplied these bytes.
++			if a.toolFormKey != form || a.toolOpen != open || a.Actions.CopyText == nil {
++				return
++			}
+ 			a.copiedContent, a.copiedContentUntil = action, c.Now().Add(copiedContentDuration)
+ 			a.copiedContentValue = value
+ 		}

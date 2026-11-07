@@ -1,0 +1,79 @@
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.69s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.46s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.22s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.37s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.19s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.18s)
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool/light
+=== RUN   TestLocalDraftCopyConfirmationBelongsToTool/dark
+--- PASS: TestLocalDraftCopyConfirmationBelongsToTool (0.39s)
+    --- PASS: TestLocalDraftCopyConfirmationBelongsToTool/light (0.17s)
+    --- PASS: TestLocalDraftCopyConfirmationBelongsToTool/dark (0.22s)
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent/light
+=== RUN   TestLocalDraftCopyConfirmationMatchesCurrentContent/dark
+--- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent (0.31s)
+    --- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent/light (0.12s)
+    --- PASS: TestLocalDraftCopyConfirmationMatchesCurrentContent/dark (0.19s)
+=== RUN   TestLocalToolFormBuildsAScript
+--- PASS: TestLocalToolFormBuildsAScript (0.59s)
+=== RUN   TestLocalToolFormRefusesAnEmptyScript
+--- PASS: TestLocalToolFormRefusesAnEmptyScript (0.33s)
+=== RUN   TestToolCallbackPickerKeepsNewDraft
+=== RUN   TestToolCallbackPickerKeepsNewDraft/light
+=== RUN   TestToolCallbackPickerKeepsNewDraft/dark
+--- PASS: TestToolCallbackPickerKeepsNewDraft (0.29s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/light (0.15s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/dark (0.14s)
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/light
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/dark
+--- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty (0.26s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.13s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.14s)
+=== RUN   TestToolCallbackSaveKeepsNewEditor
+=== RUN   TestToolCallbackSaveKeepsNewEditor/light
+=== RUN   TestToolCallbackSaveKeepsNewEditor/dark
+--- PASS: TestToolCallbackSaveKeepsNewEditor (0.21s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/light (0.10s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/dark (0.10s)
+=== RUN   TestToolCallbackConnectKeepsNewEditor
+=== RUN   TestToolCallbackConnectKeepsNewEditor/light
+=== RUN   TestToolCallbackConnectKeepsNewEditor/dark
+--- PASS: TestToolCallbackConnectKeepsNewEditor (0.14s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/light (0.07s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/dark (0.07s)
+=== RUN   TestToolCallbackLookupKeepsNewEditor
+=== RUN   TestToolCallbackLookupKeepsNewEditor/light
+=== RUN   TestToolCallbackLookupKeepsNewEditor/dark
+--- PASS: TestToolCallbackLookupKeepsNewEditor (0.19s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/light (0.10s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/dark (0.09s)
+=== RUN   TestToolCallbackLookupRechecksEligibility
+=== RUN   TestToolCallbackLookupRechecksEligibility/light
+=== RUN   TestToolCallbackLookupRechecksEligibility/dark
+--- PASS: TestToolCallbackLookupRechecksEligibility (0.10s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/light (0.05s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/dark (0.05s)
+=== RUN   TestLocalToolFormCopiesItsContent
+--- PASS: TestLocalToolFormCopiesItsContent (0.22s)
+=== RUN   TestLocalToolFormCopiesTheScript
+    toolcontent_test.go:145: copied script = "#!/usr/bin/env node\n\n// Floter provider script\n// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n// Read them with process.argv.slice(2).\n// 编辑器里声明的参数会作为 argv 传入，可用 process.argv.slice(2) 读取。\n"
+--- PASS: TestLocalToolFormCopiesTheScript (0.21s)
+=== RUN   TestLocalToolFormExportsTheScript
+--- PASS: TestLocalToolFormExportsTheScript (0.20s)
+=== RUN   TestLocalToolFormNamesTheIntegrationBeingEdited
+--- PASS: TestLocalToolFormNamesTheIntegrationBeingEdited (0.14s)
+=== RUN   TestLocalToolForm
+--- PASS: TestLocalToolForm (0.31s)
+=== RUN   TestLocalToolFormNamesTheShapeRules
+--- PASS: TestLocalToolFormNamesTheShapeRules (0.38s)
+PASS
+ok  	floter/internal/settingsui	5.367s

@@ -1,0 +1,14 @@
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.25s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.17s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.08s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.12s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.06s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	0.368s
