@@ -1,0 +1,38 @@
+=== RUN   TestImportNegativeVersionRefusedBeforeWrite
+=== RUN   TestImportNegativeVersionRefusedBeforeWrite/light
+2026/11/08 00:58:07 floter: could not read /tmp/TestImportNegativeVersionRefusedBeforeWritelight1491978385/002/workspace.json: extensions: import version -1 is not supported
+=== RUN   TestImportNegativeVersionRefusedBeforeWrite/dark
+2026/11/08 00:58:08 floter: could not read /tmp/TestImportNegativeVersionRefusedBeforeWritedark3166317691/002/workspace.json: extensions: import version -1 is not supported
+--- PASS: TestImportNegativeVersionRefusedBeforeWrite (1.05s)
+    --- PASS: TestImportNegativeVersionRefusedBeforeWrite/light (0.67s)
+    --- PASS: TestImportNegativeVersionRefusedBeforeWrite/dark (0.37s)
+=== RUN   TestImportInvalidUTF8RefusedBeforeWrite
+=== RUN   TestImportInvalidUTF8RefusedBeforeWrite/light
+2026/11/08 00:58:08 floter: could not read /tmp/TestImportInvalidUTF8RefusedBeforeWritelight1868767947/002/workspace.json: extensions: import document contains invalid UTF-8
+=== RUN   TestImportInvalidUTF8RefusedBeforeWrite/dark
+2026/11/08 00:58:09 floter: could not read /tmp/TestImportInvalidUTF8RefusedBeforeWritedark2505531739/002/workspace.json: extensions: import document contains invalid UTF-8
+--- PASS: TestImportInvalidUTF8RefusedBeforeWrite (0.90s)
+    --- PASS: TestImportInvalidUTF8RefusedBeforeWrite/light (0.44s)
+    --- PASS: TestImportInvalidUTF8RefusedBeforeWrite/dark (0.46s)
+PASS
+ok  	floter/internal/shell	1.974s
+=== RUN   TestImportSyncInstallsAndConfigures
+--- PASS: TestImportSyncInstallsAndConfigures (0.69s)
+=== RUN   TestImportSyncReportsExcludedFields
+--- PASS: TestImportSyncReportsExcludedFields (0.71s)
+=== RUN   TestImportSyncMergesIntoAnInstalledIntegration
+--- PASS: TestImportSyncMergesIntoAnInstalledIntegration (0.27s)
+=== RUN   TestImportSyncSkipsWhatItCannotInstall
+--- PASS: TestImportSyncSkipsWhatItCannotInstall (0.00s)
+=== RUN   TestReadSyncRejectsBadDocuments
+--- PASS: TestReadSyncRejectsBadDocuments (0.02s)
+=== RUN   TestImportSyncAsksOnceAndRefusalInstallsNothing
+--- PASS: TestImportSyncAsksOnceAndRefusalInstallsNothing (0.31s)
+=== RUN   TestReadSyncKeepsSupportedVersionsAndUnicode
+=== RUN   TestReadSyncKeepsSupportedVersionsAndUnicode/1
+=== RUN   TestReadSyncKeepsSupportedVersionsAndUnicode/2
+--- PASS: TestReadSyncKeepsSupportedVersionsAndUnicode (0.00s)
+    --- PASS: TestReadSyncKeepsSupportedVersionsAndUnicode/1 (0.00s)
+    --- PASS: TestReadSyncKeepsSupportedVersionsAndUnicode/2 (0.00s)
+PASS
+ok  	floter/internal/extensions	2.010s

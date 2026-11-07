@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Export and import of the installed integrations: which ones are enabled and
@@ -255,11 +256,14 @@ func ReadSync(data []byte) (SyncDocument, error) {
 	if len(data) > maxSyncBytes {
 		return SyncDocument{}, fmt.Errorf("extensions: the import is larger than %d bytes", maxSyncBytes)
 	}
+	if !utf8.Valid(data) {
+		return SyncDocument{}, errors.New("extensions: import document contains invalid UTF-8")
+	}
 	var document SyncDocument
 	if err := json.Unmarshal(data, &document); err != nil {
 		return SyncDocument{}, fmt.Errorf("extensions: invalid import document: %w", err)
 	}
-	if document.Version == 0 || document.Version > SyncFormatVersion {
+	if document.Version < 1 || document.Version > SyncFormatVersion {
 		return SyncDocument{}, fmt.Errorf("extensions: import version %d is not supported", document.Version)
 	}
 	for _, entry := range document.Extensions {

@@ -30,3 +30,8 @@
 4. 现象：报告收到每个工具的排除字段数量，却只有名称可见。改动：警告行的详情提示展示逐工具数量；常驻正文保持原样。验证：原产品深浅均报 `excluded-fields notice hides per-integration field counts`；修后验证 2/5 两个数量、布局与退场。此提示只承载补充数量；警告本身一直可见。
 
 第二批相关 **21 PASS / 0 FAIL**，settingsui vet 净。首轮图像复核：浅色混合导入现在同时看得到成功计数和两种未生效原因；深色排除详情在原警告之上显示 2/5，报告原行不移动。工具提示沿用框架 600ms 和现有 E2 材质。完整失败列表是前三条正文的补充；未增加展开按钮或键盘步骤。
+
+5. 现象：version=-1 的真实 JSON 导入会写仓库、配置并报告成功。改动：版本范围从 `==0` 拒绝改为 `<1` 拒绝，v1/v2 保持兼容。验证：改前报 `invalid document changed repository` 与 `invalid document wrote configuration`；修后检查本地化错误标题、具体版本原因、无写入及修正文件可重试。
+6. 现象：配置字符串内的 0xff 被 JSON 解码替换，损坏值静默写入配置。改动：解析前拒绝非法 UTF-8 字节。验证：改前报 `invalid document wrote configuration`；修后验证具体原因、无写入、busy 释放和同入口恢复。合法中文与合法 U+FFFD 不误拒。
+
+第三批相关 **15 PASS / 0 FAIL**，extensions/shell vet 净；包括原 ImportSync 权限、合并、跳过、排除字段行为与 ReadSync 文档拒绝回归。

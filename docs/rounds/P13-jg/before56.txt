@@ -1,0 +1,29 @@
+=== RUN   TestImportNegativeVersionRefusedBeforeWrite
+=== RUN   TestImportNegativeVersionRefusedBeforeWrite/light
+    transfervalidation_test.go:36: invalid import lacks visible refusal: extensions: import version -1 is not supported
+    transfervalidation_test.go:39: invalid document accepted or busy retained: &{Path:/tmp/TestImportNegativeVersionRefusedBeforeWritelight1007458654/002/workspace.json Succeeded:1 Skipped:0 Failed:[] SkippedDetails:[] ExcludedFields:[]}
+    transfervalidation_test.go:43: invalid document changed repository
+    transfervalidation_test.go:46: invalid document wrote configuration
+=== RUN   TestImportNegativeVersionRefusedBeforeWrite/dark
+    transfervalidation_test.go:36: invalid import lacks visible refusal: extensions: import version -1 is not supported
+    transfervalidation_test.go:39: invalid document accepted or busy retained: &{Path:/tmp/TestImportNegativeVersionRefusedBeforeWritedark701383879/002/workspace.json Succeeded:1 Skipped:0 Failed:[] SkippedDetails:[] ExcludedFields:[]}
+    transfervalidation_test.go:43: invalid document changed repository
+    transfervalidation_test.go:46: invalid document wrote configuration
+--- FAIL: TestImportNegativeVersionRefusedBeforeWrite (0.50s)
+    --- FAIL: TestImportNegativeVersionRefusedBeforeWrite/light (0.31s)
+    --- FAIL: TestImportNegativeVersionRefusedBeforeWrite/dark (0.19s)
+=== RUN   TestImportInvalidUTF8RefusedBeforeWrite
+=== RUN   TestImportInvalidUTF8RefusedBeforeWrite/light
+    transfervalidation_test.go:36: invalid import lacks visible refusal: extensions: import document contains invalid UTF-8
+    transfervalidation_test.go:39: invalid document accepted or busy retained: &{Path:/tmp/TestImportInvalidUTF8RefusedBeforeWritelight1915355388/002/workspace.json Succeeded:1 Skipped:0 Failed:[] SkippedDetails:[] ExcludedFields:[]}
+    transfervalidation_test.go:46: invalid document wrote configuration
+=== RUN   TestImportInvalidUTF8RefusedBeforeWrite/dark
+    transfervalidation_test.go:36: invalid import lacks visible refusal: extensions: import document contains invalid UTF-8
+    transfervalidation_test.go:39: invalid document accepted or busy retained: &{Path:/tmp/TestImportInvalidUTF8RefusedBeforeWritedark3733873755/002/workspace.json Succeeded:1 Skipped:0 Failed:[] SkippedDetails:[] ExcludedFields:[]}
+    transfervalidation_test.go:46: invalid document wrote configuration
+--- FAIL: TestImportInvalidUTF8RefusedBeforeWrite (0.43s)
+    --- FAIL: TestImportInvalidUTF8RefusedBeforeWrite/light (0.21s)
+    --- FAIL: TestImportInvalidUTF8RefusedBeforeWrite/dark (0.21s)
+FAIL
+FAIL	floter/internal/shell	0.943s
+FAIL
