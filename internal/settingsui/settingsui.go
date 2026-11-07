@@ -4320,7 +4320,7 @@ func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()
 		button.Background(tokens.ControlPress)
 	}
 	button.Children(func() {
-		ui.Text(c, label).Font(deepLinkValueFont).FontSize(t.FontSize).TextColor(ink)
+		ui.Text(c, label).Font(deepLinkValueFont).FontSize(t.FontSize).TextColor(ink).SingleLine().Shrink(1).MinWidth(0)
 	})
 	if button.Clicked() {
 		clicked()

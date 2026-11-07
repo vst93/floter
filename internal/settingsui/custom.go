@@ -216,8 +216,7 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 		return
 	}
 	a.customDuplicate = ""
-	// Recording the same chord is not a new binding. Preserve its unfinished
-	// command even if the recorder canonicalizes the chord's spelling.
+	// Recording changes this row's chord, not the command being edited.
 	oldKey := entries[a.customRecordRow].Key
 	entries[a.customRecordRow] = settings.CustomShortcut{
 		Key:    accelerator,
@@ -229,9 +228,7 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 	}
 	if text, ok := a.customEdits[oldKey]; ok {
 		delete(a.customEdits, oldKey)
-		if shortcuts.Equal(oldKey, accelerator) {
-			a.customEdits[accelerator] = text
-		}
+		a.customEdits[accelerator] = text
 	}
 	a.customFocusKey = accelerator
 }
