@@ -4235,6 +4235,7 @@ func (a *App) Hide() {
 	// A hidden window stops drawing, so the debounce's frame-driven deadline
 	// would never arrive: write the pending value before it goes.
 	if a.Settings != nil {
+		a.Settings.StopShortcutRecording()
 		a.Settings.Flush()
 	}
 	// The terminal's drawer rides its own window, with the same reason.

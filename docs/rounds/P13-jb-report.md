@@ -34,3 +34,14 @@ done.log 开盘不存在，收尾创建，不伪造上轮记录。八项结果�
 4. **自定义录制关闭设置**：现象 → 自定义命令行改键期间关闭，已保存键没有恢复、返回抢焦点。改动 → 相同宿主出口释放自定义捕获归属。验证 → 原 Ctrl+Shift+B/say original 保持，say unfinished 回来可编辑提交，原召回与自定义注册都存在。
 
 相关回归 280 PASS / 0 FAIL，包 vet 净。M2 回注缺少 Open 退出处理的旧分支，实红 `invisible recorder still suspends global shortcuts`、`exit did not restore the summon and custom registrations`、`reopen resurrected the old recording`；MD5 还原、touch 后 6 PASS / 0 FAIL。既有 V/B/S 0/0/0。
+
+第二批 1e2f5bc6 已推送。
+
+## 第三批：隐藏前恢复全局键
+
+5. **内置录制隐藏窗口**：现象 → Hide 已执行但召回键仍未注册，用户不能再用它打开窗口。改动 → Hide 在停止绘制前即时结束捕获并恢复注册。验证 → 调用真实 Hide 出口、注入窗口隐藏钩子且只调用一次；深浅下原两键立即注册，重开没有录制提示，草稿不变。
+6. **自定义录制隐藏窗口**：现象 → 行改键过程中隐藏，同样释放了全局键却没有恢复。改动 → Hide 对两类捕获统一退役。验证 → 保存行未改键/改命令，未 Enter 文本仍在，重开可提交；没有新会话或原命令重跑。
+
+相关回归 286 PASS / 0 FAIL，包 vet 净。M3 回注旧 Hide，实红 `invisible recorder still suspends global shortcuts`、`exit did not restore the summon and custom registrations`、`reopen resurrected the old recording`；MD5 还原、touch 后 6 PASS / 0 FAIL。既有 V/B/S 0/0/0。隐藏的原生窗口调用由钩子计数验证，没有冒充原生桌面真机。
+
+第一轮目视：浅色自定义关闭对照中，旧的蓝色 Press keys… 已换回 Ctrl+Shift+B；右侧 say unfinished 保持完整。没有增加玻璃层或提示占高。
