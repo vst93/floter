@@ -284,6 +284,11 @@ func TestImportTemplateFailureReportsCommittedState(t *testing.T) {
 }
 func TestIntegrationExportRetryRetiresResolvedError(t *testing.T) { checkTransferRecovery(t, "export") }
 
+func TestConfigurationCopyRetryRetiresResolvedError(t *testing.T) { checkTransferRecovery(t, "copy") }
+func TestConfigurationExportRetryRetiresResolvedError(t *testing.T) {
+	checkTransferRecovery(t, "config-export")
+}
+
 func TestResolvedNoticeKeepsAnotherOperationsError(t *testing.T) {
 	for _, pending := range []bool{false, true} {
 		for _, replacement := range []string{"external", "another-operation"} {

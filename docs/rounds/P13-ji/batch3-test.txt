@@ -1,0 +1,56 @@
+=== RUN   TestConfigurationExportWritesTheRedactedDocument
+--- PASS: TestConfigurationExportWritesTheRedactedDocument (0.08s)
+=== RUN   TestConfigCopyWaitsForClipboardDelivery
+--- PASS: TestConfigCopyWaitsForClipboardDelivery (0.03s)
+=== RUN   TestConfigCopyReportsValidationCause
+=== RUN   TestConfigCopyReportsValidationCause/light
+2026/11/08 02:07:25 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigCopyReportsValidationCause/dark
+2026/11/08 02:07:25 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigCopyReportsValidationCause (0.54s)
+    --- PASS: TestConfigCopyReportsValidationCause/light (0.27s)
+    --- PASS: TestConfigCopyReportsValidationCause/dark (0.28s)
+=== RUN   TestConfigExportReportsValidationCause
+=== RUN   TestConfigExportReportsValidationCause/light
+2026/11/08 02:07:25 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigExportReportsValidationCause/dark
+2026/11/08 02:07:26 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigExportReportsValidationCause (0.55s)
+    --- PASS: TestConfigExportReportsValidationCause/light (0.28s)
+    --- PASS: TestConfigExportReportsValidationCause/dark (0.27s)
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/light
+2026/11/08 02:07:26 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/dark
+2026/11/08 02:07:26 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationCopyRetryRetiresResolvedError (0.34s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/light (0.18s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/dark (0.15s)
+=== RUN   TestConfigurationExportRetryRetiresResolvedError
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/light
+2026/11/08 02:07:26 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/dark
+2026/11/08 02:07:26 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigurationExportRetryRetiresResolvedError (0.29s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/light (0.14s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/dark (0.15s)
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/external/painted
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/another-operation/painted
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/external/queued
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/another-operation/queued
+--- PASS: TestResolvedNoticeKeepsAnotherOperationsError (0.36s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/external/painted (0.09s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/another-operation/painted (0.09s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/external/queued (0.09s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/another-operation/queued (0.10s)
+=== RUN   TestConfigExportWriteCause
+=== RUN   TestConfigExportWriteCause/light
+2026/11/08 02:07:27 floter: could not write /tmp/TestConfigExportWriteCauselight487298976/001: open /tmp/TestConfigExportWriteCauselight487298976/001: is a directory
+=== RUN   TestConfigExportWriteCause/dark
+2026/11/08 02:07:27 floter: could not write /tmp/TestConfigExportWriteCausedark334731712/001: open /tmp/TestConfigExportWriteCausedark334731712/001: is a directory
+--- PASS: TestConfigExportWriteCause (0.55s)
+    --- PASS: TestConfigExportWriteCause/light (0.28s)
+    --- PASS: TestConfigExportWriteCause/dark (0.26s)
+PASS
+ok  	floter/internal/shell	2.770s

@@ -339,6 +339,7 @@ func (a *App) configurationForAction(id string) (*extensions.Configuration, erro
 // still redacts correctly, and the clipboard write is the one place a secret
 // could leak: the redaction is what stops it.
 func (a *App) copyConfiguration(id string, values map[string]any, done func(error)) {
+	owner := "configuration-copy:" + id
 	finish := func(err error) {
 		if done != nil {
 			a.onMain(func() { done(err) })
@@ -346,7 +347,7 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 	}
 	configuration, err := a.configurationForAction(id)
 	if err != nil {
-		a.queueNotice(err.Error(), refusalNotice)
+		a.transferFailedFor(owner, err.Error(), nil)
 		finish(err)
 		return
 	}
@@ -354,7 +355,7 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 		configuration.Schema, values)
 	if err != nil {
 		log.Printf("floter: could not build the configuration copy for %s: %v", id, err)
-		a.queueNotice(err.Error(), refusalNotice)
+		a.transferFailedFor(owner, err.Error(), nil)
 		finish(err)
 		return
 	}
@@ -365,6 +366,7 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 	text := string(document)
 	go func() {
 		a.writeClipboard(ClipboardPayload{Kind: clipboard.KindText, Text: text})
+		a.resolveNotice(owner)
 		a.transferSucceeded(a.SettingsCopy().ConfigCopied)
 		finish(nil)
 	}()
@@ -380,6 +382,7 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 // dialog or a failed document is silent-or-noticed the same way the
 // integrations export is.
 func (a *App) exportConfiguration(id string, values map[string]any, done func(error)) {
+	owner := "configuration-export:" + id
 	finish := func(err error) {
 		if done != nil {
 			a.onMain(func() { done(err) })
@@ -387,7 +390,7 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 	}
 	configuration, err := a.configurationForAction(id)
 	if err != nil {
-		a.queueNotice(err.Error(), refusalNotice)
+		a.transferFailedFor(owner, err.Error(), nil)
 		finish(err)
 		return
 	}
@@ -395,7 +398,7 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 		configuration.Schema, values)
 	if err != nil {
 		log.Printf("floter: could not build the configuration export for %s: %v", id, err)
-		a.queueNotice(err.Error(), refusalNotice)
+		a.transferFailedFor(owner, err.Error(), nil)
 		finish(err)
 		return
 	}
@@ -405,7 +408,7 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 			// A picker failure is distinct from the empty, successful result
 			// returned when the user cancels it.
 			log.Printf("floter: could not pick a path for the configuration export of %s: %v", id, err)
-			a.queueNotice(err.Error(), refusalNotice)
+			a.transferFailedFor(owner, err.Error(), nil)
 			finish(err)
 			return
 		}
@@ -415,10 +418,11 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 		}
 		if err := os.WriteFile(path, document, 0o600); err != nil {
 			log.Printf("floter: could not write %s: %v", path, err)
-			a.queueNotice(err.Error(), refusalNotice)
+			a.transferFailedFor(owner, err.Error(), nil)
 			finish(err)
 			return
 		}
+		a.resolveNotice(owner)
 		a.transferSucceeded(a.SettingsCopy().ConfigExported)
 		finish(nil)
 	}()

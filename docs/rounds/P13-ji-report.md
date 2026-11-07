@@ -36,3 +36,10 @@
 4. 现象：集成备份因仓库损坏而失败，修好后导出成功仍和旧错误同时浮在页面。改动：通用错误槽记录操作归属，导出成功只退役本入口的旧错；成功原 ID 和时长保留。验证：深浅真实 Click、文件确实写出、旧错误消失；原始红 `successful export retry retains its resolved error`。另验已绘制/排队中的外部错误及其他操作错误均不被清除。
 
 第二批定向 **27 PASS / 0 FAIL**，extensions/shell vet 净。V/B/S 0/0/0；没有改变旧断言。
+
+第二批 **9be9b5db** 已提交推送。
+
+5. 现象：配置复制遇到损坏文本失败，修正后剪贴板已有正确文档，但旧错还在。改动：复制操作按动作+集成 ID 登记错误，实际剪贴板交付后退役。验证：深浅宿主 Actions 与 ui.Tester 通知事件，原始红 `successful copy retry retains its resolved error`；剪贴板含修正 endpoint 且无原密码，旧错误消失、成功可见，旧延迟交付测试通过。
+6. 现象：配置导出选择器失败后恢复，文件已写出却同时显示旧错误。改动：同样按导出动作+集成 ID 退役，仅发生在成功写入后，取消不算恢复。验证：深浅选择器失败→成功写盘，原始红 `successful config-export retry retains its resolved error`；旧错消失、新结果可见，原验证失败与磁盘错误回归通过。
+
+第三批定向 **22 PASS / 0 FAIL**，shell vet 净。V/B/S 0/0/0。
