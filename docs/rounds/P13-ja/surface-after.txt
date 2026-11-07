@@ -1,0 +1,8 @@
+=== RUN   TestQueuedRemovedActionKeepsSettingsSurface
+=== RUN   TestQueuedRemovedActionKeepsSettingsSurface/light
+=== RUN   TestQueuedRemovedActionKeepsSettingsSurface/dark
+--- PASS: TestQueuedRemovedActionKeepsSettingsSurface (0.58s)
+    --- PASS: TestQueuedRemovedActionKeepsSettingsSurface/light (0.27s)
+    --- PASS: TestQueuedRemovedActionKeepsSettingsSurface/dark (0.31s)
+PASS
+ok  	floter/internal/shell	0.592s

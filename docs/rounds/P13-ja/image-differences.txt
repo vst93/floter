@@ -1,0 +1,16 @@
+floter-P13-ja-custom-removed-dark-before: 0 changed pixels; bounds=None
+floter-P13-ja-custom-removed-light-before: 0 changed pixels; bounds=None
+floter-P13-ja-custom-replaced-dark-before: 0 changed pixels; bounds=None
+floter-P13-ja-custom-replaced-light-before: 0 changed pixels; bounds=None
+floter-P13-ja-removed-action-surface-dark-before: 1056000 changed pixels; bounds=(0, 0, 960, 1100)
+floter-P13-ja-removed-action-surface-light-before: 594812 changed pixels; bounds=(0, 0, 960, 1100)
+floter-P13-ja-summon-external-dark-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-external-light-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-recording-dark-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-recording-light-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-replaced-dark-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-replaced-light-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-reset-dark-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-reset-light-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-resumed-dark-before: 0 changed pixels; bounds=None
+floter-P13-ja-summon-resumed-light-before: 0 changed pixels; bounds=None

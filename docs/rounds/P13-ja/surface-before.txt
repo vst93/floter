@@ -1,0 +1,11 @@
+=== RUN   TestQueuedRemovedActionKeepsSettingsSurface
+=== RUN   TestQueuedRemovedActionKeepsSettingsSurface/light
+    shortcutqueued_test.go:284: retired action stole settings surface
+=== RUN   TestQueuedRemovedActionKeepsSettingsSurface/dark
+    shortcutqueued_test.go:284: retired action stole settings surface
+--- FAIL: TestQueuedRemovedActionKeepsSettingsSurface (0.62s)
+    --- FAIL: TestQueuedRemovedActionKeepsSettingsSurface/light (0.36s)
+    --- FAIL: TestQueuedRemovedActionKeepsSettingsSurface/dark (0.26s)
+FAIL
+FAIL	floter/internal/shell	0.634s
+FAIL

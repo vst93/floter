@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"floter/internal/i18n"
+	"floter/internal/launcher"
 	"floter/internal/settings"
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -248,6 +249,40 @@ func TestQueuedSummonResumedKeyCannotReplayOldPress(t *testing.T) {
 			queuedSummon(t, h.app, old, false)
 			queuedSummon(t, h.app, h.live["Ctrl+Alt+J"], true)
 			queuedDump(t, tt, "summon-resumed", dark)
+		})
+	}
+}
+
+func TestQueuedRemovedActionKeepsSettingsSurface(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			h := newShortcutLifecycle(t, "Ctrl+Alt+J")
+			h.app.setCustomShortcuts([]settings.CustomShortcut{{Key: "Ctrl+Shift+B", Action: "action:new_command"}})
+			old := h.live["Ctrl+Shift+B"]
+			h.app.Surf = SurfaceSettings
+			h.app.showWindow = func() {}
+			tt := ui.NewTester(func(c *ui.Context) {
+				palette := launcher.Resolve(h.app.Store.Snapshot(), c.Theme().Dark, c.Preferences())
+				c.SetTheme(palette.Tokens.Theme)
+				c.Root().Background(palette.Tokens.Theme.Background)
+				if h.app.Surf == SurfaceSettings {
+					h.app.Settings.View(c)
+				} else {
+					h.app.Launcher.View(c)
+				}
+			}, 960, 1100)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			tt.Frame()
+			editingClick(t, tt, i18n.For("en").Settings.ShortcutsRemove)
+			old()
+			tt.Frame()
+			tt.Frame()
+			queuedDump(t, tt, "removed-action-surface", dark)
+			if h.app.Surf != SurfaceSettings {
+				t.Error("retired action stole settings surface")
+			}
 		})
 	}
 }

@@ -1,0 +1,21 @@
+baseline HEAD=8df8ec68
+baseline locale=zh_CN.UTF-8 GOMAXPROCS=4
+baseline verbose exit=0 PASS=5301 FAIL=0 functions=3192
+final ordinary go test -count=1 ./... exit=0
+final verbose go test -count=1 -v ./... exit=0 PASS=5328 FAIL=0 functions=3203
+gofmt -l cmd internal: 0 lines
+GOOS=linux go vet ./... exit=0
+GOOS=windows go vet ./... exit=0
+GOOS=darwin go vet ./... exit=0
+GOOS=linux go build ./... exit=0
+GOOS=windows go build ./... exit=0
+GOOS=darwin go build ./... exit=0
+go test -count=1 ./internal/ci exit=0
+M1 mutation exit=1; MD5 OK; touch; restored PASS=6
+M2 mutation exit=1; MD5 OK; touch; restored PASS=4
+M3 mutation exit=1; MD5 OK; touch; restored PASS=7
+M4 mutation exit=1; MD5 OK; touch; restored PASS=6
+surface old implementation exit=1; MD5 OK; touch; restored PASS=3
+existing V/B/S assertion changes=0/0/0
+added skips=0
+evidence scope=injected extracted callbacks; native desktop timing not reproduced
