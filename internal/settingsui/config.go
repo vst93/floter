@@ -392,7 +392,7 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	dirty := a.configDirty(integration, draft)
-	busy := a.configOperations[integration.ID] != ""
+	busy := a.configOperationNow(integration.ID) != ""
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
 		status := copy.ConfigSavedState
 		ink := tokens.TextTertiary
@@ -455,10 +455,12 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 // it until `finally` (`ExtensionsPanel.tsx:2019-2048`), which is what holds the
 // two icon-buttons disabled for as long as the work runs.
 func (a *App) startConfigOperation(id, operation string, run func(done func(error))) {
+	a.configOperationMu.Lock()
 	if a.configOperations == nil {
 		a.configOperations = map[string]string{}
 	}
 	a.configOperations[id] = operation
+	a.configOperationMu.Unlock()
 	run(func(error) { a.finishConfigOperation(id) })
 }
 
@@ -466,9 +468,11 @@ func (a *App) startConfigOperation(id, operation string, run func(done func(erro
 // buttons' disabled face is gone with it, exactly as the reference's `finally`
 // did.
 func (a *App) finishConfigOperation(id string) {
+	a.configOperationMu.Lock()
 	if a.configOperations != nil {
 		delete(a.configOperations, id)
 	}
+	a.configOperationMu.Unlock()
 	if a.Actions.Invalidate != nil {
 		a.Actions.Invalidate()
 	}
@@ -476,7 +480,11 @@ func (a *App) finishConfigOperation(id string) {
 
 // configOperationNow reports whether an integration has a copy or export in
 // flight, for the shell's own hand-off and the tests.
-func (a *App) configOperationNow(id string) string { return a.configOperations[id] }
+func (a *App) configOperationNow(id string) string {
+	a.configOperationMu.RLock()
+	defer a.configOperationMu.RUnlock()
+	return a.configOperations[id]
+}
 
 // noticeLine draws one `.extensions-notice` sentence on the form's own column:
 // the framework's warning mark then the words, the pane and the warning keyline
@@ -509,7 +517,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		// Defaults, `disabled={Boolean(busy) || !configDirty}` on the Save),
 		// where `busy` is one per-integration item held for every mutation of
 		// that row (`ExtensionsPanel.tsx:3016,3019`).
-		busy := a.configLocked(integration.ID) || a.configOperations[integration.ID] != "" || a.configSaveBusy[integration.ID]
+		busy := a.configLocked(integration.ID) || a.configOperationNow(integration.ID) != "" || a.configSaveBusy[integration.ID]
 		// P13-s（§6.2b-6）：`busy` 不再用组透明度：它只传给面，面走 `ControlDim`
 		// 并熄灯，字自己淡到 40%。
 		defaults := a.extensionGlyphActionButton(c, "rotate-ccw", copy.ConfigDefaults,

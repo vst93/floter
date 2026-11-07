@@ -947,9 +947,10 @@ type App struct {
 	// `ExtensionsPanel.tsx:2994,2997`) — a copy and an export cannot run at
 	// once — while `busy.kind === "save"` swapped the Save's own word
 	// (`ExtensionsPanel.tsx:3020`: `t("settings.extensions.saving")`).
-	configOperations map[string]string
-	configSaveBusy   map[string]bool
-	configDiscard    map[string]bool
+	configOperationMu sync.RWMutex
+	configOperations  map[string]string
+	configSaveBusy    map[string]bool
+	configDiscard     map[string]bool
 	// configDiscardAt is when each fold-away question was asked: the reference
 	// armed it with `useTimedReset(detailsDiscardArmed, …)` and its 3000 ms
 	// default (`ExtensionsPanel.tsx:866,2056-2060`), so an ask left unanswered
@@ -3003,7 +3004,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			fieldFocus := a.noticeFocus(c, integration.ID, "field")
 			a.restoreNotice(c, integration.ID, "field", c.Resolve(fieldFocus.panel).Valid(), c.Resolve(opener))
 			transfer := c.Resolve(a.noticeFocus(c, integration.ID, "transfer").panel)
-			a.restoreNotice(c, integration.ID, "transfer", a.configOperations[integration.ID] != "" || transfer.Valid() && !transfer.IsDisabled(), c.Resolve(opener))
+			a.restoreNotice(c, integration.ID, "transfer", a.configOperationNow(integration.ID) != "" || transfer.Valid() && !transfer.IsDisabled(), c.Resolve(opener))
 			discardOpener = c.Resolve(opener)
 		} else if configOwnerIsTool(integration) && !integration.Orphan {
 			// A tool-owned configuration has no host form: the reference drew an

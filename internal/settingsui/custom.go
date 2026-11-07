@@ -24,6 +24,8 @@ import (
 
 // customSection draws the list, the row being made and the empty region.
 func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
+	menuFocus := ui.Local(c.Root(), customMenuFocusKey{a}, func() ui.Handle { return ui.Handle{} })
+	*menuFocus = ui.Handle{}
 	entries := a.customShortcuts()
 	for key, focus := range a.customFocusRows(c) {
 		if customBindingIndex(entries, key) < 0 {
@@ -113,6 +115,9 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 				}
 			})
 		})
+	// Every row has now built its recorder. An upper row's menu must still
+	// take precedence over a recorder drawn later in a lower row or draft.
+	menuFocus.Focus(c)
 }
 
 // customCapturePane is the armed recorder the custom-shortcuts row draws while
@@ -284,7 +289,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 		picker := a.customActionPicker(c, copy, action, func(next string) {
 			a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: next})
 		}).Bind(&focus.picker)
-		focusOpenCustomPicker(picker)
+		a.focusOpenCustomPicker(c, picker)
 		if !commandLine && focus.command.Focused(c) {
 			picker.Focus()
 		}
@@ -350,7 +355,7 @@ func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 		picker := a.customActionPicker(c, copy, a.customAction, func(action string) {
 			a.customAction = action
 		})
-		focusOpenCustomPicker(picker)
+		a.focusOpenCustomPicker(c, picker)
 		if a.customAction == commandAction {
 			command := a.customCommand
 			field := a.textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
@@ -420,12 +425,14 @@ const commandAction = "command"
 // customDraftRow names the row being made, where a row index is expected.
 const customDraftRow = -1
 
-// An armed recorder takes focus every frame. Its row's open menu is above
-// that recorder and must receive navigation and Escape until it closes.
-func focusOpenCustomPicker(picker ui.Element) {
+type customMenuFocusKey struct{ app *App }
+
+// Remember the active menu in this rendered view; the section hands it focus
+// after all recorders, including those in later rows, have been built.
+func (a *App) focusOpenCustomPicker(c *ui.Context, picker ui.Element) {
 	state := ui.Local(picker, "floter.highlight", func() selectHighlight[string] { return selectHighlight[string]{} })
 	if state.open {
-		picker.Focus()
+		picker.Bind(ui.Local(c.Root(), customMenuFocusKey{a}, func() ui.Handle { return ui.Handle{} }))
 	}
 }
 
