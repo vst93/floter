@@ -8017,6 +8017,8 @@ func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) strin
 		return copy.ParamNeedsFlag
 	case extensions.ParamIssueBadFlag:
 		return copy.ParamInvalidFlag
+	case extensions.ParamIssueDefault:
+		return copy.RunParamInvalid(copy.ParamsDefault)
 	}
 	return ""
 }

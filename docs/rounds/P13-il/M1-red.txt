@@ -1,0 +1,27 @@
+=== RUN   TestDeclarationRefreshNumberDefault
+=== RUN   TestDeclarationRefreshNumberDefault/light
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not a number: invalid
+    paramvalidationrefresh_test.go:60: invalid number default dispatched 1 saves, open=false
+=== RUN   TestDeclarationRefreshNumberDefault/dark
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not a number: invalid
+    paramvalidationrefresh_test.go:60: invalid number default dispatched 1 saves, open=false
+--- FAIL: TestDeclarationRefreshNumberDefault (0.20s)
+    --- FAIL: TestDeclarationRefreshNumberDefault/light (0.17s)
+    --- FAIL: TestDeclarationRefreshNumberDefault/dark (0.03s)
+=== RUN   TestDeclarationRefreshBooleanDefault
+=== RUN   TestDeclarationRefreshBooleanDefault/light
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not a boolean: invalid
+    paramvalidationrefresh_test.go:60: invalid boolean default dispatched 1 saves, open=false
+=== RUN   TestDeclarationRefreshBooleanDefault/dark
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not a boolean: invalid
+    paramvalidationrefresh_test.go:60: invalid boolean default dispatched 1 saves, open=false
+--- FAIL: TestDeclarationRefreshBooleanDefault (0.05s)
+    --- FAIL: TestDeclarationRefreshBooleanDefault/light (0.03s)
+    --- FAIL: TestDeclarationRefreshBooleanDefault/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.258s
+FAIL

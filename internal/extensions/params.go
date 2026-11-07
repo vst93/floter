@@ -251,6 +251,8 @@ const (
 	ParamIssueFlag ParamRowIssue = "flag"
 	// ParamIssueBadFlag is a flag that is not one argv token.
 	ParamIssueBadFlag ParamRowIssue = "badflag"
+	// ParamIssueDefault is a default the declared kind cannot accept.
+	ParamIssueDefault ParamRowIssue = "default"
 )
 
 // ParamRowIssues is what a parameter row still needs, by its position in the
@@ -288,6 +290,10 @@ func ParamRowIssues(params []ParamDefinition) map[int]ParamRowIssue {
 			issues[i] = ParamIssueFlag
 		case flag != "" && validateParamFlag(flag) != nil:
 			issues[i] = ParamIssueBadFlag
+		case param.Default != "" && param.Kind == ParamNumber && !IsFiniteDecimal(param.Default):
+			issues[i] = ParamIssueDefault
+		case param.Default != "" && param.Kind == ParamBoolean && param.Default != "true" && param.Default != "false":
+			issues[i] = ParamIssueDefault
 		}
 	}
 	return issues

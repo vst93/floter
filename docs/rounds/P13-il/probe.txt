@@ -1,0 +1,79 @@
+=== RUN   TestDeclarationRefreshNumberDefault
+=== RUN   TestDeclarationRefreshNumberDefault/light
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not a number: invalid
+    paramvalidationrefresh_test.go:60: invalid number default dispatched 1 saves, open=false
+=== RUN   TestDeclarationRefreshNumberDefault/dark
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not a number: invalid
+    paramvalidationrefresh_test.go:60: invalid number default dispatched 1 saves, open=false
+--- FAIL: TestDeclarationRefreshNumberDefault (0.50s)
+    --- FAIL: TestDeclarationRefreshNumberDefault/light (0.36s)
+    --- FAIL: TestDeclarationRefreshNumberDefault/dark (0.15s)
+=== RUN   TestDeclarationRefreshBooleanDefault
+=== RUN   TestDeclarationRefreshBooleanDefault/light
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not a boolean: invalid
+    paramvalidationrefresh_test.go:60: invalid boolean default dispatched 1 saves, open=false
+=== RUN   TestDeclarationRefreshBooleanDefault/dark
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not a boolean: invalid
+    paramvalidationrefresh_test.go:60: invalid boolean default dispatched 1 saves, open=false
+--- FAIL: TestDeclarationRefreshBooleanDefault (0.28s)
+    --- FAIL: TestDeclarationRefreshBooleanDefault/light (0.15s)
+    --- FAIL: TestDeclarationRefreshBooleanDefault/dark (0.13s)
+=== RUN   TestDeclarationRefreshSelectDefault
+=== RUN   TestDeclarationRefreshSelectDefault/light
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:56: ui: "保存" is at (349, 1102.7), outside the window
+=== RUN   TestDeclarationRefreshSelectDefault/dark
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:56: ui: "保存" is at (349, 1102.7), outside the window
+--- FAIL: TestDeclarationRefreshSelectDefault (0.20s)
+    --- FAIL: TestDeclarationRefreshSelectDefault/light (0.10s)
+    --- FAIL: TestDeclarationRefreshSelectDefault/dark (0.10s)
+=== RUN   TestDeclarationRefreshPlaceholderExit
+=== RUN   TestDeclarationRefreshPlaceholderExit/light
+    paramvalidationrefresh_test.go:112: hidden placeholder lost kind focus
+    paramvalidationrefresh_test.go:119: placeholder keyboard recovery failed: {key:0x2eac1fd60010 ID:target Label: Kind:boolean Placeholder:记住此提示 Default: Flag:--target Required:false Options:}
+=== RUN   TestDeclarationRefreshPlaceholderExit/dark
+    paramvalidationrefresh_test.go:112: hidden placeholder lost kind focus
+    paramvalidationrefresh_test.go:119: placeholder keyboard recovery failed: {key:0x2eac1fd6c010 ID:target Label: Kind:boolean Placeholder:记住此提示 Default: Flag:--target Required:false Options:}
+--- FAIL: TestDeclarationRefreshPlaceholderExit (0.13s)
+    --- FAIL: TestDeclarationRefreshPlaceholderExit/light (0.06s)
+    --- FAIL: TestDeclarationRefreshPlaceholderExit/dark (0.07s)
+=== RUN   TestRunDefaultRefreshKnownLater
+=== RUN   TestRunDefaultRefreshKnownLater/light
+    rundefaultrefresh_test.go:72: known-later retained obsolete default refusal: staleFrames=0 error="目标 不是该参数的有效值"
+=== RUN   TestRunDefaultRefreshKnownLater/dark
+    rundefaultrefresh_test.go:72: known-later retained obsolete default refusal: staleFrames=0 error="目标 不是该参数的有效值"
+--- FAIL: TestRunDefaultRefreshKnownLater (0.17s)
+    --- FAIL: TestRunDefaultRefreshKnownLater/light (0.08s)
+    --- FAIL: TestRunDefaultRefreshKnownLater/dark (0.08s)
+=== RUN   TestRunDefaultRefreshUnknownLater
+=== RUN   TestRunDefaultRefreshUnknownLater/light
+    rundefaultrefresh_test.go:72: unknown-later retained obsolete default refusal: staleFrames=0 error="没有声明 id 为 retired 的参数"
+=== RUN   TestRunDefaultRefreshUnknownLater/dark
+    rundefaultrefresh_test.go:72: unknown-later retained obsolete default refusal: staleFrames=0 error="没有声明 id 为 retired 的参数"
+--- FAIL: TestRunDefaultRefreshUnknownLater (0.20s)
+    --- FAIL: TestRunDefaultRefreshUnknownLater/light (0.10s)
+    --- FAIL: TestRunDefaultRefreshUnknownLater/dark (0.10s)
+=== RUN   TestRunDefaultRefreshKnownCallback
+=== RUN   TestRunDefaultRefreshKnownCallback/light
+    rundefaultrefresh_test.go:72: known-callback retained obsolete default refusal: staleFrames=61 error="目标 不是该参数的有效值"
+=== RUN   TestRunDefaultRefreshKnownCallback/dark
+    rundefaultrefresh_test.go:72: known-callback retained obsolete default refusal: staleFrames=61 error="目标 不是该参数的有效值"
+--- FAIL: TestRunDefaultRefreshKnownCallback (0.16s)
+    --- FAIL: TestRunDefaultRefreshKnownCallback/light (0.08s)
+    --- FAIL: TestRunDefaultRefreshKnownCallback/dark (0.08s)
+=== RUN   TestRunDefaultRefreshUnknownCallback
+=== RUN   TestRunDefaultRefreshUnknownCallback/light
+    rundefaultrefresh_test.go:72: unknown-callback retained obsolete default refusal: staleFrames=61 error="没有声明 id 为 retired 的参数"
+=== RUN   TestRunDefaultRefreshUnknownCallback/dark
+    rundefaultrefresh_test.go:72: unknown-callback retained obsolete default refusal: staleFrames=61 error="没有声明 id 为 retired 的参数"
+--- FAIL: TestRunDefaultRefreshUnknownCallback (0.16s)
+    --- FAIL: TestRunDefaultRefreshUnknownCallback/light (0.07s)
+    --- FAIL: TestRunDefaultRefreshUnknownCallback/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	1.833s
+FAIL

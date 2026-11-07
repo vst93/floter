@@ -1,0 +1,70 @@
+=== RUN   TestParamArgumentsFollowTheDeclaredOrder
+--- PASS: TestParamArgumentsFollowTheDeclaredOrder (0.00s)
+=== RUN   TestParamArgumentsSkipOptionalsAndRefuseMissingRequired
+--- PASS: TestParamArgumentsSkipOptionalsAndRefuseMissingRequired (0.00s)
+=== RUN   TestParamArgumentsConvertByKind
+--- PASS: TestParamArgumentsConvertByKind (0.00s)
+=== RUN   TestParamArgumentsRefuseANonFiniteNumber
+--- PASS: TestParamArgumentsRefuseANonFiniteNumber (0.00s)
+=== RUN   TestParamArgumentsRefuseAnUndeclaredKey
+--- PASS: TestParamArgumentsRefuseAnUndeclaredKey (0.00s)
+=== RUN   TestParamArgumentsRefuseAMalformedFlag
+--- PASS: TestParamArgumentsRefuseAMalformedFlag (0.00s)
+=== RUN   TestParamArgumentsRefuseCmdMetacharactersForACmdScript
+--- PASS: TestParamArgumentsRefuseCmdMetacharactersForACmdScript (0.00s)
+=== RUN   TestParamFailureRoundTrip
+--- PASS: TestParamFailureRoundTrip (0.00s)
+=== RUN   TestValidateParams
+--- PASS: TestValidateParams (0.00s)
+=== RUN   TestParamIssues
+--- PASS: TestParamIssues (0.00s)
+=== RUN   TestParamIssuesRefusesWhatTheBackendRefuses
+--- PASS: TestParamIssuesRefusesWhatTheBackendRefuses (0.00s)
+=== RUN   TestParamRowIssues
+--- PASS: TestParamRowIssues (0.00s)
+=== RUN   TestParamDefaults
+--- PASS: TestParamDefaults (0.00s)
+=== RUN   TestValidateParamsDefaults
+--- PASS: TestValidateParamsDefaults (0.00s)
+PASS
+ok  	floter/internal/extensions	0.007s
+=== RUN   TestLocalDraftParameterRemovalKeepsRemainingInput
+--- PASS: TestLocalDraftParameterRemovalKeepsRemainingInput (0.09s)
+=== RUN   TestLocalDraftParameterKindKeepsDefaultInput
+--- PASS: TestLocalDraftParameterKindKeepsDefaultInput (0.01s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.05s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.03s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.01s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.03s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.01s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.01s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.03s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.01s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.01s)
+=== RUN   TestTheParamEditorDrawsTheReferencePlates
+--- PASS: TestTheParamEditorDrawsTheReferencePlates (0.21s)
+=== RUN   TestDeclarationRefreshNumberDefault
+=== RUN   TestDeclarationRefreshNumberDefault/light
+=== RUN   TestDeclarationRefreshNumberDefault/dark
+--- PASS: TestDeclarationRefreshNumberDefault (0.24s)
+    --- PASS: TestDeclarationRefreshNumberDefault/light (0.13s)
+    --- PASS: TestDeclarationRefreshNumberDefault/dark (0.11s)
+=== RUN   TestDeclarationRefreshBooleanDefault
+=== RUN   TestDeclarationRefreshBooleanDefault/light
+=== RUN   TestDeclarationRefreshBooleanDefault/dark
+--- PASS: TestDeclarationRefreshBooleanDefault (0.22s)
+    --- PASS: TestDeclarationRefreshBooleanDefault/light (0.11s)
+    --- PASS: TestDeclarationRefreshBooleanDefault/dark (0.11s)
+=== RUN   TestParamOptionsNewlineCodec
+--- PASS: TestParamOptionsNewlineCodec (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.887s
