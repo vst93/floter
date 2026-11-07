@@ -1,0 +1,12 @@
+=== RUN   TestActionWriteFailureAliases
+=== RUN   TestActionWriteFailureAliases/light/alias-single
+=== RUN   TestActionWriteFailureAliases/light/alias-mixed
+=== RUN   TestActionWriteFailureAliases/dark/alias-single
+=== RUN   TestActionWriteFailureAliases/dark/alias-mixed
+--- PASS: TestActionWriteFailureAliases (0.07s)
+    --- PASS: TestActionWriteFailureAliases/light/alias-single (0.04s)
+    --- PASS: TestActionWriteFailureAliases/light/alias-mixed (0.01s)
+    --- PASS: TestActionWriteFailureAliases/dark/alias-single (0.01s)
+    --- PASS: TestActionWriteFailureAliases/dark/alias-mixed (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.080s

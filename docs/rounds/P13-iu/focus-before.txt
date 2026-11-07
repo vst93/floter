@@ -1,0 +1,11 @@
+=== RUN   TestActionWriteFailureKeepsFullPageFocus
+=== RUN   TestActionWriteFailureKeepsFullPageFocus/light
+    actionwritefocus_test.go:24: save failure displaced the full page keyboard retry target
+=== RUN   TestActionWriteFailureKeepsFullPageFocus/dark
+    actionwritefocus_test.go:24: save failure displaced the full page keyboard retry target
+--- FAIL: TestActionWriteFailureKeepsFullPageFocus (0.23s)
+    --- FAIL: TestActionWriteFailureKeepsFullPageFocus/light (0.18s)
+    --- FAIL: TestActionWriteFailureKeepsFullPageFocus/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.244s
+FAIL

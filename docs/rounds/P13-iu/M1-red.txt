@@ -1,0 +1,24 @@
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/add
+2026/11/07 16:38:22 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd3512359167/001/.floter-state-1986706551.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd3512359167/001/settings.json: file exists
+    shortcutwritefailure_test.go:68: failed add left uncommitted system keys: [Ctrl+Alt+J Ctrl+Shift+B Ctrl+Shift+Z]
+    shortcutwritefailure_test.go:71: failed write left an uncommitted registration signature
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/remove
+2026/11/07 16:38:22 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove4114954724/001/.floter-state-3115183373.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove4114954724/001/settings.json: file exists
+    shortcutwritefailure_test.go:68: failed remove left uncommitted system keys: [Ctrl+Alt+J]
+    shortcutwritefailure_test.go:71: failed write left an uncommitted registration signature
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/rerecord
+2026/11/07 16:38:22 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord3525856385/001/.floter-state-3490555142.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord3525856385/001/settings.json: file exists
+    shortcutwritefailure_test.go:68: failed rerecord left uncommitted system keys: [Ctrl+Alt+J Ctrl+Shift+Z]
+    shortcutwritefailure_test.go:71: failed write left an uncommitted registration signature
+--- FAIL: TestCustomWriteFailureRestoresRegisteredKeys (0.00s)
+    --- FAIL: TestCustomWriteFailureRestoresRegisteredKeys/add (0.00s)
+    --- FAIL: TestCustomWriteFailureRestoresRegisteredKeys/remove (0.00s)
+    --- FAIL: TestCustomWriteFailureRestoresRegisteredKeys/rerecord (0.00s)
+=== RUN   TestCustomWriteFailureRestoresActionDispatch
+2026/11/07 16:38:22 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresActionDispatch23870170/001/.floter-state-112620916.tmp /tmp/TestCustomWriteFailureRestoresActionDispatch23870170/001/settings.json: file exists
+    shortcutwritefailure_test.go:103: failed command update dispatched uncommitted action: [say uncommitted]
+--- FAIL: TestCustomWriteFailureRestoresActionDispatch (0.00s)
+FAIL
+FAIL	floter/internal/shell	0.015s
+FAIL

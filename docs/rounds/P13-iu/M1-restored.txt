@@ -1,0 +1,16 @@
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/add
+2026/11/07 16:38:23 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd4036003444/001/.floter-state-3450611866.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd4036003444/001/settings.json: file exists
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/remove
+2026/11/07 16:38:23 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove378707841/001/.floter-state-3239669357.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove378707841/001/settings.json: file exists
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/rerecord
+2026/11/07 16:38:23 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord2383216866/001/.floter-state-676553725.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord2383216866/001/settings.json: file exists
+--- PASS: TestCustomWriteFailureRestoresRegisteredKeys (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/add (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/remove (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/rerecord (0.00s)
+=== RUN   TestCustomWriteFailureRestoresActionDispatch
+2026/11/07 16:38:23 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresActionDispatch1221050292/001/.floter-state-2026460315.tmp /tmp/TestCustomWriteFailureRestoresActionDispatch1221050292/001/settings.json: file exists
+--- PASS: TestCustomWriteFailureRestoresActionDispatch (0.00s)
+PASS
+ok  	floter/internal/shell	0.013s

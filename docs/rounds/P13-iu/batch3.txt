@@ -1,0 +1,36 @@
+=== RUN   TestActionWriteFailurePlugin
+=== RUN   TestActionWriteFailurePlugin/light
+=== RUN   TestActionWriteFailurePlugin/dark
+--- PASS: TestActionWriteFailurePlugin (0.14s)
+    --- PASS: TestActionWriteFailurePlugin/light (0.12s)
+    --- PASS: TestActionWriteFailurePlugin/dark (0.02s)
+=== RUN   TestActionWriteFailureRecorder
+=== RUN   TestActionWriteFailureRecorder/light
+=== RUN   TestActionWriteFailureRecorder/dark
+--- PASS: TestActionWriteFailureRecorder (0.04s)
+    --- PASS: TestActionWriteFailureRecorder/light (0.03s)
+    --- PASS: TestActionWriteFailureRecorder/dark (0.02s)
+=== RUN   TestActionWriteFailureReset
+=== RUN   TestActionWriteFailureReset/light
+=== RUN   TestActionWriteFailureReset/dark
+--- PASS: TestActionWriteFailureReset (0.11s)
+    --- PASS: TestActionWriteFailureReset/light (0.07s)
+    --- PASS: TestActionWriteFailureReset/dark (0.04s)
+=== RUN   TestTheSaveFailureBannerWakesAtItsDeadline
+--- PASS: TestTheSaveFailureBannerWakesAtItsDeadline (0.80s)
+=== RUN   TestBasePluginHintRidesAboveTheList
+--- PASS: TestBasePluginHintRidesAboveTheList (0.06s)
+=== RUN   TestTheSaveFailureBannerAppearsAndExpires
+--- PASS: TestTheSaveFailureBannerAppearsAndExpires (0.03s)
+=== RUN   TestTheSaveFailureBannerEntersOnItsOwnMotion
+--- PASS: TestTheSaveFailureBannerEntersOnItsOwnMotion (0.66s)
+=== RUN   TestTheSaveFailureBannerDismisses
+--- PASS: TestTheSaveFailureBannerDismisses (0.05s)
+=== RUN   TestBasePluginsSectionOpensConfigurationAndToggles
+--- PASS: TestBasePluginsSectionOpensConfigurationAndToggles (0.14s)
+=== RUN   TestBasePluginsSectionNeedsAnAction
+--- PASS: TestBasePluginsSectionNeedsAnAction (0.04s)
+=== RUN   TestAppShortcutRowsRecord
+--- PASS: TestAppShortcutRowsRecord (0.09s)
+PASS
+ok  	floter/internal/settingsui	2.168s

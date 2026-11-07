@@ -1,0 +1,30 @@
+=== RUN   TestSetShortcutRegistersAndPersists
+2026/11/07 16:39:25 floter: could not register Cmd+F1: taken
+2026/11/07 16:39:25 floter: "Hyper+X" is not a shortcut
+2026/11/07 16:39:25 floter: "something_else" is not an action this build knows
+--- PASS: TestSetShortcutRegistersAndPersists (0.00s)
+=== RUN   TestASystemRefusedChordIsReportedAndChangesNothing
+2026/11/07 16:39:25 floter: could not register Cmd+Shift+G: taken
+--- PASS: TestASystemRefusedChordIsReportedAndChangesNothing (0.00s)
+=== RUN   TestASystemRefusedSummonShortcutNamesTheSummonAction
+2026/11/07 16:39:25 floter: could not register Ctrl+Space: taken
+--- PASS: TestASystemRefusedSummonShortcutNamesTheSummonAction (0.00s)
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/add
+2026/11/07 16:39:25 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd3990234735/001/.floter-state-278232227.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd3990234735/001/settings.json: file exists
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/remove
+2026/11/07 16:39:25 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove1653718752/001/.floter-state-449478390.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove1653718752/001/settings.json: file exists
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/rerecord
+2026/11/07 16:39:25 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord2257651478/001/.floter-state-1933664109.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord2257651478/001/settings.json: file exists
+--- PASS: TestCustomWriteFailureRestoresRegisteredKeys (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/add (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/remove (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/rerecord (0.00s)
+=== RUN   TestCustomWriteFailureRestoresActionDispatch
+2026/11/07 16:39:25 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresActionDispatch653750374/001/.floter-state-1134601382.tmp /tmp/TestCustomWriteFailureRestoresActionDispatch653750374/001/settings.json: file exists
+--- PASS: TestCustomWriteFailureRestoresActionDispatch (0.00s)
+=== RUN   TestSummonWriteFailurePreservesOldKeyAndDisplay
+2026/11/07 16:39:25 floter: could not save Ctrl+Alt+K: rename /tmp/TestSummonWriteFailurePreservesOldKeyAndDisplay3326729174/001/.floter-state-2961902270.tmp /tmp/TestSummonWriteFailurePreservesOldKeyAndDisplay3326729174/001/settings.json: file exists
+--- PASS: TestSummonWriteFailurePreservesOldKeyAndDisplay (0.00s)
+PASS
+ok  	floter/internal/shell	0.014s

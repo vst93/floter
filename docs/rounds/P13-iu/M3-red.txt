@@ -1,0 +1,27 @@
+=== RUN   TestActionWriteFailurePlugin
+=== RUN   TestActionWriteFailurePlugin/light
+    actionwritefailure_test.go:124: plugin write failure has no visible recovery feedback
+=== RUN   TestActionWriteFailurePlugin/dark
+    actionwritefailure_test.go:124: plugin write failure has no visible recovery feedback
+--- FAIL: TestActionWriteFailurePlugin (0.09s)
+    --- FAIL: TestActionWriteFailurePlugin/light (0.09s)
+    --- FAIL: TestActionWriteFailurePlugin/dark (0.00s)
+=== RUN   TestActionWriteFailureRecorder
+=== RUN   TestActionWriteFailureRecorder/light
+    actionwritefailure_test.go:124: record write failure has no visible recovery feedback
+=== RUN   TestActionWriteFailureRecorder/dark
+    actionwritefailure_test.go:124: record write failure has no visible recovery feedback
+--- FAIL: TestActionWriteFailureRecorder (0.04s)
+    --- FAIL: TestActionWriteFailureRecorder/light (0.04s)
+    --- FAIL: TestActionWriteFailureRecorder/dark (0.00s)
+=== RUN   TestActionWriteFailureReset
+=== RUN   TestActionWriteFailureReset/light
+    actionwritefailure_test.go:124: reset write failure has no visible recovery feedback
+=== RUN   TestActionWriteFailureReset/dark
+    actionwritefailure_test.go:124: reset write failure has no visible recovery feedback
+--- FAIL: TestActionWriteFailureReset (0.06s)
+    --- FAIL: TestActionWriteFailureReset/light (0.06s)
+    --- FAIL: TestActionWriteFailureReset/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.205s
+FAIL

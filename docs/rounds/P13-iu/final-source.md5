@@ -1,0 +1,5 @@
+01353841b0e8a6774e7fe0706309463b  internal/shell/custom.go
+e8ab678741900605e714a5d989f727e8  internal/shell/shell.go
+73c2adfedca7cd3e30df757990a6ef0f  internal/settingsui/settingsui.go
+1ecfbeac1a0cc1efe4332b6a862303f4  internal/settingsui/savealert.go
+db12d6d554d12e3658766b96467cdddc  internal/settingsui/debounce.go

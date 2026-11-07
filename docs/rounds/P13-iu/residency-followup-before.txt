@@ -1,0 +1,11 @@
+=== RUN   TestResidencyRefreshAfterCommittedPreset
+=== RUN   TestResidencyRefreshAfterCommittedPreset/light
+    residencypristine_test.go:32: committed preset left stale draft ownership on a later host refresh
+=== RUN   TestResidencyRefreshAfterCommittedPreset/dark
+    residencypristine_test.go:32: committed preset left stale draft ownership on a later host refresh
+--- FAIL: TestResidencyRefreshAfterCommittedPreset (0.16s)
+    --- FAIL: TestResidencyRefreshAfterCommittedPreset/light (0.14s)
+    --- FAIL: TestResidencyRefreshAfterCommittedPreset/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.167s
+FAIL

@@ -1,0 +1,17 @@
+=== RUN   TestActionWriteFailureAliases
+=== RUN   TestActionWriteFailureAliases/light/alias-single
+    actionwritealias_test.go:56: alias-single lost the failed alias write behind a later commit
+=== RUN   TestActionWriteFailureAliases/light/alias-mixed
+    actionwritealias_test.go:56: alias-mixed lost the failed alias write behind a later commit
+=== RUN   TestActionWriteFailureAliases/dark/alias-single
+    actionwritealias_test.go:56: alias-single lost the failed alias write behind a later commit
+=== RUN   TestActionWriteFailureAliases/dark/alias-mixed
+    actionwritealias_test.go:56: alias-mixed lost the failed alias write behind a later commit
+--- FAIL: TestActionWriteFailureAliases (0.08s)
+    --- FAIL: TestActionWriteFailureAliases/light/alias-single (0.06s)
+    --- FAIL: TestActionWriteFailureAliases/light/alias-mixed (0.01s)
+    --- FAIL: TestActionWriteFailureAliases/dark/alias-single (0.01s)
+    --- FAIL: TestActionWriteFailureAliases/dark/alias-mixed (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.093s
+FAIL

@@ -1,0 +1,5 @@
+=== RUN   TestSummonWriteFailurePreservesOldKeyAndDisplay
+2026/11/07 16:40:38 floter: could not save Ctrl+Alt+K: rename /tmp/TestSummonWriteFailurePreservesOldKeyAndDisplay732312104/001/.floter-state-2236214494.tmp /tmp/TestSummonWriteFailurePreservesOldKeyAndDisplay732312104/001/settings.json: file exists
+--- PASS: TestSummonWriteFailurePreservesOldKeyAndDisplay (0.00s)
+PASS
+ok  	floter/internal/shell	0.003s

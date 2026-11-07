@@ -1,0 +1,26 @@
+=== RUN   TestActionWriteFailureRecorder
+=== RUN   TestActionWriteFailureRecorder/light
+=== RUN   TestActionWriteFailureRecorder/dark
+--- PASS: TestActionWriteFailureRecorder (0.26s)
+    --- PASS: TestActionWriteFailureRecorder/light (0.24s)
+    --- PASS: TestActionWriteFailureRecorder/dark (0.02s)
+=== RUN   TestBuiltinRecorderCancelReturnsFocus
+=== RUN   TestBuiltinRecorderCancelReturnsFocus/light
+=== RUN   TestBuiltinRecorderCancelReturnsFocus/dark
+--- PASS: TestBuiltinRecorderCancelReturnsFocus (0.01s)
+    --- PASS: TestBuiltinRecorderCancelReturnsFocus/light (0.01s)
+    --- PASS: TestBuiltinRecorderCancelReturnsFocus/dark (0.01s)
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow/light
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow/dark
+--- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow (0.02s)
+    --- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow/light (0.00s)
+    --- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow/dark (0.02s)
+=== RUN   TestShortcutRecorder
+--- PASS: TestShortcutRecorder (0.49s)
+=== RUN   TestRecorderSuspendsTheGlobalShortcuts
+--- PASS: TestRecorderSuspendsTheGlobalShortcuts (0.53s)
+=== RUN   TestShortcutRecorderRefusesAChordAnotherActionHolds
+--- PASS: TestShortcutRecorderRefusesAChordAnotherActionHolds (0.38s)
+PASS
+ok  	floter/internal/settingsui	1.710s

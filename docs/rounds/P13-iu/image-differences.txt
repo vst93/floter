@@ -1,0 +1,16 @@
+record light: 27465 changed pixels
+reset light: 175417 changed pixels
+plugin light: 30834 changed pixels
+command light: 101269 changed pixels
+alias-single light: 101198 changed pixels
+alias-mixed light: 101199 changed pixels
+residency-pristine light: 8952 changed pixels
+full-page-focus light: 292 changed pixels
+record dark: 27465 changed pixels
+reset dark: 175432 changed pixels
+plugin dark: 30768 changed pixels
+command dark: 101232 changed pixels
+alias-single dark: 101161 changed pixels
+alias-mixed dark: 101161 changed pixels
+residency-pristine dark: 8947 changed pixels
+full-page-focus dark: 292 changed pixels

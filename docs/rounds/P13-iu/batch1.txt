@@ -1,0 +1,25 @@
+=== RUN   TestCustomShortcutsRegisterAndRun
+2026/11/07 16:38:14 floter: custom shortcut Cmd+Shift+T: occupied
+--- PASS: TestCustomShortcutsRegisterAndRun (0.05s)
+=== RUN   TestCustomShortcutsFollowTheStore
+--- PASS: TestCustomShortcutsFollowTheStore (0.00s)
+=== RUN   TestCustomShortcutsRefuseConflictsAndKeepOnlyRegistered
+2026/11/07 16:38:14 floter: custom shortcut Cmd+W: conflict
+2026/11/07 16:38:14 floter: custom shortcut Cmd+Shift+T: occupied
+--- PASS: TestCustomShortcutsRefuseConflictsAndKeepOnlyRegistered (0.00s)
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/add
+2026/11/07 16:38:14 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd1977899436/001/.floter-state-352761503.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd1977899436/001/settings.json: file exists
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/remove
+2026/11/07 16:38:14 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove675523310/001/.floter-state-711821837.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove675523310/001/settings.json: file exists
+=== RUN   TestCustomWriteFailureRestoresRegisteredKeys/rerecord
+2026/11/07 16:38:14 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord784083369/001/.floter-state-3017308725.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord784083369/001/settings.json: file exists
+--- PASS: TestCustomWriteFailureRestoresRegisteredKeys (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/add (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/remove (0.00s)
+    --- PASS: TestCustomWriteFailureRestoresRegisteredKeys/rerecord (0.00s)
+=== RUN   TestCustomWriteFailureRestoresActionDispatch
+2026/11/07 16:38:14 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresActionDispatch652944513/001/.floter-state-4003521848.tmp /tmp/TestCustomWriteFailureRestoresActionDispatch652944513/001/settings.json: file exists
+--- PASS: TestCustomWriteFailureRestoresActionDispatch (0.00s)
+PASS
+ok  	floter/internal/shell	0.067s

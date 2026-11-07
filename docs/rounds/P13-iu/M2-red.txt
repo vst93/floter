@@ -1,0 +1,7 @@
+=== RUN   TestSummonWriteFailurePreservesOldKeyAndDisplay
+2026/11/07 16:40:37 floter: could not save Ctrl+Alt+K: rename /tmp/TestSummonWriteFailurePreservesOldKeyAndDisplay1617440518/001/.floter-state-3480911429.tmp /tmp/TestSummonWriteFailurePreservesOldKeyAndDisplay1617440518/001/settings.json: file exists
+    summonwritefailure_test.go:19: failed summon save changed system registration: [Ctrl+Alt+J Ctrl+Alt+K Ctrl+Shift+B]
+--- FAIL: TestSummonWriteFailurePreservesOldKeyAndDisplay (0.00s)
+FAIL
+FAIL	floter/internal/shell	0.004s
+FAIL

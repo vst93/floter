@@ -1,0 +1,124 @@
+=== RUN   TestActionWriteFailureAliases
+=== RUN   TestActionWriteFailureAliases/light/alias-single
+=== RUN   TestActionWriteFailureAliases/light/alias-mixed
+=== RUN   TestActionWriteFailureAliases/dark/alias-single
+=== RUN   TestActionWriteFailureAliases/dark/alias-mixed
+--- PASS: TestActionWriteFailureAliases (0.19s)
+    --- PASS: TestActionWriteFailureAliases/light/alias-single (0.12s)
+    --- PASS: TestActionWriteFailureAliases/light/alias-mixed (0.02s)
+    --- PASS: TestActionWriteFailureAliases/dark/alias-single (0.02s)
+    --- PASS: TestActionWriteFailureAliases/dark/alias-mixed (0.03s)
+=== RUN   TestActionWriteFailureCommand
+=== RUN   TestActionWriteFailureCommand/light
+=== RUN   TestActionWriteFailureCommand/dark
+--- PASS: TestActionWriteFailureCommand (0.04s)
+    --- PASS: TestActionWriteFailureCommand/light (0.02s)
+    --- PASS: TestActionWriteFailureCommand/dark (0.02s)
+=== RUN   TestActionWriteFailureIgnoresOldError
+=== RUN   TestActionWriteFailureIgnoresOldError/no-write
+=== RUN   TestActionWriteFailureIgnoresOldError/system-refusal
+--- PASS: TestActionWriteFailureIgnoresOldError (0.04s)
+    --- PASS: TestActionWriteFailureIgnoresOldError/no-write (0.01s)
+    --- PASS: TestActionWriteFailureIgnoresOldError/system-refusal (0.03s)
+=== RUN   TestActionWriteFailurePlugin
+=== RUN   TestActionWriteFailurePlugin/light
+=== RUN   TestActionWriteFailurePlugin/dark
+--- PASS: TestActionWriteFailurePlugin (0.04s)
+    --- PASS: TestActionWriteFailurePlugin/light (0.02s)
+    --- PASS: TestActionWriteFailurePlugin/dark (0.01s)
+=== RUN   TestActionWriteFailureRecorder
+=== RUN   TestActionWriteFailureRecorder/light
+=== RUN   TestActionWriteFailureRecorder/dark
+--- PASS: TestActionWriteFailureRecorder (0.03s)
+    --- PASS: TestActionWriteFailureRecorder/light (0.01s)
+    --- PASS: TestActionWriteFailureRecorder/dark (0.02s)
+=== RUN   TestActionWriteFailureReset
+=== RUN   TestActionWriteFailureReset/light
+=== RUN   TestActionWriteFailureReset/dark
+--- PASS: TestActionWriteFailureReset (0.08s)
+    --- PASS: TestActionWriteFailureReset/light (0.05s)
+    --- PASS: TestActionWriteFailureReset/dark (0.03s)
+=== RUN   TestResidencyMenuExternalSelection
+=== RUN   TestResidencyMenuExternalSelection/light
+=== RUN   TestResidencyMenuExternalSelection/dark
+--- PASS: TestResidencyMenuExternalSelection (0.01s)
+    --- PASS: TestResidencyMenuExternalSelection/light (0.01s)
+    --- PASS: TestResidencyMenuExternalSelection/dark (0.00s)
+=== RUN   TestResidencyBoundaryNumericCommit
+=== RUN   TestResidencyBoundaryNumericCommit/light
+=== RUN   TestResidencyBoundaryNumericCommit/light/4294967296
+=== RUN   TestResidencyBoundaryNumericCommit/light/-5
+=== RUN   TestResidencyBoundaryNumericCommit/light/45.6
+=== RUN   TestResidencyBoundaryNumericCommit/light/1e2
+=== RUN   TestResidencyBoundaryNumericCommit/light/4294967295
+=== RUN   TestResidencyBoundaryNumericCommit/light/NaN
+=== RUN   TestResidencyBoundaryNumericCommit/light/Inf
+=== RUN   TestResidencyBoundaryNumericCommit/dark
+=== RUN   TestResidencyBoundaryNumericCommit/dark/4294967296
+=== RUN   TestResidencyBoundaryNumericCommit/dark/-5
+=== RUN   TestResidencyBoundaryNumericCommit/dark/45.6
+=== RUN   TestResidencyBoundaryNumericCommit/dark/1e2
+=== RUN   TestResidencyBoundaryNumericCommit/dark/4294967295
+=== RUN   TestResidencyBoundaryNumericCommit/dark/NaN
+=== RUN   TestResidencyBoundaryNumericCommit/dark/Inf
+--- PASS: TestResidencyBoundaryNumericCommit (0.07s)
+    --- PASS: TestResidencyBoundaryNumericCommit/light (0.04s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/4294967296 (0.01s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/-5 (0.01s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/45.6 (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/1e2 (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/4294967295 (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/NaN (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/light/Inf (0.00s)
+    --- PASS: TestResidencyBoundaryNumericCommit/dark (0.03s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/4294967296 (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/-5 (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/45.6 (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/1e2 (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/4294967295 (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/NaN (0.00s)
+        --- PASS: TestResidencyBoundaryNumericCommit/dark/Inf (0.01s)
+=== RUN   TestResidencyBoundaryClosedHostCustom
+=== RUN   TestResidencyBoundaryClosedHostCustom/light
+=== RUN   TestResidencyBoundaryClosedHostCustom/dark
+--- PASS: TestResidencyBoundaryClosedHostCustom (0.01s)
+    --- PASS: TestResidencyBoundaryClosedHostCustom/light (0.00s)
+    --- PASS: TestResidencyBoundaryClosedHostCustom/dark (0.00s)
+=== RUN   TestResidencyFailurePresetChoice
+=== RUN   TestResidencyFailurePresetChoice/light
+=== RUN   TestResidencyFailurePresetChoice/dark
+--- PASS: TestResidencyFailurePresetChoice (0.01s)
+    --- PASS: TestResidencyFailurePresetChoice/light (0.01s)
+    --- PASS: TestResidencyFailurePresetChoice/dark (0.01s)
+=== RUN   TestResidencyFailureCustomCommit
+=== RUN   TestResidencyFailureCustomCommit/light
+=== RUN   TestResidencyFailureCustomCommit/dark
+--- PASS: TestResidencyFailureCustomCommit (0.01s)
+    --- PASS: TestResidencyFailureCustomCommit/light (0.00s)
+    --- PASS: TestResidencyFailureCustomCommit/dark (0.00s)
+=== RUN   TestResidencyRefreshAfterCommittedPreset
+=== RUN   TestResidencyRefreshAfterCommittedPreset/light
+=== RUN   TestResidencyRefreshAfterCommittedPreset/dark
+--- PASS: TestResidencyRefreshAfterCommittedPreset (0.03s)
+    --- PASS: TestResidencyRefreshAfterCommittedPreset/light (0.02s)
+    --- PASS: TestResidencyRefreshAfterCommittedPreset/dark (0.01s)
+=== RUN   TestResidencyRefreshInitialCustom
+=== RUN   TestResidencyRefreshInitialCustom/light
+=== RUN   TestResidencyRefreshInitialCustom/dark
+--- PASS: TestResidencyRefreshInitialCustom (0.00s)
+    --- PASS: TestResidencyRefreshInitialCustom/light (0.00s)
+    --- PASS: TestResidencyRefreshInitialCustom/dark (0.00s)
+=== RUN   TestResidencyRefreshOpenDraftMenu
+=== RUN   TestResidencyRefreshOpenDraftMenu/light
+=== RUN   TestResidencyRefreshOpenDraftMenu/dark
+--- PASS: TestResidencyRefreshOpenDraftMenu (0.02s)
+    --- PASS: TestResidencyRefreshOpenDraftMenu/light (0.01s)
+    --- PASS: TestResidencyRefreshOpenDraftMenu/dark (0.01s)
+=== RUN   TestWindowBehaviourControls
+--- PASS: TestWindowBehaviourControls (0.12s)
+=== RUN   TestResidencySelectMapping
+--- PASS: TestResidencySelectMapping (0.00s)
+=== RUN   TestSurfaceResidencyControlIsOneRow
+--- PASS: TestSurfaceResidencyControlIsOneRow (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.744s
