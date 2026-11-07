@@ -3121,11 +3121,14 @@ func (a *App) connectLocalTool(tool settingsui.CustomTool) {
 // diagnosis, and the previous descriptor stays.
 func (a *App) reprobeCommands(id string) {
 	integration, ok := a.Integrations.Inventory().WithID(id)
-	if !ok {
+	if !ok || !a.Settings.BeginDiagnosis(id) {
 		return
 	}
 	epoch := a.beginDiagnosis(id)
-	go a.runCommandReprobe(integration, epoch)
+	go func() {
+		defer a.onMain(func() { a.Settings.FinishDiagnosis(id) })
+		a.runCommandReprobe(integration, epoch)
+	}()
 }
 
 func (a *App) runCommandReprobe(integration extensions.Integration, epoch uint64) {

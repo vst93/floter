@@ -1,0 +1,91 @@
+=== RUN   TestCommandReprobeRejectsRepeatedClick
+=== RUN   TestCommandReprobeRejectsRepeatedClick/light
+2026/11/08 07:39:08 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRejectsRepeatedClick/dark
+2026/11/08 07:39:10 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeRejectsRepeatedClick (3.96s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/light (2.28s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/dark (1.68s)
+=== RUN   TestCommandReprobeLocksCompetingActions
+=== RUN   TestCommandReprobeLocksCompetingActions/light
+2026/11/08 07:39:11 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeLocksCompetingActions/dark
+2026/11/08 07:39:13 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeLocksCompetingActions (3.19s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/light (1.61s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/dark (1.58s)
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands/light
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands/dark
+--- PASS: TestDiagnosisExecutionCompletionDisablesCommands (0.46s)
+    --- PASS: TestDiagnosisExecutionCompletionDisablesCommands/light (0.24s)
+    --- PASS: TestDiagnosisExecutionCompletionDisablesCommands/dark (0.21s)
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands/light
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands/dark
+--- PASS: TestDiagnosisExecutionCompletionEnablesCommands (0.57s)
+    --- PASS: TestDiagnosisExecutionCompletionEnablesCommands/light (0.31s)
+    --- PASS: TestDiagnosisExecutionCompletionEnablesCommands/dark (0.25s)
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/light
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/dark
+--- PASS: TestDiagnosisExecutionRejectsRepeatedCheck (2.58s)
+    --- PASS: TestDiagnosisExecutionRejectsRepeatedCheck/light (1.32s)
+    --- PASS: TestDiagnosisExecutionRejectsRepeatedCheck/dark (1.26s)
+=== RUN   TestDiagnosisExecutionLocksCompetingActions
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/light
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/dark
+--- PASS: TestDiagnosisExecutionLocksCompetingActions (2.71s)
+    --- PASS: TestDiagnosisExecutionLocksCompetingActions/light (1.36s)
+    --- PASS: TestDiagnosisExecutionLocksCompetingActions/dark (1.35s)
+=== RUN   TestDiagnosisExecutionProvider
+--- PASS: TestDiagnosisExecutionProvider (0.00s)
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands/light
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands/dark
+--- PASS: TestDiagnosisExecutionWithdrawsFailedCommands (0.81s)
+    --- PASS: TestDiagnosisExecutionWithdrawsFailedCommands/light (0.37s)
+    --- PASS: TestDiagnosisExecutionWithdrawsFailedCommands/dark (0.44s)
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled/light
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled/dark
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled/light
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled/dark
+--- PASS: TestDiagnosisExecutionRestoresRecoveredCommands (1.63s)
+    --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/enabled (0.85s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/enabled/light (0.45s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/enabled/dark (0.40s)
+    --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled (0.77s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled/light (0.41s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled/dark (0.37s)
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure/light
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure/dark
+--- PASS: TestDiagnosisExecutionRepositoryStartFailure (2.67s)
+    --- PASS: TestDiagnosisExecutionRepositoryStartFailure/light (1.28s)
+    --- PASS: TestDiagnosisExecutionRepositoryStartFailure/dark (1.40s)
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure/light
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure/dark
+--- PASS: TestDiagnosisExecutionRepositoryCompletionFailure (2.28s)
+    --- PASS: TestDiagnosisExecutionRepositoryCompletionFailure/light (1.15s)
+    --- PASS: TestDiagnosisExecutionRepositoryCompletionFailure/dark (1.13s)
+=== RUN   TestDiagnosisExecutionObsoleteReadFailureIsQuiet
+--- PASS: TestDiagnosisExecutionObsoleteReadFailureIsQuiet (0.08s)
+=== RUN   TestTheDriftReprobeAnnouncesAChangedCommandList
+--- PASS: TestTheDriftReprobeAnnouncesAChangedCommandList (0.30s)
+=== RUN   TestTheDriftNoticeIsAnnouncedOnlyOnce
+--- PASS: TestTheDriftNoticeIsAnnouncedOnlyOnce (0.19s)
+=== RUN   TestTheDriftReprobeStaysSilentWithoutAVersion
+--- PASS: TestTheDriftReprobeStaysSilentWithoutAVersion (0.15s)
+=== RUN   TestTheDriftReprobeFailsSoft
+2026/11/08 07:39:28 floter: could not re-probe dev.floter.drifttool on version drift: extensions: the tool did not produce usable help output
+--- PASS: TestTheDriftReprobeFailsSoft (0.19s)
+=== RUN   TestTheDriftReprobeLoopDoesNotStack
+--- PASS: TestTheDriftReprobeLoopDoesNotStack (0.00s)
+=== RUN   TestTheDriftToastIsDrawnWithItsAction
+--- PASS: TestTheDriftToastIsDrawnWithItsAction (0.59s)
+PASS
+ok  	floter/internal/shell	22.406s

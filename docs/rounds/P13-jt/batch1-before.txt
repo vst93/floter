@@ -1,0 +1,31 @@
+=== RUN   TestCommandReprobeRejectsRepeatedClick
+=== RUN   TestCommandReprobeRejectsRepeatedClick/light
+    commandreprobebusy_test.go:164: pending command reprobe starts repeatedly: epoch=3
+2026/11/08 07:37:40 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/08 07:37:40 floter: re-probed dev.floter.check (commands=2, was 0x3c43c34f0450)
+2026/11/08 07:37:40 floter: re-probed dev.floter.check (commands=2, was 0x3c43c29c33f0)
+    commandreprobebusy_test.go:174: command reprobe never entered and settled its row busy state
+=== RUN   TestCommandReprobeRejectsRepeatedClick/dark
+    commandreprobebusy_test.go:164: pending command reprobe starts repeatedly: epoch=3
+2026/11/08 07:37:45 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/08 07:37:45 floter: re-probed dev.floter.check (commands=2, was 0x3c43c347d6f0)
+2026/11/08 07:37:45 floter: re-probed dev.floter.check (commands=2, was 0x3c43c28f1d00)
+    commandreprobebusy_test.go:174: command reprobe never entered and settled its row busy state
+--- FAIL: TestCommandReprobeRejectsRepeatedClick (10.50s)
+    --- FAIL: TestCommandReprobeRejectsRepeatedClick/light (5.47s)
+    --- FAIL: TestCommandReprobeRejectsRepeatedClick/dark (5.04s)
+=== RUN   TestCommandReprobeLocksCompetingActions
+=== RUN   TestCommandReprobeLocksCompetingActions/light
+    commandreprobebusy_test.go:152: pending command reprobe permits competing actions: 2
+2026/11/08 07:37:50 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobebusy_test.go:174: command reprobe never entered and settled its row busy state
+=== RUN   TestCommandReprobeLocksCompetingActions/dark
+    commandreprobebusy_test.go:152: pending command reprobe permits competing actions: 2
+2026/11/08 07:37:56 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobebusy_test.go:174: command reprobe never entered and settled its row busy state
+--- FAIL: TestCommandReprobeLocksCompetingActions (10.82s)
+    --- FAIL: TestCommandReprobeLocksCompetingActions/light (5.28s)
+    --- FAIL: TestCommandReprobeLocksCompetingActions/dark (5.55s)
+FAIL
+FAIL	floter/internal/shell	21.339s
+FAIL
