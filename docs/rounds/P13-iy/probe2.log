@@ -1,0 +1,28 @@
+=== RUN   TestCustomSubmittedTextMatchesStoredCommand
+=== RUN   TestCustomSubmittedTextMatchesStoredCommand/__say_changed__
+=== RUN   TestCustomSubmittedTextMatchesStoredCommand/__say_original__
+=== RUN   TestCustomSubmittedTextMatchesStoredCommand/#00
+--- PASS: TestCustomSubmittedTextMatchesStoredCommand (0.44s)
+    --- PASS: TestCustomSubmittedTextMatchesStoredCommand/__say_changed__ (0.36s)
+    --- PASS: TestCustomSubmittedTextMatchesStoredCommand/__say_original__ (0.04s)
+    --- PASS: TestCustomSubmittedTextMatchesStoredCommand/#00 (0.04s)
+=== RUN   TestCustomDuplicateCaptureKeepsRetryFocus
+=== RUN   TestCustomDuplicateCaptureKeepsRetryFocus/saved
+=== RUN   TestCustomDuplicateCaptureKeepsRetryFocus/draft
+--- PASS: TestCustomDuplicateCaptureKeepsRetryFocus (0.17s)
+    --- PASS: TestCustomDuplicateCaptureKeepsRetryFocus/saved (0.08s)
+    --- PASS: TestCustomDuplicateCaptureKeepsRetryFocus/draft (0.09s)
+=== RUN   TestCustomDraftRecreateDoesNotUndoOldCommand
+=== RUN   TestCustomDraftRecreateDoesNotUndoOldCommand/light
+=== RUN   TestCustomDraftRecreateDoesNotUndoOldCommand/dark
+--- PASS: TestCustomDraftRecreateDoesNotUndoOldCommand (0.22s)
+    --- PASS: TestCustomDraftRecreateDoesNotUndoOldCommand/light (0.12s)
+    --- PASS: TestCustomDraftRecreateDoesNotUndoOldCommand/dark (0.10s)
+=== RUN   TestCustomSavedPickerSelectionKeepsFocus
+=== RUN   TestCustomSavedPickerSelectionKeepsFocus/light
+=== RUN   TestCustomSavedPickerSelectionKeepsFocus/dark
+--- PASS: TestCustomSavedPickerSelectionKeepsFocus (0.21s)
+    --- PASS: TestCustomSavedPickerSelectionKeepsFocus/light (0.07s)
+    --- PASS: TestCustomSavedPickerSelectionKeepsFocus/dark (0.15s)
+PASS
+ok  	floter/internal/settingsui	1.059s

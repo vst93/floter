@@ -1,0 +1,32 @@
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode/light
+    customownership_test.go:63: literal command became a mode switch: entries=[] draft=true
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode/dark
+    customownership_test.go:63: literal command became a mode switch: entries=[] draft=true
+--- FAIL: TestCustomCommandLiteralDoesNotBecomeMode (0.47s)
+    --- FAIL: TestCustomCommandLiteralDoesNotBecomeMode/light (0.31s)
+    --- FAIL: TestCustomCommandLiteralDoesNotBecomeMode/dark (0.16s)
+=== RUN   TestCustomDraftCommandModeKeepsBindFocus
+=== RUN   TestCustomDraftCommandModeKeepsBindFocus/light
+=== RUN   TestCustomDraftCommandModeKeepsBindFocus/dark
+--- PASS: TestCustomDraftCommandModeKeepsBindFocus (0.20s)
+    --- PASS: TestCustomDraftCommandModeKeepsBindFocus/light (0.11s)
+    --- PASS: TestCustomDraftCommandModeKeepsBindFocus/dark (0.09s)
+=== RUN   TestCustomDraftModeReturnKeepsText
+=== RUN   TestCustomDraftModeReturnKeepsText/light
+=== RUN   TestCustomDraftModeReturnKeepsText/dark
+--- PASS: TestCustomDraftModeReturnKeepsText (0.25s)
+    --- PASS: TestCustomDraftModeReturnKeepsText/light (0.12s)
+    --- PASS: TestCustomDraftModeReturnKeepsText/dark (0.13s)
+=== RUN   TestCustomRekeyKeepsRecorderFocus
+=== RUN   TestCustomRekeyKeepsRecorderFocus/light
+=== RUN   TestCustomRekeyKeepsRecorderFocus/dark
+--- PASS: TestCustomRekeyKeepsRecorderFocus (0.20s)
+    --- PASS: TestCustomRekeyKeepsRecorderFocus/light (0.09s)
+    --- PASS: TestCustomRekeyKeepsRecorderFocus/dark (0.11s)
+=== RUN   TestCustomConversionWithExistingDraftEvidence
+    customownership_test.go:148: conversion: draft=Ctrl+Shift+B entries=[]
+--- PASS: TestCustomConversionWithExistingDraftEvidence (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	1.199s
+FAIL

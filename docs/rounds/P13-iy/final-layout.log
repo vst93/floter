@@ -1,0 +1,46 @@
+=== RUN   TestCustomCommandRowsStayInsideSettings
+=== RUN   TestCustomCommandRowsStayInsideSettings/saved
+    customboundaries_test.go:92: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:92: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:92: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+=== RUN   TestCustomCommandRowsStayInsideSettings/draft
+    customboundaries_test.go:92: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:92: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:92: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+    customboundaries_test.go:92: Bind: {X:652.6 Y:720.19995 W:25 H:17}
+=== RUN   TestCustomCommandRowsStayInsideSettings/long-key
+    customboundaries_test.go:92: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:92: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:92: Remove shortcut: {X:300.4 Y:666.7999 W:25.200012 H:25.200012}
+=== RUN   TestCustomCommandRowsStayInsideSettings/long-action
+    customboundaries_test.go:92: Action: {X:506.60004 Y:666.7999 W:184.59998 H:29.799988}
+    customboundaries_test.go:92: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+--- PASS: TestCustomCommandRowsStayInsideSettings (0.51s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/saved (0.19s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/draft (0.17s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/long-key (0.08s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/long-action (0.07s)
+=== RUN   TestShortcutLayoutEdges
+=== RUN   TestShortcutLayoutEdges/saved-large/light
+=== RUN   TestShortcutLayoutEdges/saved-large/dark
+=== RUN   TestShortcutLayoutEdges/draft-large/light
+=== RUN   TestShortcutLayoutEdges/draft-large/dark
+=== RUN   TestShortcutLayoutEdges/warning/light
+=== RUN   TestShortcutLayoutEdges/warning/dark
+=== RUN   TestShortcutLayoutEdges/draft-warning/light
+=== RUN   TestShortcutLayoutEdges/draft-warning/dark
+=== RUN   TestShortcutLayoutEdges/recording-large/light
+=== RUN   TestShortcutLayoutEdges/recording-large/dark
+--- PASS: TestShortcutLayoutEdges (2.22s)
+    --- PASS: TestShortcutLayoutEdges/saved-large/light (0.18s)
+    --- PASS: TestShortcutLayoutEdges/saved-large/dark (0.15s)
+    --- PASS: TestShortcutLayoutEdges/draft-large/light (0.26s)
+    --- PASS: TestShortcutLayoutEdges/draft-large/dark (0.50s)
+    --- PASS: TestShortcutLayoutEdges/warning/light (0.10s)
+    --- PASS: TestShortcutLayoutEdges/warning/dark (0.18s)
+    --- PASS: TestShortcutLayoutEdges/draft-warning/light (0.15s)
+    --- PASS: TestShortcutLayoutEdges/draft-warning/dark (0.29s)
+    --- PASS: TestShortcutLayoutEdges/recording-large/light (0.17s)
+    --- PASS: TestShortcutLayoutEdges/recording-large/dark (0.25s)
+PASS
+ok  	floter/internal/settingsui	2.786s

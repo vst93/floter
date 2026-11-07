@@ -1,0 +1,37 @@
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/light
+    customfeedbackedge_test.go:21: unknown action "plugin:removed-tool" disguised as command mode
+    customfeedbackedge_test.go:25: unknown action cannot switch to real command mode
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/dark
+    customfeedbackedge_test.go:21: unknown action "plugin:removed-tool" disguised as command mode
+    customfeedbackedge_test.go:25: unknown action cannot switch to real command mode
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/light
+    customfeedbackedge_test.go:21: unknown action "action:removed-action" disguised as command mode
+    customfeedbackedge_test.go:25: unknown action cannot switch to real command mode
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/dark
+    customfeedbackedge_test.go:21: unknown action "action:removed-action" disguised as command mode
+    customfeedbackedge_test.go:25: unknown action cannot switch to real command mode
+--- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand (0.69s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/light (0.34s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/dark (0.14s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/light (0.08s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/dark (0.14s)
+=== RUN   TestCustomDraftBindKeepsSavedConflict
+=== RUN   TestCustomDraftBindKeepsSavedConflict/light
+    customfeedbackedge_test.go:51: binding unrelated draft erased saved refusal
+=== RUN   TestCustomDraftBindKeepsSavedConflict/dark
+    customfeedbackedge_test.go:51: binding unrelated draft erased saved refusal
+--- FAIL: TestCustomDraftBindKeepsSavedConflict (0.40s)
+    --- FAIL: TestCustomDraftBindKeepsSavedConflict/light (0.15s)
+    --- FAIL: TestCustomDraftBindKeepsSavedConflict/dark (0.25s)
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/light
+    customfeedbackedge_test.go:98: failed conversion stole focus into unrelated command draft
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/dark
+    customfeedbackedge_test.go:98: failed conversion stole focus into unrelated command draft
+--- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus (0.39s)
+    --- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus/light (0.15s)
+    --- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus/dark (0.24s)
+FAIL
+FAIL	floter/internal/settingsui	1.498s
+FAIL

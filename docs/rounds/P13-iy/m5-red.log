@@ -1,0 +1,13 @@
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/light
+    customconversionfailure_test.go:52: failed conversion stole focus into unrelated command draft
+    customconversionfailure_test.go:55: failed conversion lost original picker outlet
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/dark
+    customconversionfailure_test.go:52: failed conversion stole focus into unrelated command draft
+    customconversionfailure_test.go:55: failed conversion lost original picker outlet
+--- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus (0.88s)
+    --- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus/light (0.49s)
+    --- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus/dark (0.39s)
+FAIL
+FAIL	floter/internal/settingsui	0.902s
+FAIL

@@ -1,0 +1,29 @@
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool
+    customfeedbackedge_test.go:18: unknown action "plugin:removed-tool" disguised as command mode
+    customfeedbackedge_test.go:22: unknown action cannot switch to real command mode
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action
+    customfeedbackedge_test.go:18: unknown action "action:removed-action" disguised as command mode
+    customfeedbackedge_test.go:22: unknown action cannot switch to real command mode
+--- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand (0.37s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool (0.31s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action (0.05s)
+=== RUN   TestCustomDraftBindKeepsSavedConflict
+=== RUN   TestCustomDraftBindKeepsSavedConflict/light
+    customfeedbackedge_test.go:47: binding unrelated draft erased saved refusal
+=== RUN   TestCustomDraftBindKeepsSavedConflict/dark
+    customfeedbackedge_test.go:47: binding unrelated draft erased saved refusal
+--- FAIL: TestCustomDraftBindKeepsSavedConflict (0.36s)
+    --- FAIL: TestCustomDraftBindKeepsSavedConflict/light (0.12s)
+    --- FAIL: TestCustomDraftBindKeepsSavedConflict/dark (0.24s)
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/light
+    customfeedbackedge_test.go:75: failed conversion stole focus into unrelated command draft
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/dark
+    customfeedbackedge_test.go:75: failed conversion stole focus into unrelated command draft
+--- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus (0.37s)
+    --- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus/light (0.10s)
+    --- FAIL: TestCustomFailedConversionDoesNotStealDraftFocus/dark (0.27s)
+FAIL
+FAIL	floter/internal/settingsui	1.102s
+FAIL

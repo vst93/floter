@@ -1,0 +1,29 @@
+=== RUN   TestShortcutLayoutEdges
+=== RUN   TestShortcutLayoutEdges/saved-large/light
+    shortcutlayoutedge_test.go:61: saved picker overlaps remove: trash={X:301.8 Y:760.7 W:30.799988 H:30.799988} picker={X:301.99997 Y:760.7 W:154 H:35.200012}
+=== RUN   TestShortcutLayoutEdges/saved-large/dark
+    shortcutlayoutedge_test.go:61: saved picker overlaps remove: trash={X:301.8 Y:760.7 W:30.799988 H:30.799988} picker={X:301.99997 Y:760.7 W:154 H:35.200012}
+=== RUN   TestShortcutLayoutEdges/draft-large/light
+    shortcutlayoutedge_test.go:70: draft picker covers recorder hit target
+=== RUN   TestShortcutLayoutEdges/draft-large/dark
+    shortcutlayoutedge_test.go:70: draft picker covers recorder hit target
+=== RUN   TestShortcutLayoutEdges/warning/light
+=== RUN   TestShortcutLayoutEdges/warning/dark
+=== RUN   TestShortcutLayoutEdges/draft-warning/light
+=== RUN   TestShortcutLayoutEdges/draft-warning/dark
+=== RUN   TestShortcutLayoutEdges/recording-large/light
+=== RUN   TestShortcutLayoutEdges/recording-large/dark
+--- FAIL: TestShortcutLayoutEdges (0.51s)
+    --- FAIL: TestShortcutLayoutEdges/saved-large/light (0.13s)
+    --- FAIL: TestShortcutLayoutEdges/saved-large/dark (0.03s)
+    --- FAIL: TestShortcutLayoutEdges/draft-large/light (0.03s)
+    --- FAIL: TestShortcutLayoutEdges/draft-large/dark (0.08s)
+    --- PASS: TestShortcutLayoutEdges/warning/light (0.03s)
+    --- PASS: TestShortcutLayoutEdges/warning/dark (0.03s)
+    --- PASS: TestShortcutLayoutEdges/draft-warning/light (0.03s)
+    --- PASS: TestShortcutLayoutEdges/draft-warning/dark (0.06s)
+    --- PASS: TestShortcutLayoutEdges/recording-large/light (0.03s)
+    --- PASS: TestShortcutLayoutEdges/recording-large/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.512s
+FAIL

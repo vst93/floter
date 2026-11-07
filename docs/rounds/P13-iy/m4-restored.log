@@ -1,0 +1,18 @@
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/light
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/dark
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/light
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/dark
+--- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand (0.50s)
+    --- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/light (0.25s)
+    --- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/dark (0.09s)
+    --- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/light (0.06s)
+    --- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/dark (0.10s)
+=== RUN   TestCustomDraftBindKeepsSavedConflict
+=== RUN   TestCustomDraftBindKeepsSavedConflict/light
+=== RUN   TestCustomDraftBindKeepsSavedConflict/dark
+--- PASS: TestCustomDraftBindKeepsSavedConflict (0.31s)
+    --- PASS: TestCustomDraftBindKeepsSavedConflict/light (0.12s)
+    --- PASS: TestCustomDraftBindKeepsSavedConflict/dark (0.19s)
+PASS
+ok  	floter/internal/settingsui	0.818s

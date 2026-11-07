@@ -1,0 +1,24 @@
+=== RUN   TestShortcutLayoutEdges
+=== RUN   TestShortcutLayoutEdges/saved-large/light
+=== RUN   TestShortcutLayoutEdges/saved-large/dark
+=== RUN   TestShortcutLayoutEdges/draft-large/light
+=== RUN   TestShortcutLayoutEdges/draft-large/dark
+=== RUN   TestShortcutLayoutEdges/warning/light
+=== RUN   TestShortcutLayoutEdges/warning/dark
+=== RUN   TestShortcutLayoutEdges/draft-warning/light
+=== RUN   TestShortcutLayoutEdges/draft-warning/dark
+=== RUN   TestShortcutLayoutEdges/recording-large/light
+=== RUN   TestShortcutLayoutEdges/recording-large/dark
+--- PASS: TestShortcutLayoutEdges (1.31s)
+    --- PASS: TestShortcutLayoutEdges/saved-large/light (0.12s)
+    --- PASS: TestShortcutLayoutEdges/saved-large/dark (0.09s)
+    --- PASS: TestShortcutLayoutEdges/draft-large/light (0.14s)
+    --- PASS: TestShortcutLayoutEdges/draft-large/dark (0.26s)
+    --- PASS: TestShortcutLayoutEdges/warning/light (0.09s)
+    --- PASS: TestShortcutLayoutEdges/warning/dark (0.11s)
+    --- PASS: TestShortcutLayoutEdges/draft-warning/light (0.09s)
+    --- PASS: TestShortcutLayoutEdges/draft-warning/dark (0.17s)
+    --- PASS: TestShortcutLayoutEdges/recording-large/light (0.07s)
+    --- PASS: TestShortcutLayoutEdges/recording-large/dark (0.15s)
+PASS
+ok  	floter/internal/settingsui	1.321s

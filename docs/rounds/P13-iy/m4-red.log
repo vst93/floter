@@ -1,0 +1,29 @@
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/light
+    customfeedbackedge_test.go:21: unknown action "plugin:removed-tool" disguised as command mode
+    customfeedbackedge_test.go:25: unknown action cannot switch to real command mode
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/dark
+    customfeedbackedge_test.go:21: unknown action "plugin:removed-tool" disguised as command mode
+    customfeedbackedge_test.go:25: unknown action cannot switch to real command mode
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/light
+    customfeedbackedge_test.go:21: unknown action "action:removed-action" disguised as command mode
+    customfeedbackedge_test.go:25: unknown action cannot switch to real command mode
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/dark
+    customfeedbackedge_test.go:21: unknown action "action:removed-action" disguised as command mode
+    customfeedbackedge_test.go:25: unknown action cannot switch to real command mode
+--- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand (0.51s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/light (0.27s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/dark (0.10s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/light (0.05s)
+    --- FAIL: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/dark (0.09s)
+=== RUN   TestCustomDraftBindKeepsSavedConflict
+=== RUN   TestCustomDraftBindKeepsSavedConflict/light
+    customfeedbackedge_test.go:51: binding unrelated draft erased saved refusal
+=== RUN   TestCustomDraftBindKeepsSavedConflict/dark
+    customfeedbackedge_test.go:51: binding unrelated draft erased saved refusal
+--- FAIL: TestCustomDraftBindKeepsSavedConflict (0.34s)
+    --- FAIL: TestCustomDraftBindKeepsSavedConflict/light (0.12s)
+    --- FAIL: TestCustomDraftBindKeepsSavedConflict/dark (0.22s)
+FAIL
+FAIL	floter/internal/settingsui	0.868s
+FAIL

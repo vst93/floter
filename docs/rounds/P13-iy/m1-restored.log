@@ -1,0 +1,8 @@
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode/light
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode/dark
+--- PASS: TestCustomCommandLiteralDoesNotBecomeMode (0.17s)
+    --- PASS: TestCustomCommandLiteralDoesNotBecomeMode/light (0.09s)
+    --- PASS: TestCustomCommandLiteralDoesNotBecomeMode/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.172s

@@ -1,0 +1,22 @@
+=== RUN   TestCustomCommandReselectKeepsSavedBinding
+=== RUN   TestCustomCommandReselectKeepsSavedBinding/light
+=== RUN   TestCustomCommandReselectKeepsSavedBinding/dark
+--- PASS: TestCustomCommandReselectKeepsSavedBinding (0.15s)
+    --- PASS: TestCustomCommandReselectKeepsSavedBinding/light (0.07s)
+    --- PASS: TestCustomCommandReselectKeepsSavedBinding/dark (0.08s)
+=== RUN   TestCustomDraftActionChangeKeepsRecorderFocus
+=== RUN   TestCustomDraftActionChangeKeepsRecorderFocus/light
+=== RUN   TestCustomDraftActionChangeKeepsRecorderFocus/dark
+--- PASS: TestCustomDraftActionChangeKeepsRecorderFocus (0.06s)
+    --- PASS: TestCustomDraftActionChangeKeepsRecorderFocus/light (0.04s)
+    --- PASS: TestCustomDraftActionChangeKeepsRecorderFocus/dark (0.02s)
+=== RUN   TestCustomLongActionKeepsRecorderReachable
+=== RUN   TestCustomLongActionKeepsRecorderReachable/compact
+=== RUN   TestCustomLongActionKeepsRecorderReachable/default
+=== RUN   TestCustomLongActionKeepsRecorderReachable/large
+--- PASS: TestCustomLongActionKeepsRecorderReachable (0.10s)
+    --- PASS: TestCustomLongActionKeepsRecorderReachable/compact (0.02s)
+    --- PASS: TestCustomLongActionKeepsRecorderReachable/default (0.04s)
+    --- PASS: TestCustomLongActionKeepsRecorderReachable/large (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.313s

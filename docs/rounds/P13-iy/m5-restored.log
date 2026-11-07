@@ -1,0 +1,8 @@
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/light
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/dark
+--- PASS: TestCustomFailedConversionDoesNotStealDraftFocus (0.52s)
+    --- PASS: TestCustomFailedConversionDoesNotStealDraftFocus/light (0.34s)
+    --- PASS: TestCustomFailedConversionDoesNotStealDraftFocus/dark (0.18s)
+PASS
+ok  	floter/internal/settingsui	0.535s

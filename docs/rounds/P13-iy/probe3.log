@@ -1,0 +1,42 @@
+=== RUN   TestCustomRekeyKeepsUnsubmittedCommand
+=== RUN   TestCustomRekeyKeepsUnsubmittedCommand/light
+    customboundaries_test.go:25: changing key discarded command draft: "say original"
+    customboundaries_test.go:32: new key cannot submit retained command
+=== RUN   TestCustomRekeyKeepsUnsubmittedCommand/dark
+    customboundaries_test.go:25: changing key discarded command draft: "say original"
+    customboundaries_test.go:32: new key cannot submit retained command
+--- FAIL: TestCustomRekeyKeepsUnsubmittedCommand (0.41s)
+    --- FAIL: TestCustomRekeyKeepsUnsubmittedCommand/light (0.25s)
+    --- FAIL: TestCustomRekeyKeepsUnsubmittedCommand/dark (0.16s)
+=== RUN   TestCustomCommandRefreshUpdatesUntouchedEditor
+=== RUN   TestCustomCommandRefreshUpdatesUntouchedEditor/light
+=== RUN   TestCustomCommandRefreshUpdatesUntouchedEditor/dark
+--- PASS: TestCustomCommandRefreshUpdatesUntouchedEditor (0.15s)
+    --- PASS: TestCustomCommandRefreshUpdatesUntouchedEditor/light (0.05s)
+    --- PASS: TestCustomCommandRefreshUpdatesUntouchedEditor/dark (0.10s)
+=== RUN   TestCustomCommandRowsStayInsideSettings
+=== RUN   TestCustomCommandRowsStayInsideSettings/saved
+    customboundaries_test.go:90: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:90: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:90: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+=== RUN   TestCustomCommandRowsStayInsideSettings/draft
+    customboundaries_test.go:90: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:90: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:90: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+    customboundaries_test.go:90: Bind: {X:652.6 Y:720.19995 W:25 H:17}
+=== RUN   TestCustomCommandRowsStayInsideSettings/long-key
+    customboundaries_test.go:90: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:90: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:90: Remove shortcut: {X:300.4 Y:666.7999 W:25.200012 H:25.200012}
+=== RUN   TestCustomCommandRowsStayInsideSettings/long-action
+    customboundaries_test.go:90: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:90: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:90: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+--- PASS: TestCustomCommandRowsStayInsideSettings (0.22s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/saved (0.05s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/draft (0.10s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/long-key (0.04s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/long-action (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.786s
+FAIL

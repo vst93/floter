@@ -1,0 +1,11 @@
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode/light
+    customownership_test.go:63: literal command became a mode switch: entries=[] draft=true
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode/dark
+    customownership_test.go:63: literal command became a mode switch: entries=[] draft=true
+--- FAIL: TestCustomCommandLiteralDoesNotBecomeMode (0.24s)
+    --- FAIL: TestCustomCommandLiteralDoesNotBecomeMode/light (0.15s)
+    --- FAIL: TestCustomCommandLiteralDoesNotBecomeMode/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	0.245s
+FAIL
