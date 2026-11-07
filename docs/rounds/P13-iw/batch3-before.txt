@@ -1,0 +1,19 @@
+=== RUN   TestShortcutLifecycleCapturedSummonStaysRegistered
+--- PASS: TestShortcutLifecycleCapturedSummonStaysRegistered (0.07s)
+=== RUN   TestShortcutLifecycleCapturedCustomStaysRegistered
+2026/11/07 17:54:17 floter: custom shortcut Ctrl+Shift+Z: occupied
+    shortcutcapturerestore_test.go:30: accepted chord was claimed again or lost on resume: claims=2 live=false
+--- FAIL: TestShortcutLifecycleCapturedCustomStaysRegistered (0.04s)
+=== RUN   TestShortcutLifecycleResetKeepsRecorderSuspended
+=== RUN   TestShortcutLifecycleResetKeepsRecorderSuspended/summon
+    shortcutcapturerestore_test.go:63: reset activated global shortcuts under active recorder: [Ctrl+Space]
+2026/11/07 17:54:17 floter: could not re-register Ctrl+Space: occupied
+=== RUN   TestShortcutLifecycleResetKeepsRecorderSuspended/custom
+    shortcutcapturerestore_test.go:63: reset activated global shortcuts under active recorder: [Ctrl+Space]
+2026/11/07 17:54:17 floter: could not re-register Ctrl+Space: occupied
+--- FAIL: TestShortcutLifecycleResetKeepsRecorderSuspended (0.05s)
+    --- FAIL: TestShortcutLifecycleResetKeepsRecorderSuspended/summon (0.03s)
+    --- FAIL: TestShortcutLifecycleResetKeepsRecorderSuspended/custom (0.02s)
+FAIL
+FAIL	floter/internal/shell	0.162s
+FAIL

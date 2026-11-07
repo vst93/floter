@@ -427,6 +427,7 @@ type App struct {
 	// A captured replacement can already be registered before the view's
 	// deferred resume. Only a key still released needs to be acquired there.
 	summonNeedsRestore bool
+	customNeedsRestore bool
 	// The terminal's size write-back: the size the last resize settled on,
 	// its generation, and the timer that writes it.
 	sizeMu         sync.Mutex
@@ -2252,6 +2253,12 @@ func (a *App) resetShortcuts() {
 	a.summonKey = settings.DefaultSummonShortcut
 	a.Settings.Shortcut = settings.DefaultSummonShortcut
 	a.ShortcutErr, a.shortcutRefusal = nil, ""
+	if a.shortcutsSuspended {
+		// Restore defaults may be clicked while a recorder still owns input.
+		// Probing the default must not make it fire under that recorder.
+		a.unregisterShortcut(a.summonKey)
+		a.summonNeedsRestore = true
+	}
 	a.ApplyCustomShortcuts()
 }
 
@@ -2307,6 +2314,7 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 		a.customKeys = nil
 		a.shortcutsSuspended = true
 		a.summonNeedsRestore = true
+		a.customNeedsRestore = true
 		return
 	}
 	a.shortcutsSuspended = false
@@ -2326,7 +2334,9 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 			}
 		}
 	}
-	a.ApplyCustomShortcuts()
+	if a.customNeedsRestore {
+		a.ApplyCustomShortcuts()
+	}
 }
 
 // saveIntegrationConfiguration validates and stores one integration's

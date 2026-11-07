@@ -68,16 +68,12 @@ func customShortcutSignatureOf(entries []settings.CustomShortcut) string {
 // settings page takes effect at once.
 func (a *App) ApplyCustomShortcuts() []CustomShortcutRejection {
 	if a.shortcutsSuspended {
+		a.customNeedsRestore = true
 		return nil
 	}
 	snapshot := a.Store.Snapshot()
 	a.customSignature = customShortcutSignature(snapshot)
 	_, rejections := a.applyCustomShortcuts(settings.CustomShortcutsOf(snapshot))
-	a.Settings.CustomUnavailable = nil
-	for _, rejection := range rejections {
-		a.Settings.CustomUnavailable = append(a.Settings.CustomUnavailable,
-			settingsui.CustomShortcutRejection{Key: rejection.Key, Reason: rejection.Reason})
-	}
 	return rejections
 }
 
@@ -119,7 +115,11 @@ func (a *App) applyCustomShortcuts(entries []settings.CustomShortcut) ([]setting
 		claimed = append(claimed, accelerator)
 	}
 	a.customKeys = claimed
+	a.customNeedsRestore = false
+	a.Settings.CustomUnavailable = nil
 	for _, rejection := range rejections {
+		a.Settings.CustomUnavailable = append(a.Settings.CustomUnavailable,
+			settingsui.CustomShortcutRejection{Key: rejection.Key, Reason: rejection.Reason})
 		log.Printf("floter: custom shortcut %s: %s", rejection.Key, rejection.Reason)
 	}
 	return registered, rejections
