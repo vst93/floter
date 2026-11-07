@@ -1,0 +1,52 @@
+=== RUN   TestDiagnosisCurrentProvider
+--- PASS: TestDiagnosisCurrentProvider (0.00s)
+=== RUN   TestDiagnosisCurrentVerdictIsVisible
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/light
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/dark
+--- PASS: TestDiagnosisCurrentVerdictIsVisible (6.78s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/light (3.90s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/dark (2.88s)
+=== RUN   TestDiagnosisCurrentChecksAreVisible
+=== RUN   TestDiagnosisCurrentChecksAreVisible/light
+=== RUN   TestDiagnosisCurrentChecksAreVisible/dark
+--- PASS: TestDiagnosisCurrentChecksAreVisible (5.82s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/light (2.90s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/dark (2.92s)
+=== RUN   TestDiagnosisCurrentHealthRefresh
+=== RUN   TestDiagnosisCurrentHealthRefresh/light
+=== RUN   TestDiagnosisCurrentHealthRefresh/dark
+--- PASS: TestDiagnosisCurrentHealthRefresh (8.30s)
+    --- PASS: TestDiagnosisCurrentHealthRefresh/light (4.08s)
+    --- PASS: TestDiagnosisCurrentHealthRefresh/dark (4.22s)
+=== RUN   TestDiagnosisCurrentHealthLanguage
+=== RUN   TestDiagnosisCurrentHealthLanguage/light
+=== RUN   TestDiagnosisCurrentHealthLanguage/dark
+--- PASS: TestDiagnosisCurrentHealthLanguage (6.31s)
+    --- PASS: TestDiagnosisCurrentHealthLanguage/light (3.30s)
+    --- PASS: TestDiagnosisCurrentHealthLanguage/dark (3.01s)
+=== RUN   TestDiagnosisCurrentPackageOwner
+=== RUN   TestDiagnosisCurrentPackageOwner/light
+=== RUN   TestDiagnosisCurrentPackageOwner/dark
+--- PASS: TestDiagnosisCurrentPackageOwner (10.97s)
+    --- PASS: TestDiagnosisCurrentPackageOwner/light (5.45s)
+    --- PASS: TestDiagnosisCurrentPackageOwner/dark (5.52s)
+=== RUN   TestDiagnosisCurrentPendingOwner
+=== RUN   TestDiagnosisCurrentPendingOwner/light
+=== RUN   TestDiagnosisCurrentPendingOwner/dark
+--- PASS: TestDiagnosisCurrentPendingOwner (10.64s)
+    --- PASS: TestDiagnosisCurrentPendingOwner/light (5.31s)
+    --- PASS: TestDiagnosisCurrentPendingOwner/dark (5.33s)
+=== RUN   TestDiagnosisCurrentLatestResult
+=== RUN   TestDiagnosisCurrentLatestResult/light
+=== RUN   TestDiagnosisCurrentLatestResult/dark
+--- PASS: TestDiagnosisCurrentLatestResult (7.62s)
+    --- PASS: TestDiagnosisCurrentLatestResult/light (3.83s)
+    --- PASS: TestDiagnosisCurrentLatestResult/dark (3.80s)
+=== RUN   TestDiagnosisCurrentLatestNotice
+=== RUN   TestDiagnosisCurrentLatestNotice/light
+=== RUN   TestDiagnosisCurrentLatestNotice/dark
+--- PASS: TestDiagnosisCurrentLatestNotice (7.98s)
+    --- PASS: TestDiagnosisCurrentLatestNotice/light (4.01s)
+    --- PASS: TestDiagnosisCurrentLatestNotice/dark (3.97s)
+PASS
+ok  	floter/internal/shell	65.487s

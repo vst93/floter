@@ -1,0 +1,19 @@
+=== RUN   TestDiagnosisCurrentLatestResult
+=== RUN   TestDiagnosisCurrentLatestResult/light
+    diagnosiscurrent_test.go:341: older check overwrote the latest completed diagnosis
+=== RUN   TestDiagnosisCurrentLatestResult/dark
+    diagnosiscurrent_test.go:341: older check overwrote the latest completed diagnosis
+--- FAIL: TestDiagnosisCurrentLatestResult (0.57s)
+    --- FAIL: TestDiagnosisCurrentLatestResult/light (0.40s)
+    --- FAIL: TestDiagnosisCurrentLatestResult/dark (0.16s)
+=== RUN   TestDiagnosisCurrentLatestNotice
+=== RUN   TestDiagnosisCurrentLatestNotice/light
+    diagnosiscurrent_test.go:336: superseded check replaced current completion feedback: ["检查工具 工作正常" "检查工具 报告了问题"]
+=== RUN   TestDiagnosisCurrentLatestNotice/dark
+    diagnosiscurrent_test.go:336: superseded check replaced current completion feedback: ["检查工具 工作正常" "检查工具 报告了问题"]
+--- FAIL: TestDiagnosisCurrentLatestNotice (0.69s)
+    --- FAIL: TestDiagnosisCurrentLatestNotice/light (0.35s)
+    --- FAIL: TestDiagnosisCurrentLatestNotice/dark (0.35s)
+FAIL
+FAIL	floter/internal/shell	1.266s
+FAIL

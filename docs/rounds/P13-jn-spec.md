@@ -27,7 +27,7 @@
 
 ## 验收
 
-中文 locale LC_ALL=zh_CN.UTF-8，GOMAXPROCS=4；起点3319测试函数。基线全量verbose正在执行，只在完成后填数字。
+中文 locale LC_ALL=zh_CN.UTF-8，GOMAXPROCS=4；起点3319测试函数。基线全量verbose实测5702 PASS / 0 FAIL。
 最终运行 gofmt -l cmd internal；三平台 go vet ./...；普通与verbose go test -count=1 ./...；三平台 go build ./...。旧V/B/S断言零改，无新增Skip。
 
 Mutation：M1撤回两项网格投影；M2恢复旧Health覆盖；M3撤掉声明归属检查；M4撤掉请求顺序/反馈保护。每组真实注入→红→恢复→md5sum -c→touch→复验。深浅真实ui.Tester前后PNG入库，目检。

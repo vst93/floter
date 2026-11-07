@@ -1,0 +1,14 @@
+=== RUN   TestDiagnosisCurrentPackageOwner
+=== RUN   TestDiagnosisCurrentPackageOwner/light
+=== RUN   TestDiagnosisCurrentPackageOwner/dark
+--- PASS: TestDiagnosisCurrentPackageOwner (0.49s)
+    --- PASS: TestDiagnosisCurrentPackageOwner/light (0.31s)
+    --- PASS: TestDiagnosisCurrentPackageOwner/dark (0.18s)
+=== RUN   TestDiagnosisCurrentPendingOwner
+=== RUN   TestDiagnosisCurrentPendingOwner/light
+=== RUN   TestDiagnosisCurrentPendingOwner/dark
+--- PASS: TestDiagnosisCurrentPendingOwner (0.37s)
+    --- PASS: TestDiagnosisCurrentPendingOwner/light (0.18s)
+    --- PASS: TestDiagnosisCurrentPendingOwner/dark (0.18s)
+PASS
+ok  	floter/internal/shell	0.863s

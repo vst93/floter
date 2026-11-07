@@ -1,0 +1,19 @@
+=== RUN   TestDiagnosisCurrentHealthRefresh
+=== RUN   TestDiagnosisCurrentHealthRefresh/light
+    diagnosiscurrent_test.go:206: diagnosis overwrote current health: "健康" want "异常"
+=== RUN   TestDiagnosisCurrentHealthRefresh/dark
+    diagnosiscurrent_test.go:206: diagnosis overwrote current health: "健康" want "异常"
+--- FAIL: TestDiagnosisCurrentHealthRefresh (0.31s)
+    --- FAIL: TestDiagnosisCurrentHealthRefresh/light (0.21s)
+    --- FAIL: TestDiagnosisCurrentHealthRefresh/dark (0.10s)
+=== RUN   TestDiagnosisCurrentHealthLanguage
+=== RUN   TestDiagnosisCurrentHealthLanguage/light
+    diagnosiscurrent_test.go:211: diagnosis health kept previous language: "健康" want "Healthy"
+=== RUN   TestDiagnosisCurrentHealthLanguage/dark
+    diagnosiscurrent_test.go:211: diagnosis health kept previous language: "健康" want "Healthy"
+--- FAIL: TestDiagnosisCurrentHealthLanguage (0.19s)
+    --- FAIL: TestDiagnosisCurrentHealthLanguage/light (0.10s)
+    --- FAIL: TestDiagnosisCurrentHealthLanguage/dark (0.09s)
+FAIL
+FAIL	floter/internal/shell	0.504s
+FAIL

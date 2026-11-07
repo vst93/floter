@@ -1,0 +1,2 @@
+internal/shell/shell.go: OK
+internal/shell/diagnosiscurrent_test.go: OK

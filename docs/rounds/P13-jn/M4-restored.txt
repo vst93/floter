@@ -1,0 +1,14 @@
+=== RUN   TestDiagnosisCurrentLatestResult
+=== RUN   TestDiagnosisCurrentLatestResult/light
+=== RUN   TestDiagnosisCurrentLatestResult/dark
+--- PASS: TestDiagnosisCurrentLatestResult (0.39s)
+    --- PASS: TestDiagnosisCurrentLatestResult/light (0.26s)
+    --- PASS: TestDiagnosisCurrentLatestResult/dark (0.14s)
+=== RUN   TestDiagnosisCurrentLatestNotice
+=== RUN   TestDiagnosisCurrentLatestNotice/light
+=== RUN   TestDiagnosisCurrentLatestNotice/dark
+--- PASS: TestDiagnosisCurrentLatestNotice (0.70s)
+    --- PASS: TestDiagnosisCurrentLatestNotice/light (0.35s)
+    --- PASS: TestDiagnosisCurrentLatestNotice/dark (0.35s)
+PASS
+ok  	floter/internal/shell	1.096s

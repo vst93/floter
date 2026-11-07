@@ -1,0 +1,16 @@
+status light: crop=(200, 1265, 940, 1420), changed_pixels=34133
+checks light: crop=(200, 1265, 940, 1420), changed_pixels=34133
+health-refresh light: crop=(200, 1160, 940, 1230), changed_pixels=191
+health-language light: crop=(200, 1160, 940, 1230), changed_pixels=629
+owner-package light: crop=(200, 1235, 940, 1455), changed_pixels=70389
+owner-pending light: crop=(200, 1235, 940, 1455), changed_pixels=70389
+latest-result light: crop=(200, 1235, 940, 1455), changed_pixels=1102
+latest-notice light: crop=(200, 65, 940, 250), changed_pixels=410
+status dark: crop=(200, 1265, 940, 1420), changed_pixels=34108
+checks dark: crop=(200, 1265, 940, 1420), changed_pixels=34108
+health-refresh dark: crop=(200, 1160, 940, 1230), changed_pixels=190
+health-language dark: crop=(200, 1160, 940, 1230), changed_pixels=629
+owner-package dark: crop=(200, 1235, 940, 1455), changed_pixels=70364
+owner-pending dark: crop=(200, 1235, 940, 1455), changed_pixels=70364
+latest-result dark: crop=(200, 1235, 940, 1455), changed_pixels=1104
+latest-notice dark: crop=(200, 65, 940, 250), changed_pixels=410

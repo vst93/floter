@@ -1,0 +1,14 @@
+=== RUN   TestDiagnosisCurrentVerdictIsVisible
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/light
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/dark
+--- PASS: TestDiagnosisCurrentVerdictIsVisible (0.26s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/light (0.18s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/dark (0.09s)
+=== RUN   TestDiagnosisCurrentChecksAreVisible
+=== RUN   TestDiagnosisCurrentChecksAreVisible/light
+=== RUN   TestDiagnosisCurrentChecksAreVisible/dark
+--- PASS: TestDiagnosisCurrentChecksAreVisible (0.18s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/light (0.09s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/dark (0.09s)
+PASS
+ok  	floter/internal/shell	0.448s
