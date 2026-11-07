@@ -1,0 +1,30 @@
+=== RUN   TestDiagnosisCurrentProvider
+--- PASS: TestDiagnosisCurrentProvider (0.00s)
+=== RUN   TestDiagnosisCurrentVerdictIsVisible
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/light
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/dark
+--- PASS: TestDiagnosisCurrentVerdictIsVisible (0.82s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/light (0.58s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/dark (0.24s)
+=== RUN   TestDiagnosisCurrentChecksAreVisible
+=== RUN   TestDiagnosisCurrentChecksAreVisible/light
+=== RUN   TestDiagnosisCurrentChecksAreVisible/dark
+--- PASS: TestDiagnosisCurrentChecksAreVisible (0.50s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/light (0.26s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/dark (0.24s)
+=== RUN   TestDiagnosisCurrentHealthRefresh
+=== RUN   TestDiagnosisCurrentHealthRefresh/light
+=== RUN   TestDiagnosisCurrentHealthRefresh/dark
+--- PASS: TestDiagnosisCurrentHealthRefresh (0.59s)
+    --- PASS: TestDiagnosisCurrentHealthRefresh/light (0.32s)
+    --- PASS: TestDiagnosisCurrentHealthRefresh/dark (0.27s)
+=== RUN   TestDiagnosisCurrentHealthLanguage
+=== RUN   TestDiagnosisCurrentHealthLanguage/light
+=== RUN   TestDiagnosisCurrentHealthLanguage/dark
+--- PASS: TestDiagnosisCurrentHealthLanguage (0.54s)
+    --- PASS: TestDiagnosisCurrentHealthLanguage/light (0.25s)
+    --- PASS: TestDiagnosisCurrentHealthLanguage/dark (0.29s)
+=== RUN   TestDiagnoseIntegrationRecordsTheResult
+--- PASS: TestDiagnoseIntegrationRecordsTheResult (0.06s)
+PASS
+ok  	floter/internal/shell	2.533s

@@ -1847,7 +1847,8 @@ func (a *App) integrationList() []settingsui.Integration {
 		if diagnosis, ok := a.diagnoses[item.ID]; ok {
 			item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
 			item.DiagnosisStatus, item.DiagnosisChecks = diagnosis.DiagnosisStatus, diagnosis.DiagnosisChecks
-			item.Health = diagnosis.Health
+			// Health is projected from the current report above, in the current
+			// language. A provider diagnosis does not own that persisted fact.
 		}
 		a.diagnosisMu.Unlock()
 		out = append(out, item)

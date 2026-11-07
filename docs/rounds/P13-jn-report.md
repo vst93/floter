@@ -25,3 +25,10 @@
 2. 现象：提供者返回网络正常和账号警告，玩家只见摘要，成功检查完全消失。改动：列表接出有序 DiagnosisChecks。验证：两个原始ID及顺序、两个可见消息联合断言；修前 `provider checks never reach the diagnostic grid`，修后全绿。
 
 第一批相关7 PASS / 0 FAIL，shell vet退出0，旧V/B/S 0/0/0。原测试首稿误要求界面显示原始ID与小写状态，读取真实网格合约后修为检查ID数据顺序和既有首字母大写/消息显示；没有修改旧断言。正式mutation留到最终产品统一执行。
+
+第一批bb8d9631已推送。
+
+3. 现象：诊断结束后健康报告刷新为异常，摘要仍被旧诊断盖回健康。改动：健康块保留当前持久报告的投影。验证：真实仓库写盘、Store.Refresh和深浅界面，修前 `diagnosis overwrote current health: "健康" want "异常"`；修后异常文本与状态枚举一致。
+4. 现象：诊断后由中文切英文，健康标签仍为“健康”。改动：同一投影只用当前语言，诊断不再拥有健康译文。验证：Store.Update触发实际语言切换，修前 `diagnosis health kept previous language: "健康" want "Healthy"`；修后Healthy可见。
+
+第二批相关14 PASS / 0 FAIL，shell vet退出0，旧V/B/S 0/0/0。首轮目检浅色完整图：两个检查项已进入原有54px状态列与消息列，成功项不再消失；没有额外卡片或阴影。

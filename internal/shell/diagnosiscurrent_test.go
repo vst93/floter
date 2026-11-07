@@ -217,3 +217,6 @@ func checkDiagnosisProjection(t *testing.T, scenario string) {
 
 func TestDiagnosisCurrentVerdictIsVisible(t *testing.T) { checkDiagnosisProjection(t, "status") }
 func TestDiagnosisCurrentChecksAreVisible(t *testing.T) { checkDiagnosisProjection(t, "checks") }
+
+func TestDiagnosisCurrentHealthRefresh(t *testing.T)  { checkDiagnosisProjection(t, "health-refresh") }
+func TestDiagnosisCurrentHealthLanguage(t *testing.T) { checkDiagnosisProjection(t, "health-language") }
