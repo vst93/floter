@@ -1,0 +1,70 @@
+=== RUN   TestConfigTargetCopyMissing
+=== RUN   TestConfigTargetCopyMissing/missing
+=== RUN   TestConfigTargetCopyMissing/missing/light
+=== RUN   TestConfigTargetCopyMissing/missing/dark
+=== RUN   TestConfigTargetCopyMissing/disabled
+=== RUN   TestConfigTargetCopyMissing/disabled/light
+=== RUN   TestConfigTargetCopyMissing/disabled/dark
+=== RUN   TestConfigTargetCopyMissing/empty
+=== RUN   TestConfigTargetCopyMissing/empty/light
+2026/11/07 23:43:42 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "token"
+=== RUN   TestConfigTargetCopyMissing/empty/dark
+2026/11/07 23:43:42 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "region"
+--- PASS: TestConfigTargetCopyMissing (2.69s)
+    --- PASS: TestConfigTargetCopyMissing/missing (0.92s)
+        --- PASS: TestConfigTargetCopyMissing/missing/light (0.48s)
+        --- PASS: TestConfigTargetCopyMissing/missing/dark (0.44s)
+    --- PASS: TestConfigTargetCopyMissing/disabled (0.88s)
+        --- PASS: TestConfigTargetCopyMissing/disabled/light (0.44s)
+        --- PASS: TestConfigTargetCopyMissing/disabled/dark (0.44s)
+    --- PASS: TestConfigTargetCopyMissing/empty (0.89s)
+        --- PASS: TestConfigTargetCopyMissing/empty/light (0.44s)
+        --- PASS: TestConfigTargetCopyMissing/empty/dark (0.45s)
+=== RUN   TestConfigTargetExportMissing
+=== RUN   TestConfigTargetExportMissing/missing
+=== RUN   TestConfigTargetExportMissing/missing/light
+=== RUN   TestConfigTargetExportMissing/missing/dark
+=== RUN   TestConfigTargetExportMissing/disabled
+=== RUN   TestConfigTargetExportMissing/disabled/light
+=== RUN   TestConfigTargetExportMissing/disabled/dark
+=== RUN   TestConfigTargetExportMissing/empty
+=== RUN   TestConfigTargetExportMissing/empty/light
+2026/11/07 23:43:44 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+=== RUN   TestConfigTargetExportMissing/empty/dark
+2026/11/07 23:43:45 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "token"
+--- PASS: TestConfigTargetExportMissing (2.66s)
+    --- PASS: TestConfigTargetExportMissing/missing (0.89s)
+        --- PASS: TestConfigTargetExportMissing/missing/light (0.45s)
+        --- PASS: TestConfigTargetExportMissing/missing/dark (0.44s)
+    --- PASS: TestConfigTargetExportMissing/disabled (0.89s)
+        --- PASS: TestConfigTargetExportMissing/disabled/light (0.44s)
+        --- PASS: TestConfigTargetExportMissing/disabled/dark (0.45s)
+    --- PASS: TestConfigTargetExportMissing/empty (0.89s)
+        --- PASS: TestConfigTargetExportMissing/empty/light (0.44s)
+        --- PASS: TestConfigTargetExportMissing/empty/dark (0.44s)
+=== RUN   TestConfigTargetCopyTool
+=== RUN   TestConfigTargetCopyTool/light
+=== RUN   TestConfigTargetCopyTool/dark
+--- PASS: TestConfigTargetCopyTool (0.89s)
+    --- PASS: TestConfigTargetCopyTool/light (0.44s)
+    --- PASS: TestConfigTargetCopyTool/dark (0.45s)
+=== RUN   TestConfigTargetExportTool
+=== RUN   TestConfigTargetExportTool/light
+=== RUN   TestConfigTargetExportTool/dark
+--- PASS: TestConfigTargetExportTool (0.99s)
+    --- PASS: TestConfigTargetExportTool/light (0.45s)
+    --- PASS: TestConfigTargetExportTool/dark (0.54s)
+=== RUN   TestConfigTargetSaveMissing
+=== RUN   TestConfigTargetSaveMissing/light
+=== RUN   TestConfigTargetSaveMissing/dark
+--- PASS: TestConfigTargetSaveMissing (1.15s)
+    --- PASS: TestConfigTargetSaveMissing/light (0.61s)
+    --- PASS: TestConfigTargetSaveMissing/dark (0.54s)
+=== RUN   TestConfigTargetSaveTool
+=== RUN   TestConfigTargetSaveTool/light
+=== RUN   TestConfigTargetSaveTool/dark
+--- PASS: TestConfigTargetSaveTool (1.03s)
+    --- PASS: TestConfigTargetSaveTool/light (0.52s)
+    --- PASS: TestConfigTargetSaveTool/dark (0.51s)
+PASS
+ok  	floter/internal/shell	9.431s

@@ -1,0 +1,14 @@
+=== RUN   TestConfigTransferCopyRespectsRowBusy
+=== RUN   TestConfigTransferCopyRespectsRowBusy/light
+=== RUN   TestConfigTransferCopyRespectsRowBusy/dark
+--- PASS: TestConfigTransferCopyRespectsRowBusy (0.52s)
+    --- PASS: TestConfigTransferCopyRespectsRowBusy/light (0.31s)
+    --- PASS: TestConfigTransferCopyRespectsRowBusy/dark (0.22s)
+=== RUN   TestConfigTransferExportRespectsRowBusy
+=== RUN   TestConfigTransferExportRespectsRowBusy/light
+=== RUN   TestConfigTransferExportRespectsRowBusy/dark
+--- PASS: TestConfigTransferExportRespectsRowBusy (0.42s)
+    --- PASS: TestConfigTransferExportRespectsRowBusy/light (0.21s)
+    --- PASS: TestConfigTransferExportRespectsRowBusy/dark (0.21s)
+PASS
+ok  	floter/internal/settingsui	0.949s

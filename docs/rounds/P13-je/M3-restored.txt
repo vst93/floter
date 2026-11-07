@@ -1,0 +1,18 @@
+=== RUN   TestConfigExportWriteCause
+=== RUN   TestConfigExportWriteCause/light
+2026/11/07 23:43:57 floter: could not write /tmp/TestConfigExportWriteCauselight809525915/001: open /tmp/TestConfigExportWriteCauselight809525915/001: is a directory
+=== RUN   TestConfigExportWriteCause/dark
+2026/11/07 23:43:57 floter: could not write /tmp/TestConfigExportWriteCausedark2564674763/001: open /tmp/TestConfigExportWriteCausedark2564674763/001: is a directory
+--- PASS: TestConfigExportWriteCause (0.56s)
+    --- PASS: TestConfigExportWriteCause/light (0.29s)
+    --- PASS: TestConfigExportWriteCause/dark (0.27s)
+=== RUN   TestIntegrationsExportWriteCause
+=== RUN   TestIntegrationsExportWriteCause/light
+2026/11/07 23:43:57 floter: could not write /tmp/TestIntegrationsExportWriteCauselight2801837649/001: open /tmp/TestIntegrationsExportWriteCauselight2801837649/001: is a directory
+=== RUN   TestIntegrationsExportWriteCause/dark
+2026/11/07 23:43:58 floter: could not write /tmp/TestIntegrationsExportWriteCausedark1330502248/001: open /tmp/TestIntegrationsExportWriteCausedark1330502248/001: is a directory
+--- PASS: TestIntegrationsExportWriteCause (0.67s)
+    --- PASS: TestIntegrationsExportWriteCause/light (0.34s)
+    --- PASS: TestIntegrationsExportWriteCause/dark (0.34s)
+PASS
+ok  	floter/internal/shell	1.242s

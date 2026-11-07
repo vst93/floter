@@ -1,0 +1,19 @@
+=== RUN   TestConfigTransferCopyRespectsRowBusy
+=== RUN   TestConfigTransferCopyRespectsRowBusy/light
+    configtransferbusy_test.go:67: busy row dispatched copy-row-busy 1 times
+=== RUN   TestConfigTransferCopyRespectsRowBusy/dark
+    configtransferbusy_test.go:67: busy row dispatched copy-row-busy 1 times
+--- FAIL: TestConfigTransferCopyRespectsRowBusy (0.53s)
+    --- FAIL: TestConfigTransferCopyRespectsRowBusy/light (0.30s)
+    --- FAIL: TestConfigTransferCopyRespectsRowBusy/dark (0.23s)
+=== RUN   TestConfigTransferExportRespectsRowBusy
+=== RUN   TestConfigTransferExportRespectsRowBusy/light
+    configtransferbusy_test.go:67: busy row dispatched export-row-busy 1 times
+=== RUN   TestConfigTransferExportRespectsRowBusy/dark
+    configtransferbusy_test.go:67: busy row dispatched export-row-busy 1 times
+--- FAIL: TestConfigTransferExportRespectsRowBusy (0.45s)
+    --- FAIL: TestConfigTransferExportRespectsRowBusy/light (0.21s)
+    --- FAIL: TestConfigTransferExportRespectsRowBusy/dark (0.24s)
+FAIL
+FAIL	floter/internal/settingsui	0.985s
+FAIL

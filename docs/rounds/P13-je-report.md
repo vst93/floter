@@ -2,6 +2,8 @@
 
 开盘 353032fa，pull 已同步、工作树干净。基线中文 locale 5407 PASS / 0 FAIL，cmd/internal 3226 测试函数。done.log 不存在。
 
+**最终交付九项**：第 1–6 项为配置目标刷新后的复制/导出/保存保护，第 7–8 项为第五批的配置/集成导出文件写入错误，第 9 项是目视发现的长路径撑走浮层关闭键。第四批工具条锁定已撤回，过程保留，不计完成。
+
 ## Stash 清点
 
 八条与上轮同 SHA，均非新增 stale-kill，reverse-check 全部退出 1。沿用已核验的历史处置，不把旧主题与 Tauri 工作覆盖进当前 Go 实现。
@@ -42,12 +44,12 @@
 
 ## 第四批
 
-**本批产品锁定已撤回，不计最终八项。** 全量既有 B pin `TestOptionExitSelectDoesNotReclaimFocus/{light,dark}/busy` 报 `cannot Tab to Copy configuration`，证明原复制工具条是明确保留的键盘出口。恢复原产品行为，旧 B 断言零改；本轮新增的两条错误忙态假设改为保留出口的回归。下述记录仅保留过程证据，最终第 7/8 项由第五批替换。
+**本批产品锁定已撤回，不计最终九项。** 全量既有 B pin `TestOptionExitSelectDoesNotReclaimFocus/{light,dark}/busy` 报 `cannot Tab to Copy configuration`，证明原复制工具条是明确保留的键盘出口。恢复原产品行为，旧 B 断言零改；本轮新增的两条错误忙态假设改为保留出口的回归。下述记录仅保留过程证据，最终第 7/8 项由第五批替换。
 
 7. 行忙态复制：现象 → 真实 Recheck 在飞时复制图标仍亮、可派发。改动 → 工具条读取既有 configLocked/rowBusy，与字段和底部动作同锁。验证 → 原事件 `busy row dispatched copy-row-busy 1 times` 实红；修后零次，修复失败返回后可再复制一次。
 8. 行忙态导出：现象 → 同一在飞状态下可打开第二个导出动作。改动 → 导出与复制共享原行锁与 DimFace。验证 → `busy row dispatched export-row-busy 1 times` 实红；修后零次，行解锁后可导出一次，目标和草稿不变。
 
-跨宿主配置传输/保存与设置页工具条两个组件。未新增系统/依赖/设置项，旧 V/B/S 断言修改 0/0/0，新 Skip 0。
+最终九项跨配置表单动作、集成导出与错误浮层三个既有组件；设置页忙态工具条保持原行为。未新增系统/依赖/设置项，旧 V/B/S 断言修改 0/0/0，新 Skip 0。
 
 ## 第五批（最终第 7/8 项）
 
@@ -56,12 +58,19 @@
 
 最终八项跨配置工具条/保存表单与集成整体导出两个已有组件；行忙态工具条保持开盘行为，第四批两项不计修复。没有新增系统或依赖。
 
+## 第六批（目视追加）
+
+9. 长路径错误浮层：现象 → 最新写入错误截图中，长文件名把关闭键撑到窗口外；旧测试实报 `long path overlaps dismiss or viewport: body={414.09998 65.799995 305.90002 51} dismiss={1085.3 80.5 0 0}`，关闭事件报 outside the window。改动 → 原 toast 文本列 `MinWidth(0)`，按剩余宽度换行，保留全文。验证 → 深浅全文存在，文本不跨关闭键、关闭键在720px窗口内，实际点击能移除通知；短 toast、动作与原层级回归通过。此项不改固定高度链，使用原多行错误浮层的自适应高度。
+
+第五批 **51 PASS**、第六批 **27 PASS**，各自 shell vet 净；552451e5 / ce2ee6c6 已推送。恢复旧键盘出口的 ffcd6850 **40 PASS**。后续全量覆盖最终九项；长路径加入前启动的普通全量另保留，不混成最终版本的普通全量。
+
 第三批定向 **45 PASS / 0 FAIL**、第四批 **84 PASS / 0 FAIL**，各自包 vet 净；f9e52bef / 5cb111f3 已推送。每批完成两项就提交，没有把产品改动攒到轮末。
 
 ## Mutation
 
 - M1 回注开盘 sync.go 与 shell.go，六项目标刷新事件实红。原始串包括 `stale copy silently succeeded after missing refresh`、`stale export reached output: picker=1 clipboard=0`、`stale save panicked after missing refresh: runtime error: invalid memory address or nil pointer dereference`、`stale save changed stored configuration: <nil>`。空 schema 的原保护仍绿。还原两个文件并 MD5 核对 OK，touch 后 **32 PASS**。
-- M2 回注开盘 settingsui/config.go，复制与导出在飞事件实红：`busy row dispatched copy-row-busy 1 times` / `busy row dispatched export-row-busy 1 times`。MD5 核对 OK，touch 后 **6 PASS**。
+- M2 历史忙态假设：曾回注开盘 settingsui/config.go 并实红，MD5 核对、touch 后 6 PASS；后被既有 B pin 证明该假设不合法，**作废，不计最终 mutation**。日志仅保留过程。
+- M3 最终文件错误映射：回注 ffcd6850 的 sync.go，两类导出深浅实红，原串 `config-write hides actual filesystem failure` / `integrations-write hides actual filesystem failure`；MD5 还原 OK、touch 后 **6 PASS**。最终 M1 也在 552451e5 上重新实跑，32 PASS 还原。
 
 全部 -count=1；原始红/还原日志与 md5 文件入轮次目录。未改旧断言、未跳过失败。
 
@@ -70,19 +79,19 @@
 实际读取 qiaomu-design 的 SKILL、user-preferences、craft-loop、preflight、chinese-typography，以及 Apple DESIGN 的色彩/控件段。用户已确定方向，采用打磨路径。
 
 - craft-loop 菜单 **#4 签名交互**：拒绝进入原反馈出口，新增动效 **0ms**；失效动作副作用 **0 次**，恢复后传输 **1 次**。没有为后台条件变更再开确认窗。
-- **#12 材质细节**：工具条接既有禁用面，**1px** 冠线随忙态熄灭，禁用墨沿用现成 token；圆角仍 **8px**，没有新增玻璃层。供体 Apple 按钮 8px 与仓库已有控件一致。
+- **#12 材质细节**：新拒绝接原错误带的 **1px** 边、**8px** 圆角，沿用原 toast 浮面，没有新增玻璃层。供体 Apple 控件 8px 与仓库已有 RadiusSM 一致；工具条材质最终没有改动。
 - **#6 编辑细节**：错误仅在原 toast/表单带 **1 处**出现，静息常驻说明新增 **0 行**；旧字段与草稿保留，不堆双重状态说明。
 - **#3 品牌 focus 环**：复用现有单一 accent 与既有焦点出口，新增色值 **0**、新键盘模式 **0**。Apple 的单一交互色只作为角色参照，未复制其品牌蓝。
 
-工艺密度采用四项；用户禁止无关扩张优先，不为凑五项增加装饰。**为什么更轻、更有空间感**：在飞工具条与其所在行落到同一禁用层级，原来错误亮着的图标不再争夺注意力；失效动作及时结束并给单一反馈，不添加任何卡片层。
+工艺密度采用四项；用户禁止无关扩张优先，不为凑五项增加装饰。**为什么更轻、更有空间感**：失效动作及时结束，只在已有表单错误带或浮层给出一处准确反馈；没有新增常驻说明和卡片层，原有 E1/E2 层级保持。
 
 ## 深浅图与目视复核
 
-第一组旧实帧的四视角问题：艺术总监看到禁用字段旁仍有亮起的工具图标；工程师看到保存一直停在 Saving；任务所有者点击后没有可见结果；读者在 tool owner 改变后却看到了复制成功。第二组修复帧逐一比对这些问题：工具条降到同档墨，保存出现原错误带与恢复按钮，传输拒绝给出下一步。没有声称另做主题重设计或真机评审。
+第一组旧实帧的四视角问题：艺术总监看到错误只能靠旧泛化 toast 区分；工程师看到保存一直停在 Saving；任务所有者点击后没有可见结果；读者在 tool owner 改变后却看到了复制成功。第二组修复帧逐一比对：保存出现原错误带与恢复按钮，传输拒绝给出下一步，文件错误出现路径与原因。曾认为亮工具条不合适，但行为契约要求其作为出口，最终保留；没有以视觉理由覆盖它。
 
-亲自检查深浅两套：深色保存旧帧左侧卡在 Saving，新帧右侧显示原 draft 和错误带；浅色忙态图的 copy/file-down 从深墨变成灰墨。主布局保持原有密度，错误带使用原布局插入规则，不修改高度链常量。
+亲自检查深浅两套：深色保存旧帧左侧卡在 Saving，新帧右侧显示原 draft 和错误带；浅色导出撤回出现原浮层拒绝，owner 改变不再显示复制成功。主布局保持原有密度，错误带使用原布局插入规则，不修改高度链常量。忙态灰墨图只属于撤回尝试，不能作为最终产品效果。
 
-32 原帧 + 16 深浅前后对照已入目录，每对差异非零；忙态复制深浅各 **304** 像素变化，导出各 **307**；完整读数见 image-differences.txt。代表图 `/tmp/floter-P13-je-config-{dark,light}.png`。原生倍率文件保留，review 图仅缩小用于总览。
+最终 36 原帧 + 18 深浅前后对照入目录，每对差异非零；完整读数见 image-differences.txt。路径含测试临时目录，因此不把差异像素数当固定视觉 pin。代表图 `/tmp/floter-P13-je-config-{dark,light}.png`。旧忙态图是撤回尝试的过程附件；原生倍率文件保留，review 图仅缩小用于总览。追加长路径浅色实帧中，全文折成多行，关闭叉重新落回浮层右侧。
 
 | 项 | 深色对照 | 浅色对照 |
 | --- | --- | --- |
@@ -92,8 +101,9 @@
 | 4 导出归属 | [图](P13-je/export-tool-dark-comparison.png) | [图](P13-je/export-tool-light-comparison.png) |
 | 5 保存撤回 | [图](P13-je/save-missing-dark-comparison.png) | [图](P13-je/save-missing-light-comparison.png) |
 | 6 保存归属 | [图](P13-je/save-tool-dark-comparison.png) | [图](P13-je/save-tool-light-comparison.png) |
-| 7 复制忙态 | [图](P13-je/copy-row-busy-dark-comparison.png) | [图](P13-je/copy-row-busy-light-comparison.png) |
-| 8 导出忙态 | [图](P13-je/export-row-busy-dark-comparison.png) | [图](P13-je/export-row-busy-light-comparison.png) |
+| 7 配置写入错误 | [图](P13-je/config-write-dark-comparison.png) | [图](P13-je/config-write-light-comparison.png) |
+| 8 集成写入错误 | [图](P13-je/integrations-write-dark-comparison.png) | [图](P13-je/integrations-write-light-comparison.png) |
+| 9 长路径关闭 | [图](P13-je/long-path-dark-comparison.png) | [图](P13-je/long-path-light-comparison.png) |
 
 ## Preflight A / B / C / D2
 
@@ -134,10 +144,33 @@
 
 ## 仍待
 
-1. 下一轮首选配置导出的文件写入失败：sync.go 的 os.WriteFile 错误仍显示 IntegrationsTransferBad。只是代码线索，先用实际目录/权限失败复现，连同其他现有写入反馈出口批量核对，不重复本轮配置目标条件。
+1. 下一轮首选集成导入读文件和导出读取仓库时的失败出口：sync.go 的 os.ReadFile / extensions.ExportSync 错误仍显示 IntegrationsTransferBad。只是代码线索，先用实际失效路径/仓库事件复现，不重复本轮配置目标条件与文件写入错误。
 2. 字号/行盒、accent 禁用填充、多草稿覆盖、未知多选/Radio、极小步长、176-9/161-4 保存期草稿、终端 S1b/S1c/S2 尾继续需拍板。确认窗口、保存时机和会话语义未动。
 3. 8 条早期 WIP 继续保留；无新活动抢救 stash。系统剪贴板与原生选择器的运行时验证未覆盖。
 
 ## 过程记录
 
-开盘读取过宽导致输出截断，若干猜测文件名不存在；后来按已定位符号收窄。底层工具调用计入读取、轮询、mutation、图像与提交后超过 40 次预算；八项已完成后不再选新题，仅执行必要门槛和归档。不声称流程全部合规。
+开盘读取过宽导致输出截断，若干猜测文件名不存在；后来按已定位符号收窄。底层工具调用计入读取、轮询、mutation、图像与提交后超过 40 次预算；八项完成后，目视验收发现长路径关闭入口越界，补修为第九项，其后仅执行必要门槛和归档。不声称流程全部合规。
+
+## 最终门槛与交付
+
+最终产品为 **ce2ee6c6**，下表均覆盖其全部九项修改。统一 `LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4`，普通与 verbose 全量分别运行，退出码均为 0。
+
+| 检查 | 最终实测 | 证据 |
+| --- | --- | --- |
+| 全量 verbose | **5454 PASS / 0 FAIL**，基线 5407，增加 47 | full-verbose.txt / baseline.txt |
+| 测试函数 | **3237**，基线 3226，增加 11 | cmd/internal 的 func Test 计数 |
+| 普通全量 | 退出 0 | full-test.txt |
+| gofmt | 输出为空 | gofmt.txt |
+| Linux / Windows / Darwin vet | 全部退出 0、输出为空 | vet-{linux,windows,darwin}.txt |
+| Linux / Windows / Darwin build | 全部退出 0、输出为空 | build-{linux,windows,darwin}.txt |
+| 最终相关回归与截图 | **41 PASS / 0 FAIL** | final-related.txt |
+| 目标刷新/原忙态出口 race | 退出 0 | race.txt |
+| 文件写入错误 race | 退出 0 | write-race.txt |
+| 文档契约检查 | 退出 0 | docs-ci.txt |
+| 最终产品源码 MD5 | 四个文件全部 OK | final-source.md5 |
+| 有效 mutation | **2 组**实红、MD5 还原、touch 后 **32/6 PASS** | M1-* / M3-*；M2 作废 |
+
+基线全量从 **15:02:13 UTC** 开始，最终门槛于 **15:59:26 UTC** 完成，间隔 **57 分 13 秒**；此区间不含更早的开盘读取和随后文档归档时间。测试函数未减少，旧 V/B/S 断言修改 **0/0/0**，新增 Skip **0**。36 张最终原帧与 18 张深浅对照图已归档；8 条 stash 均保留。
+
+有效产品分批提交并推送：**e98caabc / ee3e1107 / f9e52bef / 552451e5 / ce2ee6c6**；忙态尝试 **5cb111f3** 由 **ffcd6850** 撤回。最终没有改变原键盘出口、确认时限、保存时机或终端会话语义。跨平台结论限于 vet/build，原生 Windows/macOS 交互未实测。

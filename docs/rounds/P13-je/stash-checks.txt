@@ -1,0 +1,8 @@
+stash@{0} reverse-exit=1
+stash@{1} reverse-exit=1
+stash@{2} reverse-exit=1
+stash@{3} reverse-exit=1
+stash@{4} reverse-exit=1
+stash@{5} reverse-exit=1
+stash@{6} reverse-exit=1
+stash@{7} reverse-exit=1

@@ -1,0 +1,92 @@
+=== RUN   TestConfigTargetCopyMissing
+=== RUN   TestConfigTargetCopyMissing/missing
+=== RUN   TestConfigTargetCopyMissing/missing/light
+=== RUN   TestConfigTargetCopyMissing/missing/dark
+=== RUN   TestConfigTargetCopyMissing/disabled
+=== RUN   TestConfigTargetCopyMissing/disabled/light
+=== RUN   TestConfigTargetCopyMissing/disabled/dark
+=== RUN   TestConfigTargetCopyMissing/empty
+=== RUN   TestConfigTargetCopyMissing/empty/light
+2026/11/07 23:53:19 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "endpoint"
+=== RUN   TestConfigTargetCopyMissing/empty/dark
+2026/11/07 23:53:20 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "endpoint"
+--- PASS: TestConfigTargetCopyMissing (9.14s)
+    --- PASS: TestConfigTargetCopyMissing/missing (3.37s)
+        --- PASS: TestConfigTargetCopyMissing/missing/light (1.69s)
+        --- PASS: TestConfigTargetCopyMissing/missing/dark (1.68s)
+    --- PASS: TestConfigTargetCopyMissing/disabled (3.08s)
+        --- PASS: TestConfigTargetCopyMissing/disabled/light (1.78s)
+        --- PASS: TestConfigTargetCopyMissing/disabled/dark (1.30s)
+    --- PASS: TestConfigTargetCopyMissing/empty (2.69s)
+        --- PASS: TestConfigTargetCopyMissing/empty/light (1.37s)
+        --- PASS: TestConfigTargetCopyMissing/empty/dark (1.32s)
+=== RUN   TestConfigTargetExportMissing
+=== RUN   TestConfigTargetExportMissing/missing
+=== RUN   TestConfigTargetExportMissing/missing/light
+=== RUN   TestConfigTargetExportMissing/missing/dark
+=== RUN   TestConfigTargetExportMissing/disabled
+=== RUN   TestConfigTargetExportMissing/disabled/light
+=== RUN   TestConfigTargetExportMissing/disabled/dark
+=== RUN   TestConfigTargetExportMissing/empty
+=== RUN   TestConfigTargetExportMissing/empty/light
+2026/11/07 23:53:27 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+=== RUN   TestConfigTargetExportMissing/empty/dark
+2026/11/07 23:53:28 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+--- PASS: TestConfigTargetExportMissing (7.99s)
+    --- PASS: TestConfigTargetExportMissing/missing (2.67s)
+        --- PASS: TestConfigTargetExportMissing/missing/light (1.40s)
+        --- PASS: TestConfigTargetExportMissing/missing/dark (1.27s)
+    --- PASS: TestConfigTargetExportMissing/disabled (2.39s)
+        --- PASS: TestConfigTargetExportMissing/disabled/light (1.19s)
+        --- PASS: TestConfigTargetExportMissing/disabled/dark (1.21s)
+    --- PASS: TestConfigTargetExportMissing/empty (2.92s)
+        --- PASS: TestConfigTargetExportMissing/empty/light (1.29s)
+        --- PASS: TestConfigTargetExportMissing/empty/dark (1.64s)
+=== RUN   TestConfigTargetCopyTool
+=== RUN   TestConfigTargetCopyTool/light
+=== RUN   TestConfigTargetCopyTool/dark
+--- PASS: TestConfigTargetCopyTool (2.78s)
+    --- PASS: TestConfigTargetCopyTool/light (1.41s)
+    --- PASS: TestConfigTargetCopyTool/dark (1.37s)
+=== RUN   TestConfigTargetExportTool
+=== RUN   TestConfigTargetExportTool/light
+=== RUN   TestConfigTargetExportTool/dark
+--- PASS: TestConfigTargetExportTool (2.18s)
+    --- PASS: TestConfigTargetExportTool/light (1.23s)
+    --- PASS: TestConfigTargetExportTool/dark (0.95s)
+=== RUN   TestConfigTargetSaveMissing
+=== RUN   TestConfigTargetSaveMissing/light
+=== RUN   TestConfigTargetSaveMissing/dark
+--- PASS: TestConfigTargetSaveMissing (2.26s)
+    --- PASS: TestConfigTargetSaveMissing/light (1.09s)
+    --- PASS: TestConfigTargetSaveMissing/dark (1.17s)
+=== RUN   TestConfigTargetSaveTool
+=== RUN   TestConfigTargetSaveTool/light
+=== RUN   TestConfigTargetSaveTool/dark
+--- PASS: TestConfigTargetSaveTool (2.33s)
+    --- PASS: TestConfigTargetSaveTool/light (1.21s)
+    --- PASS: TestConfigTargetSaveTool/dark (1.12s)
+=== RUN   TestNoticeLongPathKeepsDismissReachable
+=== RUN   TestNoticeLongPathKeepsDismissReachable/light
+=== RUN   TestNoticeLongPathKeepsDismissReachable/dark
+--- PASS: TestNoticeLongPathKeepsDismissReachable (0.79s)
+    --- PASS: TestNoticeLongPathKeepsDismissReachable/light (0.46s)
+    --- PASS: TestNoticeLongPathKeepsDismissReachable/dark (0.33s)
+=== RUN   TestConfigExportWriteCause
+=== RUN   TestConfigExportWriteCause/light
+2026/11/07 23:53:39 floter: could not write /tmp/TestConfigExportWriteCauselight2680071504/001: open /tmp/TestConfigExportWriteCauselight2680071504/001: is a directory
+=== RUN   TestConfigExportWriteCause/dark
+2026/11/07 23:53:40 floter: could not write /tmp/TestConfigExportWriteCausedark3767790355/001: open /tmp/TestConfigExportWriteCausedark3767790355/001: is a directory
+--- PASS: TestConfigExportWriteCause (0.73s)
+    --- PASS: TestConfigExportWriteCause/light (0.34s)
+    --- PASS: TestConfigExportWriteCause/dark (0.40s)
+=== RUN   TestIntegrationsExportWriteCause
+=== RUN   TestIntegrationsExportWriteCause/light
+2026/11/07 23:53:40 floter: could not write /tmp/TestIntegrationsExportWriteCauselight2855388518/001: open /tmp/TestIntegrationsExportWriteCauselight2855388518/001: is a directory
+=== RUN   TestIntegrationsExportWriteCause/dark
+2026/11/07 23:53:41 floter: could not write /tmp/TestIntegrationsExportWriteCausedark3632012291/001: open /tmp/TestIntegrationsExportWriteCausedark3632012291/001: is a directory
+--- PASS: TestIntegrationsExportWriteCause (0.87s)
+    --- PASS: TestIntegrationsExportWriteCause/light (0.49s)
+    --- PASS: TestIntegrationsExportWriteCause/dark (0.38s)
+PASS
+ok  	floter/internal/shell	29.136s

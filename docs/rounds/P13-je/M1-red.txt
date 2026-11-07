@@ -1,0 +1,99 @@
+=== RUN   TestConfigTargetCopyMissing
+=== RUN   TestConfigTargetCopyMissing/missing
+=== RUN   TestConfigTargetCopyMissing/missing/light
+    configtarget_test.go:150: stale copy silently succeeded after missing refresh
+=== RUN   TestConfigTargetCopyMissing/missing/dark
+    configtarget_test.go:150: stale copy silently succeeded after missing refresh
+=== RUN   TestConfigTargetCopyMissing/disabled
+=== RUN   TestConfigTargetCopyMissing/disabled/light
+    configtarget_test.go:150: stale copy silently succeeded after disabled refresh
+=== RUN   TestConfigTargetCopyMissing/disabled/dark
+    configtarget_test.go:150: stale copy silently succeeded after disabled refresh
+=== RUN   TestConfigTargetCopyMissing/empty
+=== RUN   TestConfigTargetCopyMissing/empty/light
+2026/11/07 23:43:31 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "token"
+=== RUN   TestConfigTargetCopyMissing/empty/dark
+2026/11/07 23:43:31 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "region"
+--- FAIL: TestConfigTargetCopyMissing (3.42s)
+    --- FAIL: TestConfigTargetCopyMissing/missing (1.20s)
+        --- FAIL: TestConfigTargetCopyMissing/missing/light (0.64s)
+        --- FAIL: TestConfigTargetCopyMissing/missing/dark (0.56s)
+    --- FAIL: TestConfigTargetCopyMissing/disabled (1.09s)
+        --- FAIL: TestConfigTargetCopyMissing/disabled/light (0.54s)
+        --- FAIL: TestConfigTargetCopyMissing/disabled/dark (0.54s)
+    --- PASS: TestConfigTargetCopyMissing/empty (1.14s)
+        --- PASS: TestConfigTargetCopyMissing/empty/light (0.58s)
+        --- PASS: TestConfigTargetCopyMissing/empty/dark (0.56s)
+=== RUN   TestConfigTargetExportMissing
+=== RUN   TestConfigTargetExportMissing/missing
+=== RUN   TestConfigTargetExportMissing/missing/light
+    configtarget_test.go:150: stale export silently succeeded after missing refresh
+=== RUN   TestConfigTargetExportMissing/missing/dark
+    configtarget_test.go:150: stale export silently succeeded after missing refresh
+=== RUN   TestConfigTargetExportMissing/disabled
+=== RUN   TestConfigTargetExportMissing/disabled/light
+    configtarget_test.go:150: stale export silently succeeded after disabled refresh
+=== RUN   TestConfigTargetExportMissing/disabled/dark
+    configtarget_test.go:150: stale export silently succeeded after disabled refresh
+=== RUN   TestConfigTargetExportMissing/empty
+=== RUN   TestConfigTargetExportMissing/empty/light
+2026/11/07 23:43:34 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+=== RUN   TestConfigTargetExportMissing/empty/dark
+2026/11/07 23:43:34 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+--- FAIL: TestConfigTargetExportMissing (2.83s)
+    --- FAIL: TestConfigTargetExportMissing/missing (1.02s)
+        --- FAIL: TestConfigTargetExportMissing/missing/light (0.55s)
+        --- FAIL: TestConfigTargetExportMissing/missing/dark (0.46s)
+    --- FAIL: TestConfigTargetExportMissing/disabled (0.91s)
+        --- FAIL: TestConfigTargetExportMissing/disabled/light (0.46s)
+        --- FAIL: TestConfigTargetExportMissing/disabled/dark (0.44s)
+    --- PASS: TestConfigTargetExportMissing/empty (0.91s)
+        --- PASS: TestConfigTargetExportMissing/empty/light (0.45s)
+        --- PASS: TestConfigTargetExportMissing/empty/dark (0.45s)
+=== RUN   TestConfigTargetCopyTool
+=== RUN   TestConfigTargetCopyTool/light
+    configtarget_test.go:150: stale copy silently succeeded after tool refresh
+    configtarget_test.go:155: stale copy reached output: picker=0 clipboard=1
+    configtarget_test.go:179: restored copy did not deliver exactly once
+=== RUN   TestConfigTargetCopyTool/dark
+    configtarget_test.go:150: stale copy silently succeeded after tool refresh
+    configtarget_test.go:155: stale copy reached output: picker=0 clipboard=1
+    configtarget_test.go:179: restored copy did not deliver exactly once
+--- FAIL: TestConfigTargetCopyTool (0.90s)
+    --- FAIL: TestConfigTargetCopyTool/light (0.45s)
+    --- FAIL: TestConfigTargetCopyTool/dark (0.45s)
+=== RUN   TestConfigTargetExportTool
+=== RUN   TestConfigTargetExportTool/light
+    configtarget_test.go:150: stale export silently succeeded after tool refresh
+    configtarget_test.go:155: stale export reached output: picker=1 clipboard=0
+    configtarget_test.go:179: restored export did not deliver exactly once
+=== RUN   TestConfigTargetExportTool/dark
+    configtarget_test.go:150: stale export silently succeeded after tool refresh
+    configtarget_test.go:155: stale export reached output: picker=1 clipboard=0
+    configtarget_test.go:179: restored export did not deliver exactly once
+--- FAIL: TestConfigTargetExportTool (0.93s)
+    --- FAIL: TestConfigTargetExportTool/light (0.45s)
+    --- FAIL: TestConfigTargetExportTool/dark (0.48s)
+=== RUN   TestConfigTargetSaveMissing
+=== RUN   TestConfigTargetSaveMissing/light
+    configtarget_test.go:126: stale save panicked after missing refresh: runtime error: invalid memory address or nil pointer dereference
+    configtarget_test.go:150: stale save silently succeeded after missing refresh
+=== RUN   TestConfigTargetSaveMissing/dark
+    configtarget_test.go:126: stale save panicked after missing refresh: runtime error: invalid memory address or nil pointer dereference
+    configtarget_test.go:150: stale save silently succeeded after missing refresh
+--- FAIL: TestConfigTargetSaveMissing (1.16s)
+    --- FAIL: TestConfigTargetSaveMissing/light (0.60s)
+    --- FAIL: TestConfigTargetSaveMissing/dark (0.56s)
+=== RUN   TestConfigTargetSaveTool
+=== RUN   TestConfigTargetSaveTool/light
+    configtarget_test.go:150: stale save silently succeeded after tool refresh
+    configtarget_test.go:159: stale save changed stored configuration: <nil>
+=== RUN   TestConfigTargetSaveTool/dark
+    configtarget_test.go:150: stale save silently succeeded after tool refresh
+    configtarget_test.go:159: stale save changed stored configuration: <nil>
+--- FAIL: TestConfigTargetSaveTool (1.10s)
+    --- FAIL: TestConfigTargetSaveTool/light (0.55s)
+    --- FAIL: TestConfigTargetSaveTool/dark (0.55s)
+FAIL
+FAIL	floter/internal/shell	10.355s
+FAIL
