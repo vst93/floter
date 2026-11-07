@@ -1,0 +1,47 @@
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping/light
+    commanddraftrefresh_test.go:30: redraw replaced the pending alias: "", want json
+    commanddraftrefresh_test.go:44: continued typing lost pending prefix: [[ext jv view]]
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping/dark
+    commanddraftrefresh_test.go:30: redraw replaced the pending alias: "", want json
+    commanddraftrefresh_test.go:44: continued typing lost pending prefix: [[ext jv view]]
+--- FAIL: TestCommandDraftSurvivesRedrawAndFurtherTyping (0.31s)
+    --- FAIL: TestCommandDraftSurvivesRedrawAndFurtherTyping/light (0.24s)
+    --- FAIL: TestCommandDraftSurvivesRedrawAndFurtherTyping/dark (0.07s)
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/undeclared
+    commanddraftrefresh_test.go:98: redeclared editor lost its pending alias: "stored", want "draft"
+    commanddraftrefresh_test.go:105: restored editor wrote a different draft: [[ext jv storedx]]
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/orphan
+    commanddraftrefresh_test.go:98: redeclared editor lost its pending alias: "stored", want "draft"
+    commanddraftrefresh_test.go:105: restored editor wrote a different draft: [[ext jv storedx]]
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/removed
+    commanddraftrefresh_test.go:98: redeclared editor lost its pending alias: "stored", want "draft"
+    commanddraftrefresh_test.go:105: restored editor wrote a different draft: [[ext jv storedx]]
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/empty
+    commanddraftrefresh_test.go:98: redeclared editor lost its pending alias: "stored", want ""
+    commanddraftrefresh_test.go:105: restored editor wrote a different draft: [[ext jv storedx]]
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/undeclared
+    commanddraftrefresh_test.go:98: redeclared editor lost its pending alias: "stored", want "draft"
+    commanddraftrefresh_test.go:105: restored editor wrote a different draft: [[ext jv storedx]]
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/orphan
+    commanddraftrefresh_test.go:98: redeclared editor lost its pending alias: "stored", want "draft"
+    commanddraftrefresh_test.go:105: restored editor wrote a different draft: [[ext jv storedx]]
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/removed
+    commanddraftrefresh_test.go:98: redeclared editor lost its pending alias: "stored", want "draft"
+    commanddraftrefresh_test.go:105: restored editor wrote a different draft: [[ext jv storedx]]
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/empty
+    commanddraftrefresh_test.go:98: redeclared editor lost its pending alias: "stored", want ""
+    commanddraftrefresh_test.go:105: restored editor wrote a different draft: [[ext jv storedx]]
+--- FAIL: TestCommandDraftReturnsWithRedeclaredEditor (0.93s)
+    --- FAIL: TestCommandDraftReturnsWithRedeclaredEditor/light/undeclared (0.14s)
+    --- FAIL: TestCommandDraftReturnsWithRedeclaredEditor/light/orphan (0.12s)
+    --- FAIL: TestCommandDraftReturnsWithRedeclaredEditor/light/removed (0.11s)
+    --- FAIL: TestCommandDraftReturnsWithRedeclaredEditor/light/empty (0.13s)
+    --- FAIL: TestCommandDraftReturnsWithRedeclaredEditor/dark/undeclared (0.11s)
+    --- FAIL: TestCommandDraftReturnsWithRedeclaredEditor/dark/orphan (0.11s)
+    --- FAIL: TestCommandDraftReturnsWithRedeclaredEditor/dark/removed (0.10s)
+    --- FAIL: TestCommandDraftReturnsWithRedeclaredEditor/dark/empty (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	1.256s
+FAIL

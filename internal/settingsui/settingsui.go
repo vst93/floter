@@ -3662,6 +3662,11 @@ func (a *App) commandAliasEditor(c *ui.Context, copy i18n.Settings, extensionID 
 	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Children(func() {
 		ui.Text(c, copy.IntegrationsCommandAlias).FontSize(tokens.Caption).TextColor(t.TextMuted)
 		alias := command.Alias
+		// The pending write is also the visible draft until its deadline.
+		// A redraw or a redeclared editor must not resurrect the stored alias.
+		if edit, pending := a.pendingAliases[extensionID+"\x00"+command.ID]; pending {
+			alias = edit.alias
+		}
 		name := command.Name
 		if name == "" {
 			name = command.ID

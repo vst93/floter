@@ -21,7 +21,7 @@
 
 高度链、键盘既有模型、会话管理、设置写回、i18n 与命令接线不改。仅修遗漏接线与显示状态；180ms debounce、Flush、3 秒确认、终端语义全部保留。无新页面/依赖/系统。旧 V/B/S 断言零改，新增事件 pin。
 
-基线完整 verbose 正在实跑，结果写入报告，禁止沿用旧数字。每两项先跑相关事件、旧 B 与包 vet，过后立即 commit/push；最终集中执行 `gofmt -l cmd internal`、三平台 `go vet ./...`、普通与 verbose `go test -count=1 ./...`、三平台 `go build ./...`，记录真实 PASS 与测试函数数。
+基线完整 verbose 实测 **4888 PASS / 0 FAIL / 3068 测试函数**。每两项先跑相关事件、旧 B 与包 vet，过后立即 commit/push；最终集中执行 `gofmt -l cmd internal`、三平台 `go vet ./...`、普通与 verbose `go test -count=1 ./...`、三平台 `go build ./...`，记录真实 PASS 与测试函数数。
 
 ## Mutation 与图
 

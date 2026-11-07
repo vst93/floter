@@ -1,0 +1,26 @@
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping/light
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping/dark
+--- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping (0.13s)
+    --- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping/light (0.10s)
+    --- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping/dark (0.03s)
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/undeclared
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/orphan
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/removed
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/empty
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/undeclared
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/orphan
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/removed
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/empty
+--- PASS: TestCommandDraftReturnsWithRedeclaredEditor (0.63s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/undeclared (0.09s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/orphan (0.08s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/removed (0.07s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/empty (0.08s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/undeclared (0.08s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/orphan (0.08s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/removed (0.08s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/empty (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.770s
