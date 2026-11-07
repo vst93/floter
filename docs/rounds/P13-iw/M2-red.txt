@@ -1,0 +1,10 @@
+=== RUN   TestShortcutLifecycleSummonRefreshStaysSuspended
+    shortcutrefreshsuspension_test.go:33: settings refresh re-enabled global keys while recording: [Ctrl+Shift+Z]
+2026/11/07 17:53:29 floter: could not re-register Ctrl+Shift+Z: occupied
+--- FAIL: TestShortcutLifecycleSummonRefreshStaysSuspended (0.17s)
+=== RUN   TestShortcutLifecycleCustomRefreshStaysSuspended
+    shortcutrefreshsuspension_test.go:33: settings refresh re-enabled global keys while recording: [Ctrl+Shift+Z]
+--- FAIL: TestShortcutLifecycleCustomRefreshStaysSuspended (0.04s)
+FAIL
+FAIL	floter/internal/shell	0.217s
+FAIL

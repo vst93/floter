@@ -1,0 +1,6 @@
+=== RUN   TestShortcutLifecycleSummonRefreshStaysSuspended
+--- PASS: TestShortcutLifecycleSummonRefreshStaysSuspended (0.11s)
+=== RUN   TestShortcutLifecycleCustomRefreshStaysSuspended
+--- PASS: TestShortcutLifecycleCustomRefreshStaysSuspended (0.04s)
+PASS
+ok  	floter/internal/shell	0.163s

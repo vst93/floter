@@ -2260,6 +2260,10 @@ func (a *App) resetShortcuts() {
 // place: a shortcut that stops working because of a rejected change would be
 // worse than one that did not change.
 func (a *App) ApplySummonShortcut() {
+	if a.shortcutsSuspended {
+		a.summonNeedsRestore = true
+		return
+	}
 	accelerator := shortcuts.NormalizeOr(SummonShortcut(a.Store.Snapshot()))
 	if accelerator == a.summonKey {
 		return
@@ -2306,16 +2310,20 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 		return
 	}
 	a.shortcutsSuspended = false
-	if a.summonKey != "" && a.summonNeedsRestore {
+	if a.summonNeedsRestore {
+		accelerator := shortcuts.NormalizeOr(SummonShortcut(a.Store.Snapshot()))
 		wasUnavailable := a.Settings.SummonUnavailable
-		err := a.registerShortcut(a.summonKey, a.Toggle)
+		err := a.registerShortcut(accelerator, a.Toggle)
 		a.Settings.SummonUnavailable = err != nil
 		a.summonNeedsRestore = err != nil
 		if err != nil {
-			log.Printf("floter: could not re-register %s: %v", a.summonKey, err)
+			log.Printf("floter: could not re-register %s: %v", accelerator, err)
 			a.ShortcutErr = err
-		} else if wasUnavailable {
-			a.ShortcutErr = nil
+		} else {
+			a.summonKey, a.Settings.Shortcut = accelerator, accelerator
+			if wasUnavailable {
+				a.ShortcutErr = nil
+			}
 		}
 	}
 	a.ApplyCustomShortcuts()

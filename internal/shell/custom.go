@@ -67,6 +67,9 @@ func customShortcutSignatureOf(entries []settings.CustomShortcut) string {
 // longer bound are released first, so a change made in the settings file or the
 // settings page takes effect at once.
 func (a *App) ApplyCustomShortcuts() []CustomShortcutRejection {
+	if a.shortcutsSuspended {
+		return nil
+	}
 	snapshot := a.Store.Snapshot()
 	a.customSignature = customShortcutSignature(snapshot)
 	_, rejections := a.applyCustomShortcuts(settings.CustomShortcutsOf(snapshot))
