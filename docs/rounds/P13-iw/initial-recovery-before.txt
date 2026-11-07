@@ -1,0 +1,12 @@
+=== RUN   TestShortcutLifecycleInitialFailureRecoversOriginalChord
+=== RUN   TestShortcutLifecycleInitialFailureRecoversOriginalChord/summon
+2026/11/07 17:58:01 floter: could not register Ctrl+Alt+J: occupied
+    shortcutinitialrestore_test.go:80: successful original-key recovery retained host refusal
+=== RUN   TestShortcutLifecycleInitialFailureRecoversOriginalChord/custom
+2026/11/07 17:58:01 floter: custom shortcut Ctrl+Shift+B: occupied
+--- FAIL: TestShortcutLifecycleInitialFailureRecoversOriginalChord (0.11s)
+    --- FAIL: TestShortcutLifecycleInitialFailureRecoversOriginalChord/summon (0.09s)
+    --- PASS: TestShortcutLifecycleInitialFailureRecoversOriginalChord/custom (0.02s)
+FAIL
+FAIL	floter/internal/shell	0.113s
+FAIL

@@ -51,3 +51,14 @@
 附带断言验证唤起新键同样只取一次，不另计修复数。第三批原始复现见 batch3-before.txt。
 
 第三批最终 **121 PASS / 0 FAIL**，包 vet 净。M3 回注重复恢复与恢复默认的提前激活，**4 FAIL**（包含父测试），源码 MD5 OK、touch 后同批 121 PASS。自定义当前可用性发布下沉到既有统一注册入口，确保显式重录成功也清当前失败；没有清除另一端冲突的历史拒绝。
+
+### 第四批（7–8）
+
+7. 现象：首次注册唤起键失败，错误只在宿主，打开设置看不到问题。改动：启动使用已有 ApplySummonShortcut 入口，并记实际未取得状态，原行显示当前失败。验证：首次注册钩子拒绝，深浅页实际可见既有警告文案；原串 `initial unavailable summon key looks usable`。
+8. 现象：配置已经是 Ctrl+Space、实际注册失败，恢复默认误判为无须注册。改动：原键是否相同与是否实际持有分开判断，成功取得同名键时不再把它注销。验证：真实录制取消造成默认键不可用，解除占用后点击恢复默认，live 中必须有默认键；原串 `reset of unavailable default key did not retry registration`。
+
+截图复核发现夹具未经过 shell 的主题解析；本轮测试夹具补上相同 launcher.Resolve 入口，最终前后截图会按同一主题入口重取，旧图不当作材质验收。另补检查失败提示出现后的真实 Enter 重试出口。
+
+第四批最终 **128 PASS / 0 FAIL**、包 vet 净。补验原键重录可恢复失败注册：自定义入口已可恢复；唤起入口恢复后曾残留宿主拒绝标识（initial-recovery-before.txt），已连同当前错误清掉，未修改页面的历史拒绝规则。
+
+M4 把六个注册/恢复函数完整回注为开盘 c00585f3 的版本，保留新测试与同一主题入口：**20 FAIL / 0 PASS**，原串除前述八项外含 `initial unavailable key is not visible`。两文件 MD5 全部 OK、touch 后 **20 PASS / 0 FAIL**。该次也重取最终 before 图；它们是原函数真实事件绘制，非手工改图。八项实测与附带断言分开记数。

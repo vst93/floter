@@ -1,0 +1,51 @@
+=== RUN   TestShortcutLifecycleCapturedSummonStaysRegistered
+--- PASS: TestShortcutLifecycleCapturedSummonStaysRegistered (0.05s)
+=== RUN   TestShortcutLifecycleCapturedCustomStaysRegistered
+--- PASS: TestShortcutLifecycleCapturedCustomStaysRegistered (0.04s)
+=== RUN   TestShortcutLifecycleResetKeepsRecorderSuspended
+=== RUN   TestShortcutLifecycleResetKeepsRecorderSuspended/summon
+=== RUN   TestShortcutLifecycleResetKeepsRecorderSuspended/custom
+--- PASS: TestShortcutLifecycleResetKeepsRecorderSuspended (0.04s)
+    --- PASS: TestShortcutLifecycleResetKeepsRecorderSuspended/summon (0.02s)
+    --- PASS: TestShortcutLifecycleResetKeepsRecorderSuspended/custom (0.02s)
+=== RUN   TestShortcutLifecycleInitialSummonFailureVisible
+=== RUN   TestShortcutLifecycleInitialSummonFailureVisible/light
+2026/11/07 17:59:21 floter: could not register Ctrl+Alt+J: occupied
+=== RUN   TestShortcutLifecycleInitialSummonFailureVisible/dark
+2026/11/07 17:59:21 floter: could not register Ctrl+Alt+J: occupied
+--- PASS: TestShortcutLifecycleInitialSummonFailureVisible (0.08s)
+    --- PASS: TestShortcutLifecycleInitialSummonFailureVisible/light (0.03s)
+    --- PASS: TestShortcutLifecycleInitialSummonFailureVisible/dark (0.05s)
+=== RUN   TestShortcutLifecycleDefaultResetRetriesUnavailableKey
+2026/11/07 17:59:21 floter: could not re-register Ctrl+Space: occupied
+--- PASS: TestShortcutLifecycleDefaultResetRetriesUnavailableKey (0.07s)
+=== RUN   TestShortcutLifecycleInitialFailureRecoversOriginalChord
+=== RUN   TestShortcutLifecycleInitialFailureRecoversOriginalChord/summon
+2026/11/07 17:59:21 floter: could not register Ctrl+Alt+J: occupied
+=== RUN   TestShortcutLifecycleInitialFailureRecoversOriginalChord/custom
+2026/11/07 17:59:21 floter: custom shortcut Ctrl+Shift+B: occupied
+--- PASS: TestShortcutLifecycleInitialFailureRecoversOriginalChord (0.06s)
+    --- PASS: TestShortcutLifecycleInitialFailureRecoversOriginalChord/summon (0.04s)
+    --- PASS: TestShortcutLifecycleInitialFailureRecoversOriginalChord/custom (0.02s)
+=== RUN   TestShortcutLifecycleResumeSummonFeedback
+=== RUN   TestShortcutLifecycleResumeSummonFeedback/light
+2026/11/07 17:59:21 floter: could not re-register Ctrl+Alt+J: occupied
+=== RUN   TestShortcutLifecycleResumeSummonFeedback/dark
+2026/11/07 17:59:21 floter: could not re-register Ctrl+Alt+J: occupied
+--- PASS: TestShortcutLifecycleResumeSummonFeedback (0.26s)
+    --- PASS: TestShortcutLifecycleResumeSummonFeedback/light (0.11s)
+    --- PASS: TestShortcutLifecycleResumeSummonFeedback/dark (0.16s)
+=== RUN   TestShortcutLifecycleResumeCustomFeedback
+=== RUN   TestShortcutLifecycleResumeCustomFeedback/light
+2026/11/07 17:59:21 floter: custom shortcut Ctrl+Shift+B: occupied
+=== RUN   TestShortcutLifecycleResumeCustomFeedback/dark
+2026/11/07 17:59:21 floter: custom shortcut Ctrl+Shift+B: occupied
+--- PASS: TestShortcutLifecycleResumeCustomFeedback (0.21s)
+    --- PASS: TestShortcutLifecycleResumeCustomFeedback/light (0.06s)
+    --- PASS: TestShortcutLifecycleResumeCustomFeedback/dark (0.15s)
+=== RUN   TestShortcutLifecycleSummonRefreshStaysSuspended
+--- PASS: TestShortcutLifecycleSummonRefreshStaysSuspended (0.02s)
+=== RUN   TestShortcutLifecycleCustomRefreshStaysSuspended
+--- PASS: TestShortcutLifecycleCustomRefreshStaysSuspended (0.01s)
+PASS
+ok  	floter/internal/shell	0.844s

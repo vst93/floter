@@ -1398,16 +1398,9 @@ func (a *App) Start() {
 		}
 	})
 
-	accelerator := SummonShortcut(s)
-	if normalized, ok := shortcuts.Normalize(accelerator); ok {
-		accelerator = normalized
-	}
-	a.summonKey = accelerator
-	a.ShortcutErr = a.registerShortcut(accelerator, a.Toggle)
+	a.summonNeedsRestore = true
+	a.ApplySummonShortcut()
 	a.ApplyCustomShortcuts()
-	if a.ShortcutErr != nil {
-		log.Printf("floter: could not register %s: %v", accelerator, a.ShortcutErr)
-	}
 	if err := a.RegisterScheme(); err != nil {
 		log.Printf("floter: could not register %s://: %v", scheme, err)
 	}
@@ -2230,7 +2223,7 @@ func (a *App) resetShortcuts() {
 	a.ShortcutErr, a.shortcutRefusal = nil, ""
 	// Claim the replacement before committing it: a system refusal must leave
 	// both the working key and its confirmed settings available for retry.
-	replacing := a.summonKey != settings.DefaultSummonShortcut
+	replacing := a.summonKey != settings.DefaultSummonShortcut || a.summonNeedsRestore
 	if replacing {
 		if err := a.registerShortcut(settings.DefaultSummonShortcut, a.Toggle); err != nil {
 			a.ShortcutErr, a.shortcutRefusal = err, settings.ShortcutToggleWindow
@@ -2247,10 +2240,12 @@ func (a *App) resetShortcuts() {
 		}
 		return
 	}
-	if replacing && a.summonKey != "" {
+	if replacing && a.summonKey != "" && a.summonKey != settings.DefaultSummonShortcut {
 		a.unregisterShortcut(a.summonKey)
 	}
 	a.summonKey = settings.DefaultSummonShortcut
+	a.summonNeedsRestore = false
+	a.Settings.SummonUnavailable = false
 	a.Settings.Shortcut = settings.DefaultSummonShortcut
 	a.ShortcutErr, a.shortcutRefusal = nil, ""
 	if a.shortcutsSuspended {
@@ -2272,7 +2267,7 @@ func (a *App) ApplySummonShortcut() {
 		return
 	}
 	accelerator := shortcuts.NormalizeOr(SummonShortcut(a.Store.Snapshot()))
-	if accelerator == a.summonKey {
+	if accelerator == a.summonKey && !a.summonNeedsRestore {
 		return
 	}
 	if err := a.registerShortcut(accelerator, a.Toggle); err != nil {
@@ -2280,12 +2275,16 @@ func (a *App) ApplySummonShortcut() {
 		// the one the system holds now, and the page has to be able to say so.
 		log.Printf("floter: could not register %s: %v", accelerator, err)
 		a.ShortcutErr, a.shortcutRefusal = err, settings.ShortcutToggleWindow
+		a.summonNeedsRestore = a.summonNeedsRestore || a.summonKey == ""
+		a.Settings.SummonUnavailable = a.summonNeedsRestore
 		return
 	}
-	if a.summonKey != "" {
+	if a.summonKey != "" && a.summonKey != accelerator {
 		a.unregisterShortcut(a.summonKey)
 	}
 	a.summonKey = accelerator
+	a.summonNeedsRestore = false
+	a.Settings.SummonUnavailable = false
 	a.Settings.Shortcut = accelerator
 	a.ShortcutErr = nil
 	a.shortcutRefusal = ""
@@ -2330,7 +2329,7 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 		} else {
 			a.summonKey, a.Settings.Shortcut = accelerator, accelerator
 			if wasUnavailable {
-				a.ShortcutErr = nil
+				a.ShortcutErr, a.shortcutRefusal = nil, ""
 			}
 		}
 	}

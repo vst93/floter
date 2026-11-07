@@ -8,6 +8,7 @@ import (
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/launcher"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
 	"floter/internal/shortcuts"
@@ -50,7 +51,11 @@ func newShortcutLifecycle(t *testing.T, summon string) *shortcutLifecycle {
 }
 
 func (h *shortcutLifecycle) frame(dark bool) *ui.Tester {
-	tt := ui.NewTester(h.app.Settings.View, 960, 1100)
+	tt := ui.NewTester(func(c *ui.Context) {
+		surface := launcher.Resolve(h.app.Store.Snapshot(), c.Theme().Dark, c.Preferences())
+		c.SetTheme(surface.Tokens.Theme)
+		h.app.Settings.View(c)
+	}, 960, 1100)
 	tt.SetDark(dark)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
@@ -116,7 +121,14 @@ func checkLifecycleResume(t *testing.T, custom bool) {
 				t.Error("resume refusal has no visible row feedback")
 			}
 			// A second real recording/cancel is a fresh registration attempt.
-			lifecycleRecord(t, h, tt, key)
+			if !tt.Focused(copy.ShortcutRecord) {
+				t.Error("resume feedback lost recorder keyboard focus")
+			}
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if !h.app.shortcutsSuspended {
+				t.Fatal("Enter cannot retry original recorder after resume feedback")
+			}
 			h.blocked[key] = false
 			tt.Key(0, ui.KeyEscape)
 			tt.Frame()
