@@ -12,7 +12,7 @@
 | 2 | shell.go:2313、custom.go:69、settingsui/custom.go:244 | 自定义键恢复失败结果无人消费 → 失败属于该绑定行，恢复后退场 |
 | 3 | shell.go:2224、2247 | 录制中点击恢复默认会提前启用系统键 → 保留录制的键盘归属，退出后才恢复默认键 |
 | 4 | shell/custom.go:84、shell.go:2313 | 新自定义键取得后 resume 先释放再取 → 不制造第二次失去新键的窗口 |
-| 5 | shell.go:2257 | 录制中配置刷新可提前注册唤起键 → 等录制结束，恢复最新配置 |
+| 5 | settingsui.go:4270、settingsui/custom.go:170、385（补查时行号） | 两类录制器切换仍同时保留 → 新点击的唯一目标接管，旧录制退出且保留草稿 |
 | 6 | shell/custom.go:69 | 录制中配置刷新可提前注册自定义键 → 等录制结束，恢复最新配置与动作 |
 | 7 | shell.go:1401、2257 | 初次注册失败没有页面可见反馈 → 启动路径使用相同反馈出口 |
 | 8 | shell.go:2227 | 已是默认值但未注册，恢复默认误判 no-op → 实际重试系统注册 |
@@ -23,7 +23,7 @@
 
 高度链、键盘模型、会话管理、设置写回时机、i18n 文案和命令派发规则零改。既有 V/B/S 测试不改，不加 Skip。故障只通过已有 RegisterShortcut/UnregisterShortcut 钩子注入，不声称原生 OS 真机验收。
 
-全量命令：gofmt -l cmd internal；go vet ./...；GOOS=windows/darwin go vet ./...；go test -count=1 ./...；go test -count=1 -v ./...（统计 PASS）；GOOS=linux/windows/darwin go build ./...。统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。当前基线正在实测，结果落报告，不抄旧数。
+全量命令：gofmt -l cmd internal；go vet ./...；GOOS=windows/darwin go vet ./...；go test -count=1 ./...；go test -count=1 -v ./...（统计 PASS）；GOOS=linux/windows/darwin go build ./...。统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。开盘基线实测 **5150 PASS / 0 FAIL / 3143 函数**，退出 0；最终结果落报告。
 
 Mutation：M1 撤销 resume 的可见失败发布，两个真实事件 pin 应红；M2 恢复无条件重注册，新键只注册一次/仍有效 pin 应红；M3 撤销暂停期间的刷新守卫，两类在录制时无系统键 pin 应红。均要求 MD5 还原、touch、定向复验。
 

@@ -1,0 +1,16 @@
+=== RUN   TestShortcutLifecycleRecorderHandoff
+=== RUN   TestShortcutLifecycleRecorderHandoff/summon-to-custom/light
+=== RUN   TestShortcutLifecycleRecorderHandoff/summon-to-custom/dark
+=== RUN   TestShortcutLifecycleRecorderHandoff/custom-to-summon/light
+=== RUN   TestShortcutLifecycleRecorderHandoff/custom-to-summon/dark
+=== RUN   TestShortcutLifecycleRecorderHandoff/summon-to-draft/light
+=== RUN   TestShortcutLifecycleRecorderHandoff/summon-to-draft/dark
+--- PASS: TestShortcutLifecycleRecorderHandoff (0.57s)
+    --- PASS: TestShortcutLifecycleRecorderHandoff/summon-to-custom/light (0.11s)
+    --- PASS: TestShortcutLifecycleRecorderHandoff/summon-to-custom/dark (0.12s)
+    --- PASS: TestShortcutLifecycleRecorderHandoff/custom-to-summon/light (0.05s)
+    --- PASS: TestShortcutLifecycleRecorderHandoff/custom-to-summon/dark (0.12s)
+    --- PASS: TestShortcutLifecycleRecorderHandoff/summon-to-draft/light (0.05s)
+    --- PASS: TestShortcutLifecycleRecorderHandoff/summon-to-draft/dark (0.13s)
+PASS
+ok  	floter/internal/shell	0.574s

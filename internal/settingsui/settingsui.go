@@ -4267,6 +4267,7 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 	// text and a separate Record button, so the row's trailing slot had no
 	// bordered control the reference put there.
 	a.shortcutRecorder(c, copy.ShortcutRecord, shortcuts.Display(value), func() {
+		a.customRecording = false
 		a.recording, a.ShortcutID = true, action
 		// Starting a recording clears the last refusal, as the reference's own
 		// toggle did.

@@ -1,0 +1,37 @@
+=== RUN   TestShortcutLifecycleRecorderHandoff
+=== RUN   TestShortcutLifecycleRecorderHandoff/summon-to-custom/light
+    shortcutrecordhandoff_test.go:39: recorder handoff left 4 prompt entries, want one pane (2 entries)
+    shortcutrecordhandoff_test.go:45: completed handoff left another recorder holding global shortcuts
+    shortcutrecordhandoff_test.go:59: completed handoff did not restore confirmed keys
+=== RUN   TestShortcutLifecycleRecorderHandoff/summon-to-custom/dark
+    shortcutrecordhandoff_test.go:39: recorder handoff left 4 prompt entries, want one pane (2 entries)
+    shortcutrecordhandoff_test.go:45: completed handoff left another recorder holding global shortcuts
+    shortcutrecordhandoff_test.go:59: completed handoff did not restore confirmed keys
+=== RUN   TestShortcutLifecycleRecorderHandoff/custom-to-summon/light
+    shortcutrecordhandoff_test.go:39: recorder handoff left 4 prompt entries, want one pane (2 entries)
+    shortcutrecordhandoff_test.go:45: completed handoff left another recorder holding global shortcuts
+    shortcutrecordhandoff_test.go:56: handoff recorded into wrong owner: summon=Ctrl+Alt+J custom=[{Ctrl+Shift+Z say original}]
+    shortcutrecordhandoff_test.go:59: completed handoff did not restore confirmed keys
+=== RUN   TestShortcutLifecycleRecorderHandoff/custom-to-summon/dark
+    shortcutrecordhandoff_test.go:39: recorder handoff left 4 prompt entries, want one pane (2 entries)
+    shortcutrecordhandoff_test.go:45: completed handoff left another recorder holding global shortcuts
+    shortcutrecordhandoff_test.go:56: handoff recorded into wrong owner: summon=Ctrl+Alt+J custom=[{Ctrl+Shift+Z say original}]
+    shortcutrecordhandoff_test.go:59: completed handoff did not restore confirmed keys
+=== RUN   TestShortcutLifecycleRecorderHandoff/summon-to-draft/light
+    shortcutrecordhandoff_test.go:39: recorder handoff left 4 prompt entries, want one pane (2 entries)
+    shortcutrecordhandoff_test.go:45: completed handoff left another recorder holding global shortcuts
+    shortcutrecordhandoff_test.go:59: completed handoff did not restore confirmed keys
+=== RUN   TestShortcutLifecycleRecorderHandoff/summon-to-draft/dark
+    shortcutrecordhandoff_test.go:39: recorder handoff left 4 prompt entries, want one pane (2 entries)
+    shortcutrecordhandoff_test.go:45: completed handoff left another recorder holding global shortcuts
+    shortcutrecordhandoff_test.go:59: completed handoff did not restore confirmed keys
+--- FAIL: TestShortcutLifecycleRecorderHandoff (0.44s)
+    --- FAIL: TestShortcutLifecycleRecorderHandoff/summon-to-custom/light (0.08s)
+    --- FAIL: TestShortcutLifecycleRecorderHandoff/summon-to-custom/dark (0.09s)
+    --- FAIL: TestShortcutLifecycleRecorderHandoff/custom-to-summon/light (0.04s)
+    --- FAIL: TestShortcutLifecycleRecorderHandoff/custom-to-summon/dark (0.11s)
+    --- FAIL: TestShortcutLifecycleRecorderHandoff/summon-to-draft/light (0.03s)
+    --- FAIL: TestShortcutLifecycleRecorderHandoff/summon-to-draft/dark (0.10s)
+FAIL
+FAIL	floter/internal/shell	0.447s
+FAIL

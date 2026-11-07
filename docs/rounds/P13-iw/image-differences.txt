@@ -1,0 +1,10 @@
+resume-summon light: 301771 changed pixels; bbox=(187, 130, 944, 775)
+resume-custom light: 21377 changed pixels; bbox=(187, 650, 944, 723)
+startup-summon light: 301771 changed pixels; bbox=(187, 130, 944, 775)
+resume-summon-recovered light: 1732 changed pixels; bbox=(857, 177, 931, 201)
+resume-custom-recovered light: 0 changed pixels; bbox=None
+resume-summon dark: 301663 changed pixels; bbox=(187, 130, 944, 775)
+resume-custom dark: 21373 changed pixels; bbox=(187, 650, 944, 723)
+startup-summon dark: 301661 changed pixels; bbox=(187, 130, 944, 775)
+resume-summon-recovered dark: 1711 changed pixels; bbox=(857, 177, 931, 201)
+resume-custom-recovered dark: 0 changed pixels; bbox=None

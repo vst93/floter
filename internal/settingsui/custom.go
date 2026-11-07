@@ -167,6 +167,7 @@ func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, inde
 	// without a key yet shows an empty keys slot (the button's accessible name
 	// is `settings.shortcut.record`, `ShortcutRecorder.tsx:67-78`).
 	button := a.shortcutRecorder(c, copy.ShortcutRecord, shortcuts.Display(key), func() {
+		a.recording = false
 		a.customRecording = true
 		a.customRecordRow = index
 		a.customRecordKey = key
@@ -383,6 +384,7 @@ func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 // beginCustomDraft puts the reference's draft row on screen and arms its
 // recorder: "Add" records a new custom shortcut, as its own hint promises.
 func (a *App) beginCustomDraft() {
+	a.recording = false
 	a.customDraftOpen = true
 	a.customRecording = true
 	a.customRecordRow = -1
