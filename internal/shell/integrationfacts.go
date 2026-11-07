@@ -95,6 +95,9 @@ var integrationFactsMemo integrationFactsCache
 // that entry's fact is recomputed on the frame that sees it.
 func integrationFactKey(integration extensions.Integration) string {
 	key := integration.Entry.ExecutablePath + "\x00" + integration.ManifestPath()
+	// A refreshed manifest can keep both paths while changing how the
+	// program is resolved. Its old availability no longer answers this row.
+	key += "\x00" + strconv.Quote(integration.Manifest.Runtime.Type) + "\x00" + strconv.Quote(integration.Manifest.Runtime.Language)
 	if integration.Entry.ApprovedAt != 0 {
 		key += "\x00" + strconv.FormatUint(integration.Entry.ApprovedAt, 10)
 	}
