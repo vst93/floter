@@ -121,7 +121,7 @@
 
 深浅全部 18 对图有非零变化，最小 446、最大 4960 像素（image-differences.txt）；36 张原帧与两张 1:1 局部比较板已归档。目视两张比较板：命令/计划/脚本成功句均回到原始动作，禁用的两组按钮墨变淡，导出药丸位置不移动。原工具页像素变化只在复制行。
 
-证据：[基线](P13-ii/baseline.txt)、[门槛汇总](P13-ii/gates.txt)、[浅色对照](P13-ii/comparison-light.png)、[深色对照](P13-ii/comparison-dark.png)、[像素账](P13-ii/image-differences.txt)、[源码 MD5](P13-ii/final-source.md5)。最终旧 V/B/S 断言修改 0/0/1，无新 Skip。
+证据：[基线](P13-ii/baseline.txt)、[门槛汇总](P13-ii/gates.txt)、[浅色对照](P13-ii/comparison-light.png)、[深色对照](P13-ii/comparison-dark.png)、[像素账](P13-ii/image-differences.txt)、[源码 MD5](P13-ii/final-source.md5)。最终旧 V/B/S 断言修改 0/0/2，无新 Skip。
 
 ## 完整门槛发现的回归与修正
 
@@ -130,6 +130,10 @@
 - S 台账：actionWithGlyph 从无禁用臂变为透明面禁用臂，disabledSites 14→15，新增一个 armBare 登记；注释写明 P13-ii 旧结构→新结构，既有判断没有弱化。
 - B 回归：无宿主操作的关于页原来靠不可执行的复制按钮提供 Tab 落点；禁用后页面只剩侧栏。链接值接上框架 Selectable；仅当没有 CopyText 时显式 Focusable，原可用按钮的 Tab 顺序保持。原 sidebarfocus 行为断言一个字没改，新场景验证 Tab 到链接值、selectAll/copy 得到精确 URI。
 
-第一次只接 Selectable 仍不能 Tab，实测框架需显式 Focusable；补齐后相关 **44 PASS / 0 FAIL**，包 vet 退出 0。四批产品已推送后的完整门槛回归如实记录，修正独立提交；重新跑最终普通/verbose 全量与三平台门槛。最终 V 0 / B 0 / S 1。
+第一次只接 Selectable 仍不能 Tab，实测框架需显式 Focusable；补齐后相关 **44 PASS / 0 FAIL**，包 vet 退出 0。四批产品已推送后的完整门槛回归如实记录，修正 dd2b01c0 独立提交并推送。三平台 vet/build 再验全过。
+
+第二次普通全量仅剩一个 S 登记失败：`rows.go: registry says 1 focusable sites, the file has 2`，原 B 已全部通过。补登焦点站点 1→2（文字动作 + 无复制能力时的链接值）；未弱化焦点环检查。该次完整失败日志保留，最终 V 0 / B 0 / S 2。最终 About 深浅截图重导后逐字节未变化，新增 Tab/选择路径 6 PASS。
+
+焦点登记修正后的八项事件、两个结构登记与原侧栏测试合计 **29 PASS / 0 FAIL**，包 vet 净；结构补登独立提交，普通/verbose 门槛在最终源码重跑。
 
 调用预算偏差：前期重复读取与等待占用较多调用，超过 40 后没有扩展新选题，只完成八项的必跑门槛、修复门槛暴露的回归和归档；不能把超预算隐去，也不能交付未修的行为回归。

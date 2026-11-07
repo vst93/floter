@@ -12,9 +12,13 @@ windows vet/build: 0/0
 darwin vet/build: 0/0
 gofmt -l cmd internal: empty (0 bytes)
 docs CI: exit 0
-Final test functions: 3011; added 8, removed 0; existing test registry changed 1 (S)
+Final test functions: 3011; added 8, removed 0; existing test registries changed 2 (S)
 New t.Skip: 0
-Old V/B/S assertions changed: 0/0/1
+Old V/B/S assertions changed: 0/0/2
 First full ordinary: exit 1 (disabled site registry, About sidebar Tab)
 Correction: 44 PASS / 0 FAIL; settingsui vet exit 0; original B assertion unchanged
-Final full ordinary/verbose and platform gates: pending after correction
+Second ordinary: exit 1 (new focusable site missing from census); original B green
+Final focused: 29 PASS / 0 FAIL; settingsui vet exit 0
+Final About screenshots: 6 PASS, pixels unchanged after selection fallback
+Platform gates after product correction: all six vet/build exit 0
+Final full ordinary/verbose: pending after registry correction

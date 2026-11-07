@@ -187,7 +187,9 @@ func TestNoOneTakesTheKeyboardRingAway(t *testing.T) {
 		"custom.go":     1,
 		"savealert.go":  1,
 		"settingsui.go": 3,
-		"rows.go":       1,
+		// P13-ii S: action-only → action plus selectable deep-link value
+		// when the host copy action is unavailable (1 → 2 sites).
+		"rows.go": 2,
 		// P13-id S: no group focus -> one temporary recovery target per
 		// surface, only while a removed option's original group owns focus.
 		"config.go":      1, // integration multiselect's existing list box
