@@ -228,7 +228,8 @@ func (f *diagnosisFixture) start(t *testing.T) <-chan struct{} {
 		t.Fatal("diagnosis target missing")
 	}
 	done := make(chan struct{})
-	go func() { defer close(done); f.a.runIntegrationDiagnosis(owner) }()
+	epoch := f.a.beginDiagnosis(f.entry.ID)
+	go func() { defer close(done); f.a.runIntegrationDiagnosis(owner, epoch) }()
 	return done
 }
 
@@ -305,3 +306,44 @@ func checkDiagnosisOwner(t *testing.T, pending bool) {
 
 func TestDiagnosisCurrentPackageOwner(t *testing.T) { checkDiagnosisOwner(t, false) }
 func TestDiagnosisCurrentPendingOwner(t *testing.T) { checkDiagnosisOwner(t, true) }
+
+func checkDiagnosisOrder(t *testing.T, notice bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := newDiagnosisFixture(t, dark)
+			scenario := "latest-result"
+			if notice {
+				scenario = "latest-notice"
+				f.a.onScreen = func() bool { return true }
+				f.a.Open(SurfaceSettings)
+				f.a.Settings.Page = settingsui.PageIntegrations
+				clearNotices(f.a)
+			}
+			f.request(t, 0, "problem", []extensions.DiagnosisCheck{{ID: "old", Status: "problem", Message: "旧检查连接失败"}}, false)
+			older := f.start(t)
+			f.waitStarted(t, 0)
+			f.request(t, 1, "ok", []extensions.DiagnosisCheck{{ID: "new", Status: "ok", Message: "最新检查连接正常"}}, true)
+			diagnosisWait(t, f.start(t))
+			f.release(t, 0)
+			diagnosisWait(t, older)
+			titles := noticeTitles(f.a)
+			tt := f.frame(t, scenario, dark)
+			if notice {
+				copy := i18n.NotificationsFor("zh")
+				want, bad := copy.IntegrationChecked(f.manifest.Name), copy.IntegrationCheckFailed(f.manifest.Name)
+				if len(titles) != 1 || titles[0] != want || !tt.HasText(want) || tt.HasText(bad) {
+					t.Errorf("superseded check replaced current completion feedback: %q", titles)
+				}
+			} else {
+				row := f.a.integrationList()[0]
+				if row.DiagnosisStatus != "ok" || row.DiagnosisFailed || !tt.HasText("最新检查连接正常") || tt.HasText("旧检查连接失败") {
+					t.Error("older check overwrote the latest completed diagnosis")
+				}
+			}
+		})
+	}
+}
+
+func TestDiagnosisCurrentLatestResult(t *testing.T) { checkDiagnosisOrder(t, false) }
+func TestDiagnosisCurrentLatestNotice(t *testing.T) { checkDiagnosisOrder(t, true) }

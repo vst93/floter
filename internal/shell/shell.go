@@ -372,6 +372,7 @@ type App struct {
 	diagnoses        map[string]settingsui.Integration
 	diagnosisMu      sync.Mutex
 	diagnosisSources map[string]string
+	diagnosisEpochs  map[string]uint64
 
 	// pins are the pinned-output windows, and openPinned replaces them in
 	// tests.
@@ -1947,7 +1948,8 @@ func (a *App) diagnoseIntegration(id string) {
 	if !ok {
 		return
 	}
-	go a.runIntegrationDiagnosis(integration)
+	epoch := a.beginDiagnosis(id)
+	go a.runIntegrationDiagnosis(integration, epoch)
 }
 
 // A diagnosis belongs to the declaration and executable it actually checked.
@@ -1959,7 +1961,17 @@ func integrationDiagnosisSource(integration extensions.Integration) string {
 	return string(data)
 }
 
-func (a *App) rememberDiagnosis(integration extensions.Integration, result settingsui.Integration) bool {
+func (a *App) beginDiagnosis(id string) uint64 {
+	a.diagnosisMu.Lock()
+	defer a.diagnosisMu.Unlock()
+	if a.diagnosisEpochs == nil {
+		a.diagnosisEpochs = map[string]uint64{}
+	}
+	a.diagnosisEpochs[id]++
+	return a.diagnosisEpochs[id]
+}
+
+func (a *App) rememberDiagnosis(integration extensions.Integration, epoch uint64, result settingsui.Integration) bool {
 	id := integration.Entry.ID
 	source := integrationDiagnosisSource(integration)
 	current, ok := a.Integrations.Inventory().WithID(id)
@@ -1968,6 +1980,9 @@ func (a *App) rememberDiagnosis(integration extensions.Integration, result setti
 	}
 	a.diagnosisMu.Lock()
 	defer a.diagnosisMu.Unlock()
+	if a.diagnosisEpochs[id] != epoch {
+		return false
+	}
 	if a.diagnoses == nil {
 		a.diagnoses = map[string]settingsui.Integration{}
 	}
@@ -1978,7 +1993,7 @@ func (a *App) rememberDiagnosis(integration extensions.Integration, result setti
 	return true
 }
 
-func (a *App) runIntegrationDiagnosis(integration extensions.Integration) {
+func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch uint64) {
 	id := integration.Entry.ID
 	result := settingsui.Integration{Diagnosis: "ok"}
 	// The lifecycle probes run first: they are the tool's own health
@@ -1993,7 +2008,7 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration) {
 			result.Diagnosis, result.DiagnosisFailed = err.Error(), true
 		default:
 			result.Diagnosis, result.DiagnosisFailed = report.Status, report.Status != extensions.HealthHealthy && report.Status != extensions.HealthDegraded
-			if !a.rememberDiagnosis(integration, result) {
+			if !a.rememberDiagnosis(integration, epoch, result) {
 				return
 			}
 			a.onMain(func() {
@@ -2051,7 +2066,7 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration) {
 			result.Health = copy.IntegrationsUnhealthy
 		}
 	}
-	if !a.rememberDiagnosis(integration, result) {
+	if !a.rememberDiagnosis(integration, epoch, result) {
 		return
 	}
 	a.notifyCompletion(func(c i18n.Notifications) string {
@@ -3036,6 +3051,7 @@ func (a *App) connectLocalTool(tool settingsui.CustomTool) {
 // --help, and the launcher's command list follows. A failure says so as a
 // diagnosis, and the previous descriptor stays.
 func (a *App) reprobeCommands(id string) {
+	epoch := a.beginDiagnosis(id)
 	go func() {
 		integration, ok := a.Integrations.Inventory().WithID(id)
 		if !ok {
@@ -3044,7 +3060,7 @@ func (a *App) reprobeCommands(id string) {
 		report, err := extensions.ReprobeCommands(context.Background(), a.Paths, id)
 		if err != nil {
 			log.Printf("floter: could not re-probe %s: %v", id, err)
-			a.rememberDiagnosis(integration, settingsui.Integration{Diagnosis: err.Error(), DiagnosisFailed: true})
+			a.rememberDiagnosis(integration, epoch, settingsui.Integration{Diagnosis: err.Error(), DiagnosisFailed: true})
 		} else {
 			log.Printf("floter: re-probed %s (commands=%d, was %v)", id, report.CommandCount, report.PreviousCommandCount)
 		}

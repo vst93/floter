@@ -39,3 +39,10 @@
 6. 现象：检查已启动，提供者声明在等待期间变化，旧进程晚到仍污染当前诊断。改动：写回前核对当前声明，失效结果不发布。验证：真实子进程启动标记/释放门、声明写盘刷新、完整worker完成等待；修前 `owner-pending: current tool inherited another declaration's diagnosis`，修后旧结果被拒且新检查可用。
 
 第三批相关20 PASS / 0 FAIL，shell vet退出0。把原异步闭包提为同一worker以便测试等待完整完成，公共动作仍异步；没有改诊断协议、超时或持久健康写回。命令重探测的失败也携带来源，兼容原有共用诊断出口。旧V/B/S 0/0/0。
+
+第三批b8e6ac7f已推送。
+
+7. 现象：连续检查时第二次先成功，第一次晚到的失败覆盖新诊断。改动：入口记录本工具请求序号，写回只接受当前序号。验证：两个真实子进程以文件门精确控制先后，修前 `older check overwrote the latest completed diagnosis`；修后只见最新成功，旧失败不复活。
+8. 现象：同一顺序下界面先收到工作正常，随后又显示旧检查“报告了问题”。改动：失效结果在通知之前退出，不派发旧完成反馈。验证：深浅当前toast与队列共同断言，修前 `superseded check replaced current completion feedback: ["检查工具 工作正常" "检查工具 报告了问题"]`；修后只保留一条当前成功。
+
+第四批相关26 PASS / 0 FAIL，shell vet退出0。首稿没有提供panelOnScreen seam导致通知进入系统出口，读实际路由后补用既有seam并重新得到上述真实两条toast失败；未修改产品通知路由。八项均已独立红绿复现，旧V/B/S 0/0/0、新增Skip0。随后统一进行正式变异与完整门槛。
