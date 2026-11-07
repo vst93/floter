@@ -1662,17 +1662,20 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 				//
 				// 现在三处读同一个夹取（`bodyPage`），那句「还没做完」的话也从
 				// `i18n.Copy` 里退场——它是这个应用里唯一一句对用户承认未完成的话。
+				// The optional save banner changes sibling positions. Give the
+				// page a stable identity so its editors keep focus and local state.
+				pageContext := c.Key("settings.page-content")
 				switch bodyPage(a.Page) {
 				case PageGeneral:
-					a.general(c, copy)
+					a.general(pageContext, copy)
 				case PageSessions:
-					a.sessions(c, copy)
+					a.sessions(pageContext, copy)
 				case PageIntegrations:
-					a.integrations(c, copy)
+					a.integrations(pageContext, copy)
 				case PageShortcuts:
-					a.shortcuts(c, copy)
+					a.shortcuts(pageContext, copy)
 				case PageAbout:
-					a.about(c, copy)
+					a.about(pageContext, copy)
 				}
 			})
 		})
