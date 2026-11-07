@@ -27,3 +27,15 @@ for a, b in zip(rows[::2], rows[1::2]):
     overview.paste(a, (0, y)); overview.paste(b, (720, y)); y += max(a.height, b.height)
 overview.save(root / "overview.png")
 (root / "image-differences.txt").write_text("\n".join(counts) + "\n")
+
+for theme in ("dark", "light"):
+    detail = Image.new("RGB", (1600, 480), "#dddddd")
+    for column, tag in enumerate(("before", "after")):
+        for row, (scenario, rect) in enumerate((
+            ("param-editor-removed", (630, 5, 710, 65)),
+            ("residency-apply-focus", (500, 15, 700, 75)),
+        )):
+            src = Image.open(root / f"floter-P13-is-{scenario}-{theme}-{tag}.png")
+            crop = src.crop(rect).resize(((rect[2]-rect[0])*4, 240), Image.Resampling.NEAREST)
+            detail.paste(crop, (column*800, row*240))
+    detail.save(root / f"focus-detail-{theme}.png")

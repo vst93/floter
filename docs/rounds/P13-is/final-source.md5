@@ -1,0 +1,7 @@
+02454d69f1c0313870f6b5ba7ae729a3  internal/settingsui/custom.go
+3d02d7c9d83c0097dec3924b5929d1de  internal/settingsui/selectvalue.go
+4e7faad180aa9d5e0ca8076a399f9183  internal/settingsui/parameditor.go
+00661a21c46bda8c98cd0f8e1654ad87  internal/settingsui/settingsui.go
+1d7943deddc02fb42463a7a4f96786cf  internal/settingsui/menulanguage_test.go
+b67be2fc285776064dd50542f1e9b786  internal/settingsui/menufallback_test.go
+6c6b642fc4e0ae2ad32e6753a7e5d188  internal/settingsui/menuexitlifetime_test.go
