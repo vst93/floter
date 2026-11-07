@@ -1,0 +1,25 @@
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder/light
+    customfocusreturn_test.go:42: bound draft lost the saved recorder focus
+    customfocusreturn_test.go:54: Enter cannot continue after binding exit
+    customfocusreturn_test.go:57: bound draft restarted the wrong recorder
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder/dark
+    customfocusreturn_test.go:42: bound draft lost the saved recorder focus
+    customfocusreturn_test.go:54: Enter cannot continue after binding exit
+    customfocusreturn_test.go:57: bound draft restarted the wrong recorder
+--- FAIL: TestCustomDraftBindReturnsToSavedRecorder (0.21s)
+    --- FAIL: TestCustomDraftBindReturnsToSavedRecorder/light (0.18s)
+    --- FAIL: TestCustomDraftBindReturnsToSavedRecorder/dark (0.03s)
+=== RUN   TestCustomSavedRemovalReturnsToAdd
+=== RUN   TestCustomSavedRemovalReturnsToAdd/light
+    customfocusreturn_test.go:49: saved removal lost the Add outlet
+    customfocusreturn_test.go:54: Enter cannot continue after binding exit
+=== RUN   TestCustomSavedRemovalReturnsToAdd/dark
+    customfocusreturn_test.go:49: saved removal lost the Add outlet
+    customfocusreturn_test.go:54: Enter cannot continue after binding exit
+--- FAIL: TestCustomSavedRemovalReturnsToAdd (0.07s)
+    --- FAIL: TestCustomSavedRemovalReturnsToAdd/light (0.03s)
+    --- FAIL: TestCustomSavedRemovalReturnsToAdd/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.286s
+FAIL

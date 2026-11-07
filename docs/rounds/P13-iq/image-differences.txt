@@ -1,0 +1,16 @@
+custom-accepted light: 484 changed pixels
+custom-accepted dark: 484 changed pixels
+builtin-owner light: 915 changed pixels
+builtin-owner dark: 2014 changed pixels
+draft-convert light: 545 changed pixels
+draft-convert dark: 545 changed pixels
+draft-cancel light: 240 changed pixels
+draft-cancel dark: 240 changed pixels
+saved-bind light: 484 changed pixels
+saved-bind dark: 484 changed pixels
+saved-remove light: 240 changed pixels
+saved-remove dark: 240 changed pixels
+refresh-action light: 720 changed pixels
+refresh-action dark: 720 changed pixels
+refresh-removed light: 240 changed pixels
+refresh-removed dark: 240 changed pixels

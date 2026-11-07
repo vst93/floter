@@ -1,0 +1,21 @@
+=== RUN   TestCustomRecorderAcceptedReturnsFocus
+=== RUN   TestCustomRecorderAcceptedReturnsFocus/light
+    recordingreturn_test.go:119: custom-accepted lost recorder focus
+    recordingreturn_test.go:130: Enter cannot restart the original recorder
+=== RUN   TestCustomRecorderAcceptedReturnsFocus/dark
+    recordingreturn_test.go:119: custom-accepted lost recorder focus
+    recordingreturn_test.go:130: Enter cannot restart the original recorder
+--- FAIL: TestCustomRecorderAcceptedReturnsFocus (0.52s)
+    --- FAIL: TestCustomRecorderAcceptedReturnsFocus/light (0.22s)
+    --- FAIL: TestCustomRecorderAcceptedReturnsFocus/dark (0.29s)
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow/light
+    recordingreturn_test.go:60: one recording painted 4 prompt entries, want 2 for one pane
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow/dark
+    recordingreturn_test.go:60: one recording painted 4 prompt entries, want 2 for one pane
+--- FAIL: TestBuiltinRecorderOnlyArmsItsOwnRow (0.04s)
+    --- FAIL: TestBuiltinRecorderOnlyArmsItsOwnRow/light (0.01s)
+    --- FAIL: TestBuiltinRecorderOnlyArmsItsOwnRow/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.562s
+FAIL

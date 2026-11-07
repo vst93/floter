@@ -1,0 +1,34 @@
+=== RUN   TestCustomActionRefreshReturnsToPicker
+=== RUN   TestCustomActionRefreshReturnsToPicker/light/command
+=== RUN   TestCustomActionRefreshReturnsToPicker/light/elsewhere
+=== RUN   TestCustomActionRefreshReturnsToPicker/dark/command
+=== RUN   TestCustomActionRefreshReturnsToPicker/dark/elsewhere
+--- PASS: TestCustomActionRefreshReturnsToPicker (0.33s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/light/command (0.11s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/light/elsewhere (0.03s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/dark/command (0.09s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/dark/elsewhere (0.11s)
+=== RUN   TestCustomMissingRowReturnsToAdd
+=== RUN   TestCustomMissingRowReturnsToAdd/light/command
+=== RUN   TestCustomMissingRowReturnsToAdd/light/elsewhere
+=== RUN   TestCustomMissingRowReturnsToAdd/light/recording
+=== RUN   TestCustomMissingRowReturnsToAdd/light/picker
+=== RUN   TestCustomMissingRowReturnsToAdd/light/remove
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/command
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/elsewhere
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/recording
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/picker
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/remove
+--- PASS: TestCustomMissingRowReturnsToAdd (0.67s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/command (0.04s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/elsewhere (0.03s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/recording (0.03s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/picker (0.03s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/remove (0.03s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/command (0.08s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/elsewhere (0.10s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/recording (0.11s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/picker (0.12s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/remove (0.11s)
+PASS
+ok  	floter/internal/settingsui	1.011s

@@ -1,0 +1,55 @@
+=== RUN   TestCustomActionRefreshReturnsToPicker
+=== RUN   TestCustomActionRefreshReturnsToPicker/light/command
+    customrefreshfocus_test.go:62: refresh-action from command lost its visible outlet "Action"
+    customrefreshfocus_test.go:73: refreshed picker cannot open
+=== RUN   TestCustomActionRefreshReturnsToPicker/light/elsewhere
+=== RUN   TestCustomActionRefreshReturnsToPicker/dark/command
+    customrefreshfocus_test.go:62: refresh-action from command lost its visible outlet "Action"
+    customrefreshfocus_test.go:73: refreshed picker cannot open
+=== RUN   TestCustomActionRefreshReturnsToPicker/dark/elsewhere
+--- FAIL: TestCustomActionRefreshReturnsToPicker (0.48s)
+    --- FAIL: TestCustomActionRefreshReturnsToPicker/light/command (0.23s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/light/elsewhere (0.03s)
+    --- FAIL: TestCustomActionRefreshReturnsToPicker/dark/command (0.10s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/dark/elsewhere (0.11s)
+=== RUN   TestCustomMissingRowReturnsToAdd
+=== RUN   TestCustomMissingRowReturnsToAdd/light/command
+    customrefreshfocus_test.go:62: refresh-removed from command lost its visible outlet "Add"
+    customrefreshfocus_test.go:70: refreshed outlet cannot add
+=== RUN   TestCustomMissingRowReturnsToAdd/light/elsewhere
+=== RUN   TestCustomMissingRowReturnsToAdd/light/recording
+    customrefreshfocus_test.go:62: refresh-removed from recording lost its visible outlet "Add"
+    customrefreshfocus_test.go:70: refreshed outlet cannot add
+=== RUN   TestCustomMissingRowReturnsToAdd/light/picker
+    customrefreshfocus_test.go:62: refresh-removed from picker lost its visible outlet "Add"
+    customrefreshfocus_test.go:70: refreshed outlet cannot add
+=== RUN   TestCustomMissingRowReturnsToAdd/light/remove
+    customrefreshfocus_test.go:62: refresh-removed from remove lost its visible outlet "Add"
+    customrefreshfocus_test.go:70: refreshed outlet cannot add
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/command
+    customrefreshfocus_test.go:62: refresh-removed from command lost its visible outlet "Add"
+    customrefreshfocus_test.go:70: refreshed outlet cannot add
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/elsewhere
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/recording
+    customrefreshfocus_test.go:62: refresh-removed from recording lost its visible outlet "Add"
+    customrefreshfocus_test.go:70: refreshed outlet cannot add
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/picker
+    customrefreshfocus_test.go:62: refresh-removed from picker lost its visible outlet "Add"
+    customrefreshfocus_test.go:70: refreshed outlet cannot add
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/remove
+    customrefreshfocus_test.go:62: refresh-removed from remove lost its visible outlet "Add"
+    customrefreshfocus_test.go:70: refreshed outlet cannot add
+--- FAIL: TestCustomMissingRowReturnsToAdd (0.71s)
+    --- FAIL: TestCustomMissingRowReturnsToAdd/light/command (0.06s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/elsewhere (0.03s)
+    --- FAIL: TestCustomMissingRowReturnsToAdd/light/recording (0.03s)
+    --- FAIL: TestCustomMissingRowReturnsToAdd/light/picker (0.03s)
+    --- FAIL: TestCustomMissingRowReturnsToAdd/light/remove (0.03s)
+    --- FAIL: TestCustomMissingRowReturnsToAdd/dark/command (0.09s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/elsewhere (0.10s)
+    --- FAIL: TestCustomMissingRowReturnsToAdd/dark/recording (0.11s)
+    --- FAIL: TestCustomMissingRowReturnsToAdd/dark/picker (0.12s)
+    --- FAIL: TestCustomMissingRowReturnsToAdd/dark/remove (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	1.200s
+FAIL

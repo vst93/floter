@@ -1,0 +1,6 @@
+b57967bb9093cffe5b2b30f5165c6356  internal/settingsui/custom.go
+3694d6c2c3fd9d09680b03d75d67e8f2  internal/settingsui/settingsui.go
+f691a979d4fd31ed8481124933c11425  internal/settingsui/rows.go
+5a84502d59e2b3722105ed26058f9fb0  internal/settingsui/recordingreturn_test.go
+6e0898692727447184e40bf4d5a71e8c  internal/settingsui/customfocusreturn_test.go
+8c39f8ee4d63e73a3599706248ab495b  internal/settingsui/customrefreshfocus_test.go

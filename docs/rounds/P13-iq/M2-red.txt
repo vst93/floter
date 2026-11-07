@@ -1,0 +1,23 @@
+=== RUN   TestCustomCommandConversionReturnsFocus
+=== RUN   TestCustomCommandConversionReturnsFocus/light
+    customfocusreturn_test.go:49: command conversion lost its input focus
+    customfocusreturn_test.go:53: converted command cannot type: ""
+=== RUN   TestCustomCommandConversionReturnsFocus/dark
+    customfocusreturn_test.go:49: command conversion lost its input focus
+    customfocusreturn_test.go:53: converted command cannot type: ""
+--- FAIL: TestCustomCommandConversionReturnsFocus (0.45s)
+    --- FAIL: TestCustomCommandConversionReturnsFocus/light (0.34s)
+    --- FAIL: TestCustomCommandConversionReturnsFocus/dark (0.11s)
+=== RUN   TestCustomDraftCancelReturnsToAdd
+=== RUN   TestCustomDraftCancelReturnsToAdd/light
+    customfocusreturn_test.go:57: draft cancel lost the Add outlet
+    customfocusreturn_test.go:61: Enter cannot add again after cancel
+=== RUN   TestCustomDraftCancelReturnsToAdd/dark
+    customfocusreturn_test.go:57: draft cancel lost the Add outlet
+    customfocusreturn_test.go:61: Enter cannot add again after cancel
+--- FAIL: TestCustomDraftCancelReturnsToAdd (0.19s)
+    --- FAIL: TestCustomDraftCancelReturnsToAdd/light (0.09s)
+    --- FAIL: TestCustomDraftCancelReturnsToAdd/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	0.656s
+FAIL

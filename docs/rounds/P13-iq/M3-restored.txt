@@ -1,0 +1,14 @@
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder/light
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder/dark
+--- PASS: TestCustomDraftBindReturnsToSavedRecorder (0.11s)
+    --- PASS: TestCustomDraftBindReturnsToSavedRecorder/light (0.09s)
+    --- PASS: TestCustomDraftBindReturnsToSavedRecorder/dark (0.02s)
+=== RUN   TestCustomSavedRemovalReturnsToAdd
+=== RUN   TestCustomSavedRemovalReturnsToAdd/light
+=== RUN   TestCustomSavedRemovalReturnsToAdd/dark
+--- PASS: TestCustomSavedRemovalReturnsToAdd (0.05s)
+    --- PASS: TestCustomSavedRemovalReturnsToAdd/light (0.02s)
+    --- PASS: TestCustomSavedRemovalReturnsToAdd/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.164s

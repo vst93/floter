@@ -1,0 +1,14 @@
+=== RUN   TestCustomCommandConversionReturnsFocus
+=== RUN   TestCustomCommandConversionReturnsFocus/light
+=== RUN   TestCustomCommandConversionReturnsFocus/dark
+--- PASS: TestCustomCommandConversionReturnsFocus (0.29s)
+    --- PASS: TestCustomCommandConversionReturnsFocus/light (0.22s)
+    --- PASS: TestCustomCommandConversionReturnsFocus/dark (0.06s)
+=== RUN   TestCustomDraftCancelReturnsToAdd
+=== RUN   TestCustomDraftCancelReturnsToAdd/light
+=== RUN   TestCustomDraftCancelReturnsToAdd/dark
+--- PASS: TestCustomDraftCancelReturnsToAdd (0.09s)
+    --- PASS: TestCustomDraftCancelReturnsToAdd/light (0.05s)
+    --- PASS: TestCustomDraftCancelReturnsToAdd/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.392s
