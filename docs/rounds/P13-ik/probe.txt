@@ -1,0 +1,97 @@
+=== RUN   TestContentRecoveryEmptyScriptCopy
+=== RUN   TestContentRecoveryEmptyScriptCopy/light
+=== RUN   TestContentRecoveryEmptyScriptCopy/dark
+--- PASS: TestContentRecoveryEmptyScriptCopy (0.34s)
+    --- PASS: TestContentRecoveryEmptyScriptCopy/light (0.24s)
+    --- PASS: TestContentRecoveryEmptyScriptCopy/dark (0.10s)
+=== RUN   TestContentRecoveryEmptyScriptExport
+=== RUN   TestContentRecoveryEmptyScriptExport/light
+=== RUN   TestContentRecoveryEmptyScriptExport/dark
+--- PASS: TestContentRecoveryEmptyScriptExport (0.20s)
+    --- PASS: TestContentRecoveryEmptyScriptExport/light (0.11s)
+    --- PASS: TestContentRecoveryEmptyScriptExport/dark (0.10s)
+=== RUN   TestContentRecoveryPlanCommandEmpty
+=== RUN   TestContentRecoveryPlanCommandEmpty/light
+    contentrecovery_test.go:107: command presence changed plan focus
+    contentrecovery_test.go:113: plan keyboard copied ["{\n  \"program\": \"/usr/bin/weather\",\n  \"args\": [\n    \"--weather\"\n  ],\n  \"mode\": \"pty\"\n}"], want two plans
+=== RUN   TestContentRecoveryPlanCommandEmpty/dark
+    contentrecovery_test.go:107: command presence changed plan focus
+    contentrecovery_test.go:113: plan keyboard copied ["{\n  \"program\": \"/usr/bin/weather\",\n  \"args\": [\n    \"--weather\"\n  ],\n  \"mode\": \"pty\"\n}"], want two plans
+--- FAIL: TestContentRecoveryPlanCommandEmpty (0.26s)
+    --- FAIL: TestContentRecoveryPlanCommandEmpty/light (0.13s)
+    --- FAIL: TestContentRecoveryPlanCommandEmpty/dark (0.13s)
+=== RUN   TestContentRecoveryPlanCommandRestored
+=== RUN   TestContentRecoveryPlanCommandRestored/light
+    contentrecovery_test.go:107: command presence changed plan focus
+    contentrecovery_test.go:113: plan keyboard copied ["{\n  \"program\": \"/usr/bin/weather\",\n  \"args\": [\n    \"--weather\"\n  ],\n  \"mode\": \"pty\"\n}" "weather"], want two plans
+=== RUN   TestContentRecoveryPlanCommandRestored/dark
+    contentrecovery_test.go:107: command presence changed plan focus
+    contentrecovery_test.go:113: plan keyboard copied ["{\n  \"program\": \"/usr/bin/weather\",\n  \"args\": [\n    \"--weather\"\n  ],\n  \"mode\": \"pty\"\n}" "weather"], want two plans
+--- FAIL: TestContentRecoveryPlanCommandRestored (0.35s)
+    --- FAIL: TestContentRecoveryPlanCommandRestored/light (0.17s)
+    --- FAIL: TestContentRecoveryPlanCommandRestored/dark (0.18s)
+=== RUN   TestContentRecoveryModeOutput
+=== RUN   TestContentRecoveryModeOutput/light
+    contentrecovery_test.go:151: mode refresh lost output focus
+    contentrecovery_test.go:160: mode refresh blocked output keyboard: "background"
+=== RUN   TestContentRecoveryModeOutput/dark
+    contentrecovery_test.go:151: mode refresh lost output focus
+    contentrecovery_test.go:160: mode refresh blocked output keyboard: "background"
+--- FAIL: TestContentRecoveryModeOutput (0.20s)
+    --- FAIL: TestContentRecoveryModeOutput/light (0.11s)
+    --- FAIL: TestContentRecoveryModeOutput/dark (0.09s)
+=== RUN   TestContentRecoveryModePlatform
+=== RUN   TestContentRecoveryModePlatform/light
+    contentrecovery_test.go:151: mode refresh lost platform focus
+    contentrecovery_test.go:163: mode refresh blocked platform keyboard
+=== RUN   TestContentRecoveryModePlatform/dark
+    contentrecovery_test.go:151: mode refresh lost platform focus
+    contentrecovery_test.go:163: mode refresh blocked platform keyboard
+--- FAIL: TestContentRecoveryModePlatform (0.14s)
+    --- FAIL: TestContentRecoveryModePlatform/light (0.07s)
+    --- FAIL: TestContentRecoveryModePlatform/dark (0.07s)
+=== RUN   TestContentRecoveryModeAdvanced
+=== RUN   TestContentRecoveryModeAdvanced/light
+    contentrecovery_test.go:151: mode refresh lost advanced focus
+    contentrecovery_test.go:166: mode refresh blocked disclosure keyboard
+=== RUN   TestContentRecoveryModeAdvanced/dark
+    contentrecovery_test.go:151: mode refresh lost advanced focus
+    contentrecovery_test.go:166: mode refresh blocked disclosure keyboard
+--- FAIL: TestContentRecoveryModeAdvanced (0.18s)
+    --- FAIL: TestContentRecoveryModeAdvanced/light (0.09s)
+    --- FAIL: TestContentRecoveryModeAdvanced/dark (0.09s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+    paramrecovery_test.go:32: last removal lost add focus
+    paramrecovery_test.go:37: last removal cannot add with keyboard
+=== RUN   TestParamRecoveryRemovedLast/dark
+    paramrecovery_test.go:32: last removal lost add focus
+    paramrecovery_test.go:37: last removal cannot add with keyboard
+--- FAIL: TestParamRecoveryRemovedLast (0.08s)
+    --- FAIL: TestParamRecoveryRemovedLast/light (0.05s)
+    --- FAIL: TestParamRecoveryRemovedLast/dark (0.04s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+    paramrecovery_test.go:41: first removal lost remaining label focus
+    paramrecovery_test.go:47: first removal lost next input: [{key:0x2491ec88e048 ID:second Label:Second Kind:text Placeholder: Default: Flag: Required:false Options:}]
+=== RUN   TestParamRecoveryRemovedFirst/dark
+    paramrecovery_test.go:41: first removal lost remaining label focus
+    paramrecovery_test.go:47: first removal lost next input: [{key:0x2491ec8fe050 ID:second Label:Second Kind:text Placeholder: Default: Flag: Required:false Options:}]
+--- FAIL: TestParamRecoveryRemovedFirst (0.13s)
+    --- FAIL: TestParamRecoveryRemovedFirst/light (0.07s)
+    --- FAIL: TestParamRecoveryRemovedFirst/dark (0.06s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+    paramrecovery_test.go:75: withdrawn options lost kind focus
+    paramrecovery_test.go:82: options keyboard recovery failed: {key:0x2491ec61a010 ID:target Label:Target Kind:text Placeholder: Default: Flag: Required:false Options:one
+        two}
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+    paramrecovery_test.go:75: withdrawn options lost kind focus
+    paramrecovery_test.go:82: options keyboard recovery failed: {key:0x2491ec88e040 ID:target Label:Target Kind:text Placeholder: Default: Flag: Required:false Options:one
+        two}
+--- FAIL: TestParamRecoveryOptionsWithdrawn (0.08s)
+    --- FAIL: TestParamRecoveryOptionsWithdrawn/light (0.04s)
+    --- FAIL: TestParamRecoveryOptionsWithdrawn/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	1.975s
+FAIL

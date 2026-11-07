@@ -1,0 +1,14 @@
+=== RUN   TestContentRecoveryPlanCommandEmpty
+=== RUN   TestContentRecoveryPlanCommandEmpty/light
+=== RUN   TestContentRecoveryPlanCommandEmpty/dark
+--- PASS: TestContentRecoveryPlanCommandEmpty (0.49s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/light (0.31s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/dark (0.19s)
+=== RUN   TestContentRecoveryPlanCommandRestored
+=== RUN   TestContentRecoveryPlanCommandRestored/light
+=== RUN   TestContentRecoveryPlanCommandRestored/dark
+--- PASS: TestContentRecoveryPlanCommandRestored (0.36s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/light (0.18s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/dark (0.18s)
+PASS
+ok  	floter/internal/settingsui	0.860s

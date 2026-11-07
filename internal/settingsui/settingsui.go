@@ -5833,6 +5833,9 @@ func scriptExportName(id, command, language string) string {
 // 现在胶囊的地板取两句里**更宽**的那一句（`MeasureText` 画的同一支画笔、同一档
 // 字号与字重），确认语换上时盒子一个像素都不动。
 func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
+	// A sibling may disappear when its value is blank. Its position is not
+	// this operation's identity: focus and Enter must keep their own action.
+	c = c.Key(action)
 	focus := a.contentFocus(c, action)
 	if a.Actions.CopyText == nil || strings.TrimSpace(value) == "" {
 		focus.restore(c)

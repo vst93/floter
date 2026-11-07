@@ -1,0 +1,23 @@
+=== RUN   TestContentRecoveryPlanCommandEmpty
+=== RUN   TestContentRecoveryPlanCommandEmpty/light
+    contentrecovery_test.go:107: command presence changed plan focus
+    contentrecovery_test.go:113: plan keyboard copied ["{\n  \"program\": \"/usr/bin/weather\",\n  \"args\": [\n    \"--weather\"\n  ],\n  \"mode\": \"pty\"\n}"], want two plans
+=== RUN   TestContentRecoveryPlanCommandEmpty/dark
+    contentrecovery_test.go:107: command presence changed plan focus
+    contentrecovery_test.go:113: plan keyboard copied ["{\n  \"program\": \"/usr/bin/weather\",\n  \"args\": [\n    \"--weather\"\n  ],\n  \"mode\": \"pty\"\n}"], want two plans
+--- FAIL: TestContentRecoveryPlanCommandEmpty (0.52s)
+    --- FAIL: TestContentRecoveryPlanCommandEmpty/light (0.38s)
+    --- FAIL: TestContentRecoveryPlanCommandEmpty/dark (0.15s)
+=== RUN   TestContentRecoveryPlanCommandRestored
+=== RUN   TestContentRecoveryPlanCommandRestored/light
+    contentrecovery_test.go:107: command presence changed plan focus
+    contentrecovery_test.go:113: plan keyboard copied ["{\n  \"program\": \"/usr/bin/weather\",\n  \"args\": [\n    \"--weather\"\n  ],\n  \"mode\": \"pty\"\n}" "weather"], want two plans
+=== RUN   TestContentRecoveryPlanCommandRestored/dark
+    contentrecovery_test.go:107: command presence changed plan focus
+    contentrecovery_test.go:113: plan keyboard copied ["{\n  \"program\": \"/usr/bin/weather\",\n  \"args\": [\n    \"--weather\"\n  ],\n  \"mode\": \"pty\"\n}" "weather"], want two plans
+--- FAIL: TestContentRecoveryPlanCommandRestored (0.36s)
+    --- FAIL: TestContentRecoveryPlanCommandRestored/light (0.18s)
+    --- FAIL: TestContentRecoveryPlanCommandRestored/dark (0.18s)
+FAIL
+FAIL	floter/internal/settingsui	0.897s
+FAIL
