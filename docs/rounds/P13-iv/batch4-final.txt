@@ -1,0 +1,93 @@
+=== RUN   TestResetShortcuts
+--- PASS: TestResetShortcuts (0.00s)
+=== RUN   TestSummonDiskFailureDoesNotRepeatOldSystemRefusal
+2026/11/07 17:26:10 floter: could not register Ctrl+Alt+K: occupied
+2026/11/07 17:26:10 floter: could not save Ctrl+Alt+L: rename /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal752644880/001/.floter-state-3833013853.tmp /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal752644880/001/settings.json: file exists
+--- PASS: TestSummonDiskFailureDoesNotRepeatOldSystemRefusal (0.00s)
+=== RUN   TestConfirmedSummonKeyClearsPreviousRefusal
+2026/11/07 17:26:10 floter: could not register Ctrl+Alt+K: occupied
+--- PASS: TestConfirmedSummonKeyClearsPreviousRefusal (0.00s)
+=== RUN   TestResetSystemRefusalKeepsConfirmedBindings
+--- PASS: TestResetSystemRefusalKeepsConfirmedBindings (0.00s)
+PASS
+ok  	floter/internal/shell	0.005s
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/light
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/dark
+--- PASS: TestCustomRecorderRefreshFollowsItsBinding (0.34s)
+    --- PASS: TestCustomRecorderRefreshFollowsItsBinding/light (0.17s)
+    --- PASS: TestCustomRecorderRefreshFollowsItsBinding/dark (0.17s)
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/light
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/dark
+--- PASS: TestCustomRecorderRefreshRetiresMissingBinding (0.21s)
+    --- PASS: TestCustomRecorderRefreshRetiresMissingBinding/light (0.04s)
+    --- PASS: TestCustomRecorderRefreshRetiresMissingBinding/dark (0.16s)
+=== RUN   TestCustomRecorderFollowsRemainingBinding
+--- PASS: TestCustomRecorderFollowsRemainingBinding (0.05s)
+=== RUN   TestCustomRecorderStopsWhenItsBindingIsRemoved
+--- PASS: TestCustomRecorderStopsWhenItsBindingIsRemoved (0.04s)
+=== RUN   TestBuiltinRecorderCancelReturnsFocus
+=== RUN   TestBuiltinRecorderCancelReturnsFocus/light
+=== RUN   TestBuiltinRecorderCancelReturnsFocus/dark
+--- PASS: TestBuiltinRecorderCancelReturnsFocus (0.01s)
+    --- PASS: TestBuiltinRecorderCancelReturnsFocus/light (0.00s)
+    --- PASS: TestBuiltinRecorderCancelReturnsFocus/dark (0.00s)
+=== RUN   TestCustomRecorderCancelReturnsFocus
+=== RUN   TestCustomRecorderCancelReturnsFocus/light
+=== RUN   TestCustomRecorderCancelReturnsFocus/dark
+--- PASS: TestCustomRecorderCancelReturnsFocus (0.22s)
+    --- PASS: TestCustomRecorderCancelReturnsFocus/light (0.04s)
+    --- PASS: TestCustomRecorderCancelReturnsFocus/dark (0.17s)
+=== RUN   TestCustomRecorderAcceptedReturnsFocus
+=== RUN   TestCustomRecorderAcceptedReturnsFocus/light
+=== RUN   TestCustomRecorderAcceptedReturnsFocus/dark
+--- PASS: TestCustomRecorderAcceptedReturnsFocus (0.21s)
+    --- PASS: TestCustomRecorderAcceptedReturnsFocus/light (0.04s)
+    --- PASS: TestCustomRecorderAcceptedReturnsFocus/dark (0.17s)
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow/light
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow/dark
+--- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow (0.01s)
+    --- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow/light (0.00s)
+    --- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow/dark (0.01s)
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/light
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/dark
+--- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus (0.20s)
+    --- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus/light (0.05s)
+    --- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus/dark (0.15s)
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus/light
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus/dark
+--- PASS: TestSummonRefusalKeepsFullPageRecorderFocus (0.17s)
+    --- PASS: TestSummonRefusalKeepsFullPageRecorderFocus/light (0.04s)
+    --- PASS: TestSummonRefusalKeepsFullPageRecorderFocus/dark (0.13s)
+=== RUN   TestResetSystemRefusalIsVisible
+=== RUN   TestResetSystemRefusalIsVisible/light
+=== RUN   TestResetSystemRefusalIsVisible/dark
+--- PASS: TestResetSystemRefusalIsVisible (0.13s)
+    --- PASS: TestResetSystemRefusalIsVisible/light (0.03s)
+    --- PASS: TestResetSystemRefusalIsVisible/dark (0.10s)
+=== RUN   TestSuccessfulResetClearsRefusal
+=== RUN   TestSuccessfulResetClearsRefusal/light
+=== RUN   TestSuccessfulResetClearsRefusal/dark
+--- PASS: TestSuccessfulResetClearsRefusal (0.12s)
+    --- PASS: TestSuccessfulResetClearsRefusal/light (0.03s)
+    --- PASS: TestSuccessfulResetClearsRefusal/dark (0.09s)
+=== RUN   TestResetRefusalKeepsKeyboardRetry
+=== RUN   TestResetRefusalKeepsKeyboardRetry/light
+=== RUN   TestResetRefusalKeepsKeyboardRetry/dark
+--- PASS: TestResetRefusalKeepsKeyboardRetry (0.19s)
+    --- PASS: TestResetRefusalKeepsKeyboardRetry/light (0.05s)
+    --- PASS: TestResetRefusalKeepsKeyboardRetry/dark (0.13s)
+=== RUN   TestResetResolutionKeepsKeyboardFocus
+=== RUN   TestResetResolutionKeepsKeyboardFocus/light
+=== RUN   TestResetResolutionKeepsKeyboardFocus/dark
+--- PASS: TestResetResolutionKeepsKeyboardFocus (0.18s)
+    --- PASS: TestResetResolutionKeepsKeyboardFocus/light (0.05s)
+    --- PASS: TestResetResolutionKeepsKeyboardFocus/dark (0.13s)
+=== RUN   TestCustomRecorderGivesUpAfterFocusMoves
+--- PASS: TestCustomRecorderGivesUpAfterFocusMoves (0.18s)
+PASS
+ok  	floter/internal/settingsui	2.266s

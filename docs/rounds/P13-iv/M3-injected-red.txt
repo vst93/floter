@@ -1,0 +1,43 @@
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/light
+    shortcutpagefocus_test.go:37: full-page refusal lost original recorder focus
+    shortcutpagefocus_test.go:41: Enter did not retry original action
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/dark
+    shortcutpagefocus_test.go:37: full-page refusal lost original recorder focus
+    shortcutpagefocus_test.go:41: Enter did not retry original action
+--- FAIL: TestBuiltinRefusalKeepsFullPageRecorderFocus (0.19s)
+    --- FAIL: TestBuiltinRefusalKeepsFullPageRecorderFocus/light (0.11s)
+    --- FAIL: TestBuiltinRefusalKeepsFullPageRecorderFocus/dark (0.07s)
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus/light
+    shortcutpagefocus_test.go:37: full-page refusal lost original recorder focus
+    shortcutpagefocus_test.go:41: Enter did not retry original action
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus/dark
+    shortcutpagefocus_test.go:37: full-page refusal lost original recorder focus
+    shortcutpagefocus_test.go:41: Enter did not retry original action
+--- FAIL: TestSummonRefusalKeepsFullPageRecorderFocus (0.09s)
+    --- FAIL: TestSummonRefusalKeepsFullPageRecorderFocus/light (0.02s)
+    --- FAIL: TestSummonRefusalKeepsFullPageRecorderFocus/dark (0.06s)
+=== RUN   TestResetRefusalKeepsKeyboardRetry
+=== RUN   TestResetRefusalKeepsKeyboardRetry/light
+    shortcutresetrecovery_test.go:89: refused-focus lost reset keyboard focus
+    shortcutresetrecovery_test.go:94: refused-focus cannot retry from keyboard: calls=1
+=== RUN   TestResetRefusalKeepsKeyboardRetry/dark
+    shortcutresetrecovery_test.go:89: refused-focus lost reset keyboard focus
+    shortcutresetrecovery_test.go:94: refused-focus cannot retry from keyboard: calls=1
+--- FAIL: TestResetRefusalKeepsKeyboardRetry (0.10s)
+    --- FAIL: TestResetRefusalKeepsKeyboardRetry/light (0.03s)
+    --- FAIL: TestResetRefusalKeepsKeyboardRetry/dark (0.06s)
+=== RUN   TestResetResolutionKeepsKeyboardFocus
+=== RUN   TestResetResolutionKeepsKeyboardFocus/light
+    shortcutresetrecovery_test.go:89: resolved-focus lost reset keyboard focus
+    shortcutresetrecovery_test.go:94: resolved-focus cannot retry from keyboard: calls=1
+=== RUN   TestResetResolutionKeepsKeyboardFocus/dark
+    shortcutresetrecovery_test.go:89: resolved-focus lost reset keyboard focus
+    shortcutresetrecovery_test.go:94: resolved-focus cannot retry from keyboard: calls=1
+--- FAIL: TestResetResolutionKeepsKeyboardFocus (0.10s)
+    --- FAIL: TestResetResolutionKeepsKeyboardFocus/light (0.03s)
+    --- FAIL: TestResetResolutionKeepsKeyboardFocus/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.477s
+FAIL

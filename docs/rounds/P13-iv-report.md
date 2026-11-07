@@ -45,3 +45,13 @@ M2 回注上一批 shell 代码，`new disk failure retained the previous system
 6. 现象：整页内置应用键录制被拒绝时，顶部提示插入使原录制入口失焦。改动：应用键组与自定义键组用稳定身份。验证：深浅 Tab/Enter/录制键，再按 Enter 继续原 new_command 录制；组内状态与尺寸不动。
 
 定向 **51 PASS / 0 FAIL**、包 vet 净。M1/M2 已实跑，焦点变异在第四批完成后统一回注稳定身份。
+
+### 第四批（7–9，三个独立出口共用一次祖先身份修复）
+
+7. 现象：恢复默认被拒绝，新增提示导致恢复按钮失焦，下一次 Enter 不再重试。改动：唤起快捷键组稳定身份。验证：深浅真实恢复拒绝→Enter 重试，调用数 1→2，焦点保留。
+8. 现象：恢复默认解决拒绝后，提示撤回使恢复入口失焦。改动：同一组身份跨有/无提示保持。验证：先真实点击制造拒绝，再 Tab/Enter 恢复，提示消失、焦点仍在，再 Enter 仍调用恢复。
+9. 现象：唤起键录制被拒绝后，顶部提示插入使该录制入口失焦，Enter 不能继续原动作。改动：同一唤起组身份修复覆盖录制入口。验证：深浅 Tab/Enter→Ctrl+Shift+Z→Enter，仍为唤起键录制；与应用键组分别断言。
+
+计数：用户可见修复为 **1、2、3、4、6、7、8、9，共八项**；第 5 项仅宿主边界补强，不凑数。第四批因同一祖先身份同时解决三个独立出口，一次提交包含三项，是对“每 1–2 项”要求的偏差，明确记录，不伪拆代码。
+
+最终定向 **43 PASS**、包 vet 净；纯真实 UI 事件复核 **18 PASS**。M3 回注未加稳定身份的代码，四项 × 深浅连同父测试 **12 FAIL**，原串 `full-page refusal lost original recorder focus`、`refused-focus cannot retry from keyboard: calls=1`、`resolved-focus lost reset keyboard focus`；MD5 恢复、touch 后上述回归通过。1–8 旧断言未改，无新增 Skip。

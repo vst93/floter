@@ -4132,7 +4132,7 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 		// The group title row carries the group's own action, as the reference's
 		// pane did: "Restore defaults" beside the title, in the accent-text
 		// idiom, and it really resets.
-		a.sectionWithAction(c, copy.ShortcutsToggle, copy.ShortcutsHint,
+		a.sectionWithAction(c.Key("shortcuts.summon"), copy.ShortcutsToggle, copy.ShortcutsHint,
 			copy.ShortcutsReset, func() {
 				if a.Actions.ResetShortcuts != nil {
 					// Like starting a recording, an explicit reset begins a new

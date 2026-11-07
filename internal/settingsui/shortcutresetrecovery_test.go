@@ -40,6 +40,11 @@ func TestResetSystemRefusalIsVisible(t *testing.T) { checkResetRefusalRecovery(t
 
 func TestSuccessfulResetClearsRefusal(t *testing.T) { checkResetRefusalRecovery(t, "resolved") }
 
+func TestResetRefusalKeepsKeyboardRetry(t *testing.T) { checkResetRefusalRecovery(t, "refused-focus") }
+func TestResetResolutionKeepsKeyboardFocus(t *testing.T) {
+	checkResetRefusalRecovery(t, "resolved-focus")
+}
+
 func checkResetRefusalRecovery(t *testing.T, scenario string) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
@@ -52,12 +57,19 @@ func checkResetRefusalRecovery(t *testing.T, scenario string) {
 					_ = a.Store.Update(func(s *settings.Settings) { s.SetExtra("shortcuts", map[string]any{}) })
 				}
 			}
-			if scenario == "resolved" || scenario == "resolved-focus" {
-				a.rejectedShortcut = settings.ShortcutToggleWindow
-			} else {
-				refused = true
-			}
+			refused = true
 			tt := shortcutRecoveryFrame(a, dark)
+			if scenario == "resolved" || scenario == "resolved-focus" {
+				// Obtain the prior warning through the actual reset entry.
+				if err := tt.Click(a.copy().ShortcutsReset); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if !tt.HasText(a.copy().ShortcutRejected) {
+					t.Fatal("initial reset refusal missing")
+				}
+				refused, calls = false, 0
+			}
 			optionExitFocus(t, tt, a.copy().ShortcutsReset)
 			tt.Key(0, ui.KeyEnter)
 			tt.Frame()
@@ -72,12 +84,6 @@ func checkResetRefusalRecovery(t *testing.T, scenario string) {
 					t.Error("successful reset retained obsolete refusal")
 				}
 			default:
-				// Isolate the focus contract even before the feedback wiring lands.
-				if refused {
-					a.rejectedShortcut = settings.ShortcutToggleWindow
-				} else {
-					a.rejectedShortcut = ""
-				}
 				tt.Frame()
 				shortcutRecoveryDump(t, tt, scenario, dark)
 				if !tt.Focused(a.copy().ShortcutsReset) {

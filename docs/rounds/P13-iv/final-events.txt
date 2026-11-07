@@ -1,0 +1,38 @@
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/light
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/dark
+--- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus (0.44s)
+    --- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus/light (0.22s)
+    --- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus/dark (0.21s)
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus/light
+=== RUN   TestSummonRefusalKeepsFullPageRecorderFocus/dark
+--- PASS: TestSummonRefusalKeepsFullPageRecorderFocus (0.24s)
+    --- PASS: TestSummonRefusalKeepsFullPageRecorderFocus/light (0.05s)
+    --- PASS: TestSummonRefusalKeepsFullPageRecorderFocus/dark (0.18s)
+=== RUN   TestResetSystemRefusalIsVisible
+=== RUN   TestResetSystemRefusalIsVisible/light
+=== RUN   TestResetSystemRefusalIsVisible/dark
+--- PASS: TestResetSystemRefusalIsVisible (0.17s)
+    --- PASS: TestResetSystemRefusalIsVisible/light (0.04s)
+    --- PASS: TestResetSystemRefusalIsVisible/dark (0.12s)
+=== RUN   TestSuccessfulResetClearsRefusal
+=== RUN   TestSuccessfulResetClearsRefusal/light
+=== RUN   TestSuccessfulResetClearsRefusal/dark
+--- PASS: TestSuccessfulResetClearsRefusal (0.46s)
+    --- PASS: TestSuccessfulResetClearsRefusal/light (0.07s)
+    --- PASS: TestSuccessfulResetClearsRefusal/dark (0.39s)
+=== RUN   TestResetRefusalKeepsKeyboardRetry
+=== RUN   TestResetRefusalKeepsKeyboardRetry/light
+=== RUN   TestResetRefusalKeepsKeyboardRetry/dark
+--- PASS: TestResetRefusalKeepsKeyboardRetry (0.24s)
+    --- PASS: TestResetRefusalKeepsKeyboardRetry/light (0.07s)
+    --- PASS: TestResetRefusalKeepsKeyboardRetry/dark (0.17s)
+=== RUN   TestResetResolutionKeepsKeyboardFocus
+=== RUN   TestResetResolutionKeepsKeyboardFocus/light
+=== RUN   TestResetResolutionKeepsKeyboardFocus/dark
+--- PASS: TestResetResolutionKeepsKeyboardFocus (0.52s)
+    --- PASS: TestResetResolutionKeepsKeyboardFocus/light (0.10s)
+    --- PASS: TestResetResolutionKeepsKeyboardFocus/dark (0.43s)
+PASS
+ok  	floter/internal/settingsui	2.078s
