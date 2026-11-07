@@ -110,3 +110,10 @@ func TestCommandReprobeKeepsCurrentManifest(t *testing.T) { checkCommandReprobeC
 func TestCommandReprobeKeepsCurrentDescriptor(t *testing.T) {
 	checkCommandReprobeCurrent(t, "descriptor")
 }
+
+func TestCommandReprobeKeepsCurrentPublisher(t *testing.T) {
+	checkCommandReprobeCurrent(t, "publisher")
+}
+func TestCommandReprobeKeepsCurrentRuntime(t *testing.T) {
+	checkCommandReprobeCurrent(t, "runtime")
+}

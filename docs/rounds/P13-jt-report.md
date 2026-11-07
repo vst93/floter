@@ -36,3 +36,12 @@ done.log 开盘不存在，收尾按指定路径创建。基线运行中；以�
 改前四场景全红：`late command reprobe overwrote current manifest descriptor`、`late command reprobe overwrote current descriptor descriptor`、`obsolete … probe wrote a freshness record`。旧 V/B/S 仍 0/0/0。
 
 开盘全量实测 **5902 PASS / 0 FAIL / 3371 函数**，exit0。基线完整日志留存。
+
+第二批 **7e6be57d**，相关 **22 PASS / 0 FAIL**，shell/extensions vet 净。首次目视浅色等待帧：底部重新探测、检查、编辑以及命令开关统一进入原禁用面，无额外浮层或说明占高。
+
+## 第三批：目标来源刷新
+
+5. 现象：帮助等待期间，同 ID 已改为发布者维护的包，旧探测仍写入其描述文件。改动：写回前复核当前 publisher/provider 与包来源，失效请求退出。验证：深浅真实事件，当前文件字节保留、无伪新鲜度、无过期失败提示。
+6. 现象：等待中运行时已经换绑，旧程序的帮助仍追加到新目标的命令目录。改动：复核 ExecutablePath、RuntimeRoot 与包版本/路径后才接受输出。验证：深浅文件和 freshness 断言，当前行保持新运行时事实。
+
+改前两类均实红：`late command reprobe overwrote current publisher descriptor`、`late command reprobe overwrote current runtime descriptor`；均错误写了 freshness。旧 V/B/S 仍 0/0/0。

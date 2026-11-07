@@ -170,9 +170,21 @@ func ReprobeCommands(ctx context.Context, paths Paths, id string) (ReprobeReport
 	derivation := probeDeriveWith(ctx, binding, integration)
 	// Help is external work. A declaration or command edit made while it was
 	// running owns the current package; the old derivation cannot replace it.
-	manifest, manifestErr := LoadManifest(integration.ManifestPath())
+	current, present := LoadInventory(paths).WithID(id)
+	if !present {
+		return ReprobeReport{}, ErrNoIntegration
+	}
+	if current.Entry.PublisherID != integration.Entry.PublisherID ||
+		current.Entry.ProviderKind != integration.Entry.ProviderKind ||
+		current.Entry.ManifestPath != integration.Entry.ManifestPath ||
+		current.Entry.ExecutablePath != integration.Entry.ExecutablePath ||
+		current.Entry.PackageVersion != integration.Entry.PackageVersion ||
+		current.Entry.CurrentVersion != integration.Entry.CurrentVersion ||
+		!reflect.DeepEqual(current.Entry.RuntimeRoot, integration.Entry.RuntimeRoot) {
+		return ReprobeReport{}, ErrCommandReprobeSuperseded
+	}
 	currentData, descriptorErr := os.ReadFile(descriptorPath)
-	if manifestErr != nil || !reflect.DeepEqual(manifest, integration.Manifest) ||
+	if current.ManifestErr != nil || !reflect.DeepEqual(current.Manifest, integration.Manifest) ||
 		descriptorErr != nil || !bytes.Equal(currentData, data) {
 		return ReprobeReport{}, ErrCommandReprobeSuperseded
 	}
