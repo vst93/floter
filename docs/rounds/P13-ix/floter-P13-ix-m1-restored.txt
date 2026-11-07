@@ -1,0 +1,14 @@
+=== RUN   TestShortcutEditingActionKeepsCapture
+=== RUN   TestShortcutEditingActionKeepsCapture/light
+=== RUN   TestShortcutEditingActionKeepsCapture/dark
+--- PASS: TestShortcutEditingActionKeepsCapture (0.20s)
+    --- PASS: TestShortcutEditingActionKeepsCapture/light (0.06s)
+    --- PASS: TestShortcutEditingActionKeepsCapture/dark (0.14s)
+=== RUN   TestShortcutEditingRemovalKeepsCapture
+=== RUN   TestShortcutEditingRemovalKeepsCapture/light
+=== RUN   TestShortcutEditingRemovalKeepsCapture/dark
+--- PASS: TestShortcutEditingRemovalKeepsCapture (0.18s)
+    --- PASS: TestShortcutEditingRemovalKeepsCapture/light (0.07s)
+    --- PASS: TestShortcutEditingRemovalKeepsCapture/dark (0.11s)
+PASS
+ok  	floter/internal/shell	0.388s

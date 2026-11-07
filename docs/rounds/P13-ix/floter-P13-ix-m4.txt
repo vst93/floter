@@ -1,0 +1,19 @@
+=== RUN   TestShortcutDraftBindKeepsAcceptedClaim
+2026/11/07 18:35:50 floter: custom shortcut Ctrl+Shift+Z: occupied
+    shortcutcapturecommit_test.go:26: Bind released accepted chord and lost it on reclaim: claims=2 live=false
+    shortcutcapturecommit_test.go:29: accepted Bind did not finish cleanly
+--- FAIL: TestShortcutDraftBindKeepsAcceptedClaim (0.40s)
+=== RUN   TestShortcutEditingDoesNotDispatchDuringValidation
+    shortcutcapturecommit_test.go:58: validation dispatched command under recorder: [say original]
+--- FAIL: TestShortcutEditingDoesNotDispatchDuringValidation (0.16s)
+=== RUN   TestShortcutDraftCancelKeepsSavedRefusal
+=== RUN   TestShortcutDraftCancelKeepsSavedRefusal/light
+    shortcutdraftwarning_test.go:44: canceling unrelated draft erased saved binding refusal
+=== RUN   TestShortcutDraftCancelKeepsSavedRefusal/dark
+    shortcutdraftwarning_test.go:44: canceling unrelated draft erased saved binding refusal
+--- FAIL: TestShortcutDraftCancelKeepsSavedRefusal (1.06s)
+    --- FAIL: TestShortcutDraftCancelKeepsSavedRefusal/light (0.33s)
+    --- FAIL: TestShortcutDraftCancelKeepsSavedRefusal/dark (0.73s)
+FAIL
+FAIL	floter/internal/shell	1.636s
+FAIL

@@ -1,0 +1,14 @@
+=== RUN   TestShortcutEditingConversionKeepsCapture
+=== RUN   TestShortcutEditingConversionKeepsCapture/light
+=== RUN   TestShortcutEditingConversionKeepsCapture/dark
+--- PASS: TestShortcutEditingConversionKeepsCapture (0.46s)
+    --- PASS: TestShortcutEditingConversionKeepsCapture/light (0.16s)
+    --- PASS: TestShortcutEditingConversionKeepsCapture/dark (0.30s)
+=== RUN   TestShortcutEditingBindKeepsCapture
+=== RUN   TestShortcutEditingBindKeepsCapture/light
+=== RUN   TestShortcutEditingBindKeepsCapture/dark
+--- PASS: TestShortcutEditingBindKeepsCapture (0.49s)
+    --- PASS: TestShortcutEditingBindKeepsCapture/light (0.13s)
+    --- PASS: TestShortcutEditingBindKeepsCapture/dark (0.36s)
+PASS
+ok  	floter/internal/shell	0.963s

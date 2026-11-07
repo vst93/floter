@@ -1,0 +1,19 @@
+=== RUN   TestShortcutEditingActionKeepsCapture
+=== RUN   TestShortcutEditingActionKeepsCapture/light
+    shortcutediting_test.go:99: action activated system keys during recording: [Ctrl+Shift+A Ctrl+Shift+B]
+=== RUN   TestShortcutEditingActionKeepsCapture/dark
+    shortcutediting_test.go:99: action activated system keys during recording: [Ctrl+Shift+A Ctrl+Shift+B]
+--- FAIL: TestShortcutEditingActionKeepsCapture (0.31s)
+    --- FAIL: TestShortcutEditingActionKeepsCapture/light (0.15s)
+    --- FAIL: TestShortcutEditingActionKeepsCapture/dark (0.17s)
+=== RUN   TestShortcutEditingRemovalKeepsCapture
+=== RUN   TestShortcutEditingRemovalKeepsCapture/light
+    shortcutediting_test.go:99: remove activated system keys during recording: [Ctrl+Shift+B]
+=== RUN   TestShortcutEditingRemovalKeepsCapture/dark
+    shortcutediting_test.go:99: remove activated system keys during recording: [Ctrl+Shift+B]
+--- FAIL: TestShortcutEditingRemovalKeepsCapture (0.21s)
+    --- FAIL: TestShortcutEditingRemovalKeepsCapture/light (0.09s)
+    --- FAIL: TestShortcutEditingRemovalKeepsCapture/dark (0.13s)
+FAIL
+FAIL	floter/internal/shell	0.531s
+FAIL

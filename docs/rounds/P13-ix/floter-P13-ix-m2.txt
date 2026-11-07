@@ -1,0 +1,27 @@
+=== RUN   TestShortcutDraftCancelKeepsSavedRecorder
+=== RUN   TestShortcutDraftCancelKeepsSavedRecorder/light
+    shortcutdraftediting_test.go:66: canceling draft stopped saved binding recorder
+    shortcutdraftediting_test.go:69: canceling draft enabled system keys under saved recorder
+    shortcutdraftediting_test.go:76: saved capture no longer reaches its target: [{Ctrl+Shift+B say original}]
+    shortcutdraftediting_test.go:79: saved recording cannot finish after draft cancel
+=== RUN   TestShortcutDraftCancelKeepsSavedRecorder/dark
+    shortcutdraftediting_test.go:66: canceling draft stopped saved binding recorder
+    shortcutdraftediting_test.go:69: canceling draft enabled system keys under saved recorder
+    shortcutdraftediting_test.go:76: saved capture no longer reaches its target: [{Ctrl+Shift+B say original}]
+    shortcutdraftediting_test.go:79: saved recording cannot finish after draft cancel
+--- FAIL: TestShortcutDraftCancelKeepsSavedRecorder (0.73s)
+    --- FAIL: TestShortcutDraftCancelKeepsSavedRecorder/light (0.28s)
+    --- FAIL: TestShortcutDraftCancelKeepsSavedRecorder/dark (0.44s)
+=== RUN   TestShortcutDraftBindEndsItsRecorder
+=== RUN   TestShortcutDraftBindEndsItsRecorder/light
+    shortcutdraftediting_test.go:56: bound draft left an invisible recorder suspending all keys
+    shortcutdraftediting_test.go:59: bound draft did not restore confirmed system keys
+=== RUN   TestShortcutDraftBindEndsItsRecorder/dark
+    shortcutdraftediting_test.go:56: bound draft left an invisible recorder suspending all keys
+    shortcutdraftediting_test.go:59: bound draft did not restore confirmed system keys
+--- FAIL: TestShortcutDraftBindEndsItsRecorder (0.46s)
+    --- FAIL: TestShortcutDraftBindEndsItsRecorder/light (0.10s)
+    --- FAIL: TestShortcutDraftBindEndsItsRecorder/dark (0.35s)
+FAIL
+FAIL	floter/internal/shell	1.194s
+FAIL

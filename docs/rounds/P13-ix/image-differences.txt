@@ -1,0 +1,9 @@
+draft-cancel-neighbor/light: changed=1011, bbox=(200, 650, 299, 676), size=(960, 1100)
+draft-occupied/light: changed=47603, bbox=(187, 679, 944, 770), size=(960, 1100)
+draft-duplicate/light: changed=47603, bbox=(187, 726, 944, 817), size=(960, 1100)
+draft-cancel-refusal/light: changed=21500, bbox=(187, 697, 944, 770), size=(960, 1100)
+draft-cancel-neighbor/dark: changed=1011, bbox=(200, 650, 299, 676), size=(960, 1100)
+draft-occupied/dark: changed=47605, bbox=(187, 679, 944, 770), size=(960, 1100)
+draft-duplicate/dark: changed=47605, bbox=(187, 726, 944, 817), size=(960, 1100)
+draft-cancel-refusal/dark: changed=21510, bbox=(187, 697, 944, 770), size=(960, 1100)
+raw_frames=42, boards=2, details=4

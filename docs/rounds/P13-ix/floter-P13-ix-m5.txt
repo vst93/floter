@@ -1,0 +1,19 @@
+=== RUN   TestShortcutEditingConversionKeepsCapture
+=== RUN   TestShortcutEditingConversionKeepsCapture/light
+    shortcutediting_test.go:104: convert activated system keys during recording: [Ctrl+Shift+B]
+=== RUN   TestShortcutEditingConversionKeepsCapture/dark
+    shortcutediting_test.go:104: convert activated system keys during recording: [Ctrl+Shift+B]
+--- FAIL: TestShortcutEditingConversionKeepsCapture (0.49s)
+    --- FAIL: TestShortcutEditingConversionKeepsCapture/light (0.17s)
+    --- FAIL: TestShortcutEditingConversionKeepsCapture/dark (0.32s)
+=== RUN   TestShortcutEditingBindKeepsCapture
+=== RUN   TestShortcutEditingBindKeepsCapture/light
+    shortcutediting_test.go:104: bind activated system keys during recording: [Ctrl+Shift+A Ctrl+Shift+B Ctrl+Shift+Z]
+=== RUN   TestShortcutEditingBindKeepsCapture/dark
+    shortcutediting_test.go:104: bind activated system keys during recording: [Ctrl+Shift+A Ctrl+Shift+B Ctrl+Shift+Z]
+--- FAIL: TestShortcutEditingBindKeepsCapture (0.56s)
+    --- FAIL: TestShortcutEditingBindKeepsCapture/light (0.13s)
+    --- FAIL: TestShortcutEditingBindKeepsCapture/dark (0.43s)
+FAIL
+FAIL	floter/internal/shell	1.057s
+FAIL

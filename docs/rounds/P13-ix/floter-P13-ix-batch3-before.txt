@@ -1,0 +1,21 @@
+=== RUN   TestShortcutDraftOccupiedRetainsRetry
+=== RUN   TestShortcutDraftOccupiedRetainsRetry/light
+2026/11/07 18:29:08 floter: custom shortcut Ctrl+Shift+Z: occupied
+    shortcutdraftediting_test.go:116: draft-occupied discarded draft or hid refusal
+=== RUN   TestShortcutDraftOccupiedRetainsRetry/dark
+2026/11/07 18:29:09 floter: custom shortcut Ctrl+Shift+Z: occupied
+    shortcutdraftediting_test.go:116: draft-occupied discarded draft or hid refusal
+--- FAIL: TestShortcutDraftOccupiedRetainsRetry (0.65s)
+    --- FAIL: TestShortcutDraftOccupiedRetainsRetry/light (0.28s)
+    --- FAIL: TestShortcutDraftOccupiedRetainsRetry/dark (0.37s)
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal/light
+    shortcutdraftediting_test.go:116: draft-duplicate discarded draft or hid refusal
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal/dark
+    shortcutdraftediting_test.go:116: draft-duplicate discarded draft or hid refusal
+--- FAIL: TestShortcutDraftDuplicateRetainsOriginal (0.54s)
+    --- FAIL: TestShortcutDraftDuplicateRetainsOriginal/light (0.15s)
+    --- FAIL: TestShortcutDraftDuplicateRetainsOriginal/dark (0.39s)
+FAIL
+FAIL	floter/internal/shell	1.208s
+FAIL

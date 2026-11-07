@@ -1,0 +1,16 @@
+=== RUN   TestShortcutDraftOccupiedRetainsRetry
+=== RUN   TestShortcutDraftOccupiedRetainsRetry/light
+2026/11/07 18:30:54 floter: custom shortcut Ctrl+Shift+Z: occupied
+=== RUN   TestShortcutDraftOccupiedRetainsRetry/dark
+2026/11/07 18:30:55 floter: custom shortcut Ctrl+Shift+Z: occupied
+--- PASS: TestShortcutDraftOccupiedRetainsRetry (1.06s)
+    --- PASS: TestShortcutDraftOccupiedRetainsRetry/light (0.49s)
+    --- PASS: TestShortcutDraftOccupiedRetainsRetry/dark (0.57s)
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal/light
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal/dark
+--- PASS: TestShortcutDraftDuplicateRetainsOriginal (0.95s)
+    --- PASS: TestShortcutDraftDuplicateRetainsOriginal/light (0.34s)
+    --- PASS: TestShortcutDraftDuplicateRetainsOriginal/dark (0.61s)
+PASS
+ok  	floter/internal/shell	2.023s

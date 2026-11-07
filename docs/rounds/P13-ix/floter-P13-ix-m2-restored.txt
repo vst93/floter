@@ -1,0 +1,14 @@
+=== RUN   TestShortcutDraftCancelKeepsSavedRecorder
+=== RUN   TestShortcutDraftCancelKeepsSavedRecorder/light
+=== RUN   TestShortcutDraftCancelKeepsSavedRecorder/dark
+--- PASS: TestShortcutDraftCancelKeepsSavedRecorder (0.66s)
+    --- PASS: TestShortcutDraftCancelKeepsSavedRecorder/light (0.20s)
+    --- PASS: TestShortcutDraftCancelKeepsSavedRecorder/dark (0.46s)
+=== RUN   TestShortcutDraftBindEndsItsRecorder
+=== RUN   TestShortcutDraftBindEndsItsRecorder/light
+=== RUN   TestShortcutDraftBindEndsItsRecorder/dark
+--- PASS: TestShortcutDraftBindEndsItsRecorder (0.51s)
+    --- PASS: TestShortcutDraftBindEndsItsRecorder/light (0.12s)
+    --- PASS: TestShortcutDraftBindEndsItsRecorder/dark (0.39s)
+PASS
+ok  	floter/internal/shell	1.184s
