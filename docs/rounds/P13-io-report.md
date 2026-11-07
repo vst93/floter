@@ -58,3 +58,91 @@ M3 以修正后的实体 Ctrl 夹具重新实跑，结果在后文记录。新�
 8. 现象：普通配置 Token 输入已有 HandleInput，但被窗口已注册的快捷键绕过，Ctrl+Backspace 仍删除 stored。改动：普通设置字段也通过原生编辑前回调回答已绑定操作。验证：深浅配置真实输入路径，退出 1 次、stored 不变；重绑后标准选择/复制继续正常。
 
 M4 回注两处旧接线实跑红，原串 `options-shortcut swallowed rebound new-command: closed=0`、`config-shortcut swallowed rebound new-command: closed=0`、`shortcut modified editor draft`；MD5 恢复并 touch 后通过。精确计数与完整门槛集中记录于末尾。旧 V/B/S 断言修改仍为 0/0/0，新增 Skip 0。
+
+第四批 **118 PASS / 0 FAIL**，包 vet 净，M4 **6 FAIL**，恢复后 **6 PASS**；产品 9e93ec1d 已推送。四批每完成两项即提交推送，没有将八项攒到轮末。
+
+## 偷了什么
+
+真实读取 qiaomu-design 的 SKILL、user-preferences、craft-loop、preflight、chinese-typography，并查 Apple DESIGN 的单交互色角色。用户已经指定方向，使用打磨路径，由 Codex 独立执行。
+
+- craft-loop 工艺密度菜单 **#3 品牌 focus 环**：沿 Apple 单一交互蓝角色与仓库 **2px** 环，忙态时 **0ms** 交给既有 Close，解锁 **0 次**抢焦；原主题蓝值不改。
+- **#6 编辑细节**：保留 **1px** 发丝线、别名 **4px/8px** 内距；普通重绘后完整草稿仍在同一槽内，空别名精确为 **0 个字符**。180ms 之外才写回，不添加状态解释条。
+- **#12 材质细节**：沿命令板 **8px** 圆角、别名 **6px** 圆角与原受光边，新增面/外阴影 **0 层**。这轮修内容与环的稳定性，不冒充材质重定基线。
+
+为什么更轻、更有空间感：界面用原有焦点环和原槽里的真实内容表达当前状态，灰掉的控制不占用键盘，用户无需额外提示层解释输入去了哪里。用户要求修已有问题优先，不为五签名配额添加装饰。
+
+## Preflight A / B / C / D2
+
+| 项 | 结论 |
+| --- | --- |
+| A1 渐变/纯黑/霓虹 | 无新增，沿原主题 |
+| A2 字体 | 中文系统字体优先，不执行每轮换非系统字体的网页规则 |
+| A3 斜体 | 无新增 |
+| A4 Hero | 原生功能页，不适用 |
+| A5 三等分/卡片海 | 新增容器 0 |
+| A6 假数据 | 本地测试工具名，仅为事件夹具 |
+| A7 空词/感叹号 | 产品文案零改 |
+| A8 眉批 | 新增 0 |
+| A9 标题 | 原页头与行盒保留 |
+| A10 网格空洞 | 无新布局 |
+| A11 装饰竖线 | 无新增 |
+| B1 读取/拨盘 | 功能页 2/1/6：稳定、即时、原密度 |
+| B2 主题 | 深浅独立 Tester，未混主题 |
+| B3 记忆点 | 当前输入与唯一焦点始终可辨 |
+| B4 动效气质 | 键盘恢复 0ms，新动画 0 |
+| C1 目的/频率 | 高频编辑即时反馈 |
+| C2 all/ease-in/scale/fade | 无新增 |
+| C3 时长/按压 | 原反馈保留，不延迟输入 |
+| C4 origin | 无新浮层 |
+| C5 reduced-motion | 全部新事件/图使用 ReduceMotion=true |
+| C6 hover 媒体查询 | 非 Web，沿原指针路由 |
+| C7 布局动画 | 新增 0 |
+| C8 keyframes | 新增 0 |
+| C9 手势 | 本轮不涉及 |
+| C10 Motion shorthand | Go 自绘，不适用 |
+| C11 慢放 | 没有新增动效，逐帧事件验证；未声称真机慢放 |
+| D2-1 字体 | 中文 locale、系统 CJK，无 webfont |
+| D2-2 字号/行高/字重 | 通用 ≥14px/1.5 与旧尺寸合约冲突，继续待拍板 |
+| D2-3 混排空格 | i18n 未改 |
+| D2-4 标点/对比度 | 旧墨与标点不改，默认主题通用 7:1 未重测，不宣称通过 |
+
+用户方向与仓库唯一来源优先于四方向/网页预览/换字体等通用规范。可复现缺陷写入 §6.216 和事件 pin，不把本轮修复变成新的全局审美规则。
+
+## 图像证据
+
+两轮复核：第一轮从艺术总监视角发现灰掉字段仍占焦点、工程视角发现帧刷新清空文本、任务视角发现方向键离开当前页、读者视角发现退出键让 Saved 变成 Unsaved changes。第二轮围绕这四处回看真实事件同帧图：深色别名保留 json，浅色配置保留 stored 且不产生伪未保存状态，忙态环落到 Close，方向键前后仍在 Integrations。浅色 4× 局部中，原圆角边没有新增重影，变化只在文本与光标；放大图不是高 DPI 真机渲染。
+
+逐项深浅总览已目视，16 对的像素变化全部非零，最小 **180 像素**（重新声明恢复草稿）。对照图的快捷键处理由真实窗口级 Shortcut 与字段事件构成，Close 使用计数回调，未冒充整个 shell 真机退出画面。
+
+八项均导出深浅 before/after 原帧，归档 32 原帧、16 对照板、2 局部与总览；像素差精确记录在 [image-differences.txt](P13-io/image-differences.txt)。截图来自 Linux ui.Tester；Windows/macOS 仅 vet/build，无真机原生输入法/Option 字母事件证据。
+
+| 项 | 浅色 | 深色 |
+| --- | --- | --- |
+| 1 别名忙态 | [图](P13-io/alias-busy-repair-light-comparison.png) | [图](P13-io/alias-busy-repair-dark-comparison.png) |
+| 2 开关忙态 | [图](P13-io/switch-busy-repair-light-comparison.png) | [图](P13-io/switch-busy-repair-dark-comparison.png) |
+| 3 连续输入 | [图](P13-io/alias-redraw-light-comparison.png) | [图](P13-io/alias-redraw-dark-comparison.png) |
+| 4 撤回再恢复 | [图](P13-io/alias-return-undeclared-light-comparison.png) | [图](P13-io/alias-return-undeclared-dark-comparison.png) |
+| 5 方向键 | [图](P13-io/alias-arrow-14-light-comparison.png) | [图](P13-io/alias-arrow-14-dark-comparison.png) |
+| 6 别名退出键 | [图](P13-io/alias-shortcut-light-comparison.png) | [图](P13-io/alias-shortcut-dark-comparison.png) |
+| 7 参数选项退出键 | [图](P13-io/options-shortcut-light-comparison.png) | [图](P13-io/options-shortcut-dark-comparison.png) |
+| 8 配置退出键 | [图](P13-io/config-shortcut-light-comparison.png) | [图](P13-io/config-shortcut-dark-comparison.png) |
+
+## 仍待
+
+1. 下一轮先事件复现别名待写期间的冲突/Taken 提示、宿主接受或规范化后的显示反馈；仅代码线索，不改变 180ms/Flush 或保存拒绝语义。
+2. 重绑定的 macOS 原生 Option+字母路径仍缺真机证据；本轮实证为窗口注册的 Ctrl+Backspace 与现有编辑事件。脚本编辑器未证实缺陷，没有改动。
+3. 字号/行盒、accent 禁用填充、未知多选/Radio、极小步长、176-9/161-4 保存期草稿、终端 S1b/S1c/S2 尾仍需拍板；八条旧 WIP 保留。
+## 完整门槛与交接
+
+最终产品 **9e93ec1d**；四批每两项 **7951a323 / 5ad1269c / 11f5703b / 9e93ec1d** 均已推送。完整普通与 verbose 测试均退出 **0**，实测 **4937 PASS / 0 FAIL**（基线 4888，+49）；测试函数 **3077**（基线 3068，+9）。gofmt 空、Linux/Windows/macOS 三平台 vet/build 六项退出 0 且日志均 0 字节，更新合约后文档 CI 通过。旧 V/B/S 断言修改 **0/0/0**，旧测试函数未减少，新 Skip **0**；三份最终产品源码 MD5 校验一致。
+
+| 变异 | 实跑红 | MD5 还原、touch 后 |
+| --- | --- | --- |
+| M1 命令忙态出口 | 22 FAIL | 23 PASS |
+| M2 待写别名来源 | 12 FAIL | 12 PASS |
+| M3 别名按键接线 | 8 FAIL | 68 PASS（相关回归全组） |
+| M4 配置/选项编辑键 | 6 FAIL | 6 PASS |
+
+完整证据：[普通测试](P13-io/final-test.txt)、[verbose 测试](P13-io/final-verbose.txt)、[门槛汇总](P13-io/gates.txt)、[源码 MD5](P13-io/final-source.md5)、[全图总览](P13-io/overview.png)。32 原帧、16 对照板、2 个 4× 局部和 1 总览均入仓。代表原帧另存 /tmp/floter-P13-io-alias-{light,dark}.png。
+
+04:18 UTC 开盘，完整门槛收尾时间 **2026-11-07 04:42:13 UTC**，本轮短于 45–75 分钟目标；八项事件修复已经完成，不以无关改动补时。40 组 exec 编排之外发生了等待回收，按所有工具调用计已超 40；超过后仅完成既有工作的完整门槛、归档和交接，没有继续增加选题。普通与 verbose 全量并行导致单包运行比基线慢，均正常结束；未用中间包的计数冒充全量。
