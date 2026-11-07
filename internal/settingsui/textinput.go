@@ -185,6 +185,9 @@ func (a *App) aliasField(c *ui.Context, value *string) ui.Element {
 // aliasFieldLit chooses the material before the row lock dims the control.
 func (a *App) aliasFieldLit(c *ui.Context, value *string, lit bool) ui.Element {
 	e := ui.TextInput(c, value)
+	e.Shortcut(0, ui.KeyUp)
+	e.Shortcut(0, ui.KeyDown)
+	e = a.editorDismissKeys(e)
 	tokens := a.tokens(c)
 	if a.cardUnit > 0 {
 		m := commandAliasMetrics
@@ -206,4 +209,24 @@ func (a *App) aliasFieldLit(c *ui.Context, value *string, lit bool) ui.Element {
 	// P13-cc（§6.46）：材质不再在这里拼——它走 `fieldFaceEdge`，外圈那一个合法差
 	// 作为参数传进去。像素零改动（同一个面、同一对线、同一条 `Hairline`）。
 	return a.fieldFaceEdge(c, e, lit, tokens.Hairline)
+}
+
+// A window shortcut can skip HandleInput and still lose to the native
+// editor's selection/deletion keys. OnTextKey covers those editing chords
+// before they change the value; HandleInput covers the unclaimed keys.
+func (a *App) editorDismissKeys(e ui.Element) ui.Element {
+	take := func(mods ui.Modifiers, key ui.Key) bool {
+		wantMods, wantKey, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand))
+		if !ok || mods != wantMods || key != wantKey {
+			return false
+		}
+		if a.Actions.Close != nil {
+			a.Actions.Close()
+		}
+		return true
+	}
+	e.HandleInput(func(ev ui.InputEvent) bool {
+		return ev.Kind == ui.InputKeyDown && take(ev.Mods, ev.Key)
+	})
+	return e.OnTextKey(func(key ui.TextKey) bool { return take(key.Mods, key.Key) })
 }

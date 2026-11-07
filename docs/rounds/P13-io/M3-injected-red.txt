@@ -1,0 +1,27 @@
+=== RUN   TestCommandAliasHonorsTheRowLock
+--- PASS: TestCommandAliasHonorsTheRowLock (0.96s)
+=== RUN   TestCommandAliasKeepsVerticalArrows
+=== RUN   TestCommandAliasKeepsVerticalArrows/light/14
+    commandeditkeys_test.go:29: alias arrow left editor: page=2 focused=false
+=== RUN   TestCommandAliasKeepsVerticalArrows/light/15
+    commandeditkeys_test.go:29: alias arrow left editor: page=4 focused=false
+=== RUN   TestCommandAliasKeepsVerticalArrows/dark/14
+    commandeditkeys_test.go:29: alias arrow left editor: page=2 focused=false
+=== RUN   TestCommandAliasKeepsVerticalArrows/dark/15
+    commandeditkeys_test.go:29: alias arrow left editor: page=4 focused=false
+--- FAIL: TestCommandAliasKeepsVerticalArrows (0.52s)
+    --- FAIL: TestCommandAliasKeepsVerticalArrows/light/14 (0.17s)
+    --- FAIL: TestCommandAliasKeepsVerticalArrows/light/15 (0.11s)
+    --- FAIL: TestCommandAliasKeepsVerticalArrows/dark/14 (0.13s)
+    --- FAIL: TestCommandAliasKeepsVerticalArrows/dark/15 (0.10s)
+=== RUN   TestCommandAliasHonorsReboundNewCommand
+=== RUN   TestCommandAliasHonorsReboundNewCommand/light
+    commandeditkeys_test.go:75: alias swallowed rebound new-command: closed=0
+=== RUN   TestCommandAliasHonorsReboundNewCommand/dark
+    commandeditkeys_test.go:75: alias swallowed rebound new-command: closed=0
+--- FAIL: TestCommandAliasHonorsReboundNewCommand (0.19s)
+    --- FAIL: TestCommandAliasHonorsReboundNewCommand/light (0.10s)
+    --- FAIL: TestCommandAliasHonorsReboundNewCommand/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	1.685s
+FAIL

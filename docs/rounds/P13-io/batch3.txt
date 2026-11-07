@@ -1,0 +1,142 @@
+=== RUN   TestCommandEnableHonorsTheRowLock
+--- PASS: TestCommandEnableHonorsTheRowLock (0.77s)
+=== RUN   TestCommandAliasHonorsTheRowLock
+--- PASS: TestCommandAliasHonorsTheRowLock (0.70s)
+=== RUN   TestCommandBusyAliasReturnsKeyboard
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/repair
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/disable
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/remove
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/uninstall
+=== RUN   TestCommandBusyAliasReturnsKeyboard/light/toggle
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/repair
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/disable
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/remove
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/uninstall
+=== RUN   TestCommandBusyAliasReturnsKeyboard/dark/toggle
+--- PASS: TestCommandBusyAliasReturnsKeyboard (1.20s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/repair (0.14s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/disable (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/remove (0.11s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/uninstall (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/light/toggle (0.11s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/repair (0.11s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/disable (0.11s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/remove (0.12s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/uninstall (0.13s)
+    --- PASS: TestCommandBusyAliasReturnsKeyboard/dark/toggle (0.13s)
+=== RUN   TestCommandBusySwitchReturnsKeyboard
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/repair
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/disable
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/remove
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/uninstall
+=== RUN   TestCommandBusySwitchReturnsKeyboard/light/toggle
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/repair
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/disable
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/remove
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/uninstall
+=== RUN   TestCommandBusySwitchReturnsKeyboard/dark/toggle
+--- PASS: TestCommandBusySwitchReturnsKeyboard (1.14s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/repair (0.12s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/disable (0.12s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/remove (0.12s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/uninstall (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/light/toggle (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/repair (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/disable (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/remove (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/uninstall (0.11s)
+    --- PASS: TestCommandBusySwitchReturnsKeyboard/dark/toggle (0.11s)
+=== RUN   TestCommandBusyDoesNotStealUnrelatedFocus
+--- PASS: TestCommandBusyDoesNotStealUnrelatedFocus (0.08s)
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping/light
+=== RUN   TestCommandDraftSurvivesRedrawAndFurtherTyping/dark
+--- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping (0.20s)
+    --- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping/light (0.10s)
+    --- PASS: TestCommandDraftSurvivesRedrawAndFurtherTyping/dark (0.10s)
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/undeclared
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/orphan
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/removed
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/light/empty
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/undeclared
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/orphan
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/removed
+=== RUN   TestCommandDraftReturnsWithRedeclaredEditor/dark/empty
+--- PASS: TestCommandDraftReturnsWithRedeclaredEditor (1.28s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/undeclared (0.16s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/orphan (0.16s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/removed (0.17s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/light/empty (0.17s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/undeclared (0.15s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/orphan (0.16s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/removed (0.16s)
+    --- PASS: TestCommandDraftReturnsWithRedeclaredEditor/dark/empty (0.15s)
+=== RUN   TestCommandAliasKeepsVerticalArrows
+=== RUN   TestCommandAliasKeepsVerticalArrows/light/14
+=== RUN   TestCommandAliasKeepsVerticalArrows/light/15
+=== RUN   TestCommandAliasKeepsVerticalArrows/dark/14
+=== RUN   TestCommandAliasKeepsVerticalArrows/dark/15
+--- PASS: TestCommandAliasKeepsVerticalArrows (0.32s)
+    --- PASS: TestCommandAliasKeepsVerticalArrows/light/14 (0.08s)
+    --- PASS: TestCommandAliasKeepsVerticalArrows/light/15 (0.08s)
+    --- PASS: TestCommandAliasKeepsVerticalArrows/dark/14 (0.08s)
+    --- PASS: TestCommandAliasKeepsVerticalArrows/dark/15 (0.08s)
+=== RUN   TestCommandAliasHonorsReboundNewCommand
+=== RUN   TestCommandAliasHonorsReboundNewCommand/light
+=== RUN   TestCommandAliasHonorsReboundNewCommand/dark
+--- PASS: TestCommandAliasHonorsReboundNewCommand (0.18s)
+    --- PASS: TestCommandAliasHonorsReboundNewCommand/light (0.09s)
+    --- PASS: TestCommandAliasHonorsReboundNewCommand/dark (0.09s)
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/id,_name_and_aliases
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/a_multi-word_name_contributes_its_first_token_only
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/a_blank_name_leaves_the_id_and_aliases
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/case-insensitive_duplicates_collapse
+=== RUN   TestCommandTriggerWordsMatchTheReferenceVocabulary/blank_aliases_are_dropped
+--- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/id,_name_and_aliases (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/a_multi-word_name_contributes_its_first_token_only (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/a_blank_name_leaves_the_id_and_aliases (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/case-insensitive_duplicates_collapse (0.00s)
+    --- PASS: TestCommandTriggerWordsMatchTheReferenceVocabulary/blank_aliases_are_dropped (0.00s)
+=== RUN   TestCommandAliasDebouncesAndFlushesOnPageSwitch
+--- PASS: TestCommandAliasDebouncesAndFlushesOnPageSwitch (0.04s)
+=== RUN   TestCommandAliasFieldDebouncesTyping
+--- PASS: TestCommandAliasFieldDebouncesTyping (0.17s)
+=== RUN   TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner
+--- PASS: TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner (0.01s)
+=== RUN   TestTheAliasFieldKeepsItsOwnFrame
+=== RUN   TestTheAliasFieldKeepsItsOwnFrame/light
+    fieldcensus_test.go:137: light: alias frame {108 108 108 255 [0 0 0]}, sibling field frame {112 112 112 255 [0 0 0]}, gap 4
+=== RUN   TestTheAliasFieldKeepsItsOwnFrame/dark
+    fieldcensus_test.go:137: dark: alias frame {151 151 151 255 [0 0 0]}, sibling field frame {149 149 149 255 [0 0 0]}, gap 2
+--- PASS: TestTheAliasFieldKeepsItsOwnFrame (0.01s)
+    --- PASS: TestTheAliasFieldKeepsItsOwnFrame/light (0.01s)
+    --- PASS: TestTheAliasFieldKeepsItsOwnFrame/dark (0.01s)
+=== RUN   TestInputStateLockedAliasUsesDisabledInk
+=== RUN   TestInputStateLockedAliasUsesDisabledInk/light
+    inputstateink_test.go:72: light alias: disabled ink=74
+=== RUN   TestInputStateLockedAliasUsesDisabledInk/dark
+    inputstateink_test.go:72: dark alias: disabled ink=76
+--- PASS: TestInputStateLockedAliasUsesDisabledInk (0.01s)
+    --- PASS: TestInputStateLockedAliasUsesDisabledInk/light (0.01s)
+    --- PASS: TestInputStateLockedAliasUsesDisabledInk/dark (0.00s)
+=== RUN   TestTheAliasFieldIsAFaceNotARing
+=== RUN   TestTheAliasFieldIsAFaceNotARing/light
+=== RUN   TestTheAliasFieldIsAFaceNotARing/dark
+--- PASS: TestTheAliasFieldIsAFaceNotARing (0.00s)
+    --- PASS: TestTheAliasFieldIsAFaceNotARing/light (0.00s)
+    --- PASS: TestTheAliasFieldIsAFaceNotARing/dark (0.00s)
+=== RUN   TestRefreshDestinationCommandAliasReorder
+=== RUN   TestRefreshDestinationCommandAliasReorder/light
+=== RUN   TestRefreshDestinationCommandAliasReorder/dark
+--- PASS: TestRefreshDestinationCommandAliasReorder (0.13s)
+    --- PASS: TestRefreshDestinationCommandAliasReorder/light (0.07s)
+    --- PASS: TestRefreshDestinationCommandAliasReorder/dark (0.06s)
+=== RUN   TestSidebarArrowsWalkThePagesFromAnywhere
+--- PASS: TestSidebarArrowsWalkThePagesFromAnywhere (0.21s)
+=== RUN   TestSingleLineFieldsKeepTheirArrows
+--- PASS: TestSingleLineFieldsKeepTheirArrows (0.18s)
+PASS
+ok  	floter/internal/settingsui	6.687s

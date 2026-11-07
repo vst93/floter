@@ -38,3 +38,14 @@
 4. 现象：已输入的别名因命令临时 undeclared/orphan/整卡消失而撤回，恢复后显示 stored；空草稿也复活旧值。改动：新建别名输入从已有 pendingAliases 取值，空字符串按存在性处理。验证：四类路径 × 深浅，恢复后全选复制精确读取 draft 或空串，再续写 x，Flush 只向 ext/jv 写回正确内容一次。
 
 相关 **59 PASS / 0 FAIL**，包 vet 净。M2 回注旧显示来源实跑 **12 FAIL**，原串 `redraw replaced the pending alias: "", want json`、`continued typing lost pending prefix: [[ext jv view]]`、`redeclared editor lost its pending alias: "stored", want "draft"`；MD5 恢复、touch 后 **12 PASS / 0 FAIL**。初版新测试误用 HasText 读取输入内容，改为真实全选复制并严格比较；旧 B 断言零改，没有放宽容差或删除校验。
+
+第二批 5ad1269c 已推送。
+
+### 第三批：别名的按键归属
+
+5. 现象：别名框内按 ↑ 切到快捷键页、↓ 切到关于页，原编辑位置消失。改动：别名接入设置文本字段已有的上下键保护。验证：两个方向 × 深浅，真实按键后仍为 Integrations、焦点在别名，复制内容仍为 draft。
+6. 现象候选：将“新命令”改绑编辑键后，宿主注册该键，别名仍优先编辑。使用明确的 Ctrl+Backspace 复验；最初 Cmd+A 夹具在 Linux 的实体 Command 与 ui.Cmd（主编辑修饰键）不等价，不能作为该缺陷证据。
+
+M3 以修正后的实体 Ctrl 夹具重新实跑，结果在后文记录。新测试曾因 Key→string 转换被 vet 拒绝，改用 fmt.Sprint 后才进入事件验证，没有跳过 vet。
+
+修正夹具后的第 6 项成立：Ctrl+Backspace 先删别名、Close=0。改动：OnTextKey 在编辑动作前回答已配置的退出键；其他键仍由编辑器处理。真实窗口快捷键 + 输入键事件在深浅均 Close=1，pendingAliases 为空。M3 两类共 **8 FAIL**，原串 `alias swallowed rebound new-command: closed=0`；MD5 恢复、touch 后相关回归 **68 PASS / 0 FAIL**，包 vet 净。最终日志覆盖最初错误夹具，不用错误夹具计修复。
