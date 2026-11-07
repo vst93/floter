@@ -188,7 +188,7 @@ func checkBackupIntegrity(t *testing.T, kind string) {
 			if kind == "stored-text" && entry.Config["endpoint"] != "https://例子.example/�" {
 				t.Error("corrected stored text changed in backup")
 			}
-			if strings.Contains(kind, "script") && entry.ScriptContent != string(good) {
+			if (kind == "empty-script" || kind == "script-text") && entry.ScriptContent != string(good) {
 				t.Error("repaired script changed in backup")
 			}
 			if strings.Contains(kind, "descriptor") {
@@ -205,3 +205,6 @@ func TestBackupRejectsInvalidStoredText(t *testing.T) { checkBackupIntegrity(t, 
 
 func TestBackupRejectsBrokenDeclaredManifest(t *testing.T) { checkBackupIntegrity(t, "manifest") }
 func TestBackupRejectsEmptyScript(t *testing.T)            { checkBackupIntegrity(t, "empty-script") }
+
+func TestBackupRejectsInvalidScriptText(t *testing.T) { checkBackupIntegrity(t, "script-text") }
+func TestBackupRejectsEmptyDescriptor(t *testing.T)   { checkBackupIntegrity(t, "empty-descriptor") }

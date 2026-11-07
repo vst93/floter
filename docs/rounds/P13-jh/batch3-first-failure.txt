@@ -1,0 +1,59 @@
+=== RUN   TestExportSyncCarriesConfigWithoutSecrets
+--- PASS: TestExportSyncCarriesConfigWithoutSecrets (0.03s)
+=== RUN   TestImportSyncInstallsAndConfigures
+--- PASS: TestImportSyncInstallsAndConfigures (0.23s)
+=== RUN   TestImportSyncReportsExcludedFields
+--- PASS: TestImportSyncReportsExcludedFields (0.16s)
+=== RUN   TestImportSyncMergesIntoAnInstalledIntegration
+--- PASS: TestImportSyncMergesIntoAnInstalledIntegration (0.05s)
+=== RUN   TestImportSyncSkipsWhatItCannotInstall
+--- PASS: TestImportSyncSkipsWhatItCannotInstall (0.00s)
+=== RUN   TestImportSyncAsksOnceAndRefusalInstallsNothing
+--- PASS: TestImportSyncAsksOnceAndRefusalInstallsNothing (0.07s)
+PASS
+ok  	floter/internal/extensions	0.543s
+=== RUN   TestIntegrationExportEncodingExplainsFailure
+=== RUN   TestIntegrationExportEncodingExplainsFailure/light
+2026/11/08 01:34:38 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportEncodingExplainsFailure/dark
+2026/11/08 01:34:38 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportEncodingExplainsFailure (0.60s)
+    --- PASS: TestIntegrationExportEncodingExplainsFailure/light (0.31s)
+    --- PASS: TestIntegrationExportEncodingExplainsFailure/dark (0.29s)
+=== RUN   TestExportMissingScriptPreservesBackup
+=== RUN   TestExportMissingScriptPreservesBackup/light
+2026/11/08 01:34:38 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingScriptPreservesBackuplight201476035/002/extensions/dev.floter.configured/tool.sh: no such file or directory
+=== RUN   TestExportMissingScriptPreservesBackup/dark
+2026/11/08 01:34:39 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingScriptPreservesBackupdark804303649/002/extensions/dev.floter.configured/tool.sh: no such file or directory
+--- PASS: TestExportMissingScriptPreservesBackup (0.13s)
+    --- PASS: TestExportMissingScriptPreservesBackup/light (0.06s)
+    --- PASS: TestExportMissingScriptPreservesBackup/dark (0.07s)
+=== RUN   TestExportMissingDescriptorPreservesBackup
+=== RUN   TestExportMissingDescriptorPreservesBackup/light
+2026/11/08 01:34:39 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingDescriptorPreservesBackuplight1300571774/002/extensions/dev.floter.configured/description.json: no such file or directory
+=== RUN   TestExportMissingDescriptorPreservesBackup/dark
+2026/11/08 01:34:39 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingDescriptorPreservesBackupdark907542300/002/extensions/dev.floter.configured/description.json: no such file or directory
+--- PASS: TestExportMissingDescriptorPreservesBackup (0.13s)
+    --- PASS: TestExportMissingDescriptorPreservesBackup/light (0.06s)
+    --- PASS: TestExportMissingDescriptorPreservesBackup/dark (0.07s)
+=== RUN   TestBackupRejectsInvalidScriptText
+=== RUN   TestBackupRejectsInvalidScriptText/light
+2026/11/08 01:34:39 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsInvalidScriptTextlight2345816463/002/extensions/dev.floter.configured/tool.sh contains invalid UTF-8
+=== RUN   TestBackupRejectsInvalidScriptText/dark
+2026/11/08 01:34:39 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsInvalidScriptTextdark1912070968/002/extensions/dev.floter.configured/tool.sh contains invalid UTF-8
+--- PASS: TestBackupRejectsInvalidScriptText (0.18s)
+    --- PASS: TestBackupRejectsInvalidScriptText/light (0.09s)
+    --- PASS: TestBackupRejectsInvalidScriptText/dark (0.09s)
+=== RUN   TestBackupRejectsEmptyDescriptor
+=== RUN   TestBackupRejectsEmptyDescriptor/light
+2026/11/08 01:34:39 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsEmptyDescriptorlight1235594374/002/extensions/dev.floter.configured/description.json is empty; the backup cannot restore it
+    transferintegrity_test.go:192: repaired script changed in backup
+=== RUN   TestBackupRejectsEmptyDescriptor/dark
+2026/11/08 01:34:39 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsEmptyDescriptordark2005727002/002/extensions/dev.floter.configured/description.json is empty; the backup cannot restore it
+    transferintegrity_test.go:192: repaired script changed in backup
+--- FAIL: TestBackupRejectsEmptyDescriptor (0.18s)
+    --- FAIL: TestBackupRejectsEmptyDescriptor/light (0.09s)
+    --- FAIL: TestBackupRejectsEmptyDescriptor/dark (0.09s)
+FAIL
+FAIL	floter/internal/shell	1.226s
+FAIL

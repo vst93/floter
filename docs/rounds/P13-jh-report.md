@@ -30,3 +30,10 @@
 4. 现象：零字节脚本成功导出，但已有导入器拒绝空脚本。改动：导出时拒绝空必需脚本并指出路径，保留原有导入约定。验证：原始 `empty-script export replaced a good backup with unrestorable content`；写回合法脚本后同入口备份原文相等。
 
 第二批定向 **22 PASS / 0 FAIL**，extensions/shell vet 净。深色 manifest 错误路径折行、原因尾部与关闭按钮可见；原有导入安装/合并/权限拒绝、缺脚本/descriptor 全绿。
+
+5. 现象：含 0xff 的脚本经过 JSON 字符串导出变成 U+FFFD，备份不再是原脚本。改动：读取脚本后编码前校验 UTF-8，报实际源路径。验证：原始 `script-text export replaced a good backup with unrestorable content`；旧备份保持，修复后原文相等。
+6. 现象：零字节静态 descriptor 经 omitempty 被省略，成功备份实际不能恢复工具。改动：读取后拒绝空描述文件。验证：原始 `empty-descriptor export replaced a good backup with unrestorable content`；修复文件后导出 JSON 描述内容相等，busy 释放。
+
+第三批首次测试发现本轮夹具把 descriptor 中的 `script` 子串误认成脚本，错误要求 ScriptContent 等于描述 JSON。改为两个精确脚本场景名；描述文件自身的严格 JSON 等值断言不变。首次日志保留，没有修改旧 B pin，也没有放宽任何容差。
+
+第三批修正夹具后 **21 PASS / 0 FAIL**，extensions/shell vet 净。前六项完成，正式 mutation 与全量门槛仍待。

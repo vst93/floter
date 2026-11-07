@@ -181,6 +181,9 @@ func exportIntegration(paths Paths, integration Integration) (SyncEntry, error) 
 				if len(data) == 0 {
 					return SyncEntry{}, fmt.Errorf("script %s is empty; the backup cannot restore it", filepath.Join(packageDir, filepath.FromSlash(script)))
 				}
+				if !utf8.Valid(data) {
+					return SyncEntry{}, fmt.Errorf("script %s contains invalid UTF-8", filepath.Join(packageDir, filepath.FromSlash(script)))
+				}
 				entry.ScriptContent = string(data)
 			}
 		}
@@ -188,6 +191,9 @@ func exportIntegration(paths Paths, integration Integration) (SyncEntry, error) 
 			data, err := os.ReadFile(filepath.Join(packageDir, filepath.FromSlash(descriptor)))
 			if err != nil {
 				return SyncEntry{}, err
+			}
+			if len(data) == 0 {
+				return SyncEntry{}, fmt.Errorf("descriptor %s is empty; the backup cannot restore it", filepath.Join(packageDir, filepath.FromSlash(descriptor)))
 			}
 			entry.ProviderDescriptor = json.RawMessage(data)
 		}
