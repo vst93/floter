@@ -301,6 +301,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 			// `--text-warning` under the pointer.
 			a.sessionIconButton(c, "trash", copy.ShortcutsRemove, true, false, false, func() {
 				a.removeCustomShortcut(index)
+				a.customFocusAdd = true
 			})
 		})
 		if warning := a.customWarning(copy, entry.Key, index); warning != "" {
@@ -337,7 +338,11 @@ func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 		// The heading's own "Add" opens this row; this button commits it, so it
 		// wears its own word rather than the same one twice on the page.
 		if a.pageButton(c, copy.ShortcutsBind).Clicked() {
+			key := a.customKey
 			a.addCustomShortcut()
+			if !a.customDraftOpen {
+				a.customFocusKey = key
+			}
 		}
 	}, func() {
 		ui.Row(c).AlignItems(ui.Center).Children(func() {

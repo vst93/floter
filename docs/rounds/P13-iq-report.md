@@ -36,3 +36,12 @@
 4. 现象：删除未完成草稿后没有焦点，Enter 无法继续添加。改动：删除后回到原 Add 入口。验证：两主题真实添加、录键、Tab 到删除、Enter，草稿退出且绑定数 0，Enter 再开录制。
 
 相关 64 PASS / 0 FAIL，包 vet 净。M2 撤掉两条焦点请求，6 FAIL：`command conversion lost its input focus`、`converted command cannot type: ""`、`draft cancel lost the Add outlet`、`Enter cannot add again after cancel`。MD5 还原 touch 后 6 PASS。旧 V/B/S 0/0/0。
+
+第二批 7c2fd45b 已推送。
+
+### 第三批
+
+5. 现象：草稿按 Bind 成功后控件退场，Enter 不能继续编辑新绑定。改动：绑定成功后一次性聚焦接受后的录制器，未完整的草稿不跳走。验证：两主题真实 Add/录键/Tab/Enter，只有 Ctrl+Shift+R → plugin:clipboard 一条，Enter 再录制目标为第 0 行。
+6. 现象：删除已保存绑定后键盘没有出口。改动：用户删除回到 Add。验证：两主题真实 Tab/Enter 删除，列表为空，Enter 立即再次打开草稿录制。
+
+相关 70 PASS / 0 FAIL，包 vet 净。M3 回注两处遗漏，6 FAIL：`bound draft lost the saved recorder focus`、`saved removal lost the Add outlet`、`Enter cannot continue after binding exit`。MD5 还原 touch 后 6 PASS。旧 V/B/S 0/0/0。
