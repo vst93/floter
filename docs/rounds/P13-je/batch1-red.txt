@@ -1,0 +1,55 @@
+=== RUN   TestConfigTargetCopyMissing
+=== RUN   TestConfigTargetCopyMissing/missing
+=== RUN   TestConfigTargetCopyMissing/missing/light
+    configtarget_test.go:150: stale copy silently succeeded after missing refresh
+=== RUN   TestConfigTargetCopyMissing/missing/dark
+    configtarget_test.go:150: stale copy silently succeeded after missing refresh
+=== RUN   TestConfigTargetCopyMissing/disabled
+=== RUN   TestConfigTargetCopyMissing/disabled/light
+    configtarget_test.go:150: stale copy silently succeeded after disabled refresh
+=== RUN   TestConfigTargetCopyMissing/disabled/dark
+    configtarget_test.go:150: stale copy silently succeeded after disabled refresh
+=== RUN   TestConfigTargetCopyMissing/empty
+=== RUN   TestConfigTargetCopyMissing/empty/light
+2026/11/07 23:25:52 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "endpoint"
+=== RUN   TestConfigTargetCopyMissing/empty/dark
+2026/11/07 23:25:52 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "endpoint"
+--- FAIL: TestConfigTargetCopyMissing (1.40s)
+    --- FAIL: TestConfigTargetCopyMissing/missing (0.51s)
+        --- FAIL: TestConfigTargetCopyMissing/missing/light (0.29s)
+        --- FAIL: TestConfigTargetCopyMissing/missing/dark (0.22s)
+    --- FAIL: TestConfigTargetCopyMissing/disabled (0.44s)
+        --- FAIL: TestConfigTargetCopyMissing/disabled/light (0.22s)
+        --- FAIL: TestConfigTargetCopyMissing/disabled/dark (0.22s)
+    --- PASS: TestConfigTargetCopyMissing/empty (0.45s)
+        --- PASS: TestConfigTargetCopyMissing/empty/light (0.22s)
+        --- PASS: TestConfigTargetCopyMissing/empty/dark (0.23s)
+=== RUN   TestConfigTargetExportMissing
+=== RUN   TestConfigTargetExportMissing/missing
+=== RUN   TestConfigTargetExportMissing/missing/light
+    configtarget_test.go:150: stale export silently succeeded after missing refresh
+=== RUN   TestConfigTargetExportMissing/missing/dark
+    configtarget_test.go:150: stale export silently succeeded after missing refresh
+=== RUN   TestConfigTargetExportMissing/disabled
+=== RUN   TestConfigTargetExportMissing/disabled/light
+    configtarget_test.go:150: stale export silently succeeded after disabled refresh
+=== RUN   TestConfigTargetExportMissing/disabled/dark
+    configtarget_test.go:150: stale export silently succeeded after disabled refresh
+=== RUN   TestConfigTargetExportMissing/empty
+=== RUN   TestConfigTargetExportMissing/empty/light
+2026/11/07 23:25:54 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+=== RUN   TestConfigTargetExportMissing/empty/dark
+2026/11/07 23:25:54 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+--- FAIL: TestConfigTargetExportMissing (1.33s)
+    --- FAIL: TestConfigTargetExportMissing/missing (0.44s)
+        --- FAIL: TestConfigTargetExportMissing/missing/light (0.22s)
+        --- FAIL: TestConfigTargetExportMissing/missing/dark (0.22s)
+    --- FAIL: TestConfigTargetExportMissing/disabled (0.44s)
+        --- FAIL: TestConfigTargetExportMissing/disabled/light (0.22s)
+        --- FAIL: TestConfigTargetExportMissing/disabled/dark (0.23s)
+    --- PASS: TestConfigTargetExportMissing/empty (0.45s)
+        --- PASS: TestConfigTargetExportMissing/empty/light (0.22s)
+        --- PASS: TestConfigTargetExportMissing/empty/dark (0.22s)
+FAIL
+FAIL	floter/internal/shell	2.736s
+FAIL

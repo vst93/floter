@@ -1,0 +1,34 @@
+# P13-je：配置刷新后的动作有效性
+
+意图：在原有配置表单与宿主动作之间补齐条件刷新后的拒绝与恢复，避免静默成功、崩溃和越权写入。起点 353032fa，工作树干净。最新队列为 P13-jd 的 provider 刷新线索；P13-hw 的确认条件问题已由后续轮完成，不重复。
+
+开盘基线实跑 5407 PASS / 0 FAIL；cmd/internal 3226 测试函数（全仓另有 2 个，不混用）。中文 locale。8 条旧 stash SHA 与 P13-jd 一致，reverse-check 均退出 1，保留，明细见报告。done.log 不存在。
+
+## 逐项计划（实现前行号）
+
+| 项 | 位置 | 现状 → 目标 | 事件验收 |
+| --- | --- | --- | --- |
+| 1 | shell/sync.go:316 | 复制时描述/配置消失 finish(nil) → 可见拒绝、非 nil 完成 | 原复制按钮触发前真实 provider refresh，无剪贴板写入，恢复后可重试 |
+| 2 | shell/sync.go:356 | 导出时描述/配置消失 finish(nil) → 可见拒绝、非 nil 完成 | 同一竞态经导出按钮，不打开路径选择器 |
+| 3 | shell/sync.go:322 | 复制不检查 tool owner → 遵循现有 host ownership | 真实 provider 改 owner 后复制拒绝，草稿保留 |
+| 4 | shell/sync.go:362 | 导出不检查 tool owner → 同上 | 改 owner 后无文件或选择器副作用 |
+| 5 | shell/shell.go:2386 | 保存解引用可为空 Configuration → 非崩溃拒绝 | 移除配置后原保存事件返回错误，已存文件字节不变 |
+| 6 | shell/shell.go:2386 | 保存仍接受 tool owner → 拒绝写入工具持有配置 | 改 owner 后原保存事件返回错误，原数据/密钥保留 |
+| 7 | settingsui/config.go:423 | 行操作忙时复制按钮仍可派发 → 跟随原 rowBusy 锁 | 真实修复动作在飞时复制不派发，完成后可重试 |
+| 8 | settingsui/config.go:431 | 行操作忙时导出仍可派发 → 跟随原 rowBusy 锁 | 同上，导出独立验收 |
+
+每项先在旧实现事件实红，证据不足则不记完成。每 1–2 项定向 test/vet 后提交并推送；全量门槛集中一次。两类缺口都在已有配置功能，不新增系统/依赖。
+
+## 红线
+
+高度链、键盘模型、会话、3000ms 确认、180ms/Flush、保存时机、i18n 字典和命令接线不改。仅修失效目标接受旧动作和既有忙态漏锁；保存期字段编辑归属仍待拍板，不涉及。无颜色/半径重定基线；旧 V/B/S pin 预期 0/0/0。
+
+## 工艺与门槛
+
+qiaomu-design 打磨路径；读取 SKILL、偏好账本、craft-loop、preflight、chinese-typography，Apple DESIGN 的单一交互色、8px 控件半径与 1px 边只作为既有 token 的供体参照。拨盘 2/1/6。工艺 #4 即时反馈 0ms、#6 错误只占原反馈出口、#12 忙态复用 DimFace 熄冠线、#3 既有焦点路径不变。不得为凑五项加装饰。
+
+为什么更轻：失效动作只给一处准确反馈，忙态按钮熄灯与原行一致，不增加常驻文案或卡片层。
+
+门槛：gofmt -l cmd internal 空；go vet ./... 与 GOOS=windows/darwin go vet ./...；go test -count=1 ./...；go test -count=1 -v ./... 的 PASS 不低于 5407；GOOS=linux/windows/darwin go build ./...。全部 LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4。
+
+Mutation ≥2：M1 回注旧复制/导出条件，新增刷新入口 pin 应红；M2 回注旧保存条件，空配置/owner pin 应红；M3 去掉工具条 rowBusy，两个真实按钮 pin 应红。每组恢复 MD5、touch、-count=1 复验。深浅 before/after 由 ui.Tester 导出，真实系统选择器与 Windows/macOS 运行时不冒充已验。

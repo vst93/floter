@@ -2,6 +2,7 @@ package shell
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -300,6 +301,16 @@ func homeDirOrEmpty() string {
 // drift notices': news of a finished export must not replace either.
 const transferNoticeID = "floter-transfer-notice"
 
+// Read the provider again when an action reaches the host: a committed form
+// may predate discovery's latest result.
+func (a *App) configurationForAction(id string) (*extensions.Configuration, error) {
+	description, ok := a.Integrations.Description(id)
+	if !ok || description.Configuration == nil {
+		return nil, errors.New("extensions: configuration is no longer available; refresh and try again")
+	}
+	return description.Configuration, nil
+}
+
 // copyConfiguration puts one integration's host-owned configuration on the
 // clipboard as the reference's `extensions_config_copy` did
 // (`ExtensionsPanel.tsx:2019-2031`): the same export document the file export
@@ -313,13 +324,14 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 			a.onMain(func() { done(err) })
 		}
 	}
-	description, ok := a.Integrations.Description(id)
-	if !ok || description.Configuration == nil {
-		finish(nil)
+	configuration, err := a.configurationForAction(id)
+	if err != nil {
+		a.queueNotice(err.Error(), refusalNotice)
+		finish(err)
 		return
 	}
-	document, err := extensions.ExportConfiguration(id, description.Configuration.ConfigVersion,
-		description.Configuration.Schema, values)
+	document, err := extensions.ExportConfiguration(id, configuration.ConfigVersion,
+		configuration.Schema, values)
 	if err != nil {
 		log.Printf("floter: could not build the configuration copy for %s: %v", id, err)
 		a.queueNotice(err.Error(), refusalNotice)
@@ -353,13 +365,14 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 			a.onMain(func() { done(err) })
 		}
 	}
-	description, ok := a.Integrations.Description(id)
-	if !ok || description.Configuration == nil {
-		finish(nil)
+	configuration, err := a.configurationForAction(id)
+	if err != nil {
+		a.queueNotice(err.Error(), refusalNotice)
+		finish(err)
 		return
 	}
-	document, err := extensions.ExportConfiguration(id, description.Configuration.ConfigVersion,
-		description.Configuration.Schema, values)
+	document, err := extensions.ExportConfiguration(id, configuration.ConfigVersion,
+		configuration.Schema, values)
 	if err != nil {
 		log.Printf("floter: could not build the configuration export for %s: %v", id, err)
 		a.queueNotice(err.Error(), refusalNotice)
