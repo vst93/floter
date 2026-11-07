@@ -1134,6 +1134,12 @@ func (a *App) page(i int) page {
 	}
 }
 
+// RecordingShortcut reports the current capture owner before View publishes
+// its deferred suspension change to the shell.
+func (a *App) RecordingShortcut() bool {
+	return a.recording || a.customRecording
+}
+
 // syncShortcutSuspension tells the shell whether a recorder is waiting for a
 // key. While one is, the global shortcuts are released: pressing the key that
 // currently summons floter must be recorded, not acted on.

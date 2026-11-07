@@ -26,6 +26,15 @@ import (
 // is not left on disk to be retried on the next launch, as the old host's
 // `set_custom_shortcuts` had it (`src-tauri/src/commands/config.rs:1666-1718`).
 func (a *App) setCustomShortcuts(entries []settings.CustomShortcut) []settingsui.CustomShortcutRejection {
+	defer func() {
+		// Editing another row still validates and saves at the usual time,
+		// but those claims must not take keys away from an active recorder.
+		// A completed capture has already left its recording state, even
+		// though View has not yet delivered the suspension transition.
+		if a.Settings.RecordingShortcut() {
+			a.setShortcutsSuspended(true)
+		}
+	}()
 	registered, rejections := a.applyCustomShortcuts(entries)
 	// Record the signature of what is about to be written *before* the write, so
 	// the store's own listener sees the list it just registered and does not
