@@ -1,12 +1,14 @@
 package extensions
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -32,6 +34,9 @@ var ErrNotGenerated = errors.New("extensions: the integration was not generated 
 // ErrNoExecutable is what a re-probe reports for a tool whose executable
 // is not available: reconnecting owns that state.
 var ErrNoExecutable = errors.New("extensions: the tool's executable is not available")
+
+// ErrCommandReprobeSuperseded leaves a newer declaration or descriptor intact.
+var ErrCommandReprobeSuperseded = errors.New("extensions: the command probe no longer matches the current integration")
 
 // HelpProbeRecord is the freshness sidecar beside a generated descriptor.
 type HelpProbeRecord struct {
@@ -163,6 +168,14 @@ func ReprobeCommands(ctx context.Context, paths Paths, id string) (ReprobeReport
 	}
 	// The real View's help probe: the same derivation the connect flow ran.
 	derivation := probeDeriveWith(ctx, binding, integration)
+	// Help is external work. A declaration or command edit made while it was
+	// running owns the current package; the old derivation cannot replace it.
+	manifest, manifestErr := LoadManifest(integration.ManifestPath())
+	currentData, descriptorErr := os.ReadFile(descriptorPath)
+	if manifestErr != nil || !reflect.DeepEqual(manifest, integration.Manifest) ||
+		descriptorErr != nil || !bytes.Equal(currentData, data) {
+		return ReprobeReport{}, ErrCommandReprobeSuperseded
+	}
 
 	// A derivation that understood nothing means the tool is not answering
 	// its help the way it did at connect time: keep the old descriptor.

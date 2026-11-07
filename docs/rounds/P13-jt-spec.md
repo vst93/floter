@@ -12,7 +12,7 @@
 | 2 同行竞争 | settingsui.go:4105、4114 | rowBusy 未包含该操作 → 检查、修复、编辑和开关复用既有行锁 |
 | 3 声明刷新 | extensions/reprobe.go:180–209 | 外部帮助返回后不复核 manifest → 旧声明的结果不写入当前包 |
 | 4 描述文件刷新 | extensions/reprobe.go:150、198 | 覆写等待期间别人已保存的 descriptor → 保留新文件与当前命令 |
-| 5 目标移除 | extensions/reprobe.go:180–209 | 移除记录后仍写包文件 → 失效请求安静退出 |
+| 5 发布者变更 | extensions/reprobe.go:180–209 | 同 ID 已变成发布者维护的包仍被旧探测覆盖 → 失效请求安静退出；移除记录作为附加边界验证 |
 | 6 运行时换绑 | extensions/reprobe.go:141、174 | 旧 executable 的帮助覆盖新绑定命令 → 复核绑定来源后才写入 |
 | 7 开始读取失败 | extensions/reprobe.go:124、shell.go:3133 | 仓库损坏折叠为不存在且失败反馈消失 → 保留读取错误并用既有失败通知收尾 |
 | 8 完成读取失败 | extensions/reprobe.go:180、shell.go:3133 | 等待中仓库损坏仍提交旧结果 → 保留描述文件、刷新当前事实、反馈失败并解锁 |
@@ -22,5 +22,7 @@
 ## 验收
 
 可控 Go 子进程回答 --help，以 started/release 文件安排事件；ui.Tester 真实 Click，深浅两套，检查实际派发与当前文件/命令。每两项定向 test/vet 后 commit/push；完整 gofmt、三平台 vet/build、普通与 verbose 全量在收尾各一次。开盘全量正在实测，基线只按日志补录，不引用旧数冒充。
+
+开盘基线完成：中文 locale **5902 PASS / 0 FAIL / 3371 测试函数**，全量 exit0。
 
 Mutation 计划：M1 撤掉入口忙态；M2 撤掉声明与文件复核；M3 撤掉目标/绑定复核；M4 撤掉读取失败出口。每组必须运行到行为断言红、还原、md5sum -c、touch 后重跑。

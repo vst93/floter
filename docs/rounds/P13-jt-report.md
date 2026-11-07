@@ -25,3 +25,14 @@ done.log 开盘不存在，收尾按指定路径创建。基线运行中；以�
 2. 现象：帮助程序尚未返回，“检查”和“健康刷新”各派发一次，竞争调用共 2。改动：重新探测加入现有整行互斥，沿用禁用面；完成自动释放。验证：深浅两套，等待中竞争派发为 0，完成后重试 1 次。
 
 改前运行已红：`pending command reprobe starts repeatedly: epoch=3`、`pending command reprobe permits competing actions: 2`、`command reprobe never entered and settled its row busy state`。before 为原代码实际等待帧；旧 V/B/S 断言修改 0/0/0。
+
+第一批 **10225ea5**，相关实测 **42 PASS / 0 FAIL**，shell/settingsui vet 净。提交正文误写为 44，正确数字为日志中的 42，此处明确更正，不沿用错误数字。第二批新夹具首次编译发现 bool 索引和不存在的 Commands 方法，修正后才作行为复现；编译错误不计 mutation。
+
+## 第二批：当前声明与命令文件
+
+3. 现象：真实 Click 后帮助子进程等待，manifest 已更新，旧输出仍覆盖命令并写入“新鲜”时间。改动：帮助返回后复核读取的声明，过期结果安静退出。验证：深浅事件，descriptor 字节不变、freshness 文件不生成、当前行无旧失败。
+4. 现象：等待期间保存了 Current command 描述文件，旧帮助仍将其改回 Original command 并追加子命令。改动：写前逐字节核对 descriptor，当前编辑优先；shell 先刷新再发布诊断，过期结果不污染当前行。验证：两主题同样断言文件、freshness 与可见行，before 真实覆盖。
+
+改前四场景全红：`late command reprobe overwrote current manifest descriptor`、`late command reprobe overwrote current descriptor descriptor`、`obsolete … probe wrote a freshness record`。旧 V/B/S 仍 0/0/0。
+
+开盘全量实测 **5902 PASS / 0 FAIL / 3371 函数**，exit0。基线完整日志留存。

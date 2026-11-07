@@ -3134,6 +3134,11 @@ func (a *App) reprobeCommands(id string) {
 func (a *App) runCommandReprobe(integration extensions.Integration, epoch uint64) {
 	id := integration.Entry.ID
 	report, err := extensions.ReprobeCommands(context.Background(), a.Paths, id)
+	// Resolve the result against the current declaration before publishing it.
+	a.RefreshIntegrations(context.Background())
+	if errors.Is(err, extensions.ErrCommandReprobeSuperseded) {
+		return
+	}
 	if err != nil {
 		log.Printf("floter: could not re-probe %s: %v", id, err)
 		a.rememberDiagnosis(integration, epoch, settingsui.Integration{Diagnosis: err.Error(), DiagnosisFailed: true})
@@ -3143,7 +3148,6 @@ func (a *App) runCommandReprobe(integration extensions.Integration, epoch uint64
 		// diagnosis does, while preserving a newer check's result.
 		a.rememberDiagnosis(integration, epoch, settingsui.Integration{})
 	}
-	a.RefreshIntegrations(context.Background())
 	a.onMain(func() {
 		if a.Win != nil {
 			a.Win.Invalidate()

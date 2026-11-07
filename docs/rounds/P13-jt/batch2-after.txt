@@ -1,0 +1,53 @@
+=== RUN   TestCommandReprobeRejectsRepeatedClick
+=== RUN   TestCommandReprobeRejectsRepeatedClick/light
+2026/11/08 07:42:22 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRejectsRepeatedClick/dark
+2026/11/08 07:42:22 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeRejectsRepeatedClick (0.90s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/light (0.53s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/dark (0.37s)
+=== RUN   TestCommandReprobeLocksCompetingActions
+=== RUN   TestCommandReprobeLocksCompetingActions/light
+2026/11/08 07:42:23 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeLocksCompetingActions/dark
+2026/11/08 07:42:23 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeLocksCompetingActions (0.80s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/light (0.40s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/dark (0.40s)
+=== RUN   TestCommandReprobeKeepsCurrentManifest
+=== RUN   TestCommandReprobeKeepsCurrentManifest/light
+=== RUN   TestCommandReprobeKeepsCurrentManifest/dark
+--- PASS: TestCommandReprobeKeepsCurrentManifest (0.48s)
+    --- PASS: TestCommandReprobeKeepsCurrentManifest/light (0.23s)
+    --- PASS: TestCommandReprobeKeepsCurrentManifest/dark (0.24s)
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/light
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/dark
+--- PASS: TestCommandReprobeKeepsCurrentDescriptor (0.59s)
+    --- PASS: TestCommandReprobeKeepsCurrentDescriptor/light (0.27s)
+    --- PASS: TestCommandReprobeKeepsCurrentDescriptor/dark (0.31s)
+=== RUN   TestTheDriftReprobeAnnouncesAChangedCommandList
+--- PASS: TestTheDriftReprobeAnnouncesAChangedCommandList (0.11s)
+=== RUN   TestTheDriftNoticeIsAnnouncedOnlyOnce
+--- PASS: TestTheDriftNoticeIsAnnouncedOnlyOnce (0.08s)
+=== RUN   TestTheDriftReprobeStaysSilentWithoutAVersion
+--- PASS: TestTheDriftReprobeStaysSilentWithoutAVersion (0.05s)
+=== RUN   TestTheDriftReprobeFailsSoft
+2026/11/08 07:42:25 floter: could not re-probe dev.floter.drifttool on version drift: extensions: the tool did not produce usable help output
+--- PASS: TestTheDriftReprobeFailsSoft (0.07s)
+=== RUN   TestTheDriftReprobeLoopDoesNotStack
+--- PASS: TestTheDriftReprobeLoopDoesNotStack (0.00s)
+=== RUN   TestTheDriftToastIsDrawnWithItsAction
+--- PASS: TestTheDriftToastIsDrawnWithItsAction (0.35s)
+PASS
+ok  	floter/internal/shell	3.429s
+=== RUN   TestReprobeCommandsRebuildsTheDescriptor
+--- PASS: TestReprobeCommandsRebuildsTheDescriptor (0.02s)
+=== RUN   TestReprobeCommandsComparesWithThePreviousSidecar
+--- PASS: TestReprobeCommandsComparesWithThePreviousSidecar (0.03s)
+=== RUN   TestReprobeCommandsKeepsTheDescriptorWhenTheToolGoesQuiet
+--- PASS: TestReprobeCommandsKeepsTheDescriptorWhenTheToolGoesQuiet (0.01s)
+=== RUN   TestReprobeCommandsRefusesAPublisherIntegration
+--- PASS: TestReprobeCommandsRefusesAPublisherIntegration (0.01s)
+PASS
+ok  	floter/internal/extensions	0.083s
