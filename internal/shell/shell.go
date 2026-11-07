@@ -296,6 +296,10 @@ type App struct {
 	noticeMu sync.Mutex
 	notices  []ui.Toast
 	refusals *refusalGate
+	// The shared error slot can be resolved by its own operation only.
+	// Both fields are protected by noticeMu, like the pending notices.
+	noticeOwner string
+	closeNotice bool
 	// toastSeen is when each showing toast first appeared, keyed by its id: the
 	// entrance animation's clock (the old build's `app-toast-in` keyframes ran
 	// from the element's own mount, which React gave it on the frame the toast

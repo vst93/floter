@@ -29,3 +29,10 @@
 第一批相关回归与 vet 结果见 batch1-test.txt / batch1-vet.txt；完整全量留到轮末。旧 V/B/S 断言修改 0/0/0。
 
 第一批定向 **13 PASS / 0 FAIL**，extensions/shell vet 净。新夹具首次有一次未等 Click 的下一帧派发就检查磁盘，补事件派发断言和 Frame 后通过；原失败日志保留。未来六项目前仅保留复现 helper，逐批启用相应测试，避免提交已知红测试。
+
+第一批 **19c4a8e5** 已提交推送。
+
+3. 现象：新包的配置模板目录被同名文件阻塞，包和仓库已落盘，报告只给 mkdir 错误。改动：保留 Commit 返回的已安装 entry 事实，说明包已安装、配置模板未完成。验证：深浅真实导入，仓库有新包且仍 enabled=true（尚未执行后续停用），失败数 1；原始红 `partial template hides committed state`。不自动补跑模板或回滚。
+4. 现象：集成备份因仓库损坏而失败，修好后导出成功仍和旧错误同时浮在页面。改动：通用错误槽记录操作归属，导出成功只退役本入口的旧错；成功原 ID 和时长保留。验证：深浅真实 Click、文件确实写出、旧错误消失；原始红 `successful export retry retains its resolved error`。另验已绘制/排队中的外部错误及其他操作错误均不被清除。
+
+第二批定向 **27 PASS / 0 FAIL**，extensions/shell vet 净。V/B/S 0/0/0；没有改变旧断言。

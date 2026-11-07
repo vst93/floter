@@ -1,0 +1,69 @@
+=== RUN   TestIntegrationExportAndImport
+2026/11/08 02:05:41 floter: could not read /tmp/TestIntegrationExportAndImport614508404/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationExportAndImport (0.10s)
+=== RUN   TestTheTransferIsOneAtATime
+--- PASS: TestTheTransferIsOneAtATime (0.05s)
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/light
+2026/11/08 02:05:41 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight1330620047/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark
+2026/11/08 02:05:41 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark708728199/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry (0.41s)
+    --- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry/light (0.28s)
+    --- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark (0.12s)
+=== RUN   TestImportEnabledFailureReportsCommittedState
+=== RUN   TestImportEnabledFailureReportsCommittedState/light
+2026/11/08 02:05:42 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight3441302270/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+=== RUN   TestImportEnabledFailureReportsCommittedState/dark
+2026/11/08 02:05:42 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark998789942/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+--- PASS: TestImportEnabledFailureReportsCommittedState (1.34s)
+    --- PASS: TestImportEnabledFailureReportsCommittedState/light (0.70s)
+    --- PASS: TestImportEnabledFailureReportsCommittedState/dark (0.64s)
+=== RUN   TestImportPackageFailureReportsCommittedState
+=== RUN   TestImportPackageFailureReportsCommittedState/light
+2026/11/08 02:05:43 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight3797618056/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+=== RUN   TestImportPackageFailureReportsCommittedState/dark
+2026/11/08 02:05:44 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatedark130319588/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+--- PASS: TestImportPackageFailureReportsCommittedState (1.34s)
+    --- PASS: TestImportPackageFailureReportsCommittedState/light (0.68s)
+    --- PASS: TestImportPackageFailureReportsCommittedState/dark (0.66s)
+=== RUN   TestImportTemplateFailureReportsCommittedState
+=== RUN   TestImportTemplateFailureReportsCommittedState/light
+2026/11/08 02:05:44 floter: dev.floter.imported was not imported: package was installed; configuration templates were not completed: mkdir /tmp/TestImportTemplateFailureReportsCommittedStatelight1985728242/001/extension-data/dev.floter.imported: not a directory
+=== RUN   TestImportTemplateFailureReportsCommittedState/dark
+2026/11/08 02:05:45 floter: dev.floter.imported was not imported: package was installed; configuration templates were not completed: mkdir /tmp/TestImportTemplateFailureReportsCommittedStatedark3387069587/001/extension-data/dev.floter.imported: not a directory
+--- PASS: TestImportTemplateFailureReportsCommittedState (0.87s)
+    --- PASS: TestImportTemplateFailureReportsCommittedState/light (0.44s)
+    --- PASS: TestImportTemplateFailureReportsCommittedState/dark (0.43s)
+=== RUN   TestIntegrationExportRetryRetiresResolvedError
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/light
+2026/11/08 02:05:45 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrorlight3311117439/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/dark
+2026/11/08 02:05:45 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrordark4023855317/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRetryRetiresResolvedError (0.92s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/light (0.46s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/dark (0.46s)
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/external/painted
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/another-operation/painted
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/external/queued
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/another-operation/queued
+--- PASS: TestResolvedNoticeKeepsAnotherOperationsError (0.23s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/external/painted (0.06s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/another-operation/painted (0.06s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/external/queued (0.05s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/another-operation/queued (0.06s)
+PASS
+ok  	floter/internal/shell	5.280s
+=== RUN   TestImportSyncInstallsAndConfigures
+--- PASS: TestImportSyncInstallsAndConfigures (0.32s)
+=== RUN   TestImportSyncReportsExcludedFields
+--- PASS: TestImportSyncReportsExcludedFields (0.33s)
+=== RUN   TestImportSyncMergesIntoAnInstalledIntegration
+--- PASS: TestImportSyncMergesIntoAnInstalledIntegration (0.11s)
+=== RUN   TestImportSyncSkipsWhatItCannotInstall
+--- PASS: TestImportSyncSkipsWhatItCannotInstall (0.00s)
+=== RUN   TestImportSyncAsksOnceAndRefusalInstallsNothing
+--- PASS: TestImportSyncAsksOnceAndRefusalInstallsNothing (0.19s)
+PASS
+ok  	floter/internal/extensions	0.962s

@@ -278,3 +278,36 @@ func TestImportEnabledFailureReportsCommittedState(t *testing.T) {
 func TestImportPackageFailureReportsCommittedState(t *testing.T) {
 	checkImportAppliedFailure(t, "package")
 }
+
+func TestImportTemplateFailureReportsCommittedState(t *testing.T) {
+	checkImportAppliedFailure(t, "template")
+}
+func TestIntegrationExportRetryRetiresResolvedError(t *testing.T) { checkTransferRecovery(t, "export") }
+
+func TestResolvedNoticeKeepsAnotherOperationsError(t *testing.T) {
+	for _, pending := range []bool{false, true} {
+		for _, replacement := range []string{"external", "another-operation"} {
+			t.Run(replacement+map[bool]string{false: "/painted", true: "/queued"}[pending], func(t *testing.T) {
+				a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", nil })
+				tt := transferCauseFrame(t, a, false)
+				a.transferFailedFor("integrations-export", "initial export failure", nil)
+				if !pending {
+					tt.Frame()
+				}
+				if replacement == "external" {
+					a.queueNotice("unrelated failure", refusalNotice)
+				} else {
+					a.transferFailedFor("another-operation", "unrelated failure", nil)
+				}
+				if !pending {
+					tt.Frame()
+				}
+				a.resolveNotice("integrations-export")
+				tt.Frame()
+				if !tt.HasText("unrelated failure") {
+					t.Fatal("retry erased another operation's error")
+				}
+			})
+		}
+	}
+}

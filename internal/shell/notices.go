@@ -95,8 +95,38 @@ func (a *App) queueNotice(message string, window time.Duration) {
 // toast and asks for a frame. The caller owns the id and the kind, so notices
 // of different sorts do not replace one another.
 func (a *App) queueToast(toast ui.Toast) {
+	a.queueOwnedToast(toast, "")
+}
+
+func (a *App) queueOwnedToast(toast ui.Toast, owner string) {
 	a.noticeMu.Lock()
+	if toast.ID == "floter-notice" {
+		a.noticeOwner = owner
+	}
 	a.notices = append(a.notices, toast)
+	a.noticeMu.Unlock()
+	if a.Win != nil {
+		a.Win.Invalidate()
+	}
+}
+
+// Resolve only the error raised by this action. Another action or a deep
+// link may have replaced the shared slot while the retry was running.
+func (a *App) resolveNotice(owner string) {
+	a.noticeMu.Lock()
+	if owner == "" || a.noticeOwner != owner {
+		a.noticeMu.Unlock()
+		return
+	}
+	a.noticeOwner, a.closeNotice = "", true
+	kept := a.notices[:0]
+	for _, toast := range a.notices {
+		if toast.ID != "floter-notice" {
+			kept = append(kept, toast)
+		}
+	}
+	clear(a.notices[len(kept):])
+	a.notices = kept
 	a.noticeMu.Unlock()
 	if a.Win != nil {
 		a.Win.Invalidate()
@@ -187,7 +217,12 @@ func (a *App) flushNotices(c *ui.Context) {
 	a.noticeMu.Lock()
 	pending := a.notices
 	a.notices = nil
+	closeNotice := a.closeNotice
+	a.closeNotice = false
 	a.noticeMu.Unlock()
+	if closeNotice {
+		c.CloseToast("floter-notice")
+	}
 	for _, toast := range pending {
 		c.AddToast(toast)
 	}

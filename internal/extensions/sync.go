@@ -533,6 +533,9 @@ func commitSyncEntry(paths Paths, item pendingInstall) error {
 	}
 	installed, err := prepared.Commit(true)
 	if err != nil {
+		if installed.ID != "" {
+			return fmt.Errorf("package was installed; configuration templates were not completed: %w", err)
+		}
 		return err
 	}
 	// The document's configuration goes in after the package, so the

@@ -69,12 +69,12 @@ func (a *App) exportIntegrations() {
 		document, err := extensions.ExportSync(a.Paths)
 		if err != nil {
 			log.Printf("floter: could not export the integrations: %v", err)
-			a.transferFailed(err.Error())
+			a.transferFailedFor("integrations-export", err.Error(), nil)
 			return
 		}
 		path, err := a.saveFile("floter-integrations-" + time.Now().Format("2006-01-02") + ".json")
 		if err != nil {
-			a.transferFailed(err.Error())
+			a.transferFailedFor("integrations-export", err.Error(), nil)
 			return
 		}
 		if path == "" {
@@ -83,16 +83,17 @@ func (a *App) exportIntegrations() {
 		data, err := document.Marshal()
 		if err != nil {
 			log.Printf("floter: could not encode the integrations: %v", err)
-			a.transferFailed(err.Error())
+			a.transferFailedFor("integrations-export", err.Error(), nil)
 			return
 		}
 		if err := os.WriteFile(path, append(data, '\n'), 0o600); err != nil {
 			log.Printf("floter: could not write %s: %v", path, err)
-			a.transferFailed(err.Error())
+			a.transferFailedFor("integrations-export", err.Error(), nil)
 			return
 		}
 		// The reference reports a clean export as a success toast naming the
 		// count and the two things that never travel.
+		a.resolveNotice("integrations-export")
 		a.transferSucceeded(copy.IntegrationsExported(len(document.Extensions)))
 	}()
 }
@@ -226,6 +227,14 @@ func (a *App) transferSucceeded(message string) {
 // transferFailed raises the actual cause when the failure is not a bad document.
 func (a *App) transferFailed(message string) {
 	a.queueNotice(message, refusalNotice)
+}
+
+func (a *App) transferFailedFor(owner, title string, cause error) {
+	toast := ui.Toast{ID: "floter-notice", Title: title, Type: "error", Timeout: refusalNotice}
+	if cause != nil {
+		toast.Description = cause.Error()
+	}
+	a.queueOwnedToast(toast, owner)
 }
 
 // Keep the existing localized heading while exposing the operation's cause.
