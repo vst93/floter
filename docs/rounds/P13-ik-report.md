@@ -34,3 +34,10 @@
 4. 现象：同一刷新后平台勾选失焦，Space不再切换。改动：平台行建立独立身份。验证：深浅刷新前后保持同一平台焦点，Space改变原平台值。
 
 相关101 PASS / 0 FAIL，包vet净。M2实跑6条FAIL记录（4叶子）；原串`mode refresh lost output focus`、`mode refresh blocked output keyboard: "background"`、`mode refresh blocked platform keyboard`。MD5恢复一致，touch后6 PASS。第一批aa7478cc已推送。第一轮目视浅色计划图：蓝色焦点仍圈在“执行计划已复制”，左侧新出现“复制命令”没有取得焦点。
+
+## 第三批（5–6）
+
+5. 现象：模式刷新后高级入口仍在，Space却不能开合。改动：高级行独立身份。验证：深浅原入口持焦点，Space只切换本表单权限展开状态。
+6. 现象：参数类型改变使选项输入框消失，键盘无归处。改动：仅当原选项框持焦点时回同一参数的类型选择。验证：两主题真实选项框聚焦→类型刷新→Down/End/Up/Enter恢复选项类型，原one/two仍在；不写回设置。测试候选最初End落在路径类型，正式测试按实际列表顺序修正为End/Up，未修改旧断言。
+
+相关107 PASS / 0 FAIL，包vet净。M3实红6条FAIL记录，原串`mode refresh blocked disclosure keyboard`、`withdrawn options lost kind focus`、`options keyboard recovery failed`；两源码MD5一致，touch后6 PASS。新增高级测试最初点到标题而非按钮，初始焦点断言揭示夹具错误，纠正点击真实按钮后才计入有效变异；原失败日志保留。第二批4f82c456已推送。

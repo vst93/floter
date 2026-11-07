@@ -1,0 +1,14 @@
+=== RUN   TestContentRecoveryModeAdvanced
+=== RUN   TestContentRecoveryModeAdvanced/light
+=== RUN   TestContentRecoveryModeAdvanced/dark
+--- PASS: TestContentRecoveryModeAdvanced (0.75s)
+    --- PASS: TestContentRecoveryModeAdvanced/light (0.47s)
+    --- PASS: TestContentRecoveryModeAdvanced/dark (0.28s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.15s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.08s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.918s

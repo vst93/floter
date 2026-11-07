@@ -22,12 +22,20 @@ func checkModeRecovery(t *testing.T, field string) {
 			if field == "advanced" {
 				label = copy.LocalToolAdvanced
 			}
-			if err := tt.Click(label); err != nil {
+			if field == "advanced" {
+				// The first matching word is the row caption. Use the actual
+				// trailing button so the test starts with keyboard focus.
+				r := mustFind(t, tt, label)
+				tt.ClickAt(r.X+r.W+30, r.Y+r.H/2)
+			} else if err := tt.Click(label); err != nil {
 				t.Fatal(err)
 			}
 			tt.Frame()
 			tt.Key(0, ui.KeyTab)
 			tt.Key(ui.Shift, ui.KeyTab)
+			if !tt.Focused(label) {
+				t.Fatalf("%s did not start focused: rect=%+v", field, mustFind(t, tt, label))
+			}
 			beforePlatform := a.toolPlatforms[customPlatforms[0].ID]
 			beforeAdvanced := a.toolAdvanced
 			a.toolMode = routeScript
@@ -57,3 +65,5 @@ func checkModeRecovery(t *testing.T, field string) {
 
 func TestContentRecoveryModeOutput(t *testing.T)   { checkModeRecovery(t, "output") }
 func TestContentRecoveryModePlatform(t *testing.T) { checkModeRecovery(t, "platform") }
+
+func TestContentRecoveryModeAdvanced(t *testing.T) { checkModeRecovery(t, "advanced") }

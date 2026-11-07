@@ -5617,7 +5617,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// connect time — so folding changes nothing about what is
 			// submitted, and an author who already declared permissions can
 			// open the section and edit them.
-			opened := a.row(c, copy.LocalToolAdvanced, copy.LocalToolAdvancedPermissions, func() {
+			opened := a.row(c.Key("local-advanced"), copy.LocalToolAdvanced, copy.LocalToolAdvancedPermissions, func() {
 				if a.actionButton(c, copy.LocalToolAdvanced).Clicked() {
 					a.toolAdvanced = !a.toolAdvanced
 				}

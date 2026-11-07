@@ -1,0 +1,49 @@
+diff --git a/internal/settingsui/parameditor.go b/internal/settingsui/parameditor.go
+index 685d8aad..71dcda34 100644
+--- a/internal/settingsui/parameditor.go
++++ b/internal/settingsui/parameditor.go
+@@ -142,6 +142,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
+ 	plate := ui.Column(c).FillWidth().Gap(t.Space(paramEditorPlateGap)).
+ 		Padding(t.Space(paramEditorPlatePad)).Radius(tokens.RadiusSM).
+ 		Border(1, tokens.Hairline)
++	optionsFocus := ui.Local(plate, "options-focus", func() contentFocusState { return contentFocusState{} })
+ 	plate.Children(func() {
+ 		// `.extension-param-editor__fields`: `repeat(auto-fit, minmax(140px,
+ 		// 1fr))` with a `6px 8px` gap. A wrap row of 140u-minimum growing cells
+@@ -158,7 +159,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
+ 				a.paramField(c, "kind", copy.ParamsKind, func() {
+ 					labels := paramKindLabels(copy)
+ 					chosen := runParamKindLabel(copy, kind)
+-					a.paramSelect(c, &chosen, labels, copy.ParamsKind)
++					a.paramSelect(c, &chosen, labels, copy.ParamsKind).Bind(&optionsFocus.source)
+ 					if chosen != runParamKindLabel(copy, kind) {
+ 						kind = paramKindFromLabel(copy, chosen)
+ 					}
+@@ -193,11 +194,13 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
+ 			ui.Column(c).FillWidth().Gap(t.Space(0.75)).Children(func() {
+ 				ui.Text(c, copy.ParamsOptions).FontSize(tokens.Caption).FontWeight(600).
+ 					TextColor(t.TextMuted)
+-				box := ui.TextArea(c, &options).Label(copy.ParamsOptions).
++				box := ui.TextArea(c, &options).Bind(&optionsFocus.button).Label(copy.ParamsOptions).
+ 					FillWidth().MinHeight(t.Space(paramEditorOptionsMin)).
+ 					Radius(tokens.RadiusSM).Font(paramEditorMono)
+ 				a.fieldFace(c, box, true)
+ 			})
++		} else {
++			optionsFocus.restore(c)
+ 		}
+ 		if message := paramIssueMessage(copy, issue); message != "" {
+ 			a.paramEditorError(c, message)
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index b9c2d26e..a88e2d3a 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -5617,7 +5617,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
+ 			// connect time — so folding changes nothing about what is
+ 			// submitted, and an author who already declared permissions can
+ 			// open the section and edit them.
+-			opened := a.row(c, copy.LocalToolAdvanced, copy.LocalToolAdvancedPermissions, func() {
++			opened := a.row(c.Key("local-advanced"), copy.LocalToolAdvanced, copy.LocalToolAdvancedPermissions, func() {
+ 				if a.actionButton(c, copy.LocalToolAdvanced).Clicked() {
+ 					a.toolAdvanced = !a.toolAdvanced
+ 				}

@@ -142,6 +142,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 	plate := ui.Column(c).FillWidth().Gap(t.Space(paramEditorPlateGap)).
 		Padding(t.Space(paramEditorPlatePad)).Radius(tokens.RadiusSM).
 		Border(1, tokens.Hairline)
+	optionsFocus := ui.Local(plate, "options-focus", func() contentFocusState { return contentFocusState{} })
 	plate.Children(func() {
 		// `.extension-param-editor__fields`: `repeat(auto-fit, minmax(140px,
 		// 1fr))` with a `6px 8px` gap. A wrap row of 140u-minimum growing cells
@@ -158,7 +159,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)
 					chosen := runParamKindLabel(copy, kind)
-					a.paramSelect(c, &chosen, labels, copy.ParamsKind)
+					a.paramSelect(c, &chosen, labels, copy.ParamsKind).Bind(&optionsFocus.source)
 					if chosen != runParamKindLabel(copy, kind) {
 						kind = paramKindFromLabel(copy, chosen)
 					}
@@ -193,11 +194,13 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 			ui.Column(c).FillWidth().Gap(t.Space(0.75)).Children(func() {
 				ui.Text(c, copy.ParamsOptions).FontSize(tokens.Caption).FontWeight(600).
 					TextColor(t.TextMuted)
-				box := ui.TextArea(c, &options).Label(copy.ParamsOptions).
+				box := ui.TextArea(c, &options).Bind(&optionsFocus.button).Label(copy.ParamsOptions).
 					FillWidth().MinHeight(t.Space(paramEditorOptionsMin)).
 					Radius(tokens.RadiusSM).Font(paramEditorMono)
 				a.fieldFace(c, box, true)
 			})
+		} else {
+			optionsFocus.restore(c)
 		}
 		if message := paramIssueMessage(copy, issue); message != "" {
 			a.paramEditorError(c, message)
