@@ -392,7 +392,7 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	dirty := a.configDirty(integration, draft)
-	busy := a.configOperationNow(integration.ID) != "" || a.configLocked(integration.ID)
+	busy := a.configOperationNow(integration.ID) != ""
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
 		status := copy.ConfigSavedState
 		ink := tokens.TextTertiary

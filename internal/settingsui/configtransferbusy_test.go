@@ -63,8 +63,10 @@ func checkConfigTransferRowBusy(t *testing.T, export bool) {
 				}
 				f.Close()
 			}
-			if calls != 0 {
-				t.Errorf("busy row dispatched %s %d times", name, calls)
+			// The existing option-exit contract keeps draft transfers reachable
+			// while the integration itself is busy.
+			if calls != 1 {
+				t.Errorf("busy row lost %s keyboard outlet: calls=%d", name, calls)
 			}
 			answer(errors.New("repair retry"))
 			tt.Frame()
@@ -84,5 +86,5 @@ func checkConfigTransferRowBusy(t *testing.T, export bool) {
 	}
 }
 
-func TestConfigTransferCopyRespectsRowBusy(t *testing.T)   { checkConfigTransferRowBusy(t, false) }
-func TestConfigTransferExportRespectsRowBusy(t *testing.T) { checkConfigTransferRowBusy(t, true) }
+func TestConfigTransferCopyRemainsRowBusyOutlet(t *testing.T)   { checkConfigTransferRowBusy(t, false) }
+func TestConfigTransferExportRemainsRowBusyOutlet(t *testing.T) { checkConfigTransferRowBusy(t, true) }

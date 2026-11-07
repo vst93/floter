@@ -1,0 +1,54 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.009s
+ok  	floter/internal/apps	0.429s
+ok  	floter/internal/browser	0.020s
+ok  	floter/internal/calc	0.008s
+ok  	floter/internal/calculator	0.021s
+ok  	floter/internal/ci	9.041s
+ok  	floter/internal/clipboard	0.073s
+ok  	floter/internal/control	0.344s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.012s
+ok  	floter/internal/drops	0.007s
+ok  	floter/internal/extensions	33.702s
+ok  	floter/internal/extensions/recommended	0.226s
+ok  	floter/internal/frameaudit	0.187s
+ok  	floter/internal/glassmap	0.011s
+ok  	floter/internal/homepath	0.005s
+ok  	floter/internal/i18n	1.834s
+ok  	floter/internal/inputtext	0.123s
+ok  	floter/internal/inventory	0.152s
+ok  	floter/internal/launcher	60.294s
+ok  	floter/internal/motion	0.023s
+ok  	floter/internal/pathid	0.010s
+ok  	floter/internal/pathlist	0.011s
+ok  	floter/internal/pinyin	0.014s
+ok  	floter/internal/plist	0.008s
+ok  	floter/internal/plugincfg	0.018s
+ok  	floter/internal/progname	0.008s
+ok  	floter/internal/progtype	0.012s
+ok  	floter/internal/scriptlang	0.007s
+ok  	floter/internal/semver	0.005s
+ok  	floter/internal/settings	4.212s
+--- FAIL: TestOptionExitSelectDoesNotReclaimFocus (0.03s)
+    --- FAIL: TestOptionExitSelectDoesNotReclaimFocus/light/busy (0.01s)
+        optionexit_test.go:108: cannot Tab to Copy configuration
+    --- FAIL: TestOptionExitSelectDoesNotReclaimFocus/dark/busy (0.01s)
+        optionexit_test.go:108: cannot Tab to Copy configuration
+FAIL
+FAIL	floter/internal/settingsui	286.440s
+ok  	floter/internal/shell	112.781s
+ok  	floter/internal/shortcuts	0.008s
+ok  	floter/internal/spawn	0.176s
+ok  	floter/internal/statefile	0.012s
+ok  	floter/internal/terminalui	32.222s
+ok  	floter/internal/termsession	4.405s
+ok  	floter/internal/textlines	0.009s
+ok  	floter/internal/theme	0.053s
+ok  	floter/internal/tools	0.007s
+ok  	floter/internal/usage	0.006s
+ok  	floter/internal/valuedomain	0.004s
+ok  	floter/internal/versioning	0.003s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.006s
+FAIL
