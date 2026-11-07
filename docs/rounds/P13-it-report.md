@@ -52,3 +52,12 @@
 8. 现象：已存命令编辑 Enter 写失败，原编辑缓存被清，下一次 Enter 只能存回旧值。改动：接受写入后再清缓存。验证：深浅真实命令编辑、文件故障、Enter、恢复后再次 Enter，原文本与焦点保留，最终提交 unfinished。
 
 相关 **94 PASS / 0 FAIL**，包 vet 净；旧 V/B/S 0/0/0。原始红串 `failed add discarded draft: open=false key="" command=""`、`failed command discarded command draft: map[]`；本批先见红再修，正式 mutation 仍为 M1/M2 两组。
+
+第四批 `ceff09ac` 已推送。
+
+## 第五批
+
+9. 现象：把已存动作改为命令行时写文件失败，原绑定还在，却又出现同键的新草稿。改动：接受移除后才初始化命令草稿。验证：两主题真实菜单 End/Enter + 磁盘失败，原绑定/选择器仍在、重复草稿不出现。
+10. 现象：删除有未提交命令的绑定时写失败，行仍在却丢掉编辑内容，焦点误回 Add。改动：接受删除后才清编辑/重排录制归属；确认原键已消失才交 Add。验证：真实 Tab/Enter，原 unfinished 文本与删除入口焦点保留。
+
+旧实现原串 `failed command-mode switch duplicated saved binding as draft`、`failed remove discarded command draft: map[]`、`failed remove lost original keyboard outlet`。相关实测计数见 batch5-test；包 vet 结果见 batch5-vet。旧 V/B/S 0/0/0。

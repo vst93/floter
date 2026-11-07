@@ -1,0 +1,31 @@
+=== RUN   TestCustomSaveFailureMode
+=== RUN   TestCustomSaveFailureMode/light
+    customsavefailure_test.go:100: failed command-mode switch duplicated saved binding as draft
+    customsavefailure_test.go:103: failed mode switch lost original picker
+=== RUN   TestCustomSaveFailureMode/dark
+    customsavefailure_test.go:100: failed command-mode switch duplicated saved binding as draft
+    customsavefailure_test.go:103: failed mode switch lost original picker
+--- FAIL: TestCustomSaveFailureMode (0.40s)
+    --- FAIL: TestCustomSaveFailureMode/light (0.35s)
+    --- FAIL: TestCustomSaveFailureMode/dark (0.05s)
+=== RUN   TestCustomSaveFailureRemove
+=== RUN   TestCustomSaveFailureRemove/light
+    customsavefailure_test.go:107: failed remove discarded command draft: map[]
+    customsavefailure_test.go:117: failed remove lost original keyboard outlet
+=== RUN   TestCustomSaveFailureRemove/dark
+    customsavefailure_test.go:107: failed remove discarded command draft: map[]
+    customsavefailure_test.go:117: failed remove lost original keyboard outlet
+--- FAIL: TestCustomSaveFailureRemove (0.11s)
+    --- FAIL: TestCustomSaveFailureRemove/light (0.05s)
+    --- FAIL: TestCustomSaveFailureRemove/dark (0.06s)
+=== RUN   TestCustomSaveFailureRecord
+=== RUN   TestCustomSaveFailureRecord/light
+    customsavefailure_test.go:107: failed record discarded command draft: map[]
+=== RUN   TestCustomSaveFailureRecord/dark
+    customsavefailure_test.go:107: failed record discarded command draft: map[]
+--- FAIL: TestCustomSaveFailureRecord (0.11s)
+    --- FAIL: TestCustomSaveFailureRecord/light (0.06s)
+    --- FAIL: TestCustomSaveFailureRecord/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.636s
+FAIL

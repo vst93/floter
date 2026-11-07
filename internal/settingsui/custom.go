@@ -318,7 +318,9 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 			// `--text-warning` under the pointer.
 			a.sessionIconButton(c, "trash", copy.ShortcutsRemove, true, false, false, func() {
 				a.removeCustomShortcut(index)
-				a.customFocusAdd = true
+				if customBindingIndex(a.customShortcuts(), entry.Key) < 0 {
+					a.customFocusAdd = true
+				}
 			}, &focus.remove)
 		})
 		if warning := a.customWarning(copy, entry.Key, index); warning != "" {
@@ -542,12 +544,14 @@ func (a *App) updateCustomShortcut(index int, entry settings.CustomShortcut) {
 	// with the binding); the row must not keep showing a draft over a new
 	// action, as the reference's `setAction` cleared `row.command` too.
 	if entry.Action == commandAction {
-		delete(a.customEdits, entries[index].Key)
+		entries = append(entries[:index], entries[index+1:]...)
+		if !a.commitCustomShortcuts(entries) {
+			return
+		}
+		delete(a.customEdits, entry.Key)
 		a.customKey, a.customCommand, a.customAction = entry.Key, "", commandAction
 		a.customDraftOpen = true
 		a.rebaseCustomRecorder(index)
-		entries = append(entries[:index], entries[index+1:]...)
-		a.commitCustomShortcuts(entries)
 		return
 	}
 	entries[index] = entry
@@ -562,10 +566,12 @@ func (a *App) removeCustomShortcut(index int) {
 	if index < 0 || index >= len(entries) {
 		return
 	}
-	delete(a.customEdits, entries[index].Key)
-	a.rebaseCustomRecorder(index)
+	key := entries[index].Key
 	entries = append(entries[:index], entries[index+1:]...)
-	a.commitCustomShortcuts(entries)
+	if a.commitCustomShortcuts(entries) {
+		delete(a.customEdits, key)
+		a.rebaseCustomRecorder(index)
+	}
 }
 
 // Removing a saved row must not lend its recorder to the next binding. The
