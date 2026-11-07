@@ -5004,12 +5004,14 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 	options := copy.Palettes
 	index := optionIndex(options, current)
 	labels := make([]string, len(options))
+	values := make([]string, len(options))
 	for i, option := range options {
 		labels[i] = option.Label
+		values[i] = option.ID
 	}
-	selected := ""
+	selected, fallback := current, ""
 	if index >= 0 && index < len(options) {
-		selected = options[index].Label
+		selected, fallback = options[index].ID, options[index].Label
 	}
 	chosen := ""
 	// No sublabel: the reference's palette row is `stacked: true` with no
@@ -5030,15 +5032,10 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 			// 55 字 +5.0、75 字 +124.0，large 台阶 75 字 +186.6；120 字时预览块的盒子
 			// 落在 x=808，720 宽的窗口里已经画不出来了）。`Shrink(1)` 让它先借标签列
 			// 的地、借完了就在自己的盒子边收口（框架的省略号），预览块一个像素不挪。
-			e := a.fieldFace(c, valueSelect(c, &selected, labels, labels, selected, a.tokens(c), len(labels) > 0).
+			e := a.fieldFace(c, valueSelect(c, &selected, labels, values, fallback, a.tokens(c), len(labels) > 0).
 				Label(copy.Palette).MinWidth(220).Shrink(1).Radius(999), true)
 			if e.Changed() {
-				for _, option := range options {
-					if option.Label == selected {
-						chosen = option.ID
-						break
-					}
-				}
+				chosen = selected
 			}
 			// The preview follows the picker in the same frame the choice is
 			// made, so a click on the select repaints the block immediately.

@@ -411,8 +411,10 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	}
 	index := -1
 	labels := make([]string, len(options))
+	values := make([]string, len(options))
 	for i, option := range options {
 		labels[i] = option.Label
+		values[i] = option.ID
 		if option.ID == value {
 			index = i
 		}
@@ -423,17 +425,12 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 		// control never shows a value it does not hold.
 		index = len(options) - 1
 	}
-	selected := labels[index]
+	selected := values[index]
 	chosen := ""
-	picker := a.fieldFace(c, valueSelect(c, &selected, labels, labels, selected, a.tokens(c), true).
+	picker := a.fieldFace(c, valueSelect(c, &selected, labels, values, labels[index], a.tokens(c), true).
 		Radius(999).Label(copy.ShortcutsAction), true)
 	if picker.Changed() {
-		for _, option := range options {
-			if option.Label == selected {
-				chosen = option.ID
-				break
-			}
-		}
+		chosen = selected
 	}
 	if chosen != "" && chosen != current {
 		apply(chosen)

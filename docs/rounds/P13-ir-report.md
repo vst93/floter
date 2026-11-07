@@ -37,3 +37,12 @@
 4. 现象：调色板选项重排后，Enter 落回 inherit。改动：保存选项值身份。验证：深浅真实事件，重排后只提交 contrast 一次，预览依旧跟随被选中的 ID。
 
 其余四项已见红但测试待对应批次再启用；不提交未修复的红测试。旧 V/B/S **0/0/0**。
+
+第二批 `d7989fcf` 已推送。相关 **19 PASS / 0 FAIL**，包 vet 净；M2 **6 FAIL**，原串 `palette external selected "contrast", want "dracula"`、`palette reorder selected "inherit", want "contrast"`；MD5 还原 touch 后 **6 PASS**。
+
+## 第三批
+
+5. 现象：两个动作标签相同时，按 Down 选择第二项会被去重成下一动作。改动：选择器值改为动作 ID，标签仅负责显示。验证：深浅真实键盘选择第二个同名项，只提交 plugin:browser 一次。
+6. 现象：两个调色板同名时，第二项无法独立选中。改动：传入 palette ID，初值也改为 ID；预览继续取实际 ID。验证：深浅真实键盘选择第二个同名项，只提交 contrast 一次。
+
+相关 **44 PASS / 0 FAIL**，包 vet 净；旧 V/B/S **0/0/0**。M3 回注按 label 选择的实现，**6 FAIL**，原串 `custom duplicate selected "plugin:calculator", want "plugin:browser"`、`palette duplicate selected "dracula", want "contrast"`；MD5 两文件还原 touch 后 **6 PASS**。

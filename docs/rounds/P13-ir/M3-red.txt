@@ -1,0 +1,19 @@
+=== RUN   TestCustomMenuDuplicateLabels
+=== RUN   TestCustomMenuDuplicateLabels/light
+    menurefresh_test.go:81: custom duplicate selected "plugin:calculator", want "plugin:browser"
+=== RUN   TestCustomMenuDuplicateLabels/dark
+    menurefresh_test.go:81: custom duplicate selected "plugin:calculator", want "plugin:browser"
+--- FAIL: TestCustomMenuDuplicateLabels (0.09s)
+    --- FAIL: TestCustomMenuDuplicateLabels/light (0.08s)
+    --- FAIL: TestCustomMenuDuplicateLabels/dark (0.00s)
+=== RUN   TestPaletteMenuDuplicateLabels
+=== RUN   TestPaletteMenuDuplicateLabels/light
+    menurefresh_test.go:81: palette duplicate selected "dracula", want "contrast"
+=== RUN   TestPaletteMenuDuplicateLabels/dark
+    menurefresh_test.go:81: palette duplicate selected "dracula", want "contrast"
+--- FAIL: TestPaletteMenuDuplicateLabels (0.03s)
+    --- FAIL: TestPaletteMenuDuplicateLabels/light (0.03s)
+    --- FAIL: TestPaletteMenuDuplicateLabels/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.126s
+FAIL

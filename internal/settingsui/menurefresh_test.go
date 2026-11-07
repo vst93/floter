@@ -100,6 +100,9 @@ func TestCustomMenuReorder(t *testing.T)           { checkMenuRefresh(t, "custom
 func TestPaletteMenuExternalSelection(t *testing.T) { checkMenuRefresh(t, "palette", "external") }
 func TestPaletteMenuReorder(t *testing.T)           { checkMenuRefresh(t, "palette", "reorder") }
 
+func TestCustomMenuDuplicateLabels(t *testing.T)  { checkMenuRefresh(t, "custom", "duplicate") }
+func TestPaletteMenuDuplicateLabels(t *testing.T) { checkMenuRefresh(t, "palette", "duplicate") }
+
 func checkFixedMenuExternal(t *testing.T, residency bool) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {

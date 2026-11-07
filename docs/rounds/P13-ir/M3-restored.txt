@@ -1,0 +1,16 @@
+internal/settingsui/custom.go: OK
+internal/settingsui/settingsui.go: OK
+=== RUN   TestCustomMenuDuplicateLabels
+=== RUN   TestCustomMenuDuplicateLabels/light
+=== RUN   TestCustomMenuDuplicateLabels/dark
+--- PASS: TestCustomMenuDuplicateLabels (0.03s)
+    --- PASS: TestCustomMenuDuplicateLabels/light (0.03s)
+    --- PASS: TestCustomMenuDuplicateLabels/dark (0.00s)
+=== RUN   TestPaletteMenuDuplicateLabels
+=== RUN   TestPaletteMenuDuplicateLabels/light
+=== RUN   TestPaletteMenuDuplicateLabels/dark
+--- PASS: TestPaletteMenuDuplicateLabels (0.02s)
+    --- PASS: TestPaletteMenuDuplicateLabels/light (0.02s)
+    --- PASS: TestPaletteMenuDuplicateLabels/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.064s
