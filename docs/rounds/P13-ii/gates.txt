@@ -21,4 +21,7 @@ Second ordinary: exit 1 (new focusable site missing from census); original B gre
 Final focused: 29 PASS / 0 FAIL; settingsui vet exit 0
 Final About screenshots: 6 PASS, pixels unchanged after selection fallback
 Platform gates after product correction: all six vet/build exit 0
-Final full ordinary/verbose: pending after registry correction
+Final full ordinary: exit 0
+Final full verbose: exit 0, 4665 PASS, 0 FAIL (+26 versus 4639 baseline)
+Final three-platform vet after registry correction: all exit 0
+Final source MD5: all five files OK
