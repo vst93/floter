@@ -30,3 +30,12 @@ pull 为最新、工作区空；真实进度 P13-it。P13-hw 的后继问题已�
 2. 现象：同一键修改命令失败，按原键执行 `say uncommitted`。改动：回滚时重新绑定原动作闭包。验证：调用实际注册回调只得到 `say original`，再次保存可成功。
 
 M1 删除注册回滚，两个 pin 实红；原串 `failed add left uncommitted system keys` / `failed command update dispatched uncommitted action: [say uncommitted]`；MD5 OK 后 touch 复验。旧 V/B/S 0/0/0。定向与变异计数见 batch1/M1 原始日志。
+
+第一批 `bf6a719e` 已推送；8 PASS，M1 5 FAIL → MD5 OK → touch → 5 PASS。
+
+## 第二批（3–4）
+
+3. 现象：唤起键保存失败已显示新键，系统也留下新键。改动：只有存储接受后才释放原键；失败释放试注册的新键。验证：真实磁盘失败，旧键/显示不变、新键不留；恢复后重试旧键释放、新键注册。
+4. 现象：内置键录制保存失败，录制框退出却没有保存反馈。改动：观察同步宿主回调本次写入结果，接上既有保存错误面。验证：深浅真实 Tab/Enter/录制键，出现既有提示；无错误冲突标记，恢复文件可重录成功。
+
+相关宿主 9 PASS / UI 12 PASS，包 vet 净。M2 漏释放失败的新唤起键，原串 `failed summon save changed system registration: [Ctrl+Alt+J Ctrl+Alt+K Ctrl+Shift+B]`；1 FAIL，MD5 OK + touch 后 1 PASS。首次变异恢复遇备份尚未生成，未提交；重新顺序备份、注入、还原和复验完成后才提交。旧 V/B/S 0/0/0。

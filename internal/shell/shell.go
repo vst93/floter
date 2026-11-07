@@ -1490,14 +1490,6 @@ func (a *App) setShortcut(id, accelerator string) {
 		a.ShortcutErr, a.shortcutRefusal = err, id
 		return
 	}
-	if a.summonKey != "" {
-		mygo.GlobalShortcut.Unregister(a.summonKey)
-	}
-	a.summonKey = normalized
-	a.Settings.Shortcut = normalized
-	a.ShortcutErr = nil
-	a.shortcutRefusal = ""
-
 	if err := a.Store.Update(func(s *settings.Settings) {
 		s.SetExtra("hotkey", normalized)
 		shortcutsMap, _ := s.Extra()["shortcuts"].(map[string]any)
@@ -1509,7 +1501,17 @@ func (a *App) setShortcut(id, accelerator string) {
 		s.SetExtra("shortcuts", updated)
 	}); err != nil {
 		log.Printf("floter: could not save %s: %v", normalized, err)
+		a.unregisterShortcut(normalized)
+		return
 	}
+	// Keep the working chord until the replacement is durable.
+	if a.summonKey != "" {
+		a.unregisterShortcut(a.summonKey)
+	}
+	a.summonKey = normalized
+	a.Settings.Shortcut = normalized
+	a.ShortcutErr = nil
+	a.shortcutRefusal = ""
 }
 
 // scanTools lists the commands on the PATH, in the background, when the

@@ -4310,7 +4310,7 @@ func (a *App) recordShortcut(action, accelerator string) {
 	case settings.ShortcutRecorded:
 		a.rejectedShortcut = ""
 		if a.Actions.SetShortcut != nil {
-			a.Actions.SetShortcut(action, accelerator)
+			a.observeSettingsWrite(func() { a.Actions.SetShortcut(action, accelerator) })
 			// The map has already accepted the chord; the system may still
 			// refuse it (another app holds it). The shell keeps the old key
 			// in that case and writes nothing, so the row says the

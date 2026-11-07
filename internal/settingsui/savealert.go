@@ -33,6 +33,17 @@ func (a *App) noteSaveFailed() {
 	a.saveFailedAt = a.now()
 }
 
+// observeSettingsWrite gives synchronous host actions the same error surface
+// as local settings writes. An old error or an OS refusal without a disk write
+// must not be reported as a new save failure.
+func (a *App) observeSettingsWrite(action func()) {
+	writes := a.Store.Writes()
+	action()
+	if a.Store.Writes() != writes && a.Store.LastError() != nil {
+		a.noteSaveFailed()
+	}
+}
+
 // dismissSaveFailed drops the banner, by its own button or its window.
 func (a *App) dismissSaveFailed() {
 	a.saveFailed = false
