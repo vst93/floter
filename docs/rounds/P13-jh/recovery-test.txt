@@ -1,0 +1,108 @@
+=== RUN   TestConfigurationExportTextIntegrity
+=== RUN   TestConfigurationExportTextIntegrity/text
+=== RUN   TestConfigurationExportTextIntegrity/path
+=== RUN   TestConfigurationExportTextIntegrity/multiselect
+=== RUN   TestConfigurationExportTextIntegrity/key
+=== RUN   TestConfigurationExportTextIntegrity/redacted
+=== RUN   TestConfigurationExportTextIntegrity/unicode
+--- PASS: TestConfigurationExportTextIntegrity (0.00s)
+    --- PASS: TestConfigurationExportTextIntegrity/text (0.00s)
+    --- PASS: TestConfigurationExportTextIntegrity/path (0.00s)
+    --- PASS: TestConfigurationExportTextIntegrity/multiselect (0.00s)
+    --- PASS: TestConfigurationExportTextIntegrity/key (0.00s)
+    --- PASS: TestConfigurationExportTextIntegrity/redacted (0.00s)
+    --- PASS: TestConfigurationExportTextIntegrity/unicode (0.00s)
+=== RUN   TestSyncExportLimitIncludesEscapingAndNewline
+--- PASS: TestSyncExportLimitIncludesEscapingAndNewline (0.06s)
+=== RUN   TestBackupPackageCompatibility
+=== RUN   TestBackupPackageCompatibility/no-package
+=== RUN   TestBackupPackageCompatibility/other-platform
+=== RUN   TestBackupPackageCompatibility/custom-manifest
+=== RUN   TestBackupPackageCompatibility/missing-declared
+--- PASS: TestBackupPackageCompatibility (0.02s)
+    --- PASS: TestBackupPackageCompatibility/no-package (0.00s)
+    --- PASS: TestBackupPackageCompatibility/other-platform (0.00s)
+    --- PASS: TestBackupPackageCompatibility/custom-manifest (0.02s)
+    --- PASS: TestBackupPackageCompatibility/missing-declared (0.00s)
+PASS
+ok  	floter/internal/extensions	0.085s
+=== RUN   TestConfigurationTransferPreservesInvalidText
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/light
+2026/11/08 01:39:12 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/dark
+2026/11/08 01:39:13 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/light
+2026/11/08 01:39:13 floter: could not build the configuration export for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/dark
+2026/11/08 01:39:13 floter: could not build the configuration export for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationTransferPreservesInvalidText (0.42s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/copy/light (0.17s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/copy/dark (0.09s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/config-export/light (0.08s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/config-export/dark (0.08s)
+=== RUN   TestBackupRejectsInvalidStoredText
+=== RUN   TestBackupRejectsInvalidStoredText/light
+2026/11/08 01:39:13 floter: could not export the integrations: extensions: exporting dev.floter.configured: extensions: invalid configuration /tmp/TestBackupRejectsInvalidStoredTextlight497662429/002/extension-data/dev.floter.configured/config.json: configuration contains invalid UTF-8
+=== RUN   TestBackupRejectsInvalidStoredText/dark
+2026/11/08 01:39:13 floter: could not export the integrations: extensions: exporting dev.floter.configured: extensions: invalid configuration /tmp/TestBackupRejectsInvalidStoredTextdark3983186062/002/extension-data/dev.floter.configured/config.json: configuration contains invalid UTF-8
+--- PASS: TestBackupRejectsInvalidStoredText (0.46s)
+    --- PASS: TestBackupRejectsInvalidStoredText/light (0.23s)
+    --- PASS: TestBackupRejectsInvalidStoredText/dark (0.23s)
+=== RUN   TestBackupRejectsBrokenDeclaredManifest
+=== RUN   TestBackupRejectsBrokenDeclaredManifest/light
+2026/11/08 01:39:13 floter: could not export the integrations: extensions: exporting dev.floter.configured: /tmp/TestBackupRejectsBrokenDeclaredManifestlight1811912358/002/extensions/dev.floter.configured/floter.extension.json: invalid character 'b' looking for beginning of object key string
+=== RUN   TestBackupRejectsBrokenDeclaredManifest/dark
+2026/11/08 01:39:13 floter: could not export the integrations: extensions: exporting dev.floter.configured: /tmp/TestBackupRejectsBrokenDeclaredManifestdark1709914604/002/extensions/dev.floter.configured/floter.extension.json: invalid character 'b' looking for beginning of object key string
+--- PASS: TestBackupRejectsBrokenDeclaredManifest (0.38s)
+    --- PASS: TestBackupRejectsBrokenDeclaredManifest/light (0.19s)
+    --- PASS: TestBackupRejectsBrokenDeclaredManifest/dark (0.19s)
+=== RUN   TestBackupRejectsEmptyScript
+=== RUN   TestBackupRejectsEmptyScript/light
+2026/11/08 01:39:14 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsEmptyScriptlight2315909487/002/extensions/dev.floter.configured/tool.sh is empty; the backup cannot restore it
+=== RUN   TestBackupRejectsEmptyScript/dark
+2026/11/08 01:39:14 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsEmptyScriptdark3668406355/002/extensions/dev.floter.configured/tool.sh is empty; the backup cannot restore it
+--- PASS: TestBackupRejectsEmptyScript (0.40s)
+    --- PASS: TestBackupRejectsEmptyScript/light (0.20s)
+    --- PASS: TestBackupRejectsEmptyScript/dark (0.20s)
+=== RUN   TestBackupRejectsInvalidScriptText
+=== RUN   TestBackupRejectsInvalidScriptText/light
+2026/11/08 01:39:14 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsInvalidScriptTextlight710942398/002/extensions/dev.floter.configured/tool.sh contains invalid UTF-8
+=== RUN   TestBackupRejectsInvalidScriptText/dark
+2026/11/08 01:39:14 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsInvalidScriptTextdark627323052/002/extensions/dev.floter.configured/tool.sh contains invalid UTF-8
+--- PASS: TestBackupRejectsInvalidScriptText (0.40s)
+    --- PASS: TestBackupRejectsInvalidScriptText/light (0.20s)
+    --- PASS: TestBackupRejectsInvalidScriptText/dark (0.20s)
+=== RUN   TestBackupRejectsEmptyDescriptor
+=== RUN   TestBackupRejectsEmptyDescriptor/light
+2026/11/08 01:39:14 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsEmptyDescriptorlight3465761811/002/extensions/dev.floter.configured/description.json is empty; the backup cannot restore it
+=== RUN   TestBackupRejectsEmptyDescriptor/dark
+2026/11/08 01:39:15 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsEmptyDescriptordark87682599/002/extensions/dev.floter.configured/description.json is empty; the backup cannot restore it
+--- PASS: TestBackupRejectsEmptyDescriptor (0.40s)
+    --- PASS: TestBackupRejectsEmptyDescriptor/light (0.20s)
+    --- PASS: TestBackupRejectsEmptyDescriptor/dark (0.20s)
+=== RUN   TestBackupRejectsInvalidDescriptorText
+=== RUN   TestBackupRejectsInvalidDescriptorText/light
+2026/11/08 01:39:15 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsInvalidDescriptorTextlight935547850/002/extensions/dev.floter.configured/description.json contains invalid UTF-8
+=== RUN   TestBackupRejectsInvalidDescriptorText/dark
+2026/11/08 01:39:15 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsInvalidDescriptorTextdark3953543382/002/extensions/dev.floter.configured/description.json contains invalid UTF-8
+--- PASS: TestBackupRejectsInvalidDescriptorText (0.40s)
+    --- PASS: TestBackupRejectsInvalidDescriptorText/light (0.20s)
+    --- PASS: TestBackupRejectsInvalidDescriptorText/dark (0.20s)
+=== RUN   TestBackupRejectsEncodedOversize
+=== RUN   TestBackupRejectsEncodedOversize/light
+2026/11/08 01:39:15 floter: could not encode the integrations: extensions: export is larger than 4194304 bytes; reduce its content before exporting
+=== RUN   TestBackupRejectsEncodedOversize/dark
+2026/11/08 01:39:15 floter: could not encode the integrations: extensions: export is larger than 4194304 bytes; reduce its content before exporting
+--- PASS: TestBackupRejectsEncodedOversize (0.46s)
+    --- PASS: TestBackupRejectsEncodedOversize/light (0.23s)
+    --- PASS: TestBackupRejectsEncodedOversize/dark (0.23s)
+=== RUN   TestTransferIntegrityChineseCompactViewport
+=== RUN   TestTransferIntegrityChineseCompactViewport/light
+2026/11/08 01:39:16 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestTransferIntegrityChineseCompactViewport/dark
+2026/11/08 01:39:16 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestTransferIntegrityChineseCompactViewport (0.18s)
+    --- PASS: TestTransferIntegrityChineseCompactViewport/light (0.11s)
+    --- PASS: TestTransferIntegrityChineseCompactViewport/dark (0.07s)
+PASS
+ok  	floter/internal/shell	3.522s

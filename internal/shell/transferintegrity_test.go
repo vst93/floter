@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"floter/internal/extensions"
+	"floter/internal/settings"
+	"floter/internal/settingsui"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -197,6 +199,16 @@ func checkBackupIntegrity(t *testing.T, kind string) {
 					t.Error("repaired descriptor changed in backup")
 				}
 			}
+			// A readable JSON document alone is not a restorable package.
+			// Exercise the existing installer against a fresh data root too.
+			target := extensions.FromRoot(t.TempDir())
+			if err := target.Ensure(); err != nil {
+				t.Fatal(err)
+			}
+			report, err := extensions.ImportSync(target, doc, func([]extensions.PermissionApproval) bool { return true })
+			if err != nil || len(report.Succeeded) != 1 || len(report.Failed) != 0 || len(report.Skipped) != 0 {
+				t.Fatalf("repaired backup cannot restore a fresh installation: %+v err=%v", report, err)
+			}
 		})
 	}
 }
@@ -211,3 +223,47 @@ func TestBackupRejectsEmptyDescriptor(t *testing.T)   { checkBackupIntegrity(t, 
 
 func TestBackupRejectsInvalidDescriptorText(t *testing.T) { checkBackupIntegrity(t, "descriptor-text") }
 func TestBackupRejectsEncodedOversize(t *testing.T)       { checkBackupIntegrity(t, "oversize") }
+
+func TestTransferIntegrityChineseCompactViewport(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", nil })
+			if err := a.Store.Update(func(s *settings.Settings) {
+				s.Language = "zh"
+				s.Theme = map[bool]string{false: "light", true: "dark"}[dark]
+			}); err != nil {
+				t.Fatal(err)
+			}
+			a.Open(SurfaceSettings)
+			a.Settings.Page = settingsui.PageIntegrations
+			tt := ui.NewTester(a.View, 720, 520)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			clearNotices(a)
+			values := transferFeedbackValues()
+			values["endpoint"] = "bad\xff"
+			done := make(chan error, 1)
+			a.Settings.Actions.CopyConfiguration("dev.floter.configured", values, func(err error) { done <- err })
+			if err := transferFeedbackAwait(t, done); err == nil {
+				t.Fatal("compact Chinese configuration accepted damaged text")
+			}
+			tt.Frame()
+			tt.Frame()
+			integrityDump(t, tt, "chinese-compact", dark)
+			if !strings.Contains(strings.Join(tt.Texts(), "\n"), "UTF-8") {
+				t.Error("Chinese compact viewport lost refusal")
+			}
+			values["endpoint"] = "项目 �"
+			a.Settings.Actions.CopyConfiguration("dev.floter.configured", values, func(err error) { done <- err })
+			if err := transferFeedbackAwait(t, done); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Frame()
+			if !tt.HasText(a.SettingsCopy().ConfigCopied) {
+				t.Error("Chinese compact viewport lost recovery result")
+			}
+		})
+	}
+}

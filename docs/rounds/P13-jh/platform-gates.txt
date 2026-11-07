@@ -1,0 +1,6 @@
+linux vet exit=0
+linux build exit=0
+windows vet exit=0
+windows build exit=0
+darwin vet exit=0
+darwin build exit=0

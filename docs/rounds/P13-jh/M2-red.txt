@@ -1,0 +1,23 @@
+=== RUN   TestBackupRejectsEmptyScript
+=== RUN   TestBackupRejectsEmptyScript/light
+    transferintegrity_test.go:165: empty-script backup hides the damaged source and cause
+    transferintegrity_test.go:169: empty-script export replaced a good backup with unrestorable content
+=== RUN   TestBackupRejectsEmptyScript/dark
+    transferintegrity_test.go:165: empty-script backup hides the damaged source and cause
+    transferintegrity_test.go:169: empty-script export replaced a good backup with unrestorable content
+--- FAIL: TestBackupRejectsEmptyScript (0.25s)
+    --- FAIL: TestBackupRejectsEmptyScript/light (0.19s)
+    --- FAIL: TestBackupRejectsEmptyScript/dark (0.07s)
+=== RUN   TestBackupRejectsEmptyDescriptor
+=== RUN   TestBackupRejectsEmptyDescriptor/light
+    transferintegrity_test.go:165: empty-descriptor backup hides the damaged source and cause
+    transferintegrity_test.go:169: empty-descriptor export replaced a good backup with unrestorable content
+=== RUN   TestBackupRejectsEmptyDescriptor/dark
+    transferintegrity_test.go:165: empty-descriptor backup hides the damaged source and cause
+    transferintegrity_test.go:169: empty-descriptor export replaced a good backup with unrestorable content
+--- FAIL: TestBackupRejectsEmptyDescriptor (0.14s)
+    --- FAIL: TestBackupRejectsEmptyDescriptor/light (0.07s)
+    --- FAIL: TestBackupRejectsEmptyDescriptor/dark (0.07s)
+FAIL
+FAIL	floter/internal/shell	0.396s
+FAIL

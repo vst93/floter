@@ -1,0 +1,16 @@
+=== RUN   TestConfigurationTransferPreservesInvalidText
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/light
+2026/11/08 01:37:47 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/dark
+2026/11/08 01:37:47 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/light
+2026/11/08 01:37:47 floter: could not build the configuration export for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/dark
+2026/11/08 01:37:47 floter: could not build the configuration export for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationTransferPreservesInvalidText (0.21s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/copy/light (0.10s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/copy/dark (0.04s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/config-export/light (0.04s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/config-export/dark (0.04s)
+PASS
+ok  	floter/internal/shell	0.219s

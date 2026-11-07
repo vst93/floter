@@ -1,0 +1,18 @@
+=== RUN   TestBackupRejectsEmptyScript
+=== RUN   TestBackupRejectsEmptyScript/light
+2026/11/08 01:38:25 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsEmptyScriptlight418706500/002/extensions/dev.floter.configured/tool.sh is empty; the backup cannot restore it
+=== RUN   TestBackupRejectsEmptyScript/dark
+2026/11/08 01:38:25 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsEmptyScriptdark1213924680/002/extensions/dev.floter.configured/tool.sh is empty; the backup cannot restore it
+--- PASS: TestBackupRejectsEmptyScript (0.19s)
+    --- PASS: TestBackupRejectsEmptyScript/light (0.12s)
+    --- PASS: TestBackupRejectsEmptyScript/dark (0.07s)
+=== RUN   TestBackupRejectsEmptyDescriptor
+=== RUN   TestBackupRejectsEmptyDescriptor/light
+2026/11/08 01:38:25 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsEmptyDescriptorlight2110048683/002/extensions/dev.floter.configured/description.json is empty; the backup cannot restore it
+=== RUN   TestBackupRejectsEmptyDescriptor/dark
+2026/11/08 01:38:25 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsEmptyDescriptordark4207138612/002/extensions/dev.floter.configured/description.json is empty; the backup cannot restore it
+--- PASS: TestBackupRejectsEmptyDescriptor (0.14s)
+    --- PASS: TestBackupRejectsEmptyDescriptor/light (0.07s)
+    --- PASS: TestBackupRejectsEmptyDescriptor/dark (0.07s)
+PASS
+ok  	floter/internal/shell	0.344s

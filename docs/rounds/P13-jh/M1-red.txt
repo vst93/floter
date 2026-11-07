@@ -1,0 +1,27 @@
+=== RUN   TestConfigurationTransferPreservesInvalidText
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/light
+    transferintegrity_test.go:60: configuration transfer silently repaired invalid text: <nil>
+    transferintegrity_test.go:64: configuration transfer hides the damaged field
+    transferintegrity_test.go:67: invalid configuration escaped: copies=1 pickers=0
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/dark
+    transferintegrity_test.go:60: configuration transfer silently repaired invalid text: <nil>
+    transferintegrity_test.go:64: configuration transfer hides the damaged field
+    transferintegrity_test.go:67: invalid configuration escaped: copies=1 pickers=0
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/light
+    transferintegrity_test.go:60: configuration transfer silently repaired invalid text: <nil>
+    transferintegrity_test.go:64: configuration transfer hides the damaged field
+    transferintegrity_test.go:67: invalid configuration escaped: copies=0 pickers=1
+    transferintegrity_test.go:71: invalid configuration replaced the old backup
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/dark
+    transferintegrity_test.go:60: configuration transfer silently repaired invalid text: <nil>
+    transferintegrity_test.go:64: configuration transfer hides the damaged field
+    transferintegrity_test.go:67: invalid configuration escaped: copies=0 pickers=1
+    transferintegrity_test.go:71: invalid configuration replaced the old backup
+--- FAIL: TestConfigurationTransferPreservesInvalidText (0.29s)
+    --- FAIL: TestConfigurationTransferPreservesInvalidText/copy/light (0.15s)
+    --- FAIL: TestConfigurationTransferPreservesInvalidText/copy/dark (0.05s)
+    --- FAIL: TestConfigurationTransferPreservesInvalidText/config-export/light (0.05s)
+    --- FAIL: TestConfigurationTransferPreservesInvalidText/config-export/dark (0.04s)
+FAIL
+FAIL	floter/internal/shell	0.292s
+FAIL

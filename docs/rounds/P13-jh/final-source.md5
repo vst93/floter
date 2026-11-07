@@ -1,0 +1,4 @@
+cd2f5a2449c1ac66e7299b64980433ab  internal/extensions/config.go
+705b181ef37b78cce1bebdb3ba09d021  internal/extensions/sync.go
+5b0661fb69f0351f194eec5e15329fe7  internal/extensions/transferintegrity_test.go
+25474517d68011895dfd9170ca9406f4  internal/shell/transferintegrity_test.go
