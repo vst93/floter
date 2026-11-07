@@ -1,0 +1,56 @@
+=== RUN   TestValidateConfiguration
+--- PASS: TestValidateConfiguration (0.00s)
+=== RUN   TestExportConfigurationRedactsAndNames
+--- PASS: TestExportConfigurationRedactsAndNames (0.00s)
+=== RUN   TestLoadStoredConfiguration
+--- PASS: TestLoadStoredConfiguration (0.00s)
+PASS
+ok  	floter/internal/extensions	0.005s
+=== RUN   TestConfigCopyReportsValidationCause
+=== RUN   TestConfigCopyReportsValidationCause/light
+2026/11/08 01:32:16 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigCopyReportsValidationCause/dark
+2026/11/08 01:32:16 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigCopyReportsValidationCause (0.49s)
+    --- PASS: TestConfigCopyReportsValidationCause/light (0.25s)
+    --- PASS: TestConfigCopyReportsValidationCause/dark (0.24s)
+=== RUN   TestConfigExportReportsValidationCause
+=== RUN   TestConfigExportReportsValidationCause/light
+2026/11/08 01:32:17 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigExportReportsValidationCause/dark
+2026/11/08 01:32:17 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigExportReportsValidationCause (0.50s)
+    --- PASS: TestConfigExportReportsValidationCause/light (0.25s)
+    --- PASS: TestConfigExportReportsValidationCause/dark (0.25s)
+=== RUN   TestConfigurationTransferPreservesInvalidText
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/light
+2026/11/08 01:32:17 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/dark
+2026/11/08 01:32:17 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/light
+2026/11/08 01:32:17 floter: could not build the configuration export for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/dark
+2026/11/08 01:32:17 floter: could not build the configuration export for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationTransferPreservesInvalidText (0.28s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/copy/light (0.08s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/copy/dark (0.07s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/config-export/light (0.07s)
+    --- PASS: TestConfigurationTransferPreservesInvalidText/config-export/dark (0.06s)
+=== RUN   TestBackupRejectsInvalidStoredText
+=== RUN   TestBackupRejectsInvalidStoredText/light
+2026/11/08 01:32:17 floter: could not export the integrations: extensions: exporting dev.floter.configured: extensions: invalid configuration /tmp/TestBackupRejectsInvalidStoredTextlight3663527975/002/extension-data/dev.floter.configured/config.json: configuration contains invalid UTF-8
+=== RUN   TestBackupRejectsInvalidStoredText/dark
+2026/11/08 01:32:18 floter: could not export the integrations: extensions: exporting dev.floter.configured: extensions: invalid configuration /tmp/TestBackupRejectsInvalidStoredTextdark2446874551/002/extension-data/dev.floter.configured/config.json: configuration contains invalid UTF-8
+--- PASS: TestBackupRejectsInvalidStoredText (0.20s)
+    --- PASS: TestBackupRejectsInvalidStoredText/light (0.10s)
+    --- PASS: TestBackupRejectsInvalidStoredText/dark (0.10s)
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/light
+2026/11/08 01:32:18 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight3822770073/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark
+2026/11/08 01:32:18 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark1822549549/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry (0.13s)
+    --- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry/light (0.06s)
+    --- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark (0.07s)
+PASS
+ok  	floter/internal/shell	1.597s

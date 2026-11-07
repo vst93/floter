@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"floter/internal/statefile"
 )
@@ -140,6 +141,9 @@ func SaveStoredConfiguration(dataRoot, id string, stored StoredConfiguration) er
 // parseStoredConfiguration accepts both shapes the old app wrote: the
 // current envelope, and the legacy bare values map.
 func parseStoredConfiguration(data []byte) (StoredConfiguration, error) {
+	if !utf8.Valid(data) {
+		return StoredConfiguration{}, errors.New("configuration contains invalid UTF-8")
+	}
 	var envelope struct {
 		ConfigVersion    int            `json:"configVersion"`
 		SecretGeneration string         `json:"secretGeneration"`
@@ -590,11 +594,28 @@ func ExportConfiguration(id string, configVersion int, schema []ConfigField, val
 	if err := ValidateConfiguration(schema, values); err != nil {
 		return nil, err
 	}
+	// JSON replaces malformed text silently. Check the public payload before
+	// encoding it; redacted passwords never leave this machine.
+	exported := redactExportedPasswords(schema, values)
+	for key, value := range exported {
+		valid := utf8.ValidString(key)
+		switch text := value.(type) {
+		case string:
+			valid = valid && utf8.ValidString(text)
+		case []any:
+			for _, item := range text {
+				valid = valid && utf8.ValidString(item.(string)) // validated above
+			}
+		}
+		if !valid {
+			return nil, fmt.Errorf("extensions: configuration field %q contains invalid UTF-8", key)
+		}
+	}
 	document := ConfigurationExportDocument{
 		FormatVersion: ConfigurationExportFormatVersion,
 		ExtensionID:   id,
 		ConfigVersion: configVersion,
-		Values:        redactExportedPasswords(schema, values),
+		Values:        exported,
 	}
 	data, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {

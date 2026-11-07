@@ -1,0 +1,101 @@
+=== RUN   TestConfigurationTransferPreservesInvalidText
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/light
+    transferintegrity_test.go:60: configuration transfer silently repaired invalid text: <nil>
+    transferintegrity_test.go:64: configuration transfer hides the damaged field
+    transferintegrity_test.go:67: invalid configuration escaped: copies=1 pickers=0
+=== RUN   TestConfigurationTransferPreservesInvalidText/copy/dark
+    transferintegrity_test.go:60: configuration transfer silently repaired invalid text: <nil>
+    transferintegrity_test.go:64: configuration transfer hides the damaged field
+    transferintegrity_test.go:67: invalid configuration escaped: copies=1 pickers=0
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/light
+    transferintegrity_test.go:60: configuration transfer silently repaired invalid text: <nil>
+    transferintegrity_test.go:64: configuration transfer hides the damaged field
+    transferintegrity_test.go:67: invalid configuration escaped: copies=0 pickers=1
+    transferintegrity_test.go:71: invalid configuration replaced the old backup
+=== RUN   TestConfigurationTransferPreservesInvalidText/config-export/dark
+    transferintegrity_test.go:60: configuration transfer silently repaired invalid text: <nil>
+    transferintegrity_test.go:64: configuration transfer hides the damaged field
+    transferintegrity_test.go:67: invalid configuration escaped: copies=0 pickers=1
+    transferintegrity_test.go:71: invalid configuration replaced the old backup
+--- FAIL: TestConfigurationTransferPreservesInvalidText (0.35s)
+    --- FAIL: TestConfigurationTransferPreservesInvalidText/copy/light (0.15s)
+    --- FAIL: TestConfigurationTransferPreservesInvalidText/copy/dark (0.07s)
+    --- FAIL: TestConfigurationTransferPreservesInvalidText/config-export/light (0.06s)
+    --- FAIL: TestConfigurationTransferPreservesInvalidText/config-export/dark (0.07s)
+=== RUN   TestBackupRejectsInvalidStoredText
+=== RUN   TestBackupRejectsInvalidStoredText/light
+    transferintegrity_test.go:165: stored-text backup hides the damaged source and cause
+    transferintegrity_test.go:169: stored-text export replaced a good backup with unrestorable content
+=== RUN   TestBackupRejectsInvalidStoredText/dark
+    transferintegrity_test.go:165: stored-text backup hides the damaged source and cause
+    transferintegrity_test.go:169: stored-text export replaced a good backup with unrestorable content
+--- FAIL: TestBackupRejectsInvalidStoredText (0.19s)
+    --- FAIL: TestBackupRejectsInvalidStoredText/light (0.10s)
+    --- FAIL: TestBackupRejectsInvalidStoredText/dark (0.10s)
+=== RUN   TestBackupRejectsBrokenDeclaredManifest
+=== RUN   TestBackupRejectsBrokenDeclaredManifest/light
+    transferintegrity_test.go:165: manifest backup hides the damaged source and cause
+    transferintegrity_test.go:169: manifest export replaced a good backup with unrestorable content
+=== RUN   TestBackupRejectsBrokenDeclaredManifest/dark
+    transferintegrity_test.go:165: manifest backup hides the damaged source and cause
+    transferintegrity_test.go:169: manifest export replaced a good backup with unrestorable content
+--- FAIL: TestBackupRejectsBrokenDeclaredManifest (0.15s)
+    --- FAIL: TestBackupRejectsBrokenDeclaredManifest/light (0.08s)
+    --- FAIL: TestBackupRejectsBrokenDeclaredManifest/dark (0.07s)
+=== RUN   TestBackupRejectsEmptyScript
+=== RUN   TestBackupRejectsEmptyScript/light
+    transferintegrity_test.go:165: empty-script backup hides the damaged source and cause
+    transferintegrity_test.go:169: empty-script export replaced a good backup with unrestorable content
+=== RUN   TestBackupRejectsEmptyScript/dark
+    transferintegrity_test.go:165: empty-script backup hides the damaged source and cause
+    transferintegrity_test.go:169: empty-script export replaced a good backup with unrestorable content
+--- FAIL: TestBackupRejectsEmptyScript (0.17s)
+    --- FAIL: TestBackupRejectsEmptyScript/light (0.09s)
+    --- FAIL: TestBackupRejectsEmptyScript/dark (0.09s)
+=== RUN   TestBackupRejectsInvalidScriptText
+=== RUN   TestBackupRejectsInvalidScriptText/light
+    transferintegrity_test.go:165: script-text backup hides the damaged source and cause
+    transferintegrity_test.go:169: script-text export replaced a good backup with unrestorable content
+=== RUN   TestBackupRejectsInvalidScriptText/dark
+    transferintegrity_test.go:165: script-text backup hides the damaged source and cause
+    transferintegrity_test.go:169: script-text export replaced a good backup with unrestorable content
+--- FAIL: TestBackupRejectsInvalidScriptText (0.17s)
+    --- FAIL: TestBackupRejectsInvalidScriptText/light (0.08s)
+    --- FAIL: TestBackupRejectsInvalidScriptText/dark (0.09s)
+=== RUN   TestBackupRejectsEmptyDescriptor
+=== RUN   TestBackupRejectsEmptyDescriptor/light
+    transferintegrity_test.go:165: empty-descriptor backup hides the damaged source and cause
+    transferintegrity_test.go:169: empty-descriptor export replaced a good backup with unrestorable content
+    transferintegrity_test.go:192: repaired script changed in backup
+=== RUN   TestBackupRejectsEmptyDescriptor/dark
+    transferintegrity_test.go:165: empty-descriptor backup hides the damaged source and cause
+    transferintegrity_test.go:169: empty-descriptor export replaced a good backup with unrestorable content
+    transferintegrity_test.go:192: repaired script changed in backup
+--- FAIL: TestBackupRejectsEmptyDescriptor (0.18s)
+    --- FAIL: TestBackupRejectsEmptyDescriptor/light (0.09s)
+    --- FAIL: TestBackupRejectsEmptyDescriptor/dark (0.09s)
+=== RUN   TestBackupRejectsInvalidDescriptorText
+=== RUN   TestBackupRejectsInvalidDescriptorText/light
+    transferintegrity_test.go:165: descriptor-text backup hides the damaged source and cause
+    transferintegrity_test.go:169: descriptor-text export replaced a good backup with unrestorable content
+    transferintegrity_test.go:192: repaired script changed in backup
+=== RUN   TestBackupRejectsInvalidDescriptorText/dark
+    transferintegrity_test.go:165: descriptor-text backup hides the damaged source and cause
+    transferintegrity_test.go:169: descriptor-text export replaced a good backup with unrestorable content
+    transferintegrity_test.go:192: repaired script changed in backup
+--- FAIL: TestBackupRejectsInvalidDescriptorText (0.17s)
+    --- FAIL: TestBackupRejectsInvalidDescriptorText/light (0.09s)
+    --- FAIL: TestBackupRejectsInvalidDescriptorText/dark (0.09s)
+=== RUN   TestBackupRejectsEncodedOversize
+=== RUN   TestBackupRejectsEncodedOversize/light
+    transferintegrity_test.go:165: oversize backup hides the damaged source and cause
+    transferintegrity_test.go:169: oversize export replaced a good backup with unrestorable content
+=== RUN   TestBackupRejectsEncodedOversize/dark
+    transferintegrity_test.go:165: oversize backup hides the damaged source and cause
+    transferintegrity_test.go:169: oversize export replaced a good backup with unrestorable content
+--- FAIL: TestBackupRejectsEncodedOversize (0.23s)
+    --- FAIL: TestBackupRejectsEncodedOversize/light (0.11s)
+    --- FAIL: TestBackupRejectsEncodedOversize/dark (0.11s)
+FAIL
+FAIL	floter/internal/shell	1.622s
+FAIL

@@ -516,7 +516,7 @@ func loadRawConfiguration(dataRoot, id string) (StoredConfiguration, error) {
 	}
 	stored, err := parseStoredConfiguration(data)
 	if err != nil {
-		return StoredConfiguration{}, err
+		return StoredConfiguration{}, fmt.Errorf("extensions: invalid configuration %s: %w", filepath.Join(dir, configFile), err)
 	}
 	if stored.Values == nil {
 		stored.Values = map[string]any{}
