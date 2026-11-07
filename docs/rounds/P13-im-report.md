@@ -34,3 +34,10 @@
 4. 现象：全部参数撤回后表单消失，原输入的焦点未回运行入口。改动：记录运行表单的焦点归属，空表单退场时回当前卡片的 Run。验证：刷新不运行、不清会话答案；Enter 才执行无参数运行一次。
 
 定向 **75 PASS / 0 FAIL**，包 vet 净。M2 换回本批之前的产品代码实跑 6 FAIL，原串 `withdrawn parameter lost Cancel keyboard exit`、`empty form lost Run keyboard exit`；MD5 恢复、touch 后 **6 PASS**。V/B/S 0/0/0。
+
+## 第三批（5–6）
+
+5. 现象：宿主折叠运行表单后，原字段持焦位置消失，Enter 不能重开。改动：折叠时将焦点还给同卡片 Run。验证：刷新不执行命令，Enter 可重新展开且答案 mine 保留。
+6. 现象：宿主撤回 RunWithParams 时表单与入口同时消失，键盘无出口。改动：复用既有页头 Close 作为可用回退点。验证：Close 获焦，刷新不关闭页面、不运行、不删除答案。
+
+定向 **81 PASS / 0 FAIL**，包 vet 净。M3 实跑 6 FAIL，原串 `closed form lost Run keyboard exit`、`withdrawn Run action lost page keyboard exit`；MD5 恢复、touch 后 **6 PASS**。V/B/S 0/0/0。

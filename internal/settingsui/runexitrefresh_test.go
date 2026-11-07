@@ -141,3 +141,5 @@ func checkRunFormExit(t *testing.T, change string) {
 }
 
 func TestRunExitAllParametersWithdrawn(t *testing.T) { checkRunFormExit(t, "empty") }
+func TestRunExitFormClosed(t *testing.T)             { checkRunFormExit(t, "closed") }
+func TestRunExitActionWithdrawn(t *testing.T)        { checkRunFormExit(t, "unavailable") }

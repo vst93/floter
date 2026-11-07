@@ -3095,9 +3095,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				if runWasOpen && !a.runOpen[integration.ID] {
 					run.Focus()
 				}
-				if len(integration.Params) == 0 {
-					a.restoreNotice(c, integration.ID, "run", false, run)
-				}
+				a.restoreNotice(c, integration.ID, "run", a.runOpen[integration.ID] && len(integration.Params) > 0, run)
 				if run.Clicked() && runnable {
 					if len(integration.Params) > 0 {
 						if a.runOpen == nil {
@@ -3113,6 +3111,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 						a.Actions.RunWithParams(integration.ID, nil)
 					}
 				}
+			} else {
+				a.restoreNotice(c, integration.ID, "run", false, ui.Element{})
 			}
 			// A broken row's entry is the re-check, not a reconnect: the
 			// reference drew the Wrench on a `broken` row and the reconnect
