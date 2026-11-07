@@ -1,0 +1,8 @@
+=== RUN   TestSummonDiskFailureDoesNotRepeatOldSystemRefusal
+2026/11/07 17:21:50 floter: could not register Ctrl+Alt+K: occupied
+2026/11/07 17:21:50 floter: could not save Ctrl+Alt+L: rename /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal838304337/001/.floter-state-4121865987.tmp /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal838304337/001/settings.json: file exists
+    shortcutattemptrecovery_test.go:28: new disk failure retained the previous system refusal
+--- FAIL: TestSummonDiskFailureDoesNotRepeatOldSystemRefusal (0.00s)
+FAIL
+FAIL	floter/internal/shell	0.004s
+FAIL

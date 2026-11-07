@@ -1480,6 +1480,9 @@ func (a *App) setShortcut(id, accelerator string) {
 	if normalized == a.summonKey {
 		return
 	}
+	// A new attempt owns its own failure; an earlier OS refusal must not
+	// mislabel a later disk error.
+	a.ShortcutErr, a.shortcutRefusal = nil, ""
 	if err := a.registerShortcut(normalized, a.Toggle); err != nil {
 		// The system holds the chord (another app took it): the old key stays
 		// registered and nothing is written, so the page owes the user a word
@@ -2215,6 +2218,7 @@ func (a *App) browserProfileList(customBase string) []browser.Profile {
 // (so every action falls back to its default) and the summon key goes back to
 // the default one, re-registered with the system.
 func (a *App) resetShortcuts() {
+	a.ShortcutErr, a.shortcutRefusal = nil, ""
 	// Claim the replacement before committing it: a system refusal must leave
 	// both the working key and its confirmed settings available for retry.
 	replacing := a.summonKey != settings.DefaultSummonShortcut

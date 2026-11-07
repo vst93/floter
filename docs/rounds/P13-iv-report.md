@@ -27,3 +27,12 @@
 2. 现象：恢复默认的 OS 拒绝只有日志，页面无提示。改动：恢复按钮读取已有 ShortcutRefused 回调，复用顶部与行内拒绝提示。验证：深浅真实 Tab/Enter，原代码两主题均报 `system-refused reset has no visible recovery feedback`，修后提示可见。
 
 M1 已回注旧恢复流程实跑红，原串 `system-refused reset persisted unregistered defaults`。MD5 还原通过，touch 后定向回归与包 vet 见 batch1.txt；计数在提交时补录。
+
+第一批 `ec7e3ec1` 已推送，**31 PASS**，包 vet 通过。
+
+### 第二批（3–4）
+
+3. 现象：用户明确恢复默认成功后，旧拒绝提示继续占着页面。改动：本次确有成功写入才撤回旧拒绝，空回调和写失败不冒充解决。验证：深浅真实恢复按钮事件，成功后顶部与行内旧提示都消失。
+4. 现象：上一次系统拒绝后，再录制另一键遇磁盘失败，宿主还报告“被另一程序占用”。改动：每次新注册尝试清理旧系统错误，磁盘失败维持原键；恢复默认也清理本次尝试的旧错误。验证：Actions 回调按 OS 拒绝→真实磁盘拒写→磁盘恢复重试执行，三次结果各自独立。
+
+M2 回注上一批 shell 代码，`new disk failure retained the previous system refusal` 实红；MD5 还原通过，touch 后回归 **35 PASS**，包 vet 净。旧 V/B/S 0/0/0。

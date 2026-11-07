@@ -38,6 +38,8 @@ func shortcutRecoveryDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 
 func TestResetSystemRefusalIsVisible(t *testing.T) { checkResetRefusalRecovery(t, "refused") }
 
+func TestSuccessfulResetClearsRefusal(t *testing.T) { checkResetRefusalRecovery(t, "resolved") }
+
 func checkResetRefusalRecovery(t *testing.T, scenario string) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
