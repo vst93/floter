@@ -1,0 +1,26 @@
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/light
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/dark
+--- PASS: TestDiagnosisExecutionRejectsRepeatedCheck (14.25s)
+    --- PASS: TestDiagnosisExecutionRejectsRepeatedCheck/light (7.34s)
+    --- PASS: TestDiagnosisExecutionRejectsRepeatedCheck/dark (6.91s)
+=== RUN   TestDiagnosisExecutionLocksCompetingActions
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/light
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/dark
+--- PASS: TestDiagnosisExecutionLocksCompetingActions (15.88s)
+    --- PASS: TestDiagnosisExecutionLocksCompetingActions/light (7.96s)
+    --- PASS: TestDiagnosisExecutionLocksCompetingActions/dark (7.92s)
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure/light
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure/dark
+--- PASS: TestDiagnosisExecutionRepositoryStartFailure (19.03s)
+    --- PASS: TestDiagnosisExecutionRepositoryStartFailure/light (9.72s)
+    --- PASS: TestDiagnosisExecutionRepositoryStartFailure/dark (9.31s)
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure/light
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure/dark
+--- PASS: TestDiagnosisExecutionRepositoryCompletionFailure (14.39s)
+    --- PASS: TestDiagnosisExecutionRepositoryCompletionFailure/light (7.20s)
+    --- PASS: TestDiagnosisExecutionRepositoryCompletionFailure/dark (7.19s)
+PASS
+ok  	floter/internal/shell	64.587s

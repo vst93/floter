@@ -1,0 +1,23 @@
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure/light
+    diagnosisreadfailure_test.go:65: diagnosis repository-start read failure is silent: toast={ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+    diagnosisreadfailure_test.go:69: unreadable repository still launches the old provider
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure/dark
+    diagnosisreadfailure_test.go:65: diagnosis repository-start read failure is silent: toast={ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+    diagnosisreadfailure_test.go:69: unreadable repository still launches the old provider
+--- FAIL: TestDiagnosisExecutionRepositoryStartFailure (2.09s)
+    --- FAIL: TestDiagnosisExecutionRepositoryStartFailure/light (1.12s)
+    --- FAIL: TestDiagnosisExecutionRepositoryStartFailure/dark (0.97s)
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure/light
+    diagnosisreadfailure_test.go:65: diagnosis repository-completion read failure is silent: toast={ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure/dark
+    diagnosisreadfailure_test.go:65: diagnosis repository-completion read failure is silent: toast={ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+--- FAIL: TestDiagnosisExecutionRepositoryCompletionFailure (1.76s)
+    --- FAIL: TestDiagnosisExecutionRepositoryCompletionFailure/light (0.90s)
+    --- FAIL: TestDiagnosisExecutionRepositoryCompletionFailure/dark (0.86s)
+=== RUN   TestDiagnosisExecutionObsoleteReadFailureIsQuiet
+--- PASS: TestDiagnosisExecutionObsoleteReadFailureIsQuiet (0.05s)
+FAIL
+FAIL	floter/internal/shell	3.908s
+FAIL

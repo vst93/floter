@@ -1,0 +1,23 @@
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/light
+    diagnosisbusy_test.go:77: pending diagnosis starts repeatedly: epoch=3
+    diagnosisbusy_test.go:88: diagnosis never entered and settled its row busy state
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/dark
+    diagnosisbusy_test.go:77: pending diagnosis starts repeatedly: epoch=3
+    diagnosisbusy_test.go:88: diagnosis never entered and settled its row busy state
+--- FAIL: TestDiagnosisExecutionRejectsRepeatedCheck (13.98s)
+    --- FAIL: TestDiagnosisExecutionRejectsRepeatedCheck/light (7.40s)
+    --- FAIL: TestDiagnosisExecutionRejectsRepeatedCheck/dark (6.58s)
+=== RUN   TestDiagnosisExecutionLocksCompetingActions
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/light
+    diagnosisbusy_test.go:64: pending diagnosis permits competing actions: 2
+    diagnosisbusy_test.go:88: diagnosis never entered and settled its row busy state
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/dark
+    diagnosisbusy_test.go:64: pending diagnosis permits competing actions: 2
+    diagnosisbusy_test.go:88: diagnosis never entered and settled its row busy state
+--- FAIL: TestDiagnosisExecutionLocksCompetingActions (13.49s)
+    --- FAIL: TestDiagnosisExecutionLocksCompetingActions/light (6.81s)
+    --- FAIL: TestDiagnosisExecutionLocksCompetingActions/dark (6.68s)
+FAIL
+FAIL	floter/internal/shell	27.499s
+FAIL

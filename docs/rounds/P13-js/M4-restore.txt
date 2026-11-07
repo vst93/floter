@@ -1,0 +1,28 @@
+/home/tar/workspace/floter/internal/shell/shell.go: OK
+/home/tar/workspace/floter/internal/settingsui/settingsui.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisavailability_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisboundary_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisbusy_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosiscommands_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosiscurrent_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosismessage_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisphase_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisreadfailure_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisrecovery_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosissummary_test.go: OK
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure/light
+=== RUN   TestDiagnosisExecutionRepositoryStartFailure/dark
+--- PASS: TestDiagnosisExecutionRepositoryStartFailure (0.99s)
+    --- PASS: TestDiagnosisExecutionRepositoryStartFailure/light (0.54s)
+    --- PASS: TestDiagnosisExecutionRepositoryStartFailure/dark (0.45s)
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure/light
+=== RUN   TestDiagnosisExecutionRepositoryCompletionFailure/dark
+--- PASS: TestDiagnosisExecutionRepositoryCompletionFailure (0.80s)
+    --- PASS: TestDiagnosisExecutionRepositoryCompletionFailure/light (0.39s)
+    --- PASS: TestDiagnosisExecutionRepositoryCompletionFailure/dark (0.41s)
+=== RUN   TestDiagnosisExecutionObsoleteReadFailureIsQuiet
+--- PASS: TestDiagnosisExecutionObsoleteReadFailureIsQuiet (0.03s)
+PASS
+ok  	floter/internal/shell	1.829s

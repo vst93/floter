@@ -1,0 +1,86 @@
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/light
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/dark
+--- PASS: TestDiagnosisExecutionRejectsRepeatedCheck (6.32s)
+    --- PASS: TestDiagnosisExecutionRejectsRepeatedCheck/light (4.92s)
+    --- PASS: TestDiagnosisExecutionRejectsRepeatedCheck/dark (1.40s)
+=== RUN   TestDiagnosisExecutionLocksCompetingActions
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/light
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/dark
+--- PASS: TestDiagnosisExecutionLocksCompetingActions (3.26s)
+    --- PASS: TestDiagnosisExecutionLocksCompetingActions/light (1.77s)
+    --- PASS: TestDiagnosisExecutionLocksCompetingActions/dark (1.49s)
+=== RUN   TestHealthRefreshRemovedDeclaration
+=== RUN   TestHealthRefreshRemovedDeclaration/light
+=== RUN   TestHealthRefreshRemovedDeclaration/dark
+--- PASS: TestHealthRefreshRemovedDeclaration (1.75s)
+    --- PASS: TestHealthRefreshRemovedDeclaration/light (0.92s)
+    --- PASS: TestHealthRefreshRemovedDeclaration/dark (0.82s)
+=== RUN   TestHealthRefreshInvalidDeclaration
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/light
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/dark
+=== RUN   TestHealthRefreshInvalidDeclaration/identity
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/light
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/dark
+--- PASS: TestHealthRefreshInvalidDeclaration (3.09s)
+    --- PASS: TestHealthRefreshInvalidDeclaration/invalid (1.44s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/invalid/light (0.72s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/invalid/dark (0.72s)
+    --- PASS: TestHealthRefreshInvalidDeclaration/identity (1.65s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/identity/light (0.79s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/identity/dark (0.86s)
+=== RUN   TestHealthRefreshBindingFailure
+=== RUN   TestHealthRefreshBindingFailure/light
+2026/11/08 07:08:18 floter: health re-check of dev.floter.check: extensions: binding-missing: binding-missing:{"path":"/tmp/TestHealthRefreshBindingFailurelight376583358/002/missing-program"}
+=== RUN   TestHealthRefreshBindingFailure/dark
+2026/11/08 07:08:19 floter: health re-check of dev.floter.check: extensions: binding-missing: binding-missing:{"path":"/tmp/TestHealthRefreshBindingFailuredark3964937535/002/missing-program"}
+--- PASS: TestHealthRefreshBindingFailure (1.11s)
+    --- PASS: TestHealthRefreshBindingFailure/light (0.58s)
+    --- PASS: TestHealthRefreshBindingFailure/dark (0.53s)
+=== RUN   TestHealthRefreshRepositoryFailure
+=== RUN   TestHealthRefreshRepositoryFailure/light
+2026/11/08 07:08:19 floter: health re-check of dev.floter.check: extensions: invalid repository /tmp/TestHealthRefreshRepositoryFailurelight879147057/001/extension-repository.json: unexpected end of JSON input
+=== RUN   TestHealthRefreshRepositoryFailure/dark
+2026/11/08 07:08:20 floter: health re-check of dev.floter.check: extensions: invalid repository /tmp/TestHealthRefreshRepositoryFailuredark1415142297/001/extension-repository.json: unexpected end of JSON input
+--- PASS: TestHealthRefreshRepositoryFailure (0.97s)
+    --- PASS: TestHealthRefreshRepositoryFailure/light (0.49s)
+    --- PASS: TestHealthRefreshRepositoryFailure/dark (0.48s)
+=== RUN   TestHealthRefreshWithdrawsFailedCommands
+=== RUN   TestHealthRefreshWithdrawsFailedCommands/light
+=== RUN   TestHealthRefreshWithdrawsFailedCommands/dark
+--- PASS: TestHealthRefreshWithdrawsFailedCommands (0.41s)
+    --- PASS: TestHealthRefreshWithdrawsFailedCommands/light (0.21s)
+    --- PASS: TestHealthRefreshWithdrawsFailedCommands/dark (0.20s)
+=== RUN   TestHealthRefreshRestoresRecoveredCommands
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled/light
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/enabled/dark
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled/light
+=== RUN   TestHealthRefreshRestoresRecoveredCommands/disabled/dark
+--- PASS: TestHealthRefreshRestoresRecoveredCommands (0.95s)
+    --- PASS: TestHealthRefreshRestoresRecoveredCommands/enabled (0.50s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/enabled/light (0.28s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/enabled/dark (0.22s)
+    --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled (0.46s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled/light (0.22s)
+        --- PASS: TestHealthRefreshRestoresRecoveredCommands/disabled/dark (0.23s)
+PASS
+ok  	floter/internal/shell	17.886s
+=== RUN   TestTheRowLockedActionPillTurnsItsCrownOff
+--- PASS: TestTheRowLockedActionPillTurnsItsCrownOff (0.24s)
+=== RUN   TestHealthRefreshRejectsRepeatedPress
+=== RUN   TestHealthRefreshRejectsRepeatedPress/light
+=== RUN   TestHealthRefreshRejectsRepeatedPress/dark
+--- PASS: TestHealthRefreshRejectsRepeatedPress (0.78s)
+    --- PASS: TestHealthRefreshRejectsRepeatedPress/light (0.35s)
+    --- PASS: TestHealthRefreshRejectsRepeatedPress/dark (0.43s)
+=== RUN   TestHealthRefreshLocksCompetingActions
+=== RUN   TestHealthRefreshLocksCompetingActions/light
+=== RUN   TestHealthRefreshLocksCompetingActions/dark
+--- PASS: TestHealthRefreshLocksCompetingActions (1.06s)
+    --- PASS: TestHealthRefreshLocksCompetingActions/light (0.43s)
+    --- PASS: TestHealthRefreshLocksCompetingActions/dark (0.63s)
+PASS
+ok  	floter/internal/settingsui	2.102s

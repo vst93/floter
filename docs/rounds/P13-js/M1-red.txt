@@ -1,0 +1,21 @@
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/light
+    diagnosisbusy_test.go:93: pending diagnosis starts repeatedly: epoch=3
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/dark
+    diagnosisbusy_test.go:93: pending diagnosis starts repeatedly: epoch=3
+--- FAIL: TestDiagnosisExecutionRejectsRepeatedCheck (0.79s)
+    --- FAIL: TestDiagnosisExecutionRejectsRepeatedCheck/light (0.44s)
+    --- FAIL: TestDiagnosisExecutionRejectsRepeatedCheck/dark (0.34s)
+=== RUN   TestDiagnosisExecutionLocksCompetingActions
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/light
+    diagnosisbusy_test.go:80: pending diagnosis permits competing actions: 2
+    diagnosisbusy_test.go:118: settled diagnosis leaves health refresh locked
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/dark
+    diagnosisbusy_test.go:80: pending diagnosis permits competing actions: 2
+    diagnosisbusy_test.go:118: settled diagnosis leaves health refresh locked
+--- FAIL: TestDiagnosisExecutionLocksCompetingActions (0.69s)
+    --- FAIL: TestDiagnosisExecutionLocksCompetingActions/light (0.35s)
+    --- FAIL: TestDiagnosisExecutionLocksCompetingActions/dark (0.35s)
+FAIL
+FAIL	floter/internal/shell	1.486s
+FAIL

@@ -1,0 +1,26 @@
+/home/tar/workspace/floter/internal/shell/shell.go: OK
+/home/tar/workspace/floter/internal/settingsui/settingsui.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisavailability_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisboundary_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisbusy_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosiscommands_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosiscurrent_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosismessage_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisphase_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisreadfailure_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisrecovery_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosissummary_test.go: OK
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/light
+=== RUN   TestDiagnosisExecutionRejectsRepeatedCheck/dark
+--- PASS: TestDiagnosisExecutionRejectsRepeatedCheck (0.71s)
+    --- PASS: TestDiagnosisExecutionRejectsRepeatedCheck/light (0.43s)
+    --- PASS: TestDiagnosisExecutionRejectsRepeatedCheck/dark (0.28s)
+=== RUN   TestDiagnosisExecutionLocksCompetingActions
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/light
+=== RUN   TestDiagnosisExecutionLocksCompetingActions/dark
+--- PASS: TestDiagnosisExecutionLocksCompetingActions (0.63s)
+    --- PASS: TestDiagnosisExecutionLocksCompetingActions/light (0.31s)
+    --- PASS: TestDiagnosisExecutionLocksCompetingActions/dark (0.32s)
+PASS
+ok  	floter/internal/shell	1.346s

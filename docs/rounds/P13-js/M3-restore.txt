@@ -1,0 +1,26 @@
+/home/tar/workspace/floter/internal/shell/shell.go: OK
+/home/tar/workspace/floter/internal/settingsui/settingsui.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisavailability_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisboundary_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisbusy_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosiscommands_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosiscurrent_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosismessage_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisphase_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisreadfailure_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisrecovery_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosissummary_test.go: OK
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands/light
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands/dark
+--- PASS: TestDiagnosisExecutionCompletionDisablesCommands (0.19s)
+    --- PASS: TestDiagnosisExecutionCompletionDisablesCommands/light (0.11s)
+    --- PASS: TestDiagnosisExecutionCompletionDisablesCommands/dark (0.08s)
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands/light
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands/dark
+--- PASS: TestDiagnosisExecutionCompletionEnablesCommands (0.20s)
+    --- PASS: TestDiagnosisExecutionCompletionEnablesCommands/light (0.12s)
+    --- PASS: TestDiagnosisExecutionCompletionEnablesCommands/dark (0.08s)
+PASS
+ok  	floter/internal/shell	0.399s

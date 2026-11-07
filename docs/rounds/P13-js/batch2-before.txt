@@ -1,0 +1,31 @@
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands/light
+    diagnosiscommands_test.go:92: diagnosis lifecycle-failure leaves launcher commands stale: got=1 want=0
+    diagnosiscommands_test.go:92: diagnosis lifecycle-failure and visible search results disagree: want=0
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands/dark
+    diagnosiscommands_test.go:92: diagnosis lifecycle-failure leaves launcher commands stale: got=1 want=0
+    diagnosiscommands_test.go:92: diagnosis lifecycle-failure and visible search results disagree: want=0
+--- FAIL: TestDiagnosisExecutionWithdrawsFailedCommands (0.94s)
+    --- FAIL: TestDiagnosisExecutionWithdrawsFailedCommands/light (0.63s)
+    --- FAIL: TestDiagnosisExecutionWithdrawsFailedCommands/dark (0.30s)
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled/light
+    diagnosiscommands_test.go:92: diagnosis lifecycle-recovery leaves launcher commands stale: got=0 want=1
+    diagnosiscommands_test.go:92: diagnosis lifecycle-recovery and visible search results disagree: want=1
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled/dark
+    diagnosiscommands_test.go:92: diagnosis lifecycle-recovery leaves launcher commands stale: got=0 want=1
+    diagnosiscommands_test.go:92: diagnosis lifecycle-recovery and visible search results disagree: want=1
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled/light
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled/dark
+--- FAIL: TestDiagnosisExecutionRestoresRecoveredCommands (1.53s)
+    --- FAIL: TestDiagnosisExecutionRestoresRecoveredCommands/enabled (0.79s)
+        --- FAIL: TestDiagnosisExecutionRestoresRecoveredCommands/enabled/light (0.40s)
+        --- FAIL: TestDiagnosisExecutionRestoresRecoveredCommands/enabled/dark (0.39s)
+    --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled (0.73s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled/light (0.37s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled/dark (0.36s)
+FAIL
+FAIL	floter/internal/shell	2.477s
+FAIL

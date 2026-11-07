@@ -1,0 +1,23 @@
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands/light
+    diagnosisavailability_test.go:39: diagnosis completion-disable leaves launcher commands stale: got=1 want=0
+    diagnosisavailability_test.go:39: diagnosis completion-disable and visible search results disagree: want=0
+=== RUN   TestDiagnosisExecutionCompletionDisablesCommands/dark
+    diagnosisavailability_test.go:39: diagnosis completion-disable leaves launcher commands stale: got=1 want=0
+    diagnosisavailability_test.go:39: diagnosis completion-disable and visible search results disagree: want=0
+--- FAIL: TestDiagnosisExecutionCompletionDisablesCommands (0.60s)
+    --- FAIL: TestDiagnosisExecutionCompletionDisablesCommands/light (0.39s)
+    --- FAIL: TestDiagnosisExecutionCompletionDisablesCommands/dark (0.21s)
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands/light
+    diagnosisavailability_test.go:39: diagnosis completion-enable leaves launcher commands stale: got=0 want=1
+    diagnosisavailability_test.go:39: diagnosis completion-enable and visible search results disagree: want=1
+=== RUN   TestDiagnosisExecutionCompletionEnablesCommands/dark
+    diagnosisavailability_test.go:39: diagnosis completion-enable leaves launcher commands stale: got=0 want=1
+    diagnosisavailability_test.go:39: diagnosis completion-enable and visible search results disagree: want=1
+--- FAIL: TestDiagnosisExecutionCompletionEnablesCommands (0.39s)
+    --- FAIL: TestDiagnosisExecutionCompletionEnablesCommands/light (0.20s)
+    --- FAIL: TestDiagnosisExecutionCompletionEnablesCommands/dark (0.19s)
+FAIL
+FAIL	floter/internal/shell	0.999s
+FAIL

@@ -1,0 +1,12 @@
+6f9faffa627829a8e9fcbe8530723900  /home/tar/workspace/floter/internal/shell/shell.go
+bf267a1bec4fa213c76646c9ecaccd53  /home/tar/workspace/floter/internal/settingsui/settingsui.go
+5285980d177fa5be412576f5316cfd15  /home/tar/workspace/floter/internal/shell/diagnosisavailability_test.go
+b22fe54e16cb9a2f01ec958e38b77417  /home/tar/workspace/floter/internal/shell/diagnosisboundary_test.go
+b40dd7025d6a724e6a9ee3701433365b  /home/tar/workspace/floter/internal/shell/diagnosisbusy_test.go
+7eb3f4e5386bb38c55bf70b65bc78825  /home/tar/workspace/floter/internal/shell/diagnosiscommands_test.go
+d706b5e32ebdc9dcdf73805cb539df8b  /home/tar/workspace/floter/internal/shell/diagnosiscurrent_test.go
+578f5870c9593ae8286f804ca42e5a37  /home/tar/workspace/floter/internal/shell/diagnosismessage_test.go
+8095de9f8ea41ac813b75153aaaf0960  /home/tar/workspace/floter/internal/shell/diagnosisphase_test.go
+16e61c5df115fee832e4dfe3e2d83103  /home/tar/workspace/floter/internal/shell/diagnosisreadfailure_test.go
+e16d0c7830cd51351b4d86e4ec90620b  /home/tar/workspace/floter/internal/shell/diagnosisrecovery_test.go
+09c82c0260d72a15d0972900e3a33ad9  /home/tar/workspace/floter/internal/shell/diagnosissummary_test.go

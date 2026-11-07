@@ -1,0 +1,30 @@
+[
+  {
+    "group": "M1",
+    "red_exit": 1,
+    "restored_exit": 0,
+    "restored_pass": 6,
+    "md5_files": 12
+  },
+  {
+    "group": "M2",
+    "red_exit": 1,
+    "restored_exit": 0,
+    "restored_pass": 10,
+    "md5_files": 12
+  },
+  {
+    "group": "M3",
+    "red_exit": 1,
+    "restored_exit": 0,
+    "restored_pass": 6,
+    "md5_files": 12
+  },
+  {
+    "group": "M4",
+    "red_exit": 1,
+    "restored_exit": 0,
+    "restored_pass": 7,
+    "md5_files": 12
+  }
+]

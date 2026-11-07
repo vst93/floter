@@ -1,0 +1,34 @@
+/home/tar/workspace/floter/internal/shell/shell.go: OK
+/home/tar/workspace/floter/internal/settingsui/settingsui.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisavailability_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisboundary_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisbusy_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosiscommands_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosiscurrent_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosismessage_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisphase_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisreadfailure_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosisrecovery_test.go: OK
+/home/tar/workspace/floter/internal/shell/diagnosissummary_test.go: OK
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands/light
+=== RUN   TestDiagnosisExecutionWithdrawsFailedCommands/dark
+--- PASS: TestDiagnosisExecutionWithdrawsFailedCommands (0.29s)
+    --- PASS: TestDiagnosisExecutionWithdrawsFailedCommands/light (0.16s)
+    --- PASS: TestDiagnosisExecutionWithdrawsFailedCommands/dark (0.13s)
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled/light
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/enabled/dark
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled/light
+=== RUN   TestDiagnosisExecutionRestoresRecoveredCommands/disabled/dark
+--- PASS: TestDiagnosisExecutionRestoresRecoveredCommands (0.65s)
+    --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/enabled (0.35s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/enabled/light (0.20s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/enabled/dark (0.16s)
+    --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled (0.30s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled/light (0.15s)
+        --- PASS: TestDiagnosisExecutionRestoresRecoveredCommands/disabled/dark (0.15s)
+PASS
+ok  	floter/internal/shell	0.947s
