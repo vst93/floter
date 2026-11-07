@@ -21,7 +21,9 @@
 
 每两项相关测试/vet通过后提交推送。完整门槛一轮一次：gofmt -l cmd internal；linux/windows/darwin go vet ./...；go test -count=1 ./...；go test -count=1 -v ./...计PASS；三平台go build ./...。所有视觉测试与图像使用LC_ALL=zh_CN.UTF-8。开盘全量正在实跑，结果补入报告，不抄旧数字。
 
-mutation：M1撤回检查忙态/行锁，重复与竞争次数变红；M2生命周期刷新退回Store-only，失败/恢复搜索结果红；M3完成刷新退回Store-only，启停搜索结果红；M4撤回读取错误出口，通知与旧提供者调用红。每组实跑、MD5还原、touch复验。
+开盘实测5872 PASS / 0 FAIL，3361测试函数，退出0。
+
+mutation：M1撤回检查开始忙态，重复与竞争次数变红；M2生命周期刷新退回Store-only，失败/恢复搜索结果红；M3完成刷新退回Store-only，启停搜索结果红；M4撤回读取错误出口，通知与旧提供者调用红。每组实跑、MD5还原、touch复验。
 
 ## 工艺依据
 

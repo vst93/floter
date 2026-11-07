@@ -47,3 +47,18 @@ done.log开盘不存在；收尾创建指定目录和记录。完整基线运行
 改前实红：`diagnosis completion-disable leaves launcher commands stale: got=1 want=0`、`diagnosis completion-enable leaves launcher commands stale: got=0 want=1`；不是重复第二批的生命周期变化，而是提供者等待期间外部启停记录刷新。
 
 第三批相关 **76 PASS / 0 FAIL**、shell/settingsui vet退出0，旧V/B/S修改0/0/0。
+
+第三批677cccd8。
+
+## 第四批：读取失败有结束反馈
+
+7. 现象：生命周期开始读取仓库失败，仍执行旧提供者；最终没有失败通知。改动：读取失败刷新当前事实后沿既有错误通知结束，不继续无法确认归属的提供者。验证：真实损坏JSON、Click事件、提供者started文件不存在、error toast存在；修复文件后原Check可重试。
+8. 现象：提供者等待期间仓库损坏，完成时无当前归属，静默丢弃结果。改动：读取失败与“归属被替代”分开处理，当前请求使用既有失败通知；epoch过期保持安静。验证：release门控后error toast、忙态退出、恢复文件后成功；另加旧epoch反例。
+
+改前实红：`unreadable repository still launches the old provider`、`diagnosis repository-start read failure is silent`、`diagnosis repository-completion read failure is silent`。两个深浅场景均已保存原实现before帧。
+
+第四批首次回归141 PASS并失败：新测试在Frame消费toast队列后才读queuedToast，报告为空，但实图已经显示错误通知。修正新夹具为绘制前读取Type/Title、绘制后再断言真实文本可见；未改旧B断言，也未删失败条件。原始失败日志保留，修正后需重新实跑变异以证明断言能挡住缺陷。
+
+第二次144 PASS仍有启动阶段夹具红：无窗口Tester允许快速失败在启动操作的同一Frame被消费。把真实Click的目标派发与后台执行按真实窗口Update队列顺序串行，仍断言准确ID、后台结果Type/Title及画面文本；没有用sleep等待或弱化断言。两次新夹具失败日志均保留，产品代码无需为此改动。
+
+第四批修正后相关 **147 PASS / 0 FAIL**、shell/settingsui vet退出0；旧V/B/S修改0/0/0。前两项新测试一并使用串行Click派发夹具，真实事件仍在、重复epoch/竞争调用断言不变。第四批提交包含八项的32张原始PNG和深浅局部对照；正式mutation与完整门槛随后进行。

@@ -25,6 +25,25 @@ func dumpDiagnosisExecution(t *testing.T, tt *ui.Tester, scenario string, dark b
 	}
 }
 
+// Serialize UI dispatch and background work like a real window's Update queue.
+// A windowless Tester otherwise allows a fast failure to render and consume
+// its toast in the same Frame that launched the goroutine.
+func dispatchDiagnosisClick(t *testing.T, f *diagnosisFixture, tt *ui.Tester) {
+	t.Helper()
+	run := f.a.Settings.Actions.DiagnoseIntegration
+	target := ""
+	f.a.Settings.Actions.DiagnoseIntegration = func(id string) { target = id }
+	if err := tt.Click(i18n.For("zh").Settings.IntegrationsCheck); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	f.a.Settings.Actions.DiagnoseIntegration = run
+	if target != f.entry.ID {
+		t.Fatalf("Check dispatched to %q, want %q", target, f.entry.ID)
+	}
+	run(target)
+}
+
 func checkDiagnosisBusy(t *testing.T, competing bool) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {
@@ -41,10 +60,7 @@ func checkDiagnosisBusy(t *testing.T, competing bool) {
 			copy := i18n.For("zh").Settings
 			settled := make(chan struct{}, 8)
 			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
-			if err := tt.Click(copy.IntegrationsCheck); err != nil {
-				t.Fatal(err)
-			}
-			tt.Frame()
+			dispatchDiagnosisClick(t, f, tt)
 			f.waitStarted(t, 0)
 			calls := 0
 			scenario := "repeat"

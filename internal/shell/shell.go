@@ -2014,6 +2014,22 @@ func (a *App) rememberDiagnosis(integration extensions.Integration, epoch uint64
 	return true
 }
 
+// A repository read failure is an operation failure, not an obsolete result.
+// There is no current owner to publish a diagnosis onto, but the latest check
+// still owes the user a completion. Older checks cannot replace that feedback.
+func (a *App) diagnosisReadFailed(integration extensions.Integration, epoch uint64) bool {
+	if a.Integrations.Inventory().RepositoryErr == nil {
+		return false
+	}
+	a.diagnosisMu.Lock()
+	current := a.diagnosisEpochs[integration.Entry.ID] == epoch
+	a.diagnosisMu.Unlock()
+	if current {
+		a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationCheckFailed(integration.Name) })
+	}
+	return true
+}
+
 func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch uint64) {
 	id := integration.Entry.ID
 	result := settingsui.Integration{Diagnosis: "ok"}
@@ -2036,6 +2052,10 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 			return
 		case err != nil:
 			result.Diagnosis, result.DiagnosisFailed = err.Error(), true
+			a.RefreshIntegrations(context.Background())
+			if a.diagnosisReadFailed(integration, epoch) {
+				return
+			}
 		default:
 			result.Diagnosis, result.DiagnosisFailed = report.Status, report.Status != extensions.HealthHealthy && report.Status != extensions.HealthDegraded
 			// The next provider operation may take seconds. Show the report
@@ -2118,6 +2138,9 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 	// The provider can run while the on-disk declaration changes, even when
 	// there are no lifecycle probes. Publish only against freshly read facts.
 	a.RefreshIntegrations(context.Background())
+	if a.diagnosisReadFailed(integration, epoch) {
+		return
+	}
 	if !a.rememberDiagnosis(integration, epoch, result) {
 		return
 	}
