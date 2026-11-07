@@ -1,0 +1,19 @@
+=== RUN   TestCustomConflictRefreshFollowsItsBinding
+=== RUN   TestCustomConflictRefreshFollowsItsBinding/light
+    customconflictrefresh_test.go:45: conflict followed row index instead of binding: row=1
+=== RUN   TestCustomConflictRefreshFollowsItsBinding/dark
+    customconflictrefresh_test.go:45: conflict followed row index instead of binding: row=1
+--- FAIL: TestCustomConflictRefreshFollowsItsBinding (0.59s)
+    --- FAIL: TestCustomConflictRefreshFollowsItsBinding/light (0.26s)
+    --- FAIL: TestCustomConflictRefreshFollowsItsBinding/dark (0.33s)
+=== RUN   TestCustomConflictRefreshRetiresMissingBinding
+=== RUN   TestCustomConflictRefreshRetiresMissingBinding/light
+    customconflictrefresh_test.go:41: missing binding left a conflict on its neighbor
+=== RUN   TestCustomConflictRefreshRetiresMissingBinding/dark
+    customconflictrefresh_test.go:41: missing binding left a conflict on its neighbor
+--- FAIL: TestCustomConflictRefreshRetiresMissingBinding (0.40s)
+    --- FAIL: TestCustomConflictRefreshRetiresMissingBinding/light (0.11s)
+    --- FAIL: TestCustomConflictRefreshRetiresMissingBinding/dark (0.29s)
+FAIL
+FAIL	floter/internal/settingsui	1.005s
+FAIL

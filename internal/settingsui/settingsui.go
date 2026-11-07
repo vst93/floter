@@ -1031,6 +1031,7 @@ type App struct {
 	// not register with the system. Both hang under the row that holds the key.
 	customDuplicate    string
 	customDuplicateRow int
+	customDuplicateKey string // binding whose recording was refused
 	customRejections   []CustomShortcutRejection
 	// customEdits holds a saved row's command line while it is being typed in
 	// place, keyed by the binding. The reference kept the same draft on the row

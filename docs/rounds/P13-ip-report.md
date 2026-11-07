@@ -34,3 +34,10 @@ SHA 与上轮及 backlog 一致，无新增 stale-kill。逐条 reverse-check �
 4. 现象：录制目标被宿主移除后，下一条仍显示录制态并接受新键。改动：目标 key 不再存在即退役录制状态。验证：深浅事件中原两条与草稿都不改变，录制提示消失。
 
 相关 **34 PASS / 0 FAIL**，包 vet 净；M2 回注上一产品实红：`reordered recorder targets row 1, want 0`、`recorded key reached wrong binding`、`missing binding left a recorder on its neighbor`。MD5 恢复并 touch 后 **6 PASS**。最初新夹具 Tab 到第三条，已改为从命令框反向三次 Tab 确认第二条，再取真实产品失败；不使用夹具失败计修复。
+
+### 第三批
+
+5. 现象：录制重复键产生冲突后，宿主交换绑定，提示跟随旧行号落到另一条。改动：冲突保留绑定 key，刷新时重新定位。验证：真实录入 Ctrl+Shift+A 制造冲突，再重排，原对象仍有冲突、相邻对象无提示。
+6. 现象：冲突所属绑定被宿主移除后，相邻行仍显示冲突。改动：冲突目标不再存在即退役。验证：深浅真实重复键与移除事件，提示及 customDuplicate 均清空，其他绑定未改。
+
+相关 **40 PASS / 0 FAIL**、包 vet 净；M3 回注旧产品实红：`conflict followed row index instead of binding: row=1`、`missing binding left a conflict on its neighbor`。MD5 恢复、touch 后 **6 PASS**。旧 V/B/S 0/0/0。

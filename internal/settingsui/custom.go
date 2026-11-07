@@ -36,6 +36,17 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	} else {
 		a.customRecordKey = ""
 	}
+	if a.customDuplicate != "" && a.customDuplicateRow >= 0 {
+		if a.customDuplicateKey == "" && a.customDuplicateRow < len(entries) {
+			a.customDuplicateKey = entries[a.customDuplicateRow].Key
+		}
+		a.customDuplicateRow = customBindingIndex(entries, a.customDuplicateKey)
+		if a.customDuplicateRow < 0 {
+			a.customDuplicate, a.customDuplicateKey = "", ""
+		}
+	} else {
+		a.customDuplicateKey = ""
+	}
 	for _, entry := range entries {
 		// An external action change can unmount the command editor too.
 		if strings.HasPrefix(entry.Action, "plugin:") || strings.HasPrefix(entry.Action, "action:") {
@@ -175,6 +186,7 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 	}
 	if shortcuts.Duplicate(accelerator, keys, a.customRecordRow) != "" {
 		a.customDuplicate, a.customDuplicateRow = accelerator, a.customRecordRow
+		a.customDuplicateKey = entries[a.customRecordRow].Key
 		return
 	}
 	a.customDuplicate = ""
