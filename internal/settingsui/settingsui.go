@@ -3095,6 +3095,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				if runWasOpen && !a.runOpen[integration.ID] {
 					run.Focus()
 				}
+				if len(integration.Params) == 0 {
+					a.restoreNotice(c, integration.ID, "run", false, run)
+				}
 				if run.Clicked() && runnable {
 					if len(integration.Params) > 0 {
 						if a.runOpen == nil {
@@ -7420,6 +7423,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	// box, `extensions.css:1224-1236`, sits inside the row's own padding).
 	inset := a.rowInset(theme)
 	form := ui.Column(c.Key("settings.runform."+integration.ID)).FillWidth().Padding(0, inset, 0, inset)
+	a.rememberOperationFocus(c, integration.ID, "run", form)
+	fieldFocus := ui.Local(form, "focused-parameter", func() ui.Handle { return ui.Handle{} })
+	hadFieldFocus := fieldFocus.FocusWithin(c)
 	form.Children(func() {
 		// The form's own frame: the heading and hint the reference drew above the
 		// inputs (`RunParamForm.tsx`: `.extension-run-params__head` +
@@ -7446,6 +7452,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					control.Bind(&focus.control)
 					if refocus && !locked {
 						control.Focus()
+					}
+					if control.FocusWithin() {
+						control.Bind(fieldFocus)
 					}
 				}
 				label := param.Label
@@ -7540,7 +7549,11 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			// `customRunCancel`). The answers stay in `runValues`, so reopening the
 			// form keeps the user's in-progress edits — the reference's
 			// `runParamMemory`, session memory seeded only on a fresh open.
-			if a.actionButton(c, copy.RunCancel).Clicked() {
+			cancel := a.actionButton(c, copy.RunCancel)
+			if hadFieldFocus && !c.Resolve(*fieldFocus).Valid() {
+				cancel.Focus()
+			}
+			if cancel.Clicked() {
 				a.runOpen[integration.ID] = false
 				delete(a.runError, integration.ID)
 			}

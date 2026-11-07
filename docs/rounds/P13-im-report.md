@@ -27,3 +27,10 @@
 2. 现象：聚焦 two 被撤回后 Space 误选邻居 three。改动：语义身份接活已有分段组退出机制。验证：Space 不改变保留答案，Tab 回当前选项后可继续用方向键选择。
 
 定向实测 **95 PASS / 0 FAIL**，settingsui/control vet 净。M1 换回未传语义 key 的产品路径后 6 FAIL（4 个深浅叶子），原串 `reordered choice focus moved to another value`、`withdrawn choice activated its replacement`。源码 MD5 一致、touch 后复验 **6 PASS**。旧 V/B/S 断言修改 0/0/0，新增 Skip 0。
+
+## 第二批（3–4）
+
+3. 现象：当前文字参数撤回后，焦点落空，Enter 无法退出表单。改动：表单记录自己的持焦字段，字段退场时回现有 Cancel。验证：参数删除后 Cancel 持焦，Enter 折叠；存活字段答案仍为 kept。
+4. 现象：全部参数撤回后表单消失，原输入的焦点未回运行入口。改动：记录运行表单的焦点归属，空表单退场时回当前卡片的 Run。验证：刷新不运行、不清会话答案；Enter 才执行无参数运行一次。
+
+定向 **75 PASS / 0 FAIL**，包 vet 净。M2 换回本批之前的产品代码实跑 6 FAIL，原串 `withdrawn parameter lost Cancel keyboard exit`、`empty form lost Run keyboard exit`；MD5 恢复、touch 后 **6 PASS**。V/B/S 0/0/0。
