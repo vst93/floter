@@ -48,3 +48,12 @@ M1 删除注册回滚，两个 pin 实红；原串 `failed add left uncommitted 
 6. 现象：内置插件开关写失败静默跳回，用户不知道是否生效。改动：接上同一既有保存提示面，仍从 Store 读回确认状态。验证：深浅 Tab/Space，旧开关值保留、提示可见，文件恢复后第二次操作成功。
 
 M3 反转“本次确有写入”条件，录制/恢复/插件三组事件 9 FAIL，MD5 OK + touch 后 9 PASS；原串 `reset write failure has no visible recovery feedback`、`plugin write failure has no visible recovery feedback`。旧 V/B/S 0/0/0，定向计数见 batch3。
+
+第三批 `571ae9ad` 已推送，17 PASS。
+
+## 第四批（7–8）
+
+7. 现象：集成命令开关保存失败静默跳回。改动：同步宿主写入接入已有错误面，原开关/运行状态由确认值驱动。验证：深浅真实 Tab/Space 拒写显示提示，旧值不变，恢复磁盘后可重试。
+8. 现象：别名写失败后无变化的 Commit 返回 nil；多别名中后一条成功还会清 Store.LastError，前一条失败被吞掉。改动：逐次回调完成就记住该次失败。验证：真实输入，179ms 不写、180ms 单次写；首条失败/次条成功仍显示错误，分别持有正确的已存值，恢复后 Flush 可重试。
+
+M4 回退逐次别名错误观测，5 FAIL；原串 `alias-single lost the failed alias write behind a later commit` / `alias-mixed lost the failed alias write behind a later commit`。MD5 OK + touch 后 5 PASS。额外保护：无新写入与 OS 拒绝均不会重放旧磁盘错误。旧 V/B/S 0/0/0；相关计数见 batch4。

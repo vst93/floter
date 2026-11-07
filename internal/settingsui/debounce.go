@@ -83,7 +83,7 @@ func (a *App) flushSettingsWrites() {
 		for _, key := range keys {
 			edit := edits[key]
 			if a.Actions.SetCommandAlias != nil {
-				a.Actions.SetCommandAlias(edit.extensionID, edit.commandID, edit.alias)
+				a.observeSettingsWrite(func() { a.Actions.SetCommandAlias(edit.extensionID, edit.commandID, edit.alias) })
 			}
 		}
 	}

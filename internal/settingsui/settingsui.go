@@ -3651,7 +3651,7 @@ func (a *App) commandIdentity(c *ui.Context, copy i18n.Settings, extensionID str
 		}
 	})
 	if toggled && a.Actions.SetCommandEnabled != nil {
-		a.Actions.SetCommandEnabled(extensionID, command.ID, on)
+		a.observeSettingsWrite(func() { a.Actions.SetCommandEnabled(extensionID, command.ID, on) })
 	}
 }
 
