@@ -32,3 +32,10 @@
 4. 现象：诊断后由中文切英文，健康标签仍为“健康”。改动：同一投影只用当前语言，诊断不再拥有健康译文。验证：Store.Update触发实际语言切换，修前 `diagnosis health kept previous language: "健康" want "Healthy"`；修后Healthy可见。
 
 第二批相关14 PASS / 0 FAIL，shell vet退出0，旧V/B/S 0/0/0。首轮目检浅色完整图：两个检查项已进入原有54px状态列与消息列，成功项不再消失；没有额外卡片或阴影。
+
+第二批89107bb7已推送。全量基线日志完成：5702 PASS / 0 FAIL，起点3319测试函数。
+
+5. 现象：同ID的工具换包后，新包卡片继续显示旧包诊断。改动：结果记录包路径、程序、版本与声明身份；显示前不匹配则退役。验证：真实包路径变更与Store.Refresh，修前 `owner-package: current tool inherited another declaration's diagnosis`；修后旧检查撤下，新包再检查能显示自己的结果。
+6. 现象：检查已启动，提供者声明在等待期间变化，旧进程晚到仍污染当前诊断。改动：写回前核对当前声明，失效结果不发布。验证：真实子进程启动标记/释放门、声明写盘刷新、完整worker完成等待；修前 `owner-pending: current tool inherited another declaration's diagnosis`，修后旧结果被拒且新检查可用。
+
+第三批相关20 PASS / 0 FAIL，shell vet退出0。把原异步闭包提为同一worker以便测试等待完整完成，公共动作仍异步；没有改诊断协议、超时或持久健康写回。命令重探测的失败也携带来源，兼容原有共用诊断出口。旧V/B/S 0/0/0。

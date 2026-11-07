@@ -369,8 +369,9 @@ type App struct {
 	chooseTool func(name string, candidates []extensions.ExecutableCandidate) (string, bool)
 	// diagnoses is the last health check per integration, and diagnosisMu
 	// guards it: a check runs off the main thread.
-	diagnoses   map[string]settingsui.Integration
-	diagnosisMu sync.Mutex
+	diagnoses        map[string]settingsui.Integration
+	diagnosisMu      sync.Mutex
+	diagnosisSources map[string]string
 
 	// pins are the pinned-output windows, and openPinned replaces them in
 	// tests.
@@ -1845,10 +1846,15 @@ func (a *App) integrationList() []settingsui.Integration {
 		applyIntegrationConfig(a.Integrations, a.Paths, &item, integration, configs[integration.Entry.ID])
 		a.diagnosisMu.Lock()
 		if diagnosis, ok := a.diagnoses[item.ID]; ok {
-			item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
-			item.DiagnosisStatus, item.DiagnosisChecks = diagnosis.DiagnosisStatus, diagnosis.DiagnosisChecks
-			// Health is projected from the current report above, in the current
-			// language. A provider diagnosis does not own that persisted fact.
+			if a.diagnosisSources[item.ID] != integrationDiagnosisSource(integration) {
+				delete(a.diagnoses, item.ID)
+				delete(a.diagnosisSources, item.ID)
+			} else {
+				item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
+				item.DiagnosisStatus, item.DiagnosisChecks = diagnosis.DiagnosisStatus, diagnosis.DiagnosisChecks
+				// Health is projected from the current report above, in the current
+				// language. A provider diagnosis does not own that persisted fact.
+			}
 		}
 		a.diagnosisMu.Unlock()
 		out = append(out, item)
@@ -1937,109 +1943,134 @@ func (a *App) reprobeHealth(id string) {
 // diagnoseIntegration asks a provider to check itself, off the main thread,
 // and remembers what it said for the list.
 func (a *App) diagnoseIntegration(id string) {
-	go func() {
-		integration, ok := a.Integrations.Inventory().WithID(id)
-		if !ok {
-			return
-		}
-		result := settingsui.Integration{Diagnosis: "ok"}
-		// The lifecycle probes run first: they are the tool's own health
-		// check, and a required failure marks the integration broken. The
-		// diagnose protocol runs after it, when the integration is still
-		// usable.
-		if len(integration.Manifest.Lifecycle.Probes) > 0 {
-			report, err := extensions.Reprobe(context.Background(), a.Paths, id)
-			switch {
-			case errors.Is(err, extensions.ErrNoProbes):
-			case err != nil:
-				result.Diagnosis, result.DiagnosisFailed = err.Error(), true
-			default:
-				result.Diagnosis, result.DiagnosisFailed = report.Status, report.Status != extensions.HealthHealthy && report.Status != extensions.HealthDegraded
-				a.diagnosisMu.Lock()
-				if a.diagnoses == nil {
-					a.diagnoses = map[string]settingsui.Integration{}
-				}
-				a.diagnoses[id] = result
-				a.diagnosisMu.Unlock()
-				a.onMain(func() {
-					if a.Win != nil {
-						a.Win.Invalidate()
-					}
-				})
-			}
-		}
-		diagnosis, err := extensions.Diagnose(context.Background(), integration)
+	integration, ok := a.Integrations.Inventory().WithID(id)
+	if !ok {
+		return
+	}
+	go a.runIntegrationDiagnosis(integration)
+}
+
+// A diagnosis belongs to the declaration and executable it actually checked.
+// Health reports are deliberately excluded: the check itself can refresh them.
+func integrationDiagnosisSource(integration extensions.Integration) string {
+	data, _ := json.Marshal([]any{integration.Entry.ManifestPath,
+		integration.Entry.ExecutablePath, integration.Entry.PackageVersion,
+		integration.Manifest, integration.ManifestErr != nil})
+	return string(data)
+}
+
+func (a *App) rememberDiagnosis(integration extensions.Integration, result settingsui.Integration) bool {
+	id := integration.Entry.ID
+	source := integrationDiagnosisSource(integration)
+	current, ok := a.Integrations.Inventory().WithID(id)
+	if !ok || integrationDiagnosisSource(current) != source {
+		return false
+	}
+	a.diagnosisMu.Lock()
+	defer a.diagnosisMu.Unlock()
+	if a.diagnoses == nil {
+		a.diagnoses = map[string]settingsui.Integration{}
+	}
+	if a.diagnosisSources == nil {
+		a.diagnosisSources = map[string]string{}
+	}
+	a.diagnoses[id], a.diagnosisSources[id] = result, source
+	return true
+}
+
+func (a *App) runIntegrationDiagnosis(integration extensions.Integration) {
+	id := integration.Entry.ID
+	result := settingsui.Integration{Diagnosis: "ok"}
+	// The lifecycle probes run first: they are the tool's own health
+	// check, and a required failure marks the integration broken. The
+	// diagnose protocol runs after it, when the integration is still
+	// usable.
+	if len(integration.Manifest.Lifecycle.Probes) > 0 {
+		report, err := extensions.Reprobe(context.Background(), a.Paths, id)
 		switch {
+		case errors.Is(err, extensions.ErrNoProbes):
 		case err != nil:
 			result.Diagnosis, result.DiagnosisFailed = err.Error(), true
 		default:
-			// The provider's own checks are kept fact by fact: the reference's
-			// `.extension-diagnostics` grid prints one row per check and the
-			// provider's own verdict above them
-			// (`ExtensionsPanel.tsx:2895-2901`). The summary string below is the
-			// fallback a grid-less reader sees, not the whole story.
-			result.DiagnosisStatus = diagnosis.Status
-			result.DiagnosisChecks = diagnosisChecks(diagnosis)
-			var problems []string
-			for _, check := range diagnosis.Checks {
-				if check.Status != "ok" {
-					message := check.Message
-					if message == "" {
-						message = check.ID
-					}
-					problems = append(problems, message)
-				}
+			result.Diagnosis, result.DiagnosisFailed = report.Status, report.Status != extensions.HealthHealthy && report.Status != extensions.HealthDegraded
+			if !a.rememberDiagnosis(integration, result) {
+				return
 			}
-			if diagnosis.Status != "" && diagnosis.Status != "ok" || len(problems) > 0 {
-				result.DiagnosisFailed = true
-				result.Diagnosis = strings.Join(problems, "; ")
-				if result.Diagnosis == "" {
-					result.Diagnosis = diagnosis.Status
+			a.onMain(func() {
+				if a.Win != nil {
+					a.Win.Invalidate()
 				}
-			} else if diagnosis.Status != "" {
+			})
+		}
+	}
+	diagnosis, err := extensions.Diagnose(context.Background(), integration)
+	switch {
+	case err != nil:
+		result.Diagnosis, result.DiagnosisFailed = err.Error(), true
+	default:
+		// The provider's own checks are kept fact by fact: the reference's
+		// `.extension-diagnostics` grid prints one row per check and the
+		// provider's own verdict above them
+		// (`ExtensionsPanel.tsx:2895-2901`). The summary string below is the
+		// fallback a grid-less reader sees, not the whole story.
+		result.DiagnosisStatus = diagnosis.Status
+		result.DiagnosisChecks = diagnosisChecks(diagnosis)
+		var problems []string
+		for _, check := range diagnosis.Checks {
+			if check.Status != "ok" {
+				message := check.Message
+				if message == "" {
+					message = check.ID
+				}
+				problems = append(problems, message)
+			}
+		}
+		if diagnosis.Status != "" && diagnosis.Status != "ok" || len(problems) > 0 {
+			result.DiagnosisFailed = true
+			result.Diagnosis = strings.Join(problems, "; ")
+			if result.Diagnosis == "" {
 				result.Diagnosis = diagnosis.Status
-			} else {
-				result.Diagnosis = "ok"
 			}
+		} else if diagnosis.Status != "" {
+			result.Diagnosis = diagnosis.Status
+		} else {
+			result.Diagnosis = "ok"
 		}
-		// The stored lifecycle health survives across runs, so a row shows how
-		// the tool was last found to be even before a check runs.
-		if report := integration.Entry.ProbeReport; report != nil && report.Status != "" {
-			copy := i18n.For(a.Store.Snapshot().Language).Settings
-			result.HealthStatus = report.Status
-			switch report.Status {
-			case extensions.HealthHealthy:
-				result.Health = copy.IntegrationsHealthy
-			case extensions.HealthDegraded:
-				result.Health = copy.IntegrationsDegraded
-			case extensions.HealthUnhealthy:
-				result.Health = copy.IntegrationsUnhealthy
-			}
+	}
+	// The stored lifecycle health survives across runs, so a row shows how
+	// the tool was last found to be even before a check runs.
+	if report := integration.Entry.ProbeReport; report != nil && report.Status != "" {
+		copy := i18n.For(a.Store.Snapshot().Language).Settings
+		result.HealthStatus = report.Status
+		switch report.Status {
+		case extensions.HealthHealthy:
+			result.Health = copy.IntegrationsHealthy
+		case extensions.HealthDegraded:
+			result.Health = copy.IntegrationsDegraded
+		case extensions.HealthUnhealthy:
+			result.Health = copy.IntegrationsUnhealthy
 		}
-		a.diagnosisMu.Lock()
-		if a.diagnoses == nil {
-			a.diagnoses = map[string]settingsui.Integration{}
+	}
+	if !a.rememberDiagnosis(integration, result) {
+		return
+	}
+	a.notifyCompletion(func(c i18n.Notifications) string {
+		if result.DiagnosisFailed {
+			return c.IntegrationCheckFailed(integration.Name)
 		}
-		a.diagnoses[id] = result
-		a.diagnosisMu.Unlock()
-		a.notifyCompletion(func(c i18n.Notifications) string {
-			if result.DiagnosisFailed {
-				return c.IntegrationCheckFailed(integration.Name)
-			}
-			return c.IntegrationChecked(integration.Name)
-		})
-		// The probes may have written a report (and marked the integration
-		// broken): the list is re-read from the repository, so the row shows
-		// it.
-		if len(integration.Manifest.Lifecycle.Probes) > 0 {
-			a.Integrations.Refresh(context.Background())
+		return c.IntegrationChecked(integration.Name)
+	})
+	// The probes may have written a report (and marked the integration
+	// broken): the list is re-read from the repository, so the row shows
+	// it.
+	if len(integration.Manifest.Lifecycle.Probes) > 0 {
+		a.Integrations.Refresh(context.Background())
+	}
+	a.onMain(func() {
+		if a.Win != nil {
+			a.Win.Invalidate()
 		}
-		a.onMain(func() {
-			if a.Win != nil {
-				a.Win.Invalidate()
-			}
-		})
-	}()
+	})
 }
 
 // reconnectIntegration re-derives a system integration's runtime binding from
@@ -3006,15 +3037,14 @@ func (a *App) connectLocalTool(tool settingsui.CustomTool) {
 // diagnosis, and the previous descriptor stays.
 func (a *App) reprobeCommands(id string) {
 	go func() {
+		integration, ok := a.Integrations.Inventory().WithID(id)
+		if !ok {
+			return
+		}
 		report, err := extensions.ReprobeCommands(context.Background(), a.Paths, id)
 		if err != nil {
 			log.Printf("floter: could not re-probe %s: %v", id, err)
-			a.diagnosisMu.Lock()
-			if a.diagnoses == nil {
-				a.diagnoses = map[string]settingsui.Integration{}
-			}
-			a.diagnoses[id] = settingsui.Integration{Diagnosis: err.Error(), DiagnosisFailed: true}
-			a.diagnosisMu.Unlock()
+			a.rememberDiagnosis(integration, settingsui.Integration{Diagnosis: err.Error(), DiagnosisFailed: true})
 		} else {
 			log.Printf("floter: re-probed %s (commands=%d, was %v)", id, report.CommandCount, report.PreviousCommandCount)
 		}

@@ -220,3 +220,88 @@ func TestDiagnosisCurrentChecksAreVisible(t *testing.T) { checkDiagnosisProjecti
 
 func TestDiagnosisCurrentHealthRefresh(t *testing.T)  { checkDiagnosisProjection(t, "health-refresh") }
 func TestDiagnosisCurrentHealthLanguage(t *testing.T) { checkDiagnosisProjection(t, "health-language") }
+
+func (f *diagnosisFixture) start(t *testing.T) <-chan struct{} {
+	t.Helper()
+	owner, ok := f.a.Integrations.Inventory().WithID(f.entry.ID)
+	if !ok {
+		t.Fatal("diagnosis target missing")
+	}
+	done := make(chan struct{})
+	go func() { defer close(done); f.a.runIntegrationDiagnosis(owner) }()
+	return done
+}
+
+func diagnosisWait(t *testing.T, done <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-done:
+	case <-time.After(6 * time.Second):
+		t.Fatal("diagnosis worker did not finish")
+	}
+}
+
+func (f *diagnosisFixture) waitStarted(t *testing.T, n int) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		if _, err := os.Stat(filepath.Join(f.dir, fmt.Sprintf("request-%d.started", n))); err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("provider never reached release gate")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func checkDiagnosisOwner(t *testing.T, pending bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := newDiagnosisFixture(t, dark)
+			f.request(t, 0, "old-provider", []extensions.DiagnosisCheck{{ID: "old", Status: "warning", Message: "旧工具需要修复"}}, !pending)
+			done := f.start(t)
+			f.waitStarted(t, 0)
+			if !pending {
+				diagnosisWait(t, done)
+			}
+			scenario := "owner-package"
+			if pending {
+				scenario = "owner-pending"
+				f.manifest.Provider.ArgsPrefix[3] = t.TempDir()
+			} else {
+				f.entry.ManifestPath = filepath.Join(t.TempDir(), "replacement", "floter.extension.json")
+			}
+			f.write(t)
+			f.a.Integrations.Refresh(context.Background())
+			if pending {
+				f.release(t, 0)
+				diagnosisWait(t, done)
+			}
+			tt := f.frame(t, scenario, dark)
+			row := f.a.integrationList()[0]
+			if row.Diagnosis != "" || row.DiagnosisStatus != "" || len(row.DiagnosisChecks) != 0 || tt.HasText("旧工具需要修复") {
+				t.Errorf("%s: current tool inherited another declaration's diagnosis", scenario)
+			}
+			// A fresh check remains usable after retiring the old owner.
+			if pending {
+				f.dir = f.manifest.Provider.ArgsPrefix[3]
+			}
+			n := 1
+			if pending {
+				n = 0
+			}
+			f.request(t, n, "ok", []extensions.DiagnosisCheck{{ID: "new", Status: "ok", Message: "新工具检查正常"}}, true)
+			diagnosisWait(t, f.start(t))
+			tt.Frame()
+			tt.Frame()
+			if !tt.HasText("新工具检查正常") {
+				t.Error("current owner cannot publish a fresh diagnosis")
+			}
+		})
+	}
+}
+
+func TestDiagnosisCurrentPackageOwner(t *testing.T) { checkDiagnosisOwner(t, false) }
+func TestDiagnosisCurrentPendingOwner(t *testing.T) { checkDiagnosisOwner(t, true) }

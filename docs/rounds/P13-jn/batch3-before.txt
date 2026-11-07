@@ -1,0 +1,19 @@
+=== RUN   TestDiagnosisCurrentPackageOwner
+=== RUN   TestDiagnosisCurrentPackageOwner/light
+    diagnosiscurrent_test.go:285: owner-package: current tool inherited another declaration's diagnosis
+=== RUN   TestDiagnosisCurrentPackageOwner/dark
+    diagnosiscurrent_test.go:285: owner-package: current tool inherited another declaration's diagnosis
+--- FAIL: TestDiagnosisCurrentPackageOwner (0.99s)
+    --- FAIL: TestDiagnosisCurrentPackageOwner/light (0.68s)
+    --- FAIL: TestDiagnosisCurrentPackageOwner/dark (0.31s)
+=== RUN   TestDiagnosisCurrentPendingOwner
+=== RUN   TestDiagnosisCurrentPendingOwner/light
+    diagnosiscurrent_test.go:285: owner-pending: current tool inherited another declaration's diagnosis
+=== RUN   TestDiagnosisCurrentPendingOwner/dark
+    diagnosiscurrent_test.go:285: owner-pending: current tool inherited another declaration's diagnosis
+--- FAIL: TestDiagnosisCurrentPendingOwner (0.57s)
+    --- FAIL: TestDiagnosisCurrentPendingOwner/light (0.28s)
+    --- FAIL: TestDiagnosisCurrentPendingOwner/dark (0.29s)
+FAIL
+FAIL	floter/internal/shell	1.572s
+FAIL
