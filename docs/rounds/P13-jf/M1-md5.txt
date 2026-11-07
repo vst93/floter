@@ -1,0 +1,3 @@
+internal/shell/sync.go: 成功
+internal/settingsui/transfer.go: 成功
+internal/extensions/sync.go: 成功

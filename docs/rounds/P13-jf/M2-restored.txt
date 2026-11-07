@@ -1,0 +1,21 @@
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/extensions	0.022s [no tests to run]
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/light
+2026/11/08 00:24:08 floter: could not import /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight898653005/002/backup.json: extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight898653005/001/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/dark
+2026/11/08 00:24:08 floter: could not import /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark1446063920/002/backup.json: extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark1446063920/001/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped (0.59s)
+    --- PASS: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/light (0.39s)
+    --- PASS: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/dark (0.20s)
+PASS
+ok  	floter/internal/shell	0.628s
+=== RUN   TestImportReportLongFailureStaysInItsColumn
+=== RUN   TestImportReportLongFailureStaysInItsColumn/light
+=== RUN   TestImportReportLongFailureStaysInItsColumn/dark
+--- PASS: TestImportReportLongFailureStaysInItsColumn (0.06s)
+    --- PASS: TestImportReportLongFailureStaysInItsColumn/light (0.06s)
+    --- PASS: TestImportReportLongFailureStaysInItsColumn/dark (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.104s

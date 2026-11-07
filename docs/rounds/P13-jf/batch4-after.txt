@@ -1,0 +1,39 @@
+=== RUN   TestIntegrationExportAndImport
+2026/11/08 00:21:38 floter: could not read /tmp/TestIntegrationExportAndImport2858937636/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationExportAndImport (0.33s)
+=== RUN   TestTheTransferIsOneAtATime
+--- PASS: TestTheTransferIsOneAtATime (0.21s)
+=== RUN   TestIntegrationExportEncodingExplainsFailure
+=== RUN   TestIntegrationExportEncodingExplainsFailure/light
+2026/11/08 00:21:38 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportEncodingExplainsFailure/dark
+2026/11/08 00:21:40 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportEncodingExplainsFailure (2.37s)
+    --- PASS: TestIntegrationExportEncodingExplainsFailure/light (1.31s)
+    --- PASS: TestIntegrationExportEncodingExplainsFailure/dark (1.06s)
+PASS
+ok  	floter/internal/shell	3.030s
+=== RUN   TestTheTransferBusyLineOutranksTheButtonsItKilled
+    transferlive_test.go:121: light busy=130 exportPill=75 importPill=75 (face 237)
+    transferlive_test.go:121: dark busy=127 exportPill=77 importPill=77 (face 27)
+--- PASS: TestTheTransferBusyLineOutranksTheButtonsItKilled (0.33s)
+=== RUN   TestTheTransferBusyLineKeepsTheCaptionBoxAndTheMidline
+--- PASS: TestTheTransferBusyLineKeepsTheCaptionBoxAndTheMidline (0.15s)
+=== RUN   TestImportReportRevealsItsSource
+=== RUN   TestImportReportRevealsItsSource/light/success
+=== RUN   TestImportReportRevealsItsSource/light/failed
+=== RUN   TestImportReportRevealsItsSource/dark/success
+=== RUN   TestImportReportRevealsItsSource/dark/failed
+--- PASS: TestImportReportRevealsItsSource (0.06s)
+    --- PASS: TestImportReportRevealsItsSource/light/success (0.02s)
+    --- PASS: TestImportReportRevealsItsSource/light/failed (0.01s)
+    --- PASS: TestImportReportRevealsItsSource/dark/success (0.01s)
+    --- PASS: TestImportReportRevealsItsSource/dark/failed (0.01s)
+=== RUN   TestImportReportLongFailureStaysInItsColumn
+=== RUN   TestImportReportLongFailureStaysInItsColumn/light
+=== RUN   TestImportReportLongFailureStaysInItsColumn/dark
+--- PASS: TestImportReportLongFailureStaysInItsColumn (0.02s)
+    --- PASS: TestImportReportLongFailureStaysInItsColumn/light (0.01s)
+    --- PASS: TestImportReportLongFailureStaysInItsColumn/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.647s

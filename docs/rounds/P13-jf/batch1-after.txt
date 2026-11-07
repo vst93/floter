@@ -1,0 +1,43 @@
+=== RUN   TestIntegrationExportAndImport
+2026/11/08 00:16:34 floter: could not read /tmp/TestIntegrationExportAndImport1314305889/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationExportAndImport (0.14s)
+=== RUN   TestTheTransferIsOneAtATime
+--- PASS: TestTheTransferIsOneAtATime (0.07s)
+=== RUN   TestIntegrationsExportPickerFailureIsVisible
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/light
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/dark
+--- PASS: TestIntegrationsExportPickerFailureIsVisible (0.68s)
+    --- PASS: TestIntegrationsExportPickerFailureIsVisible/light (0.35s)
+    --- PASS: TestIntegrationsExportPickerFailureIsVisible/dark (0.33s)
+=== RUN   TestIntegrationsImportPickerFailureIsVisible
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/light
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/dark
+--- PASS: TestIntegrationsImportPickerFailureIsVisible (0.56s)
+    --- PASS: TestIntegrationsImportPickerFailureIsVisible/light (0.27s)
+    --- PASS: TestIntegrationsImportPickerFailureIsVisible/dark (0.29s)
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry/light
+2026/11/08 00:16:36 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3784485277/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3784485277/002/removed-backup.json: no such file or directory
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry/dark
+2026/11/08 00:16:36 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark3458696118/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark3458696118/002/removed-backup.json: no such file or directory
+--- PASS: TestIntegrationImportReadFailureHasCauseAndRetry (0.64s)
+    --- PASS: TestIntegrationImportReadFailureHasCauseAndRetry/light (0.36s)
+    --- PASS: TestIntegrationImportReadFailureHasCauseAndRetry/dark (0.28s)
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/light
+2026/11/08 00:16:36 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight2970910390/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark
+2026/11/08 00:16:36 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark3325471975/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry (0.45s)
+    --- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry/light (0.23s)
+    --- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark (0.22s)
+=== RUN   TestIntegrationsExportWriteCause
+=== RUN   TestIntegrationsExportWriteCause/light
+2026/11/08 00:16:37 floter: could not write /tmp/TestIntegrationsExportWriteCauselight1254314491/001: open /tmp/TestIntegrationsExportWriteCauselight1254314491/001: is a directory
+=== RUN   TestIntegrationsExportWriteCause/dark
+2026/11/08 00:16:37 floter: could not write /tmp/TestIntegrationsExportWriteCausedark3628673954/001: open /tmp/TestIntegrationsExportWriteCausedark3628673954/001: is a directory
+--- PASS: TestIntegrationsExportWriteCause (0.80s)
+    --- PASS: TestIntegrationsExportWriteCause/light (0.41s)
+    --- PASS: TestIntegrationsExportWriteCause/dark (0.39s)
+PASS
+ok  	floter/internal/shell	3.377s

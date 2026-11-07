@@ -1,0 +1,41 @@
+=== RUN   TestScriptExportPickerExplainsFailure
+=== RUN   TestScriptExportPickerExplainsFailure/light
+2026/11/08 00:19:31 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+    scripttransfercause_test.go:34: script-picker hides failure cause: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportPickerExplainsFailure/dark
+2026/11/08 00:19:31 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+    scripttransfercause_test.go:34: script-picker hides failure cause: file picker unavailable: restart the desktop portal
+--- FAIL: TestScriptExportPickerExplainsFailure (1.03s)
+    --- FAIL: TestScriptExportPickerExplainsFailure/light (0.56s)
+    --- FAIL: TestScriptExportPickerExplainsFailure/dark (0.47s)
+=== RUN   TestScriptExportWriteExplainsFailure
+=== RUN   TestScriptExportWriteExplainsFailure/light
+2026/11/08 00:19:32 floter: could not write /tmp/TestScriptExportWriteExplainsFailurelight1558977510/001: open /tmp/TestScriptExportWriteExplainsFailurelight1558977510/001: is a directory
+    scripttransfercause_test.go:34: script-write hides failure cause: open /tmp/TestScriptExportWriteExplainsFailurelight1558977510/001: is a directory
+=== RUN   TestScriptExportWriteExplainsFailure/dark
+2026/11/08 00:19:32 floter: could not write /tmp/TestScriptExportWriteExplainsFailuredark1524387487/001: open /tmp/TestScriptExportWriteExplainsFailuredark1524387487/001: is a directory
+    scripttransfercause_test.go:34: script-write hides failure cause: open /tmp/TestScriptExportWriteExplainsFailuredark1524387487/001: is a directory
+--- FAIL: TestScriptExportWriteExplainsFailure (0.95s)
+    --- FAIL: TestScriptExportWriteExplainsFailure/light (0.46s)
+    --- FAIL: TestScriptExportWriteExplainsFailure/dark (0.50s)
+=== RUN   TestIntegrationExportEncodingExplainsFailure
+=== RUN   TestIntegrationExportEncodingExplainsFailure/light
+2026/11/08 00:19:33 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+    transferencodecause_test.go:41: encoding failure hides its cause: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportEncodingExplainsFailure/dark
+2026/11/08 00:19:33 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+    transferencodecause_test.go:41: encoding failure hides its cause: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+--- FAIL: TestIntegrationExportEncodingExplainsFailure (1.13s)
+    --- FAIL: TestIntegrationExportEncodingExplainsFailure/light (0.60s)
+    --- FAIL: TestIntegrationExportEncodingExplainsFailure/dark (0.53s)
+FAIL
+FAIL	floter/internal/shell	3.171s
+=== RUN   TestImportReportLongFailureStaysInItsColumn
+=== RUN   TestImportReportLongFailureStaysInItsColumn/light
+=== RUN   TestImportReportLongFailureStaysInItsColumn/dark
+--- PASS: TestImportReportLongFailureStaysInItsColumn (0.10s)
+    --- PASS: TestImportReportLongFailureStaysInItsColumn/light (0.09s)
+    --- PASS: TestImportReportLongFailureStaysInItsColumn/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.162s
+FAIL

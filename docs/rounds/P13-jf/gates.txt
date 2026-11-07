@@ -1,0 +1,16 @@
+product=ee3a4b24
+baseline=2c61b589
+locale=zh_CN.UTF-8 GOMAXPROCS=4
+final PASS=5480
+final FAIL=0
+functions=3245
+ordinary go exit=0
+verbose go exit=0
+vet-linux=0
+build-linux=0
+vet-windows=0
+build-windows=0
+vet-darwin=0
+build-darwin=0
+gofmt bytes=0
+race exit=0

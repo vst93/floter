@@ -1,0 +1,45 @@
+=== RUN   TestScriptExportPickerExplainsFailure
+=== RUN   TestScriptExportPickerExplainsFailure/light
+2026/11/08 00:20:05 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportPickerExplainsFailure/dark
+2026/11/08 00:20:06 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+--- PASS: TestScriptExportPickerExplainsFailure (0.86s)
+    --- PASS: TestScriptExportPickerExplainsFailure/light (0.47s)
+    --- PASS: TestScriptExportPickerExplainsFailure/dark (0.38s)
+=== RUN   TestScriptExportWriteExplainsFailure
+=== RUN   TestScriptExportWriteExplainsFailure/light
+2026/11/08 00:20:06 floter: could not write /tmp/TestScriptExportWriteExplainsFailurelight978357871/001: open /tmp/TestScriptExportWriteExplainsFailurelight978357871/001: is a directory
+=== RUN   TestScriptExportWriteExplainsFailure/dark
+2026/11/08 00:20:07 floter: could not write /tmp/TestScriptExportWriteExplainsFailuredark2134688741/001: open /tmp/TestScriptExportWriteExplainsFailuredark2134688741/001: is a directory
+--- PASS: TestScriptExportWriteExplainsFailure (0.77s)
+    --- PASS: TestScriptExportWriteExplainsFailure/light (0.41s)
+    --- PASS: TestScriptExportWriteExplainsFailure/dark (0.36s)
+=== RUN   TestTheScriptExportWritesTheFile
+--- PASS: TestTheScriptExportWritesTheFile (0.01s)
+=== RUN   TestTheScriptExportStaysQuietWhenItWritesNothing
+2026/11/08 00:20:07 floter: could not pick a path for local.abc-script.py: no disk
+--- PASS: TestTheScriptExportStaysQuietWhenItWritesNothing (0.06s)
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]}
+2026/11/08 00:20:07 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselight{versio1285432145/002/backup.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document
+2026/11/08 00:20:07 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselightnot_a_do1894420219/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]}
+2026/11/08 00:20:08 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedark{version152339377/002/backup.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document
+2026/11/08 00:20:08 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedarknot_a_doc1746814735/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationImportDocumentFailureExplainsCause (0.99s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]} (0.24s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document (0.23s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]} (0.26s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document (0.25s)
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/light
+2026/11/08 00:20:08 floter: could not import /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight2125756728/002/backup.json: extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight2125756728/001/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/dark
+2026/11/08 00:20:08 floter: could not import /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark2926400477/002/backup.json: extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark2926400477/001/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped (0.51s)
+    --- PASS: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/light (0.28s)
+    --- PASS: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/dark (0.23s)
+PASS
+ok  	floter/internal/shell	3.228s

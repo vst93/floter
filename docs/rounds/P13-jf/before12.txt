@@ -1,0 +1,53 @@
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]}
+2026/11/08 00:16:15 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselight{versio826856154/002/backup.json: extensions: import version 99 is not supported
+    transferdocumentcause_test.go:42: document refusal hides its cause: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document
+2026/11/08 00:16:15 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselightnot_a_do2882249830/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+    transferdocumentcause_test.go:42: document refusal hides its cause: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]}
+2026/11/08 00:16:15 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedark{version1063486505/002/backup.json: extensions: import version 99 is not supported
+    transferdocumentcause_test.go:42: document refusal hides its cause: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document
+2026/11/08 00:16:16 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedarknot_a_doc382721223/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+    transferdocumentcause_test.go:42: document refusal hides its cause: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- FAIL: TestIntegrationImportDocumentFailureExplainsCause (1.16s)
+    --- FAIL: TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]} (0.42s)
+    --- FAIL: TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document (0.26s)
+    --- FAIL: TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]} (0.25s)
+    --- FAIL: TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document (0.22s)
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/light
+2026/11/08 00:16:16 floter: dev.floter.configured was skipped: not installed here, and the export carries no package
+    transferdocumentcause_test.go:89: unreadable repository was treated as empty: missing extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight2348245175/001/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferdocumentcause_test.go:92: unreadable repository fabricated import report: &{Path:/tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight2348245175/002/backup.json Succeeded:0 Skipped:1 Failed:[] ExcludedFields:[]}
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/dark
+2026/11/08 00:16:16 floter: dev.floter.configured was skipped: not installed here, and the export carries no package
+    transferdocumentcause_test.go:89: unreadable repository was treated as empty: missing extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark1584200722/001/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferdocumentcause_test.go:92: unreadable repository fabricated import report: &{Path:/tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark1584200722/002/backup.json Succeeded:0 Skipped:1 Failed:[] ExcludedFields:[]}
+--- FAIL: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped (0.46s)
+    --- FAIL: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/light (0.23s)
+    --- FAIL: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/dark (0.23s)
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry/light
+2026/11/08 00:16:16 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3318934665/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3318934665/002/removed-backup.json: no such file or directory
+    transferreadcause_test.go:64: file read failure hides its cause: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3318934665/002/removed-backup.json: no such file or directory
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry/dark
+2026/11/08 00:16:16 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark1155601121/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark1155601121/002/removed-backup.json: no such file or directory
+    transferreadcause_test.go:64: file read failure hides its cause: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark1155601121/002/removed-backup.json: no such file or directory
+--- FAIL: TestIntegrationImportReadFailureHasCauseAndRetry (0.41s)
+    --- FAIL: TestIntegrationImportReadFailureHasCauseAndRetry/light (0.21s)
+    --- FAIL: TestIntegrationImportReadFailureHasCauseAndRetry/dark (0.20s)
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/light
+2026/11/08 00:16:17 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight2266285001/002/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferreadcause_test.go:110: repository export failure hides its cause: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight2266285001/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark
+2026/11/08 00:16:17 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark851394631/002/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferreadcause_test.go:110: repository export failure hides its cause: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark851394631/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- FAIL: TestIntegrationExportRepositoryFailureHasCauseAndRetry (0.38s)
+    --- FAIL: TestIntegrationExportRepositoryFailureHasCauseAndRetry/light (0.19s)
+    --- FAIL: TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark (0.19s)
+FAIL
+FAIL	floter/internal/shell	2.420s
+FAIL

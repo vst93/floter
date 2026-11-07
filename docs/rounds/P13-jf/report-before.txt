@@ -1,0 +1,11 @@
+=== RUN   TestImportReportLongFailureStaysInItsColumn
+=== RUN   TestImportReportLongFailureStaysInItsColumn/light
+    transferreportbounds_test.go:40: import failure overflows the report column: {X:33.6 Y:12 W:326.4 H:45} right=328
+=== RUN   TestImportReportLongFailureStaysInItsColumn/dark
+    transferreportbounds_test.go:40: import failure overflows the report column: {X:33.6 Y:12 W:326.4 H:45} right=328
+--- FAIL: TestImportReportLongFailureStaysInItsColumn (0.07s)
+    --- FAIL: TestImportReportLongFailureStaysInItsColumn/light (0.07s)
+    --- FAIL: TestImportReportLongFailureStaysInItsColumn/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.083s
+FAIL

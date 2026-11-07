@@ -1,0 +1,28 @@
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/extensions	0.017s [no tests to run]
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/light
+2026/11/08 00:23:56 floter: dev.floter.configured was skipped: not installed here, and the export carries no package
+    transferdocumentcause_test.go:89: unreadable repository was treated as empty: missing extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight634007243/001/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferdocumentcause_test.go:92: unreadable repository fabricated import report: &{Path:/tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight634007243/002/backup.json Succeeded:0 Skipped:1 Failed:[] ExcludedFields:[]}
+=== RUN   TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/dark
+2026/11/08 00:23:57 floter: dev.floter.configured was skipped: not installed here, and the export carries no package
+    transferdocumentcause_test.go:89: unreadable repository was treated as empty: missing extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark1419777284/001/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferdocumentcause_test.go:92: unreadable repository fabricated import report: &{Path:/tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark1419777284/002/backup.json Succeeded:0 Skipped:1 Failed:[] ExcludedFields:[]}
+--- FAIL: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped (1.63s)
+    --- FAIL: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/light (1.06s)
+    --- FAIL: TestIntegrationImportRepositoryFailureDoesNotClaimSkipped/dark (0.57s)
+FAIL
+FAIL	floter/internal/shell	1.714s
+=== RUN   TestImportReportLongFailureStaysInItsColumn
+=== RUN   TestImportReportLongFailureStaysInItsColumn/light
+    transferreportbounds_test.go:40: import failure overflows the report column: {X:33.6 Y:12 W:326.4 H:45} right=328
+=== RUN   TestImportReportLongFailureStaysInItsColumn/dark
+    transferreportbounds_test.go:40: import failure overflows the report column: {X:33.6 Y:12 W:326.4 H:45} right=328
+--- FAIL: TestImportReportLongFailureStaysInItsColumn (0.08s)
+    --- FAIL: TestImportReportLongFailureStaysInItsColumn/light (0.08s)
+    --- FAIL: TestImportReportLongFailureStaysInItsColumn/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.126s
+FAIL

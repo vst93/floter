@@ -1,0 +1,71 @@
+=== RUN   TestScriptExportPickerExplainsFailure
+=== RUN   TestScriptExportPickerExplainsFailure/light
+2026/11/08 00:22:54 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+    scripttransfercause_test.go:34: script-picker hides failure cause: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportPickerExplainsFailure/dark
+2026/11/08 00:22:54 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+    scripttransfercause_test.go:34: script-picker hides failure cause: file picker unavailable: restart the desktop portal
+--- FAIL: TestScriptExportPickerExplainsFailure (0.58s)
+    --- FAIL: TestScriptExportPickerExplainsFailure/light (0.29s)
+    --- FAIL: TestScriptExportPickerExplainsFailure/dark (0.29s)
+=== RUN   TestScriptExportWriteExplainsFailure
+=== RUN   TestScriptExportWriteExplainsFailure/light
+2026/11/08 00:22:55 floter: could not write /tmp/TestScriptExportWriteExplainsFailurelight2909037873/001: open /tmp/TestScriptExportWriteExplainsFailurelight2909037873/001: is a directory
+    scripttransfercause_test.go:34: script-write hides failure cause: open /tmp/TestScriptExportWriteExplainsFailurelight2909037873/001: is a directory
+=== RUN   TestScriptExportWriteExplainsFailure/dark
+2026/11/08 00:22:55 floter: could not write /tmp/TestScriptExportWriteExplainsFailuredark1492420221/001: open /tmp/TestScriptExportWriteExplainsFailuredark1492420221/001: is a directory
+    scripttransfercause_test.go:34: script-write hides failure cause: open /tmp/TestScriptExportWriteExplainsFailuredark1492420221/001: is a directory
+--- FAIL: TestScriptExportWriteExplainsFailure (0.57s)
+    --- FAIL: TestScriptExportWriteExplainsFailure/light (0.29s)
+    --- FAIL: TestScriptExportWriteExplainsFailure/dark (0.28s)
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]}
+2026/11/08 00:22:55 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselight{versio4040005527/002/backup.json: extensions: import version 99 is not supported
+    transferdocumentcause_test.go:42: document refusal hides its cause: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document
+2026/11/08 00:22:55 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselightnot_a_do3279527832/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+    transferdocumentcause_test.go:42: document refusal hides its cause: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]}
+2026/11/08 00:22:56 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedark{version323533647/002/backup.json: extensions: import version 99 is not supported
+    transferdocumentcause_test.go:42: document refusal hides its cause: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document
+2026/11/08 00:22:56 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedarknot_a_doc3543082508/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+    transferdocumentcause_test.go:42: document refusal hides its cause: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- FAIL: TestIntegrationImportDocumentFailureExplainsCause (0.60s)
+    --- FAIL: TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]} (0.17s)
+    --- FAIL: TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document (0.14s)
+    --- FAIL: TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]} (0.14s)
+    --- FAIL: TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document (0.14s)
+=== RUN   TestIntegrationExportEncodingExplainsFailure
+=== RUN   TestIntegrationExportEncodingExplainsFailure/light
+2026/11/08 00:22:56 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+    transferencodecause_test.go:41: encoding failure hides its cause: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportEncodingExplainsFailure/dark
+2026/11/08 00:22:56 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+    transferencodecause_test.go:41: encoding failure hides its cause: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+--- FAIL: TestIntegrationExportEncodingExplainsFailure (0.70s)
+    --- FAIL: TestIntegrationExportEncodingExplainsFailure/light (0.34s)
+    --- FAIL: TestIntegrationExportEncodingExplainsFailure/dark (0.36s)
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry/light
+2026/11/08 00:22:57 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3426505782/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3426505782/002/removed-backup.json: no such file or directory
+    transferreadcause_test.go:64: file read failure hides its cause: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3426505782/002/removed-backup.json: no such file or directory
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry/dark
+2026/11/08 00:22:57 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark162204677/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark162204677/002/removed-backup.json: no such file or directory
+    transferreadcause_test.go:64: file read failure hides its cause: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark162204677/002/removed-backup.json: no such file or directory
+--- FAIL: TestIntegrationImportReadFailureHasCauseAndRetry (0.26s)
+    --- FAIL: TestIntegrationImportReadFailureHasCauseAndRetry/light (0.12s)
+    --- FAIL: TestIntegrationImportReadFailureHasCauseAndRetry/dark (0.14s)
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/light
+2026/11/08 00:22:57 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight1887661711/002/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferreadcause_test.go:110: repository export failure hides its cause: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight1887661711/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark
+2026/11/08 00:22:57 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark884476315/002/extension-repository.json: invalid character 'b' looking for beginning of value
+    transferreadcause_test.go:110: repository export failure hides its cause: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark884476315/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- FAIL: TestIntegrationExportRepositoryFailureHasCauseAndRetry (0.23s)
+    --- FAIL: TestIntegrationExportRepositoryFailureHasCauseAndRetry/light (0.11s)
+    --- FAIL: TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark (0.11s)
+FAIL
+FAIL	floter/internal/shell	2.977s
+FAIL

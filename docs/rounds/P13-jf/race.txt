@@ -1,0 +1,2 @@
+ok  	floter/internal/shell	46.166s
+ok  	floter/internal/settingsui	2.999s

@@ -1,0 +1,56 @@
+=== RUN   TestScriptExportPickerExplainsFailure
+=== RUN   TestScriptExportPickerExplainsFailure/light
+2026/11/08 00:22:58 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportPickerExplainsFailure/dark
+2026/11/08 00:22:59 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+--- PASS: TestScriptExportPickerExplainsFailure (0.61s)
+    --- PASS: TestScriptExportPickerExplainsFailure/light (0.32s)
+    --- PASS: TestScriptExportPickerExplainsFailure/dark (0.28s)
+=== RUN   TestScriptExportWriteExplainsFailure
+=== RUN   TestScriptExportWriteExplainsFailure/light
+2026/11/08 00:22:59 floter: could not write /tmp/TestScriptExportWriteExplainsFailurelight3400344406/001: open /tmp/TestScriptExportWriteExplainsFailurelight3400344406/001: is a directory
+=== RUN   TestScriptExportWriteExplainsFailure/dark
+2026/11/08 00:22:59 floter: could not write /tmp/TestScriptExportWriteExplainsFailuredark549299731/001: open /tmp/TestScriptExportWriteExplainsFailuredark549299731/001: is a directory
+--- PASS: TestScriptExportWriteExplainsFailure (0.71s)
+    --- PASS: TestScriptExportWriteExplainsFailure/light (0.34s)
+    --- PASS: TestScriptExportWriteExplainsFailure/dark (0.37s)
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]}
+2026/11/08 00:23:00 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselight{versio2273825487/002/backup.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document
+2026/11/08 00:23:00 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselightnot_a_do1032390602/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]}
+2026/11/08 00:23:00 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedark{version651066799/002/backup.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document
+2026/11/08 00:23:00 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedarknot_a_doc3336992060/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationImportDocumentFailureExplainsCause (0.58s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/light/{"version":99,"extensions":[]} (0.15s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/light/not_a_document (0.14s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/dark/{"version":99,"extensions":[]} (0.14s)
+    --- PASS: TestIntegrationImportDocumentFailureExplainsCause/dark/not_a_document (0.15s)
+=== RUN   TestIntegrationExportEncodingExplainsFailure
+=== RUN   TestIntegrationExportEncodingExplainsFailure/light
+2026/11/08 00:23:00 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportEncodingExplainsFailure/dark
+2026/11/08 00:23:01 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportEncodingExplainsFailure (0.75s)
+    --- PASS: TestIntegrationExportEncodingExplainsFailure/light (0.35s)
+    --- PASS: TestIntegrationExportEncodingExplainsFailure/dark (0.40s)
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry/light
+2026/11/08 00:23:01 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3907407229/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight3907407229/002/removed-backup.json: no such file or directory
+=== RUN   TestIntegrationImportReadFailureHasCauseAndRetry/dark
+2026/11/08 00:23:01 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark648943910/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark648943910/002/removed-backup.json: no such file or directory
+--- PASS: TestIntegrationImportReadFailureHasCauseAndRetry (0.28s)
+    --- PASS: TestIntegrationImportReadFailureHasCauseAndRetry/light (0.14s)
+    --- PASS: TestIntegrationImportReadFailureHasCauseAndRetry/dark (0.14s)
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/light
+2026/11/08 00:23:01 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight4200022285/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark
+2026/11/08 00:23:01 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark1830682767/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry (0.23s)
+    --- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry/light (0.12s)
+    --- PASS: TestIntegrationExportRepositoryFailureHasCauseAndRetry/dark (0.12s)
+PASS
+ok  	floter/internal/shell	3.195s
