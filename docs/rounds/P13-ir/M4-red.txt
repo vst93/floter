@@ -1,0 +1,19 @@
+=== RUN   TestParameterMenuExternalSelection
+=== RUN   TestParameterMenuExternalSelection/light
+    menurefresh_test.go:152: open parameter menu overwrote external kind with "数字"
+=== RUN   TestParameterMenuExternalSelection/dark
+    menurefresh_test.go:152: open parameter menu overwrote external kind with "数字"
+--- FAIL: TestParameterMenuExternalSelection (0.06s)
+    --- FAIL: TestParameterMenuExternalSelection/light (0.05s)
+    --- FAIL: TestParameterMenuExternalSelection/dark (0.00s)
+=== RUN   TestResidencyMenuExternalSelection
+=== RUN   TestResidencyMenuExternalSelection/light
+    menurefresh_test.go:149: open residency menu overwrote external 120 with 20
+=== RUN   TestResidencyMenuExternalSelection/dark
+    menurefresh_test.go:149: open residency menu overwrote external 120 with 20
+--- FAIL: TestResidencyMenuExternalSelection (0.02s)
+    --- FAIL: TestResidencyMenuExternalSelection/light (0.02s)
+    --- FAIL: TestResidencyMenuExternalSelection/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.089s
+FAIL

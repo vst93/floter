@@ -5390,7 +5390,8 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 
 	t := c.Theme()
 	a.row(c, copy.SurfaceResidency, copy.SurfaceResidencyHint, func() {
-		e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.SurfaceResidency).Width(200).Radius(999), true)
+		e := a.fieldFace(c, valueSelect(c, &selected, labels, labels, selected, a.tokens(c), true).
+			Label(copy.SurfaceResidency).Width(200).Radius(999), true)
 		if e.Changed() {
 			for i, label := range labels {
 				if label == selected {

@@ -46,3 +46,16 @@
 6. 现象：两个调色板同名时，第二项无法独立选中。改动：传入 palette ID，初值也改为 ID；预览继续取实际 ID。验证：深浅真实键盘选择第二个同名项，只提交 contrast 一次。
 
 相关 **44 PASS / 0 FAIL**，包 vet 净；旧 V/B/S **0/0/0**。M3 回注按 label 选择的实现，**6 FAIL**，原串 `custom duplicate selected "plugin:calculator", want "plugin:browser"`、`palette duplicate selected "dracula", want "contrast"`；MD5 两文件还原 touch 后 **6 PASS**。
+
+第三批 `051abe6d` 已推送。
+
+## 第四批
+
+7. 现象：参数类型菜单已经高亮数字，宿主更新为开关，Enter 写回数字。改动：参数选择器接回现有 valueSelect 外部值同步。验证：深浅真实 Down/Enter，新类型保持开关，键盘仍停在类型选择器。
+8. 现象：驻留菜单已经高亮 20 秒，宿主改为 120 秒，Enter 写回 20 秒。改动：驻留选择器复用外部值高亮同步，保留原 label 到秒数映射和自定义保存规则。验证：深浅真实 Down/Enter，存储仍为 120，焦点保留。
+
+相关 **45 PASS / 0 FAIL**，包 vet 净；旧 V/B/S **0/0/0**。M4 回注旧参数和驻留选择器，**6 FAIL**，原串 `open parameter menu overwrote external kind with "数字"`、`open residency menu overwrote external 120 with 20`；MD5 两文件还原 touch 后 **6 PASS**。
+
+32 张深浅原帧、16 张对照和总览已入仓。先目视复核整体和深色动作局部：旧图触发器是计算器、菜单却亮浏览器；新图两者一致，2px 蓝环仍围绕原入口。驻留浅色由错误的 20 秒蓝条移到 120 秒。最小差 **11229 像素**；包含复用现有菜单材质产生的像素差，不能全部归因于高亮。同名动作 before 是第一批后的 label 去重实现，仍有第二项不可选择的原缺陷，未冒充起点原帧。
+
+完整门槛待收尾实测；定向数字不冒充全量。

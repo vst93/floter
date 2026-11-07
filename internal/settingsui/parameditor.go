@@ -245,7 +245,8 @@ func (a *App) paramField(c *ui.Context, key, label string, field func()) {
 // `.extension-custom-form select` (`extensions.css:1783-1789`) — the field
 // material in the form's pill shape and its 30px/3px/7px box.
 func (a *App) paramSelect(c *ui.Context, selected *string, labels []string, label string) ui.Element {
-	e := ui.Select(c, selected, labels).Label(label).FillWidth().Radius(999)
+	e := valueSelect(c, selected, labels, labels, *selected, a.tokens(c), len(labels) > 0).
+		Label(label).FillWidth().Radius(999)
 	if a.cardUnit > 0 {
 		m := customFieldMetrics
 		e = e.MinHeight(m.minHeight).Padding(m.padY, m.padX)
