@@ -3505,6 +3505,7 @@ func (a *App) Open(s Surface) {
 	// Leaving the settings surface writes any debounced slider/alias change
 	// before the page goes away; the value was already live in the frame.
 	if a.Surf == SurfaceSettings && s != SurfaceSettings && a.Settings != nil {
+		a.Settings.StopShortcutRecording()
 		a.Settings.Flush()
 	}
 	// The terminal's appearance drawer keeps its own window (its font size and

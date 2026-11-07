@@ -25,3 +25,12 @@ done.log 开盘不存在，收尾创建，不伪造上轮记录。八项结果�
 2. **自定义录制切页**：现象 → 编辑命令后录制该行，切页同样留下暂停与旧提示。改动 → 同一退出方法同时清除自定义捕获归属，不清草稿。验证 → 深浅事件确认原 Ctrl+Shift+B / say original 未被离开动作改写，say unfinished 回来仍可 Enter。
 
 相关回归 274 PASS / 0 FAIL，settingsui/shell vet 净。M1 回注原 selectPage/录制实现实红：`invisible recorder still suspends global shortcuts`、`exit did not restore the summon and custom registrations`、`invisible recording swallowed page Escape`、`return resurrected the old recording`。MD5 恢复、touch 后 6 PASS / 0 FAIL。补充返回瞬间截图后重新实跑 M1，避免用 Escape 已消掉问题的图片作对比。既有 V/B/S 0/0/0，旧测试不改。
+
+第一批 dc47d2f1 已推送。
+
+## 第二批：关闭设置后释放录制
+
+3. **内置录制关闭设置**：现象 → 点击页头关闭后到了启动器，召回仍被暂停；重开又显示旧录制。改动 → Open 离开设置时先结束捕获，再走原 Flush。验证 → 深浅真实关闭按钮，原注册立即恢复，重开无旧提示，草稿未保存且可继续 Enter。
+4. **自定义录制关闭设置**：现象 → 自定义命令行改键期间关闭，已保存键没有恢复、返回抢焦点。改动 → 相同宿主出口释放自定义捕获归属。验证 → 原 Ctrl+Shift+B/say original 保持，say unfinished 回来可编辑提交，原召回与自定义注册都存在。
+
+相关回归 280 PASS / 0 FAIL，包 vet 净。M2 回注缺少 Open 退出处理的旧分支，实红 `invisible recorder still suspends global shortcuts`、`exit did not restore the summon and custom registrations`、`reopen resurrected the old recording`；MD5 还原、touch 后 6 PASS / 0 FAIL。既有 V/B/S 0/0/0。
