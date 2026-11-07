@@ -217,8 +217,10 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 		a.customDuplicateKey = entries[a.customRecordRow].Key
 		return
 	}
-	a.customDuplicate = ""
 	// Recording changes this row's chord, not the command being edited.
+	if a.customDuplicateRow == a.customRecordRow {
+		a.customDuplicate = ""
+	}
 	oldKey := entries[a.customRecordRow].Key
 	entries[a.customRecordRow] = settings.CustomShortcut{
 		Key:    accelerator,
