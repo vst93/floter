@@ -1140,6 +1140,15 @@ func (a *App) RecordingShortcut() bool {
 	return a.recording || a.customRecording
 }
 
+// StopShortcutRecording releases capture when its page or window leaves.
+// Recorded draft keys and unsubmitted commands still belong to the form.
+// Publish immediately: a hidden window may not draw another frame.
+func (a *App) StopShortcutRecording() {
+	a.recording, a.customRecording = false, false
+	a.customRecordRow, a.customRecordKey = customDraftRow, ""
+	a.syncShortcutSuspension()
+}
+
 // syncShortcutSuspension tells the shell whether a recorder is waiting for a
 // key. While one is, the global shortcuts are released: pressing the key that
 // currently summons floter must be recorded, not acted on.
@@ -1574,6 +1583,9 @@ func pageGlyph(page int) (*ui.SVG, bool) {
 // selectPage switches pages and remembers the choice, so the next visit to
 // the settings surface reopens where the user left off.
 func (a *App) selectPage(page int) {
+	if page != PageShortcuts {
+		a.StopShortcutRecording()
+	}
 	// The page's own debounced controls are written before it leaves: a drag
 	// that is still inside its window must not be lost with the page.
 	a.flushSettingsWrites()
