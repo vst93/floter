@@ -1,0 +1,14 @@
+=== RUN   TestSavedShortcutKeyReadsInFull
+=== RUN   TestSavedShortcutKeyReadsInFull/light
+=== RUN   TestSavedShortcutKeyReadsInFull/dark
+--- PASS: TestSavedShortcutKeyReadsInFull (0.42s)
+    --- PASS: TestSavedShortcutKeyReadsInFull/light (0.21s)
+    --- PASS: TestSavedShortcutKeyReadsInFull/dark (0.22s)
+=== RUN   TestDraftShortcutKeyReadsInFull
+=== RUN   TestDraftShortcutKeyReadsInFull/light
+=== RUN   TestDraftShortcutKeyReadsInFull/dark
+--- PASS: TestDraftShortcutKeyReadsInFull (0.69s)
+    --- PASS: TestDraftShortcutKeyReadsInFull/light (0.20s)
+    --- PASS: TestDraftShortcutKeyReadsInFull/dark (0.49s)
+PASS
+ok  	floter/internal/settingsui	1.123s

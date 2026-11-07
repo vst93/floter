@@ -1,0 +1,36 @@
+=== RUN   TestDraftRecorderMenuSelection
+=== RUN   TestDraftRecorderMenuSelection/light
+=== RUN   TestDraftRecorderMenuSelection/dark
+--- PASS: TestDraftRecorderMenuSelection (0.21s)
+    --- PASS: TestDraftRecorderMenuSelection/light (0.16s)
+    --- PASS: TestDraftRecorderMenuSelection/dark (0.05s)
+=== RUN   TestDraftRecorderMenuEscape
+=== RUN   TestDraftRecorderMenuEscape/light
+=== RUN   TestDraftRecorderMenuEscape/dark
+--- PASS: TestDraftRecorderMenuEscape (0.08s)
+    --- PASS: TestDraftRecorderMenuEscape/light (0.04s)
+    --- PASS: TestDraftRecorderMenuEscape/dark (0.04s)
+=== RUN   TestSavedRecorderMenuSelection
+=== RUN   TestSavedRecorderMenuSelection/light
+=== RUN   TestSavedRecorderMenuSelection/dark
+--- PASS: TestSavedRecorderMenuSelection (0.09s)
+    --- PASS: TestSavedRecorderMenuSelection/light (0.04s)
+    --- PASS: TestSavedRecorderMenuSelection/dark (0.05s)
+=== RUN   TestSavedRecorderMenuEscape
+=== RUN   TestSavedRecorderMenuEscape/light
+=== RUN   TestSavedRecorderMenuEscape/dark
+--- PASS: TestSavedRecorderMenuEscape (0.09s)
+    --- PASS: TestSavedRecorderMenuEscape/light (0.04s)
+    --- PASS: TestSavedRecorderMenuEscape/dark (0.05s)
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-saved-recorder/light
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-saved-recorder/dark
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-draft-recorder/light
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-draft-recorder/dark
+--- PASS: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder (0.51s)
+    --- PASS: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-saved-recorder/light (0.04s)
+    --- PASS: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-saved-recorder/dark (0.18s)
+    --- PASS: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-draft-recorder/light (0.06s)
+    --- PASS: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-draft-recorder/dark (0.22s)
+PASS
+ok  	floter/internal/settingsui	0.999s

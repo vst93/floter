@@ -1,0 +1,29 @@
+=== RUN   TestDraftRecorderMenuSelection
+=== RUN   TestDraftRecorderMenuSelection/light
+    recordermenu_test.go:70: recorder left action menu open after keyboard exit
+    recordermenu_test.go:78: draft menu could not select command mode
+    recordermenu_test.go:100: menu return cannot finish the original binding
+=== RUN   TestDraftRecorderMenuSelection/dark
+    recordermenu_test.go:70: recorder left action menu open after keyboard exit
+    recordermenu_test.go:78: draft menu could not select command mode
+    recordermenu_test.go:100: menu return cannot finish the original binding
+--- FAIL: TestDraftRecorderMenuSelection (0.12s)
+    --- FAIL: TestDraftRecorderMenuSelection/light (0.10s)
+    --- FAIL: TestDraftRecorderMenuSelection/dark (0.02s)
+=== RUN   TestDraftRecorderMenuEscape
+=== RUN   TestDraftRecorderMenuEscape/light
+    recordermenu_test.go:70: recorder left action menu open after keyboard exit
+    recordermenu_test.go:73: menu exit canceled or lost the original recorder
+    recordermenu_test.go:91: menu return did not record into the same draft
+    recordermenu_test.go:100: menu return cannot finish the original binding
+=== RUN   TestDraftRecorderMenuEscape/dark
+    recordermenu_test.go:70: recorder left action menu open after keyboard exit
+    recordermenu_test.go:73: menu exit canceled or lost the original recorder
+    recordermenu_test.go:91: menu return did not record into the same draft
+    recordermenu_test.go:100: menu return cannot finish the original binding
+--- FAIL: TestDraftRecorderMenuEscape (0.05s)
+    --- FAIL: TestDraftRecorderMenuEscape/light (0.02s)
+    --- FAIL: TestDraftRecorderMenuEscape/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.178s
+FAIL

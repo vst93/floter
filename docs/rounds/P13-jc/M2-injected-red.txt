@@ -1,0 +1,25 @@
+=== RUN   TestSavedRecorderMenuSelection
+=== RUN   TestSavedRecorderMenuSelection/light
+    recordermenu_test.go:70: recorder left action menu open after keyboard exit
+    recordermenu_test.go:81: saved menu did not commit keyboard-selected action
+=== RUN   TestSavedRecorderMenuSelection/dark
+    recordermenu_test.go:70: recorder left action menu open after keyboard exit
+    recordermenu_test.go:81: saved menu did not commit keyboard-selected action
+--- FAIL: TestSavedRecorderMenuSelection (0.26s)
+    --- FAIL: TestSavedRecorderMenuSelection/light (0.22s)
+    --- FAIL: TestSavedRecorderMenuSelection/dark (0.04s)
+=== RUN   TestSavedRecorderMenuEscape
+=== RUN   TestSavedRecorderMenuEscape/light
+    recordermenu_test.go:70: recorder left action menu open after keyboard exit
+    recordermenu_test.go:73: menu exit canceled or lost the original recorder
+    recordermenu_test.go:100: menu return cannot finish the original binding
+=== RUN   TestSavedRecorderMenuEscape/dark
+    recordermenu_test.go:70: recorder left action menu open after keyboard exit
+    recordermenu_test.go:73: menu exit canceled or lost the original recorder
+    recordermenu_test.go:100: menu return cannot finish the original binding
+--- FAIL: TestSavedRecorderMenuEscape (0.07s)
+    --- FAIL: TestSavedRecorderMenuEscape/light (0.03s)
+    --- FAIL: TestSavedRecorderMenuEscape/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.341s
+FAIL

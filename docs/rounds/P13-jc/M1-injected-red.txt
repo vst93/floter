@@ -1,0 +1,31 @@
+=== RUN   TestShortcutFallbackRefreshFeedback
+=== RUN   TestShortcutFallbackRefreshFeedback/light
+2026/11/07 21:34:55 floter: could not register Ctrl+Alt+K: occupied
+    shortcutfallback_test.go:88: refused settings refresh is invisible
+    shortcutfallback_test.go:105: working settings refresh retained old refusal
+=== RUN   TestShortcutFallbackRefreshFeedback/dark
+2026/11/07 21:34:55 floter: could not register Ctrl+Alt+K: occupied
+    shortcutfallback_test.go:88: refused settings refresh is invisible
+    shortcutfallback_test.go:105: working settings refresh retained old refusal
+--- FAIL: TestShortcutFallbackRefreshFeedback (0.39s)
+    --- FAIL: TestShortcutFallbackRefreshFeedback/light (0.22s)
+    --- FAIL: TestShortcutFallbackRefreshFeedback/dark (0.17s)
+=== RUN   TestShortcutFallbackRecordingPersists
+=== RUN   TestShortcutFallbackRecordingPersists/light
+2026/11/07 21:34:55 floter: could not register Ctrl+Alt+K: occupied
+2026/11/07 21:34:55 floter: could not re-register Ctrl+Alt+K: occupied
+    shortcutfallback_test.go:119: recording fallback did not save the working key: summon="Ctrl+Alt+K" map="Ctrl+Alt+K" writes=1 want=2
+    shortcutfallback_test.go:122: recorded fallback is not available without stale feedback
+    shortcutfallback_test.go:129: accepted fallback was not persisted on disk
+=== RUN   TestShortcutFallbackRecordingPersists/dark
+2026/11/07 21:34:55 floter: could not register Ctrl+Alt+K: occupied
+2026/11/07 21:34:55 floter: could not re-register Ctrl+Alt+K: occupied
+    shortcutfallback_test.go:119: recording fallback did not save the working key: summon="Ctrl+Alt+K" map="Ctrl+Alt+K" writes=1 want=2
+    shortcutfallback_test.go:122: recorded fallback is not available without stale feedback
+    shortcutfallback_test.go:129: accepted fallback was not persisted on disk
+--- FAIL: TestShortcutFallbackRecordingPersists (0.28s)
+    --- FAIL: TestShortcutFallbackRecordingPersists/light (0.11s)
+    --- FAIL: TestShortcutFallbackRecordingPersists/dark (0.17s)
+FAIL
+FAIL	floter/internal/shell	0.679s
+FAIL

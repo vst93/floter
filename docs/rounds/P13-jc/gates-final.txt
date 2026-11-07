@@ -1,0 +1,24 @@
+P13-jc final verification (2026-11-07 UTC)
+Environment: LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4
+Baseline verbose: exit 0, 5352 PASS, 0 FAIL
+Final ordinary go test -count=1 ./...: exit 0
+Final verbose go test -count=1 -v ./...: exit 0, 5381 PASS, 0 FAIL
+Test functions in cmd/internal: 3209 -> 3218
+gofmt -l cmd internal: empty
+GOOS=linux go vet ./...: exit 0, empty output
+GOOS=windows go vet ./...: exit 0, empty output
+GOOS=darwin go vet ./...: exit 0, empty output
+GOOS=linux go build ./...: exit 0, empty output
+GOOS=windows go build ./...: exit 0, empty output
+GOOS=darwin go build ./...: exit 0, empty output
+Batch regression PASS counts: 115, 355, 361, 373, 378
+M1-M5: injected defects failed, restored byte-for-byte, touched, reran
+Restored PASS counts: 6, 6, 6, 6, 17
+Config toolbar original test: go test -race -count=10 passed
+Detached rerun original test: 20 repetitions passed
+Existing assertion changes V/B/S: 0/0/1
+New skips: 0
+Final documentation contract: go test -count=1 ./internal/ci exit 0 (2.794s)
+Final product source MD5: all six files OK
+git diff --check: source and documentation empty; three raw verbose logs retain CLI help space-before-tab indentation
+Native desktop hotkey contention not tested; Windows/macOS compile checks only

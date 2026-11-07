@@ -1,0 +1,19 @@
+=== RUN   TestSavedShortcutKeyReadsInFull
+=== RUN   TestSavedShortcutKeyReadsInFull/light
+    shortcutkeytip_test.go:61: truncated shortcut has no full hover text: got 1 copies, want 2
+=== RUN   TestSavedShortcutKeyReadsInFull/dark
+    shortcutkeytip_test.go:61: truncated shortcut has no full hover text: got 1 copies, want 2
+--- FAIL: TestSavedShortcutKeyReadsInFull (0.52s)
+    --- FAIL: TestSavedShortcutKeyReadsInFull/light (0.28s)
+    --- FAIL: TestSavedShortcutKeyReadsInFull/dark (0.24s)
+=== RUN   TestDraftShortcutKeyReadsInFull
+=== RUN   TestDraftShortcutKeyReadsInFull/light
+    shortcutkeytip_test.go:61: truncated shortcut has no full hover text: got 1 copies, want 2
+=== RUN   TestDraftShortcutKeyReadsInFull/dark
+    shortcutkeytip_test.go:61: truncated shortcut has no full hover text: got 1 copies, want 2
+--- FAIL: TestDraftShortcutKeyReadsInFull (0.62s)
+    --- FAIL: TestDraftShortcutKeyReadsInFull/light (0.18s)
+    --- FAIL: TestDraftShortcutKeyReadsInFull/dark (0.44s)
+FAIL
+FAIL	floter/internal/settingsui	1.150s
+FAIL

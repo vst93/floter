@@ -1,0 +1,17 @@
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-saved-recorder/light
+    recordermenuneighbor_test.go:35: lower recorder stole upper menu keyboard selection
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-saved-recorder/dark
+    recordermenuneighbor_test.go:35: lower recorder stole upper menu keyboard selection
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-draft-recorder/light
+    recordermenuneighbor_test.go:35: lower recorder stole upper menu keyboard selection
+=== RUN   TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-draft-recorder/dark
+    recordermenuneighbor_test.go:35: lower recorder stole upper menu keyboard selection
+--- FAIL: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder (0.53s)
+    --- FAIL: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-saved-recorder/light (0.13s)
+    --- FAIL: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-saved-recorder/dark (0.15s)
+    --- FAIL: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-draft-recorder/light (0.06s)
+    --- FAIL: TestUpperActionMenuKeepsKeyboardAboveLowerRecorder/upper-menu-draft-recorder/dark (0.19s)
+FAIL
+FAIL	floter/internal/settingsui	0.544s
+FAIL

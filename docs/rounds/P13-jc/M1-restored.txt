@@ -1,0 +1,18 @@
+=== RUN   TestShortcutFallbackRefreshFeedback
+=== RUN   TestShortcutFallbackRefreshFeedback/light
+2026/11/07 21:34:56 floter: could not register Ctrl+Alt+K: occupied
+=== RUN   TestShortcutFallbackRefreshFeedback/dark
+2026/11/07 21:34:56 floter: could not register Ctrl+Alt+K: occupied
+--- PASS: TestShortcutFallbackRefreshFeedback (0.17s)
+    --- PASS: TestShortcutFallbackRefreshFeedback/light (0.08s)
+    --- PASS: TestShortcutFallbackRefreshFeedback/dark (0.09s)
+=== RUN   TestShortcutFallbackRecordingPersists
+=== RUN   TestShortcutFallbackRecordingPersists/light
+2026/11/07 21:34:57 floter: could not register Ctrl+Alt+K: occupied
+=== RUN   TestShortcutFallbackRecordingPersists/dark
+2026/11/07 21:34:57 floter: could not register Ctrl+Alt+K: occupied
+--- PASS: TestShortcutFallbackRecordingPersists (0.33s)
+    --- PASS: TestShortcutFallbackRecordingPersists/light (0.13s)
+    --- PASS: TestShortcutFallbackRecordingPersists/dark (0.20s)
+PASS
+ok  	floter/internal/shell	0.511s

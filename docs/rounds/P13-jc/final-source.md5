@@ -1,0 +1,6 @@
+d50dd9463ad7dc2f698f05f8ad5b8d45  internal/shell/shell.go
+8f55cdd38cb49dfcc853f100339494d3  internal/shell/detach.go
+b278de6c43e29c0fd63ec47bf0818956  internal/settingsui/custom.go
+04c8630d8823890e17df30e3d7ad743d  internal/settingsui/config.go
+1bbe7f11d7c34f158c88c804815f9c02  internal/settingsui/selectvalue.go
+fcd49b8d536e18e80812778d9f0195c7  internal/settingsui/settingsui.go

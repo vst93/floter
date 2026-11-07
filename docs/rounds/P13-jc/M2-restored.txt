@@ -1,0 +1,14 @@
+=== RUN   TestSavedRecorderMenuSelection
+=== RUN   TestSavedRecorderMenuSelection/light
+=== RUN   TestSavedRecorderMenuSelection/dark
+--- PASS: TestSavedRecorderMenuSelection (0.16s)
+    --- PASS: TestSavedRecorderMenuSelection/light (0.12s)
+    --- PASS: TestSavedRecorderMenuSelection/dark (0.03s)
+=== RUN   TestSavedRecorderMenuEscape
+=== RUN   TestSavedRecorderMenuEscape/light
+=== RUN   TestSavedRecorderMenuEscape/dark
+--- PASS: TestSavedRecorderMenuEscape (0.06s)
+    --- PASS: TestSavedRecorderMenuEscape/light (0.02s)
+    --- PASS: TestSavedRecorderMenuEscape/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.223s
