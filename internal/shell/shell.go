@@ -2036,7 +2036,7 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 	diagnosis, err := extensions.Diagnose(context.Background(), integration)
 	switch {
 	case err != nil:
-		if result.DiagnosisFailed {
+		if result.DiagnosisFailed && result.Diagnosis != err.Error() {
 			result.Diagnosis += "; " + err.Error()
 		} else {
 			result.Diagnosis = err.Error()
@@ -2066,7 +2066,7 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 			if problem == "" {
 				problem = diagnosis.Status
 			}
-			if result.DiagnosisFailed {
+			if result.DiagnosisFailed && result.Diagnosis != problem {
 				result.Diagnosis += "; " + problem
 			} else {
 				result.Diagnosis = problem

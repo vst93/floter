@@ -1,0 +1,21 @@
+=== RUN   TestDiagnosisPhaseLiveHealth
+=== RUN   TestDiagnosisPhaseLiveHealth/light
+    diagnosisphase_test.go:39: completed lifecycle failure stays invisible while provider waits: health="healthy" broken=false report=&{CheckedAt:2026-11-07T20:00:00Z Probes:[]}
+=== RUN   TestDiagnosisPhaseLiveHealth/dark
+    diagnosisphase_test.go:39: completed lifecycle failure stays invisible while provider waits: health="healthy" broken=false report=&{CheckedAt:2026-11-07T20:00:00Z Probes:[]}
+--- FAIL: TestDiagnosisPhaseLiveHealth (0.84s)
+    --- FAIL: TestDiagnosisPhaseLiveHealth/light (0.53s)
+    --- FAIL: TestDiagnosisPhaseLiveHealth/dark (0.32s)
+=== RUN   TestDiagnosisPhaseProtocolFailure
+=== RUN   TestDiagnosisPhaseProtocolFailure/light
+    diagnosisphase_test.go:55: provider protocol failure erased lifecycle reason: "extensions: invalid diagnose answer: json: cannot unmarshal string into Go value of type extensions.Diagnosis"
+    diagnosisphase_test.go:58: both diagnostic failure reasons are not visible in the summary
+=== RUN   TestDiagnosisPhaseProtocolFailure/dark
+    diagnosisphase_test.go:55: provider protocol failure erased lifecycle reason: "extensions: invalid diagnose answer: json: cannot unmarshal string into Go value of type extensions.Diagnosis"
+    diagnosisphase_test.go:58: both diagnostic failure reasons are not visible in the summary
+--- FAIL: TestDiagnosisPhaseProtocolFailure (0.64s)
+    --- FAIL: TestDiagnosisPhaseProtocolFailure/light (0.33s)
+    --- FAIL: TestDiagnosisPhaseProtocolFailure/dark (0.31s)
+FAIL
+FAIL	floter/internal/shell	1.492s
+FAIL

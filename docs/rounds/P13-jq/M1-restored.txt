@@ -1,0 +1,14 @@
+=== RUN   TestDiagnosisBoundaryRemovedProbes
+=== RUN   TestDiagnosisBoundaryRemovedProbes/light
+=== RUN   TestDiagnosisBoundaryRemovedProbes/dark
+--- PASS: TestDiagnosisBoundaryRemovedProbes (0.79s)
+    --- PASS: TestDiagnosisBoundaryRemovedProbes/light (0.48s)
+    --- PASS: TestDiagnosisBoundaryRemovedProbes/dark (0.31s)
+=== RUN   TestDiagnosisBoundaryDiskOwner
+=== RUN   TestDiagnosisBoundaryDiskOwner/light
+=== RUN   TestDiagnosisBoundaryDiskOwner/dark
+--- PASS: TestDiagnosisBoundaryDiskOwner (0.73s)
+    --- PASS: TestDiagnosisBoundaryDiskOwner/light (0.36s)
+    --- PASS: TestDiagnosisBoundaryDiskOwner/dark (0.37s)
+PASS
+ok  	floter/internal/shell	1.529s

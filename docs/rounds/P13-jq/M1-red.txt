@@ -1,0 +1,25 @@
+=== RUN   TestDiagnosisBoundaryRemovedProbes
+=== RUN   TestDiagnosisBoundaryRemovedProbes/light
+    diagnosisboundary_test.go:54: removed lifecycle declaration still launches the stale provider
+    diagnosisboundary_test.go:58: removed probes published stale diagnosis/notice: 过期检查仍被运行
+    diagnosisboundary_test.go:62: removed probes were not refreshed into the current inventory
+=== RUN   TestDiagnosisBoundaryRemovedProbes/dark
+    diagnosisboundary_test.go:54: removed lifecycle declaration still launches the stale provider
+    diagnosisboundary_test.go:58: removed probes published stale diagnosis/notice: 过期检查仍被运行
+    diagnosisboundary_test.go:62: removed probes were not refreshed into the current inventory
+--- FAIL: TestDiagnosisBoundaryRemovedProbes (0.97s)
+    --- FAIL: TestDiagnosisBoundaryRemovedProbes/light (0.54s)
+    --- FAIL: TestDiagnosisBoundaryRemovedProbes/dark (0.43s)
+=== RUN   TestDiagnosisBoundaryDiskOwner
+=== RUN   TestDiagnosisBoundaryDiskOwner/light
+    diagnosisboundary_test.go:86: provider completed against stale disk owner and published old facts
+    diagnosisboundary_test.go:94: fresh diagnosis cannot recover after disk owner changes
+=== RUN   TestDiagnosisBoundaryDiskOwner/dark
+    diagnosisboundary_test.go:86: provider completed against stale disk owner and published old facts
+    diagnosisboundary_test.go:94: fresh diagnosis cannot recover after disk owner changes
+--- FAIL: TestDiagnosisBoundaryDiskOwner (0.86s)
+    --- FAIL: TestDiagnosisBoundaryDiskOwner/light (0.43s)
+    --- FAIL: TestDiagnosisBoundaryDiskOwner/dark (0.43s)
+FAIL
+FAIL	floter/internal/shell	1.838s
+FAIL

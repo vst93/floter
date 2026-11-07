@@ -1,0 +1,27 @@
+=== RUN   TestDiagnosisSummaryCombinedFailures
+=== RUN   TestDiagnosisSummaryCombinedFailures/light
+    diagnosissummary_test.go:20: provider findings erased lifecycle reason: "需要重新登录"
+    diagnosissummary_test.go:23: combined failure summary hides one stage behind provider status
+=== RUN   TestDiagnosisSummaryCombinedFailures/dark
+    diagnosissummary_test.go:20: provider findings erased lifecycle reason: "需要重新登录"
+    diagnosissummary_test.go:23: combined failure summary hides one stage behind provider status
+--- FAIL: TestDiagnosisSummaryCombinedFailures (0.47s)
+    --- FAIL: TestDiagnosisSummaryCombinedFailures/light (0.30s)
+    --- FAIL: TestDiagnosisSummaryCombinedFailures/dark (0.17s)
+=== RUN   TestDiagnosisSummarySuccessSpelling
+=== RUN   TestDiagnosisSummarySuccessSpelling/_ok_/light
+    diagnosissummary_test.go:43: successful provider status is painted/notified as failure: status=" ok " failed=true notices=["检查工具 报告了问题"]
+=== RUN   TestDiagnosisSummarySuccessSpelling/_ok_/dark
+    diagnosissummary_test.go:43: successful provider status is painted/notified as failure: status=" ok " failed=true notices=["检查工具 报告了问题"]
+=== RUN   TestDiagnosisSummarySuccessSpelling/OK/light
+    diagnosissummary_test.go:43: successful provider status is painted/notified as failure: status="OK" failed=true notices=["检查工具 报告了问题"]
+=== RUN   TestDiagnosisSummarySuccessSpelling/OK/dark
+    diagnosissummary_test.go:43: successful provider status is painted/notified as failure: status="OK" failed=true notices=["检查工具 报告了问题"]
+--- FAIL: TestDiagnosisSummarySuccessSpelling (1.32s)
+    --- FAIL: TestDiagnosisSummarySuccessSpelling/_ok_/light (0.32s)
+    --- FAIL: TestDiagnosisSummarySuccessSpelling/_ok_/dark (0.33s)
+    --- FAIL: TestDiagnosisSummarySuccessSpelling/OK/light (0.33s)
+    --- FAIL: TestDiagnosisSummarySuccessSpelling/OK/dark (0.34s)
+FAIL
+FAIL	floter/internal/shell	1.787s
+FAIL

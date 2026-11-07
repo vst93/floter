@@ -1,0 +1,18 @@
+=== RUN   TestDiagnosisSummaryCombinedFailures
+=== RUN   TestDiagnosisSummaryCombinedFailures/light
+=== RUN   TestDiagnosisSummaryCombinedFailures/dark
+--- PASS: TestDiagnosisSummaryCombinedFailures (0.41s)
+    --- PASS: TestDiagnosisSummaryCombinedFailures/light (0.25s)
+    --- PASS: TestDiagnosisSummaryCombinedFailures/dark (0.16s)
+=== RUN   TestDiagnosisSummarySuccessSpelling
+=== RUN   TestDiagnosisSummarySuccessSpelling/_ok_/light
+=== RUN   TestDiagnosisSummarySuccessSpelling/_ok_/dark
+=== RUN   TestDiagnosisSummarySuccessSpelling/OK/light
+=== RUN   TestDiagnosisSummarySuccessSpelling/OK/dark
+--- PASS: TestDiagnosisSummarySuccessSpelling (1.33s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/_ok_/light (0.33s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/_ok_/dark (0.33s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/OK/light (0.33s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/OK/dark (0.33s)
+PASS
+ok  	floter/internal/shell	1.743s

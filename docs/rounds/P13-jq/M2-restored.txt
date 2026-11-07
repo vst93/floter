@@ -1,0 +1,14 @@
+=== RUN   TestDiagnosisPhaseLiveHealth
+=== RUN   TestDiagnosisPhaseLiveHealth/light
+=== RUN   TestDiagnosisPhaseLiveHealth/dark
+--- PASS: TestDiagnosisPhaseLiveHealth (0.66s)
+    --- PASS: TestDiagnosisPhaseLiveHealth/light (0.39s)
+    --- PASS: TestDiagnosisPhaseLiveHealth/dark (0.27s)
+=== RUN   TestDiagnosisPhaseProtocolFailure
+=== RUN   TestDiagnosisPhaseProtocolFailure/light
+=== RUN   TestDiagnosisPhaseProtocolFailure/dark
+--- PASS: TestDiagnosisPhaseProtocolFailure (0.50s)
+    --- PASS: TestDiagnosisPhaseProtocolFailure/light (0.25s)
+    --- PASS: TestDiagnosisPhaseProtocolFailure/dark (0.24s)
+PASS
+ok  	floter/internal/shell	1.163s

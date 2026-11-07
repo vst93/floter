@@ -1,0 +1,6 @@
+52114350aa48d019054455b164ea75a3  internal/shell/shell.go
+5386717c8a54ee968a27c5bd517eafc6  internal/settingsui/settingsui.go
+b22fe54e16cb9a2f01ec958e38b77417  internal/shell/diagnosisboundary_test.go
+8fdf3102a796cf953bd00d4f2d3c6053  internal/shell/diagnosisphase_test.go
+98ceb2a2097f7609be45355df36c6ed7  internal/shell/diagnosissummary_test.go
+578f5870c9593ae8286f804ca42e5a37  internal/shell/diagnosismessage_test.go

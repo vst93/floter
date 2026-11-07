@@ -1,0 +1,18 @@
+=== RUN   TestDiagnosisMessageSuccessSpelling
+=== RUN   TestDiagnosisMessageSuccessSpelling/_ok_/light
+=== RUN   TestDiagnosisMessageSuccessSpelling/_ok_/dark
+=== RUN   TestDiagnosisMessageSuccessSpelling/OK/light
+=== RUN   TestDiagnosisMessageSuccessSpelling/OK/dark
+--- PASS: TestDiagnosisMessageSuccessSpelling (1.46s)
+    --- PASS: TestDiagnosisMessageSuccessSpelling/_ok_/light (0.37s)
+    --- PASS: TestDiagnosisMessageSuccessSpelling/_ok_/dark (0.37s)
+    --- PASS: TestDiagnosisMessageSuccessSpelling/OK/light (0.36s)
+    --- PASS: TestDiagnosisMessageSuccessSpelling/OK/dark (0.36s)
+=== RUN   TestDiagnosisMessageWhitespaceFailure
+=== RUN   TestDiagnosisMessageWhitespaceFailure/light
+=== RUN   TestDiagnosisMessageWhitespaceFailure/dark
+--- PASS: TestDiagnosisMessageWhitespaceFailure (0.36s)
+    --- PASS: TestDiagnosisMessageWhitespaceFailure/light (0.17s)
+    --- PASS: TestDiagnosisMessageWhitespaceFailure/dark (0.18s)
+PASS
+ok  	floter/internal/shell	1.824s

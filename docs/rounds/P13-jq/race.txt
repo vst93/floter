@@ -1,0 +1,58 @@
+=== RUN   TestDiagnosisBoundaryRemovedProbes
+=== RUN   TestDiagnosisBoundaryRemovedProbes/light
+=== RUN   TestDiagnosisBoundaryRemovedProbes/dark
+--- PASS: TestDiagnosisBoundaryRemovedProbes (10.58s)
+    --- PASS: TestDiagnosisBoundaryRemovedProbes/light (5.63s)
+    --- PASS: TestDiagnosisBoundaryRemovedProbes/dark (4.95s)
+=== RUN   TestDiagnosisBoundaryDiskOwner
+=== RUN   TestDiagnosisBoundaryDiskOwner/light
+=== RUN   TestDiagnosisBoundaryDiskOwner/dark
+--- PASS: TestDiagnosisBoundaryDiskOwner (15.04s)
+    --- PASS: TestDiagnosisBoundaryDiskOwner/light (7.16s)
+    --- PASS: TestDiagnosisBoundaryDiskOwner/dark (7.88s)
+=== RUN   TestDiagnosisMessageSuccessSpelling
+=== RUN   TestDiagnosisMessageSuccessSpelling/_ok_/light
+=== RUN   TestDiagnosisMessageSuccessSpelling/_ok_/dark
+=== RUN   TestDiagnosisMessageSuccessSpelling/OK/light
+=== RUN   TestDiagnosisMessageSuccessSpelling/OK/dark
+--- PASS: TestDiagnosisMessageSuccessSpelling (19.24s)
+    --- PASS: TestDiagnosisMessageSuccessSpelling/_ok_/light (5.10s)
+    --- PASS: TestDiagnosisMessageSuccessSpelling/_ok_/dark (4.65s)
+    --- PASS: TestDiagnosisMessageSuccessSpelling/OK/light (4.94s)
+    --- PASS: TestDiagnosisMessageSuccessSpelling/OK/dark (4.55s)
+=== RUN   TestDiagnosisMessageWhitespaceFailure
+=== RUN   TestDiagnosisMessageWhitespaceFailure/light
+=== RUN   TestDiagnosisMessageWhitespaceFailure/dark
+--- PASS: TestDiagnosisMessageWhitespaceFailure (9.42s)
+    --- PASS: TestDiagnosisMessageWhitespaceFailure/light (4.74s)
+    --- PASS: TestDiagnosisMessageWhitespaceFailure/dark (4.68s)
+=== RUN   TestDiagnosisPhaseLiveHealth
+=== RUN   TestDiagnosisPhaseLiveHealth/light
+=== RUN   TestDiagnosisPhaseLiveHealth/dark
+--- PASS: TestDiagnosisPhaseLiveHealth (9.30s)
+    --- PASS: TestDiagnosisPhaseLiveHealth/light (4.72s)
+    --- PASS: TestDiagnosisPhaseLiveHealth/dark (4.58s)
+=== RUN   TestDiagnosisPhaseProtocolFailure
+=== RUN   TestDiagnosisPhaseProtocolFailure/light
+=== RUN   TestDiagnosisPhaseProtocolFailure/dark
+--- PASS: TestDiagnosisPhaseProtocolFailure (9.49s)
+    --- PASS: TestDiagnosisPhaseProtocolFailure/light (4.64s)
+    --- PASS: TestDiagnosisPhaseProtocolFailure/dark (4.85s)
+=== RUN   TestDiagnosisSummaryCombinedFailures
+=== RUN   TestDiagnosisSummaryCombinedFailures/light
+=== RUN   TestDiagnosisSummaryCombinedFailures/dark
+--- PASS: TestDiagnosisSummaryCombinedFailures (9.29s)
+    --- PASS: TestDiagnosisSummaryCombinedFailures/light (4.68s)
+    --- PASS: TestDiagnosisSummaryCombinedFailures/dark (4.61s)
+=== RUN   TestDiagnosisSummarySuccessSpelling
+=== RUN   TestDiagnosisSummarySuccessSpelling/_ok_/light
+=== RUN   TestDiagnosisSummarySuccessSpelling/_ok_/dark
+=== RUN   TestDiagnosisSummarySuccessSpelling/OK/light
+=== RUN   TestDiagnosisSummarySuccessSpelling/OK/dark
+--- PASS: TestDiagnosisSummarySuccessSpelling (18.48s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/_ok_/light (4.65s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/_ok_/dark (4.69s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/OK/light (4.44s)
+    --- PASS: TestDiagnosisSummarySuccessSpelling/OK/dark (4.70s)
+PASS
+ok  	floter/internal/shell	101.950s

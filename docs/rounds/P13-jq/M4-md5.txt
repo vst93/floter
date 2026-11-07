@@ -1,0 +1,6 @@
+internal/shell/shell.go: OK
+internal/settingsui/settingsui.go: OK
+internal/shell/diagnosisboundary_test.go: OK
+internal/shell/diagnosisphase_test.go: OK
+internal/shell/diagnosissummary_test.go: OK
+internal/shell/diagnosismessage_test.go: OK

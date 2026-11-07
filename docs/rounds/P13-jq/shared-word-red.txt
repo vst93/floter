@@ -1,0 +1,11 @@
+=== RUN   TestDiagnosisSummaryCombinedFailures
+=== RUN   TestDiagnosisSummaryCombinedFailures/shared-word/light
+    diagnosissummary_test.go:20: identical stage verdicts are duplicated: "unhealthy; unhealthy"
+=== RUN   TestDiagnosisSummaryCombinedFailures/shared-word/dark
+    diagnosissummary_test.go:20: identical stage verdicts are duplicated: "unhealthy; unhealthy"
+--- FAIL: TestDiagnosisSummaryCombinedFailures (1.44s)
+    --- FAIL: TestDiagnosisSummaryCombinedFailures/shared-word/light (0.87s)
+    --- FAIL: TestDiagnosisSummaryCombinedFailures/shared-word/dark (0.58s)
+FAIL
+FAIL	floter/internal/shell	1.457s
+FAIL

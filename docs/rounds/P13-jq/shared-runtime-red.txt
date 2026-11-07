@@ -1,0 +1,11 @@
+=== RUN   TestDiagnosisPhaseProtocolFailure
+=== RUN   TestDiagnosisPhaseProtocolFailure/shared-runtime/light
+    diagnosisphase_test.go:61: shared runtime failure is repeated in the summary: got "extensions: binding-missing: binding-missing:{\"path\":\"/tmp/TestDiagnosisPhaseProtocolFailureshared-runtimelight3743437795/002/removed-tool\"}; extensions: binding-missing: binding-missing:{\"path\":\"/tmp/TestDiagnosisPhaseProtocolFailureshared-runtimelight3743437795/002/removed-tool\"}" want "extensions: binding-missing: binding-missing:{\"path\":\"/tmp/TestDiagnosisPhaseProtocolFailureshared-runtimelight3743437795/002/removed-tool\"}"
+=== RUN   TestDiagnosisPhaseProtocolFailure/shared-runtime/dark
+    diagnosisphase_test.go:61: shared runtime failure is repeated in the summary: got "extensions: binding-missing: binding-missing:{\"path\":\"/tmp/TestDiagnosisPhaseProtocolFailureshared-runtimedark3013809365/002/removed-tool\"}; extensions: binding-missing: binding-missing:{\"path\":\"/tmp/TestDiagnosisPhaseProtocolFailureshared-runtimedark3013809365/002/removed-tool\"}" want "extensions: binding-missing: binding-missing:{\"path\":\"/tmp/TestDiagnosisPhaseProtocolFailureshared-runtimedark3013809365/002/removed-tool\"}"
+--- FAIL: TestDiagnosisPhaseProtocolFailure (1.56s)
+    --- FAIL: TestDiagnosisPhaseProtocolFailure/shared-runtime/light (1.00s)
+    --- FAIL: TestDiagnosisPhaseProtocolFailure/shared-runtime/dark (0.56s)
+FAIL
+FAIL	floter/internal/shell	1.572s
+FAIL

@@ -44,6 +44,23 @@ func TestDiagnosisPhaseLiveHealth(t *testing.T) {
 
 func TestDiagnosisPhaseProtocolFailure(t *testing.T) {
 	for _, dark := range []bool{false, true} {
+		t.Run("shared-runtime/"+map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := diagnosisFailedLifecycle(t, dark)
+			f.entry.ExecutablePath = filepath.Join(f.dir, "removed-tool")
+			f.write(t)
+			f.a.Integrations.Refresh(context.Background())
+			owner, _ := f.a.Integrations.Inventory().WithID(f.entry.ID)
+			_, bindingErr := extensions.ResolveRuntime(owner)
+			if bindingErr == nil {
+				t.Fatal("missing executable did not reproduce a binding failure")
+			}
+			diagnosisWait(t, f.start(t))
+			diagnosisBoundaryFrame(t, f, "shared-runtime", dark)
+			row := f.a.integrationList()[0]
+			if !row.DiagnosisFailed || row.Diagnosis != bindingErr.Error() {
+				t.Errorf("shared runtime failure is repeated in the summary: got %q want %q", row.Diagnosis, bindingErr.Error())
+			}
+		})
 		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
 			f := diagnosisFailedLifecycle(t, dark)
 			diagnosisWrite(t, filepath.Join(f.dir, "request-0.json"), "invalid diagnosis response")

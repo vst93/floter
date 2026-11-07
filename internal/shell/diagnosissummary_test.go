@@ -10,6 +10,16 @@ import (
 
 func TestDiagnosisSummaryCombinedFailures(t *testing.T) {
 	for _, dark := range []bool{false, true} {
+		t.Run("shared-word/"+map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := diagnosisFailedLifecycle(t, dark)
+			f.request(t, 0, "unhealthy", nil, true)
+			diagnosisWait(t, f.start(t))
+			tt := diagnosisBoundaryFrame(t, f, "shared-word", dark)
+			row := f.a.integrationList()[0]
+			if !row.DiagnosisFailed || row.Diagnosis != "unhealthy" || row.DiagnosisStatus != "unhealthy" || !tt.HasText("Unhealthy") || tt.HasText("Unhealthy; unhealthy") {
+				t.Errorf("identical stage verdicts are duplicated: %q", row.Diagnosis)
+			}
+		})
 		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
 			f := diagnosisFailedLifecycle(t, dark)
 			f.request(t, 0, "error", []extensions.DiagnosisCheck{{ID: "account", Status: "error", Message: "需要重新登录"}}, true)

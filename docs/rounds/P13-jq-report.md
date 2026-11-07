@@ -50,3 +50,51 @@
 第一批通知队列断言也统一移到 Frame 前，防止队列交付后断言无意义；正式 mutation 重新验证，不修改旧 B 断言。
 
 第四批相关 **89 PASS / 0 FAIL**、两包 vet 净，八项均实红后绿。原 V/B/S 断言 0/0/0、新增 Skip 0。后续只做完整门槛、正式 mutation 与图像复核，不扩项。
+
+第四批 978a8fc8 已推送。
+
+## 正式 mutation
+
+| 组 | 注入 | 实红节点 | 六文件 MD5 / touch 后 PASS | 原始报错 |
+| --- | --- | --- | --- | --- |
+| M1 | 恢复 ErrNoProbes 继续与完成不刷新 | 6 | 全 OK / 6 | `removed lifecycle declaration still launches the stale provider`；`provider completed against stale disk owner and published old facts` |
+| M2 | 撤回报告提前刷新与协议失败合并 | 6 | 全 OK / 6 | `completed lifecycle failure stays invisible while provider waits: health="healthy" broken=false`；`provider protocol failure erased lifecycle reason` |
+| M3 | 恢复结构化覆盖、旧摘要优先与顶层精确匹配 | 8 | 全 OK / 8 | `provider findings erased lifecycle reason`；`successful provider status is painted/notified as failure` |
+| M4 | 恢复明细精确匹配与仅空字符串回退 | 8 | 全 OK / 8 | `successful individual check turns overall diagnosis into a failure`；`blank failure message leaves an OK summary instead of check identity` |
+
+每组都是运行时断言失败，非编译失败；还原后源码 git diff 为空。图由同一个最终夹具在注入前后生成；before 为该组缺陷回注，其余修复仍保留，不冒称是开盘整仓截图。完整门槛开始运行，数字待真实退出后追加。
+
+## 偷了什么
+
+- craft-loop **#4 签名交互**：过期结果与旧失败通知由 1→0；lifecycle 同步额外延时 0ms，已有 provider 等待不遮蔽已完成的事实。
+- **#6 编辑细节**：两阶段失败合在原有 1 条摘要中，空白摘要回退 1 个既有 ID；54px 状态列、8u 间距不变。
+- **#12 材质细节**：继承原 1px 受光边，新玻璃 0 层；这是约束继承，不冒称新增材质。
+- **#5 多层阴影**：保留既有浮层 2 层阴影，卡内新增影 0 层；同样不计新增装饰成果。
+- Apple DESIGN 的交互专用 accent、8px 按钮圆角、0.22 柔影只提取角色与层级关系，本仓 token 优先。不为工艺数量凑满五项添加装饰。
+
+**为什么更轻、更有空间感**：归属失效时撤下旧诊断和警告浮层，使既有卡片的留白恢复；真实错误在原摘要和健康面中说清，不叠新的解释卡片。
+
+## 两轮图像复核
+
+第一轮四视角：艺术总监看到过期 toast 抢注意力；工程师看到已落盘的 unhealthy 与界面 healthy 矛盾；使用者只看到 Error 无法知道两个阶段都失败；读者看到空白错误的摘要仍为 Ok。分别由来源撤回、阶段同步、合并摘要、ID 回退解决。
+
+第二轮审视同一最终夹具的 mutation 前后帧：全页 960×2400 原图保留，第一次总览高约 5000px，缩图读不清；补出 toast/诊断局部并排图，再以原像素和 2× 最近邻详情核对。裁剪只用于证据阅读，没有改绘产品。2× 图不冒充高 DPI 真机渲染。
+
+| 项 | 浅色局部 | 深色局部 | 图上实际变化 |
+| --- | --- | --- | --- |
+| 1 | [图](P13-jq/removed-probes-light-detail.png) | [图](P13-jq/removed-probes-dark-detail.png) | 过期失败 toast 与诊断块撤下 |
+| 2 | [图](P13-jq/disk-owner-light-detail.png) | [图](P13-jq/disk-owner-dark-detail.png) | 旧声明的失败结果不再占当前卡片 |
+| 3 | [图](P13-jq/live-health-light-detail.png) | [图](P13-jq/live-health-dark-detail.png) | provider 等待中健康面即时出现失败 probe 与 exit7 |
+| 4 | [图](P13-jq/protocol-failure-light-detail.png) | [图](P13-jq/protocol-failure-dark-detail.png) | 协议错误前保留 Unhealthy |
+| 5 | [图](P13-jq/combined-failures-light-detail.png) | [图](P13-jq/combined-failures-dark-detail.png) | Error 摘要改为 Unhealthy 与需要重新登录 |
+| 6 | [图](P13-jq/summary-spelling-ok-light-detail.png) | [图](P13-jq/summary-spelling-ok-dark-detail.png) | 成功摘要恢复正常墨，toast 改为成功勾 |
+| 7 | [图](P13-jq/check-spelling-ok-light-detail.png) | [图](P13-jq/check-spelling-ok-dark-detail.png) | 单项成功不再触发报告问题，摘要恢复 Ok |
+| 8 | [图](P13-jq/whitespace-failure-light-detail.png) | [图](P13-jq/whitespace-failure-dark-detail.png) | 摘要由 Ok 变为 Network.connection |
+
+40 张原始深浅前后图、20 张完整差异裁剪和 20 张局部对照入仓；大小写两种成功输入各有单独图。20 对全部有变化，最小 448 像素；具体数值见 image-differences.txt。时长/检查时间也是实际进程产生的数据，不为截图固定假值。[浅色总览](P13-jq/overview-light.png)、[深色总览](P13-jq/overview-dark.png)。
+
+## 合并原因的补充边界（属于第 4/5 项）
+
+复核发现新合并逻辑会重复同一运行时错误，真实缺失 executable 的两阶段报错实红：`shared runtime failure is repeated in the summary`。相同的 unhealthy 也实红：`identical stage verdicts are duplicated: "unhealthy; unhealthy"`。改为仅合并不同原因；同文原因显示一次，原始 provider status 仍保留。新增场景扩入原两条测试函数，不算第九项产品成果。完整门槛已启动但尚未完成；最终须对补修后的源码验收，早期门槛日志不冒充最终版。
+
+补修相关 **93 PASS / 0 FAIL**、两包 vet 净，原断言零改。正在补跑去重逻辑的独立 mutation；初轮四组 mutation 对应 initial-source.md5，最终补修使用 final-source.md5，两个版本不混称。
