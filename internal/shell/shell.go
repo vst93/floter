@@ -1477,7 +1477,7 @@ func (a *App) setShortcut(id, accelerator string) {
 		})
 		return
 	}
-	if normalized == a.summonKey {
+	if normalized == a.summonKey && !a.summonNeedsRestore && normalized == shortcuts.NormalizeOr(SummonShortcut(a.Store.Snapshot())) {
 		if a.shortcutRefusal == id {
 			a.ShortcutErr, a.shortcutRefusal = nil, ""
 		}
@@ -1486,7 +1486,12 @@ func (a *App) setShortcut(id, accelerator string) {
 	// A new attempt owns its own failure; an earlier OS refusal must not
 	// mislabel a later disk error.
 	a.ShortcutErr, a.shortcutRefusal = nil, ""
-	activate, err := a.registerSummonShortcut(normalized)
+	activate := func() {}
+	var err error
+	claiming := normalized != a.summonKey || a.summonNeedsRestore
+	if claiming {
+		activate, err = a.registerSummonShortcut(normalized)
+	}
 	if err != nil {
 		// The system holds the chord (another app took it): the old key stays
 		// registered and nothing is written, so the page owes the user a word
@@ -1508,11 +1513,13 @@ func (a *App) setShortcut(id, accelerator string) {
 		s.SetExtra("shortcuts", updated)
 	}); err != nil {
 		log.Printf("floter: could not save %s: %v", normalized, err)
-		a.unregisterShortcut(normalized)
+		if claiming {
+			a.unregisterShortcut(normalized)
+		}
 		return
 	}
 	// Keep the working chord until the replacement is durable.
-	if a.summonKey != "" {
+	if a.summonKey != "" && a.summonKey != normalized {
 		a.unregisterShortcut(a.summonKey)
 	}
 	a.summonKey = normalized
@@ -2277,6 +2284,12 @@ func (a *App) ApplySummonShortcut() {
 	}
 	accelerator := shortcuts.NormalizeOr(SummonShortcut(a.Store.Snapshot()))
 	if accelerator == a.summonKey && !a.summonNeedsRestore {
+		// A settings refresh may return to the fallback we still hold.
+		// Only retire the failed refresh, not an unrelated recording attempt.
+		if a.Settings.SummonUnavailable {
+			a.Settings.SummonUnavailable = false
+			a.ShortcutErr, a.shortcutRefusal = nil, ""
+		}
 		return
 	}
 	activate, err := a.registerSummonShortcut(accelerator)
@@ -2286,7 +2299,7 @@ func (a *App) ApplySummonShortcut() {
 		log.Printf("floter: could not register %s: %v", accelerator, err)
 		a.ShortcutErr, a.shortcutRefusal = err, settings.ShortcutToggleWindow
 		a.summonNeedsRestore = a.summonNeedsRestore || a.summonKey == ""
-		a.Settings.SummonUnavailable = a.summonNeedsRestore
+		a.Settings.SummonUnavailable = true
 		return
 	}
 	if a.summonKey != "" && a.summonKey != accelerator {
