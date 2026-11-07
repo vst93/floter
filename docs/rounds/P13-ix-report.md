@@ -31,3 +31,12 @@
 两条在深浅主题原代码均红，原始日志 batch1-before.log。当前 V/B/S 修改 **0/0/0**，新增 Skip **0**。
 
 第一批相关 **157 PASS / 0 FAIL**，包 vet 退出 0。M1 撤暂停守卫后 **6 FAIL**（包含父测试），MD5 OK、touch 后 **6 PASS**。完整全量最终执行；本批验证通过后提交推送。
+
+第一批 **8fd66cbb** 已推送。
+
+### 第二批（3–4）
+
+3. 现象：有完整未提交草稿时，切到已保存 B 录制，再删除草稿，B 的录制也被取消，下一键无法改 B。改动：草稿关闭只结束属于草稿的录制/重复提示，保留其他行归属。验证：真实 Add→录 Z→录 B→点击草稿 trash，之后录 R 仍写回 B 的原动作。
+4. 现象：草稿已有 Z，再点其录制器后直接 Bind，草稿消失但不可见的录制状态继续暂停全部系统键。改动：成功绑定复用草稿关闭出口，结束其录制，焦点仍归新保存行。验证：真实重录→Bind 后 Z、B、唤起三键全部可用，暂停为 false，原录制入口仍可继续。
+
+第二批相关 **163 PASS / 0 FAIL**、包 vet 净。原串 `canceling draft stopped saved binding recorder` 与 `bound draft left an invisible recorder suspending all keys`。M2 恢复两处旧状态处理后 **6 FAIL**，MD5 OK、touch 后 **6 PASS**。旧 V/B/S **0/0/0**。

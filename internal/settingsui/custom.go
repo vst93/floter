@@ -394,10 +394,13 @@ func (a *App) beginCustomDraft() {
 // cancelCustomDraft drops the row being made without touching the stored list.
 func (a *App) cancelCustomDraft() {
 	a.customDraftOpen = false
-	a.customRecording = false
-	a.customRecordRow = -1
+	if a.customRecordRow == customDraftRow {
+		a.customRecording = false
+	}
 	a.customKey, a.customCommand = "", ""
-	a.customDuplicate, a.customDuplicateRow = "", customDraftRow
+	if a.customDuplicateRow == customDraftRow {
+		a.customDuplicate = ""
+	}
 }
 
 // commandAction is the picker value that means "a command line I type": it is
@@ -508,8 +511,7 @@ func (a *App) addCustomShortcut() {
 	if !a.commitCustomShortcuts(entries) {
 		return
 	}
-	a.customDraftOpen = false
-	a.customKey, a.customCommand = "", ""
+	a.cancelCustomDraft()
 }
 
 // commitCustomCommand writes a saved row's edited command line. The
