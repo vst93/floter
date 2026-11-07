@@ -1,0 +1,101 @@
+=== RUN   TestReconnectAsksWhichExecutableToBind
+--- PASS: TestReconnectAsksWhichExecutableToBind (0.05s)
+=== RUN   TestHealthCompletionProvider
+--- PASS: TestHealthCompletionProvider (0.00s)
+=== RUN   TestHealthCompletionOwnership
+=== RUN   TestHealthCompletionOwnership/package
+=== RUN   TestHealthCompletionOwnership/package/light
+=== RUN   TestHealthCompletionOwnership/package/dark
+=== RUN   TestHealthCompletionOwnership/manifest
+=== RUN   TestHealthCompletionOwnership/manifest/light
+=== RUN   TestHealthCompletionOwnership/manifest/dark
+=== RUN   TestHealthCompletionOwnership/executable
+=== RUN   TestHealthCompletionOwnership/executable/light
+=== RUN   TestHealthCompletionOwnership/executable/dark
+=== RUN   TestHealthCompletionOwnership/new-report
+=== RUN   TestHealthCompletionOwnership/new-report/light
+=== RUN   TestHealthCompletionOwnership/new-report/dark
+=== RUN   TestHealthCompletionOwnership/removed
+=== RUN   TestHealthCompletionOwnership/removed/light
+=== RUN   TestHealthCompletionOwnership/removed/dark
+--- PASS: TestHealthCompletionOwnership (1.17s)
+    --- PASS: TestHealthCompletionOwnership/package (0.32s)
+        --- PASS: TestHealthCompletionOwnership/package/light (0.21s)
+        --- PASS: TestHealthCompletionOwnership/package/dark (0.11s)
+    --- PASS: TestHealthCompletionOwnership/manifest (0.22s)
+        --- PASS: TestHealthCompletionOwnership/manifest/light (0.11s)
+        --- PASS: TestHealthCompletionOwnership/manifest/dark (0.11s)
+    --- PASS: TestHealthCompletionOwnership/executable (0.22s)
+        --- PASS: TestHealthCompletionOwnership/executable/light (0.11s)
+        --- PASS: TestHealthCompletionOwnership/executable/dark (0.11s)
+    --- PASS: TestHealthCompletionOwnership/new-report (0.22s)
+        --- PASS: TestHealthCompletionOwnership/new-report/light (0.11s)
+        --- PASS: TestHealthCompletionOwnership/new-report/dark (0.11s)
+    --- PASS: TestHealthCompletionOwnership/removed (0.18s)
+        --- PASS: TestHealthCompletionOwnership/removed/light (0.09s)
+        --- PASS: TestHealthCompletionOwnership/removed/dark (0.09s)
+=== RUN   TestHealthCompletionRecovery
+=== RUN   TestHealthCompletionRecovery/enabled
+=== RUN   TestHealthCompletionRecovery/enabled/light
+=== RUN   TestHealthCompletionRecovery/enabled/dark
+=== RUN   TestHealthCompletionRecovery/disabled
+=== RUN   TestHealthCompletionRecovery/disabled/light
+=== RUN   TestHealthCompletionRecovery/disabled/dark
+=== RUN   TestHealthCompletionRecovery/other-failure
+=== RUN   TestHealthCompletionRecovery/other-failure/light
+=== RUN   TestHealthCompletionRecovery/other-failure/dark
+--- PASS: TestHealthCompletionRecovery (0.91s)
+    --- PASS: TestHealthCompletionRecovery/enabled (0.30s)
+        --- PASS: TestHealthCompletionRecovery/enabled/light (0.15s)
+        --- PASS: TestHealthCompletionRecovery/enabled/dark (0.15s)
+    --- PASS: TestHealthCompletionRecovery/disabled (0.30s)
+        --- PASS: TestHealthCompletionRecovery/disabled/light (0.15s)
+        --- PASS: TestHealthCompletionRecovery/disabled/dark (0.15s)
+    --- PASS: TestHealthCompletionRecovery/other-failure (0.31s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/light (0.16s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/dark (0.15s)
+=== RUN   TestAReconnectWithNothingToBindToReportsIt
+2026/11/08 05:03:44 floter: could not reconnect dev.floter.moved: extensions: runtime-unavailable: runtime-unavailable:{"names":["systool"]}
+--- PASS: TestAReconnectWithNothingToBindToReportsIt (0.05s)
+PASS
+ok  	floter/internal/shell	2.210s
+=== RUN   TestReconnectAtBindsToTheChosenProgram
+--- PASS: TestReconnectAtBindsToTheChosenProgram (0.03s)
+=== RUN   TestReconnectAtRefusesAProgramThatCannotRun
+--- PASS: TestReconnectAtRefusesAProgramThatCannotRun (0.01s)
+=== RUN   TestReprobeNoticeKeyIdentity
+--- PASS: TestReprobeNoticeKeyIdentity (0.00s)
+=== RUN   TestReprobeAllPassIsHealthy
+--- PASS: TestReprobeAllPassIsHealthy (0.03s)
+=== RUN   TestReprobeRequiredFailIsUnhealthyAndBroken
+--- PASS: TestReprobeRequiredFailIsUnhealthyAndBroken (0.03s)
+=== RUN   TestReprobeRecordsAnUnresolvableRuntime
+--- PASS: TestReprobeRecordsAnUnresolvableRuntime (0.02s)
+=== RUN   TestReprobeOptionalFailIsDegraded
+--- PASS: TestReprobeOptionalFailIsDegraded (0.02s)
+=== RUN   TestReprobeRefusesWhatItCannotProbe
+--- PASS: TestReprobeRefusesWhatItCannotProbe (10.05s)
+=== RUN   TestReconnectFollowsTheProgramToItsNewPath
+--- PASS: TestReconnectFollowsTheProgramToItsNewPath (0.02s)
+=== RUN   TestReconnectClearsTheBindingFailureItWasBoundTo
+--- PASS: TestReconnectClearsTheBindingFailureItWasBoundTo (0.02s)
+=== RUN   TestReconnectLeavesADisabledRowDisabled
+--- PASS: TestReconnectLeavesADisabledRowDisabled (0.02s)
+=== RUN   TestReconnectRecordsTheRuntimeItCouldNotFind
+--- PASS: TestReconnectRecordsTheRuntimeItCouldNotFind (0.02s)
+=== RUN   TestReconnectThatFindsNothingNewLeavesTheEntryAlone
+--- PASS: TestReconnectThatFindsNothingNewLeavesTheEntryAlone (0.02s)
+=== RUN   TestReconnectRefusesARuntimeFloterDoesNotOwn
+--- PASS: TestReconnectRefusesARuntimeFloterDoesNotOwn (0.03s)
+=== RUN   TestReconnectKeepsAProbeFailureItDidNotCause
+--- PASS: TestReconnectKeepsAProbeFailureItDidNotCause (0.02s)
+=== RUN   TestReprobeCommandsRebuildsTheDescriptor
+--- PASS: TestReprobeCommandsRebuildsTheDescriptor (0.01s)
+=== RUN   TestReprobeCommandsComparesWithThePreviousSidecar
+--- PASS: TestReprobeCommandsComparesWithThePreviousSidecar (0.03s)
+=== RUN   TestReprobeCommandsKeepsTheDescriptorWhenTheToolGoesQuiet
+--- PASS: TestReprobeCommandsKeepsTheDescriptorWhenTheToolGoesQuiet (0.01s)
+=== RUN   TestReprobeCommandsRefusesAPublisherIntegration
+--- PASS: TestReprobeCommandsRefusesAPublisherIntegration (0.01s)
+PASS
+ok  	floter/internal/extensions	10.420s

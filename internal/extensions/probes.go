@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -94,6 +96,13 @@ func (r *HealthReport) finalize(schema []Probe) {
 // declares none: it proves nothing and must not erase an earlier report.
 var ErrNoProbes = errors.New("extensions: the integration declares no lifecycle probes")
 
+// ErrProbeSuperseded means the tool or its recorded health changed while the
+// process was running. Its result must not replace the current tool's facts.
+var ErrProbeSuperseded = errors.New("extensions: the health check no longer matches the current integration")
+
+// Serialize only the short read/check/write, never the child process.
+var probeWriteMu sync.Mutex
+
 // Reprobe runs an integration's declared probes and records the report on its
 // repository entry, marking it broken when a required probe failed.
 //
@@ -124,7 +133,7 @@ func Reprobe(ctx context.Context, paths Paths, id string) (HealthReport, error) 
 		// entry keeps the code and the keyed detail, so the row can say why
 		// in the user's language (R11) instead of only going grey.
 		if failure, ok := AsBindingFailure(err); ok {
-			if recordErr := recordBindingFailure(paths, id, failure); recordErr != nil {
+			if recordErr := recordBindingFailure(paths, integration, failure); recordErr != nil {
 				return HealthReport{}, errors.Join(err, recordErr)
 			}
 		}
@@ -141,7 +150,7 @@ func Reprobe(ctx context.Context, paths Paths, id string) (HealthReport, error) 
 	}
 	report.finalize(probes)
 
-	if err := recordHealthReport(paths, id, report, probes); err != nil {
+	if err := recordHealthReport(paths, integration, report, probes); err != nil {
 		return report, err
 	}
 	return report, nil
@@ -195,14 +204,12 @@ func runProbe(ctx context.Context, binding RuntimeBinding, integration Integrati
 // the way a failed required probe is recorded: the code, the keyed detail and
 // the broken state, so the Integrations row can render a localised reason. The
 // health report is left alone — the failure happened before any probe ran.
-func recordBindingFailure(paths Paths, id string, failure *BindingFailure) error {
-	repo, err := LoadRepository(paths.RepositoryFile)
+func recordBindingFailure(paths Paths, integration Integration, failure *BindingFailure) error {
+	probeWriteMu.Lock()
+	defer probeWriteMu.Unlock()
+	repo, entry, err := currentProbeEntry(paths, integration)
 	if err != nil {
 		return err
-	}
-	entry, ok := repo.Extensions[id]
-	if !ok {
-		return ErrNoIntegration
 	}
 	code := failure.Code
 	detail := failure.Detail
@@ -213,24 +220,44 @@ func recordBindingFailure(paths Paths, id string, failure *BindingFailure) error
 	entry.LastErrorAt = &now
 	entry.BrokenReason = &detail
 	entry.UpdatedAt = now
-	repo.Extensions[id] = entry
+	repo.Extensions[entry.ID] = entry
 	return SaveRepository(paths.RepositoryFile, repo)
+}
+
+func currentProbeEntry(paths Paths, checked Integration) (Repository, Entry, error) {
+	repo, err := LoadRepository(paths.RepositoryFile)
+	if err != nil {
+		return repo, Entry{}, err
+	}
+	entry, ok := repo.Extensions[checked.Entry.ID]
+	if !ok {
+		return repo, Entry{}, ErrNoIntegration
+	}
+	manifest, err := LoadManifest(manifestPathFor(paths, entry))
+	if err != nil || entry.ManifestPath != checked.Entry.ManifestPath ||
+		entry.ExecutablePath != checked.Entry.ExecutablePath ||
+		entry.PackageVersion != checked.Entry.PackageVersion ||
+		entry.CurrentVersion != checked.Entry.CurrentVersion ||
+		!reflect.DeepEqual(entry.RuntimeRoot, checked.Entry.RuntimeRoot) ||
+		!reflect.DeepEqual(manifest, checked.Manifest) ||
+		!reflect.DeepEqual(entry.ProbeReport, checked.Entry.ProbeReport) {
+		return repo, entry, ErrProbeSuperseded
+	}
+	return repo, entry, nil
 }
 
 // recordHealthReport writes the report onto the repository entry, marking the
 // integration broken when a required probe failed and clearing that when a
 // later reprobe passes.
-func recordHealthReport(paths Paths, id string, report HealthReport, schema []Probe) error {
+func recordHealthReport(paths Paths, integration Integration, report HealthReport, schema []Probe) error {
 	if report.Status == HealthUnknown {
 		return nil
 	}
-	repo, err := LoadRepository(paths.RepositoryFile)
+	probeWriteMu.Lock()
+	defer probeWriteMu.Unlock()
+	repo, entry, err := currentProbeEntry(paths, integration)
 	if err != nil {
 		return err
-	}
-	entry, ok := repo.Extensions[id]
-	if !ok {
-		return ErrNoIntegration
 	}
 	entry.ProbeReport = &report
 	entry.UpdatedAt = uint64(time.Now().Unix())
@@ -266,11 +293,20 @@ func recordHealthReport(paths Paths, id string, report HealthReport, schema []Pr
 		now := uint64(time.Now().Unix())
 		entry.LastErrorAt = &now
 		entry.BrokenReason = &detail
-	} else {
+	} else if entry.LastErrorCode != nil && *entry.LastErrorCode == "probe_failed" {
+		// A passing retry resolves this probe's failure, not an unrelated
+		// package error, and cannot re-enable a tool the user disabled.
+		if entry.State == "broken" {
+			entry.State = "disabled"
+			if entry.Enabled {
+				entry.State = "enabled"
+			}
+		}
 		entry.LastErrorCode = nil
 		entry.LastErrorDetail = nil
+		entry.LastErrorAt = nil
 		entry.BrokenReason = nil
 	}
-	repo.Extensions[id] = entry
+	repo.Extensions[entry.ID] = entry
 	return SaveRepository(paths.RepositoryFile, repo)
 }

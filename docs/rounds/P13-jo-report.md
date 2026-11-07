@@ -41,3 +41,10 @@
 第三批相关 **30 PASS / 0 FAIL**，shell vet 退出0，旧 V/B/S **0/0/0**。范围内所有 notifyCompletion 的明确失败分支已排查。
 
 基线首轮错误 locale 的进程在重跑中文基线后主动终止，原日志保留但不作门槛通过依据；中文基线继续。
+
+第三批60349290已推送。正式开盘基线完成 **5727 PASS / 0 FAIL，exit=0**；测试函数起点3328。
+
+7. 现象：探测期间同ID换包、修改探测声明、换程序或已经收到新报告，旧进程的失败仍写回当前工具。改动：探测与绑定错误写回前核对包/程序/版本/声明及起始报告，过期则拒绝，短写回段串行。验证：真实子进程启动/释放门控制上述四种刷新，改前均 `outdated probe overwrote current repository health (err=<nil>)`；修改后仓库逐字节不变，当前健康标签保留。目标删除是额外反向控制，不计第九项。
+8. 现象：探测从失败恢复后仍是broken、命令不可用，错误时间残留；其他来源故障反而被清空原因。改动：成功只解除probe_failed故障及时间，按当前Enabled恢复enabled或disabled，其他故障保留。验证：真实进程先exit7后exit0，启用/停用/包校验故障三种状态各深浅；改前 `successful health retry left wrong availability: state="broken" running=false want="enabled"`、`recovered tool retained stale failure metadata`、`health retry erased an unrelated package failure`。
+
+第四批首轮48 PASS / 0 FAIL、两包vet净。补查发现960×1000的整页截图裁掉了目标卡片，已改为960×1600并重验；正式前后图将在mutation中按同一夹具重出。首次改动未同步Reconnect对recordBindingFailure的调用，编译拒绝；已补齐来源参数后才记录绿色门槛。

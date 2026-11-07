@@ -21,6 +21,8 @@
 
 开盘测试函数实测 3328。全量基线正在执行；首次仅 LANG 被 LC_ALL=C.UTF-8 覆盖，该日志单列，不作为视觉基线。正式统一 LC_ALL=zh_CN.UTF-8，完成后填写实测 PASS。
 
+正式基线完成：**5727 PASS / 0 FAIL，exit=0**，源代码仍为开盘版本编译的全量测试进程。
+
 每两项：先复现红、改动、定向回归和 vet，通过后立即 commit/push。最终完整门槛：gofmt -l cmd internal 空；三平台 go vet ./...；go test -count=1 ./...；verbose 全量计数；Linux/Windows/Darwin go build ./...。测试函数不得减少，旧 B 断言不改。
 
 mutation：M1 撤销诊断/剪贴板严重度；M2 撤销重连/修复严重度；M3 撤销安装/移除严重度；M4 撤销健康归属与恢复保护。每组要求真实失败、MD5 逐字节恢复、touch 后再过。通过 ui.Tester 导出深浅前后 PNG，不用 HTML 预览。
