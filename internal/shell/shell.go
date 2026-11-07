@@ -2229,8 +2229,11 @@ func (a *App) resetShortcuts() {
 	// Claim the replacement before committing it: a system refusal must leave
 	// both the working key and its confirmed settings available for retry.
 	replacing := a.summonKey != settings.DefaultSummonShortcut || a.summonNeedsRestore
+	activate := func() {}
 	if replacing {
-		if err := a.registerShortcut(settings.DefaultSummonShortcut, a.summonCallback()); err != nil {
+		var err error
+		activate, err = a.registerSummonShortcut(settings.DefaultSummonShortcut)
+		if err != nil {
 			a.ShortcutErr, a.shortcutRefusal = err, settings.ShortcutToggleWindow
 			return
 		}
@@ -2249,6 +2252,7 @@ func (a *App) resetShortcuts() {
 		a.unregisterShortcut(a.summonKey)
 	}
 	a.summonKey = settings.DefaultSummonShortcut
+	activate()
 	a.summonNeedsRestore = false
 	a.Settings.SummonUnavailable = false
 	a.Settings.Shortcut = settings.DefaultSummonShortcut
@@ -2312,6 +2316,7 @@ func (a *App) shortcutWasRefused(id string) bool {
 func (a *App) setShortcutsSuspended(suspended bool) {
 	if suspended {
 		a.customGeneration++
+		a.summonRegistration = nil
 		if a.summonKey != "" {
 			a.unregisterShortcut(a.summonKey)
 		}
@@ -2328,13 +2333,14 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 	if a.summonNeedsRestore {
 		accelerator := shortcuts.NormalizeOr(SummonShortcut(a.Store.Snapshot()))
 		wasUnavailable := a.Settings.SummonUnavailable
-		err := a.registerShortcut(accelerator, a.summonCallback())
+		activate, err := a.registerSummonShortcut(accelerator)
 		a.Settings.SummonUnavailable = err != nil
 		a.summonNeedsRestore = err != nil
 		if err != nil {
 			log.Printf("floter: could not re-register %s: %v", accelerator, err)
 			a.ShortcutErr = err
 		} else {
+			activate()
 			a.summonKey, a.Settings.Shortcut = accelerator, accelerator
 			if wasUnavailable {
 				a.ShortcutErr, a.shortcutRefusal = nil, ""

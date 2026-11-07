@@ -217,3 +217,37 @@ func TestQueuedSummonFailedReplacementKeepsWorkingCallback(t *testing.T) {
 	queuedSummon(t, a, tentative, false)
 	queuedSummon(t, a, old, true)
 }
+
+func TestQueuedSummonResetCannotDispatchOldKey(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			h := newShortcutLifecycle(t, "Ctrl+Alt+J")
+			old := h.live["Ctrl+Alt+J"]
+			tt := h.frame(dark)
+			editingClick(t, tt, i18n.For("en").Settings.ShortcutsReset)
+			if h.app.summonKey != settings.DefaultSummonShortcut {
+				t.Fatal("defaults not restored")
+			}
+			queuedSummon(t, h.app, old, false)
+			queuedSummon(t, h.app, h.live[settings.DefaultSummonShortcut], true)
+			queuedDump(t, tt, "summon-reset", dark)
+		})
+	}
+}
+
+func TestQueuedSummonResumedKeyCannotReplayOldPress(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			h := newShortcutLifecycle(t, "Ctrl+Alt+J")
+			old := h.live["Ctrl+Alt+J"]
+			tt := h.frame(dark)
+			lifecycleRecord(t, h, tt, "Ctrl+Alt+J")
+			tt.Key(0, ui.KeyEscape)
+			tt.Frame()
+			tt.Frame()
+			queuedSummon(t, h.app, old, false)
+			queuedSummon(t, h.app, h.live["Ctrl+Alt+J"], true)
+			queuedDump(t, tt, "summon-resumed", dark)
+		})
+	}
+}

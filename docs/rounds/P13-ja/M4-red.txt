@@ -1,0 +1,19 @@
+=== RUN   TestQueuedSummonResetCannotDispatchOldKey
+=== RUN   TestQueuedSummonResetCannotDispatchOldKey/light
+    shortcutqueued_test.go:231: queued summon reached Toggle = 1, want dispatch false
+=== RUN   TestQueuedSummonResetCannotDispatchOldKey/dark
+    shortcutqueued_test.go:231: queued summon reached Toggle = 1, want dispatch false
+--- FAIL: TestQueuedSummonResetCannotDispatchOldKey (0.49s)
+    --- FAIL: TestQueuedSummonResetCannotDispatchOldKey/light (0.22s)
+    --- FAIL: TestQueuedSummonResetCannotDispatchOldKey/dark (0.27s)
+=== RUN   TestQueuedSummonResumedKeyCannotReplayOldPress
+=== RUN   TestQueuedSummonResumedKeyCannotReplayOldPress/light
+    shortcutqueued_test.go:248: queued summon reached Toggle = 1, want dispatch false
+=== RUN   TestQueuedSummonResumedKeyCannotReplayOldPress/dark
+    shortcutqueued_test.go:248: queued summon reached Toggle = 1, want dispatch false
+--- FAIL: TestQueuedSummonResumedKeyCannotReplayOldPress (0.40s)
+    --- FAIL: TestQueuedSummonResumedKeyCannotReplayOldPress/light (0.06s)
+    --- FAIL: TestQueuedSummonResumedKeyCannotReplayOldPress/dark (0.34s)
+FAIL
+FAIL	floter/internal/shell	0.905s
+FAIL

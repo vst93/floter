@@ -1,0 +1,14 @@
+=== RUN   TestQueuedSummonResetCannotDispatchOldKey
+=== RUN   TestQueuedSummonResetCannotDispatchOldKey/light
+=== RUN   TestQueuedSummonResetCannotDispatchOldKey/dark
+--- PASS: TestQueuedSummonResetCannotDispatchOldKey (0.47s)
+    --- PASS: TestQueuedSummonResetCannotDispatchOldKey/light (0.27s)
+    --- PASS: TestQueuedSummonResetCannotDispatchOldKey/dark (0.20s)
+=== RUN   TestQueuedSummonResumedKeyCannotReplayOldPress
+=== RUN   TestQueuedSummonResumedKeyCannotReplayOldPress/light
+=== RUN   TestQueuedSummonResumedKeyCannotReplayOldPress/dark
+--- PASS: TestQueuedSummonResumedKeyCannotReplayOldPress (0.29s)
+    --- PASS: TestQueuedSummonResumedKeyCannotReplayOldPress/light (0.05s)
+    --- PASS: TestQueuedSummonResumedKeyCannotReplayOldPress/dark (0.25s)
+PASS
+ok  	floter/internal/shell	0.775s
