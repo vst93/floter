@@ -1,0 +1,88 @@
+=== RUN   TestConfigCopyWaitsForClipboardDelivery
+    transferfeedback_test.go:73: configuration copy bypassed the configured clipboard backend
+    transferfeedback_test.go:76: configuration copy announced success before clipboard delivery
+    transferfeedback_test.go:86: transfer did not settle
+--- FAIL: TestConfigCopyWaitsForClipboardDelivery (4.04s)
+=== RUN   TestConfigCopyReportsValidationCause
+=== RUN   TestConfigCopyReportsValidationCause/light
+2026/11/07 22:33:09 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+    transferfeedback_test.go:118: configuration validation hid its actionable cause: want "extensions: missing required configuration key \"endpoint\""
+    transferfeedback_test.go:121: configuration validation incorrectly accuses an integrations file
+=== RUN   TestConfigCopyReportsValidationCause/dark
+2026/11/07 22:33:09 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+    transferfeedback_test.go:118: configuration validation hid its actionable cause: want "extensions: missing required configuration key \"endpoint\""
+    transferfeedback_test.go:121: configuration validation incorrectly accuses an integrations file
+--- FAIL: TestConfigCopyReportsValidationCause (0.50s)
+    --- FAIL: TestConfigCopyReportsValidationCause/light (0.25s)
+    --- FAIL: TestConfigCopyReportsValidationCause/dark (0.25s)
+=== RUN   TestConfigExportReportsValidationCause
+=== RUN   TestConfigExportReportsValidationCause/light
+2026/11/07 22:33:09 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+    transferfeedback_test.go:118: configuration validation hid its actionable cause: want "extensions: missing required configuration key \"endpoint\""
+    transferfeedback_test.go:121: configuration validation incorrectly accuses an integrations file
+=== RUN   TestConfigExportReportsValidationCause/dark
+2026/11/07 22:33:09 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+    transferfeedback_test.go:118: configuration validation hid its actionable cause: want "extensions: missing required configuration key \"endpoint\""
+    transferfeedback_test.go:121: configuration validation incorrectly accuses an integrations file
+--- FAIL: TestConfigExportReportsValidationCause (0.50s)
+    --- FAIL: TestConfigExportReportsValidationCause/light (0.25s)
+    --- FAIL: TestConfigExportReportsValidationCause/dark (0.25s)
+=== RUN   TestConfigExportPickerFailureIsVisible
+=== RUN   TestConfigExportPickerFailureIsVisible/light
+2026/11/07 22:33:10 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+    transferfeedback_test.go:159: config picker failure is invisible
+=== RUN   TestConfigExportPickerFailureIsVisible/dark
+2026/11/07 22:33:10 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+    transferfeedback_test.go:159: config picker failure is invisible
+--- FAIL: TestConfigExportPickerFailureIsVisible (0.07s)
+    --- FAIL: TestConfigExportPickerFailureIsVisible/light (0.03s)
+    --- FAIL: TestConfigExportPickerFailureIsVisible/dark (0.03s)
+=== RUN   TestIntegrationsExportPickerFailureIsVisible
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/light
+    transferfeedback_test.go:159: export picker failure is invisible
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/dark
+    transferfeedback_test.go:159: export picker failure is invisible
+--- FAIL: TestIntegrationsExportPickerFailureIsVisible (0.13s)
+    --- FAIL: TestIntegrationsExportPickerFailureIsVisible/light (0.06s)
+    --- FAIL: TestIntegrationsExportPickerFailureIsVisible/dark (0.07s)
+=== RUN   TestIntegrationsImportPickerFailureIsVisible
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/light
+    transferfeedback_test.go:159: import picker failure is invisible
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/dark
+    transferfeedback_test.go:159: import picker failure is invisible
+--- FAIL: TestIntegrationsImportPickerFailureIsVisible (0.09s)
+    --- FAIL: TestIntegrationsImportPickerFailureIsVisible/light (0.04s)
+    --- FAIL: TestIntegrationsImportPickerFailureIsVisible/dark (0.04s)
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/copy/light
+    transferfeedback_test.go:194: transfer did not settle
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/copy/dark
+    transferfeedback_test.go:194: transfer did not settle
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/export/light
+    transferfeedback_test.go:199: configuration success replaced the unrelated refusal
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/export/dark
+    transferfeedback_test.go:199: configuration success replaced the unrelated refusal
+--- FAIL: TestConfigTransferSuccessPreservesOtherRefusal (6.54s)
+    --- FAIL: TestConfigTransferSuccessPreservesOtherRefusal/copy/light (3.01s)
+    --- FAIL: TestConfigTransferSuccessPreservesOtherRefusal/copy/dark (3.03s)
+    --- FAIL: TestConfigTransferSuccessPreservesOtherRefusal/export/light (0.25s)
+    --- FAIL: TestConfigTransferSuccessPreservesOtherRefusal/export/dark (0.25s)
+FAIL
+FAIL	floter/internal/shell	11.872s
+=== RUN   TestImportReportRevealsItsSource
+=== RUN   TestImportReportRevealsItsSource/light/success
+    transferpath_test.go:43: import report hides its source path on hover
+=== RUN   TestImportReportRevealsItsSource/light/failed
+    transferpath_test.go:43: import report hides its source path on hover
+=== RUN   TestImportReportRevealsItsSource/dark/success
+    transferpath_test.go:43: import report hides its source path on hover
+=== RUN   TestImportReportRevealsItsSource/dark/failed
+    transferpath_test.go:43: import report hides its source path on hover
+--- FAIL: TestImportReportRevealsItsSource (0.17s)
+    --- FAIL: TestImportReportRevealsItsSource/light/success (0.12s)
+    --- FAIL: TestImportReportRevealsItsSource/light/failed (0.02s)
+    --- FAIL: TestImportReportRevealsItsSource/dark/success (0.02s)
+    --- FAIL: TestImportReportRevealsItsSource/dark/failed (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.172s
+FAIL

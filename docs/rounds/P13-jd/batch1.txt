@@ -1,0 +1,18 @@
+=== RUN   TestIntegrationConfigurationFormEndToEnd
+--- PASS: TestIntegrationConfigurationFormEndToEnd (0.02s)
+=== RUN   TestConfigurationCopyRaisesTheNotice
+    shell_test.go:3998: the copy raised no "Configuration copied" notice
+--- FAIL: TestConfigurationCopyRaisesTheNotice (0.07s)
+=== RUN   TestConfigCopyWaitsForClipboardDelivery
+--- PASS: TestConfigCopyWaitsForClipboardDelivery (0.02s)
+=== RUN   TestConfigCopyReportsValidationCause
+=== RUN   TestConfigCopyReportsValidationCause/light
+2026/11/07 22:34:38 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigCopyReportsValidationCause/dark
+2026/11/07 22:34:38 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigCopyReportsValidationCause (0.50s)
+    --- PASS: TestConfigCopyReportsValidationCause/light (0.25s)
+    --- PASS: TestConfigCopyReportsValidationCause/dark (0.25s)
+FAIL
+FAIL	floter/internal/shell	0.616s
+FAIL

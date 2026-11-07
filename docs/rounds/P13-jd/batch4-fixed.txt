@@ -1,0 +1,91 @@
+=== RUN   TestIntegrationExportAndImport
+2026/11/07 22:39:29 floter: could not read /tmp/TestIntegrationExportAndImport1967581274/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationExportAndImport (0.07s)
+=== RUN   TestTheTransferIsOneAtATime
+--- PASS: TestTheTransferIsOneAtATime (0.04s)
+=== RUN   TestIntegrationConfigurationFormEndToEnd
+--- PASS: TestIntegrationConfigurationFormEndToEnd (0.02s)
+=== RUN   TestConfigurationExportWritesTheRedactedDocument
+--- PASS: TestConfigurationExportWritesTheRedactedDocument (0.07s)
+=== RUN   TestConfigurationCopyRaisesTheNotice
+--- PASS: TestConfigurationCopyRaisesTheNotice (0.06s)
+=== RUN   TestConfigCopyWaitsForClipboardDelivery
+--- PASS: TestConfigCopyWaitsForClipboardDelivery (0.01s)
+=== RUN   TestConfigCopyReportsValidationCause
+=== RUN   TestConfigCopyReportsValidationCause/light
+2026/11/07 22:39:30 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigCopyReportsValidationCause/dark
+2026/11/07 22:39:30 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigCopyReportsValidationCause (0.52s)
+    --- PASS: TestConfigCopyReportsValidationCause/light (0.25s)
+    --- PASS: TestConfigCopyReportsValidationCause/dark (0.26s)
+=== RUN   TestConfigExportReportsValidationCause
+=== RUN   TestConfigExportReportsValidationCause/light
+2026/11/07 22:39:30 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigExportReportsValidationCause/dark
+2026/11/07 22:39:30 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigExportReportsValidationCause (0.53s)
+    --- PASS: TestConfigExportReportsValidationCause/light (0.26s)
+    --- PASS: TestConfigExportReportsValidationCause/dark (0.26s)
+=== RUN   TestConfigExportPickerFailureIsVisible
+=== RUN   TestConfigExportPickerFailureIsVisible/light
+2026/11/07 22:39:31 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigExportPickerFailureIsVisible/dark
+2026/11/07 22:39:31 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigExportPickerFailureIsVisible (0.51s)
+    --- PASS: TestConfigExportPickerFailureIsVisible/light (0.25s)
+    --- PASS: TestConfigExportPickerFailureIsVisible/dark (0.25s)
+=== RUN   TestIntegrationsExportPickerFailureIsVisible
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/light
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/dark
+--- PASS: TestIntegrationsExportPickerFailureIsVisible (0.57s)
+    --- PASS: TestIntegrationsExportPickerFailureIsVisible/light (0.28s)
+    --- PASS: TestIntegrationsExportPickerFailureIsVisible/dark (0.29s)
+=== RUN   TestIntegrationsImportPickerFailureIsVisible
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/light
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/dark
+--- PASS: TestIntegrationsImportPickerFailureIsVisible (0.53s)
+    --- PASS: TestIntegrationsImportPickerFailureIsVisible/light (0.26s)
+    --- PASS: TestIntegrationsImportPickerFailureIsVisible/dark (0.26s)
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/copy/light
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/copy/dark
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/export/light
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/export/dark
+--- PASS: TestConfigTransferSuccessPreservesOtherRefusal (1.12s)
+    --- PASS: TestConfigTransferSuccessPreservesOtherRefusal/copy/light (0.28s)
+    --- PASS: TestConfigTransferSuccessPreservesOtherRefusal/copy/dark (0.28s)
+    --- PASS: TestConfigTransferSuccessPreservesOtherRefusal/export/light (0.28s)
+    --- PASS: TestConfigTransferSuccessPreservesOtherRefusal/export/dark (0.28s)
+PASS
+ok  	floter/internal/shell	4.034s
+=== RUN   TestConfigurationInputHonorsReboundNewCommand
+=== RUN   TestConfigurationInputHonorsReboundNewCommand/light
+=== RUN   TestConfigurationInputHonorsReboundNewCommand/dark
+--- PASS: TestConfigurationInputHonorsReboundNewCommand (0.09s)
+    --- PASS: TestConfigurationInputHonorsReboundNewCommand/light (0.07s)
+    --- PASS: TestConfigurationInputHonorsReboundNewCommand/dark (0.02s)
+=== RUN   TestTheSettingsTipsAreFloatingPanes
+=== RUN   TestTheSettingsTipsAreFloatingPanes/light
+    tipglass_test.go:204: light: ground (247,247,248 a255) face (250,250,251 a255) crown (255,255,255 a255) (+4 levels) tip {0 43 153 41}
+=== RUN   TestTheSettingsTipsAreFloatingPanes/dark
+    tipglass_test.go:204: dark: ground (14,14,16 a255) face (20,20,23 a255) crown (67,67,69 a255) (+46 levels) tip {3 53 137 29}
+--- PASS: TestTheSettingsTipsAreFloatingPanes (0.03s)
+    --- PASS: TestTheSettingsTipsAreFloatingPanes/light (0.02s)
+    --- PASS: TestTheSettingsTipsAreFloatingPanes/dark (0.01s)
+=== RUN   TestTheSettingsPageHasNoFrameworkTips
+--- PASS: TestTheSettingsPageHasNoFrameworkTips (0.01s)
+=== RUN   TestImportReportRevealsItsSource
+=== RUN   TestImportReportRevealsItsSource/light/success
+=== RUN   TestImportReportRevealsItsSource/light/failed
+=== RUN   TestImportReportRevealsItsSource/dark/success
+=== RUN   TestImportReportRevealsItsSource/dark/failed
+--- PASS: TestImportReportRevealsItsSource (0.07s)
+    --- PASS: TestImportReportRevealsItsSource/light/success (0.02s)
+    --- PASS: TestImportReportRevealsItsSource/light/failed (0.02s)
+    --- PASS: TestImportReportRevealsItsSource/dark/success (0.02s)
+    --- PASS: TestImportReportRevealsItsSource/dark/failed (0.02s)
+=== RUN   TestConfigurationForm
+--- PASS: TestConfigurationForm (0.17s)
+PASS
+ok  	floter/internal/settingsui	0.378s

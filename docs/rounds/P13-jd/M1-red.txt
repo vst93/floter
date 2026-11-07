@@ -1,0 +1,53 @@
+=== RUN   TestConfigCopyReportsValidationCause
+=== RUN   TestConfigCopyReportsValidationCause/light
+2026/11/07 22:40:24 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+    transferfeedback_test.go:119: configuration validation hid its actionable cause: want "extensions: missing required configuration key \"endpoint\""
+    transferfeedback_test.go:122: configuration validation incorrectly accuses an integrations file
+=== RUN   TestConfigCopyReportsValidationCause/dark
+2026/11/07 22:40:24 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+    transferfeedback_test.go:119: configuration validation hid its actionable cause: want "extensions: missing required configuration key \"endpoint\""
+    transferfeedback_test.go:122: configuration validation incorrectly accuses an integrations file
+--- FAIL: TestConfigCopyReportsValidationCause (0.53s)
+    --- FAIL: TestConfigCopyReportsValidationCause/light (0.27s)
+    --- FAIL: TestConfigCopyReportsValidationCause/dark (0.26s)
+=== RUN   TestConfigExportReportsValidationCause
+=== RUN   TestConfigExportReportsValidationCause/light
+2026/11/07 22:40:24 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+    transferfeedback_test.go:119: configuration validation hid its actionable cause: want "extensions: missing required configuration key \"endpoint\""
+    transferfeedback_test.go:122: configuration validation incorrectly accuses an integrations file
+=== RUN   TestConfigExportReportsValidationCause/dark
+2026/11/07 22:40:24 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+    transferfeedback_test.go:119: configuration validation hid its actionable cause: want "extensions: missing required configuration key \"endpoint\""
+    transferfeedback_test.go:122: configuration validation incorrectly accuses an integrations file
+--- FAIL: TestConfigExportReportsValidationCause (0.53s)
+    --- FAIL: TestConfigExportReportsValidationCause/light (0.26s)
+    --- FAIL: TestConfigExportReportsValidationCause/dark (0.26s)
+=== RUN   TestConfigExportPickerFailureIsVisible
+=== RUN   TestConfigExportPickerFailureIsVisible/light
+2026/11/07 22:40:25 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+    transferfeedback_test.go:160: config picker failure is invisible
+=== RUN   TestConfigExportPickerFailureIsVisible/dark
+2026/11/07 22:40:25 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+    transferfeedback_test.go:160: config picker failure is invisible
+--- FAIL: TestConfigExportPickerFailureIsVisible (0.09s)
+    --- FAIL: TestConfigExportPickerFailureIsVisible/light (0.05s)
+    --- FAIL: TestConfigExportPickerFailureIsVisible/dark (0.04s)
+=== RUN   TestIntegrationsExportPickerFailureIsVisible
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/light
+    transferfeedback_test.go:160: export picker failure is invisible
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/dark
+    transferfeedback_test.go:160: export picker failure is invisible
+--- FAIL: TestIntegrationsExportPickerFailureIsVisible (0.15s)
+    --- FAIL: TestIntegrationsExportPickerFailureIsVisible/light (0.07s)
+    --- FAIL: TestIntegrationsExportPickerFailureIsVisible/dark (0.07s)
+=== RUN   TestIntegrationsImportPickerFailureIsVisible
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/light
+    transferfeedback_test.go:160: import picker failure is invisible
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/dark
+    transferfeedback_test.go:160: import picker failure is invisible
+--- FAIL: TestIntegrationsImportPickerFailureIsVisible (0.11s)
+    --- FAIL: TestIntegrationsImportPickerFailureIsVisible/light (0.06s)
+    --- FAIL: TestIntegrationsImportPickerFailureIsVisible/dark (0.05s)
+FAIL
+FAIL	floter/internal/shell	1.408s
+FAIL

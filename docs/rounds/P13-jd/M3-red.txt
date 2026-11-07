@@ -1,0 +1,6 @@
+=== RUN   TestConfigCopyWaitsForClipboardDelivery
+    transferfeedback_test.go:77: configuration copy announced success before clipboard delivery
+--- FAIL: TestConfigCopyWaitsForClipboardDelivery (0.02s)
+FAIL
+FAIL	floter/internal/shell	0.020s
+FAIL

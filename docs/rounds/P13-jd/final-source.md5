@@ -1,0 +1,6 @@
+ea015c92fa2d969e3dff003d4a6c7e3e  internal/shell/sync.go
+442b8bfe3647c9193607911ec4b7eaa7  internal/shell/transferfeedback_test.go
+12d1b62a1eee264dbaa87bd8c4641d07  internal/shell/shell_test.go
+cf7c010a80f4169da06332b570ccb738  internal/settingsui/transfer.go
+8b3ac9919d2f4f79b1d38745d0dfd9d1  internal/settingsui/transferpath_test.go
+99402f0afbaffe95ba9a91d4e839e61f  internal/settingsui/tipglass_test.go

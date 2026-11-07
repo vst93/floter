@@ -1,0 +1,38 @@
+=== RUN   TestConfigCopyReportsValidationCause
+=== RUN   TestConfigCopyReportsValidationCause/light
+2026/11/07 22:40:26 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigCopyReportsValidationCause/dark
+2026/11/07 22:40:26 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigCopyReportsValidationCause (0.49s)
+    --- PASS: TestConfigCopyReportsValidationCause/light (0.24s)
+    --- PASS: TestConfigCopyReportsValidationCause/dark (0.25s)
+=== RUN   TestConfigExportReportsValidationCause
+=== RUN   TestConfigExportReportsValidationCause/light
+2026/11/07 22:40:26 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigExportReportsValidationCause/dark
+2026/11/07 22:40:26 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigExportReportsValidationCause (0.49s)
+    --- PASS: TestConfigExportReportsValidationCause/light (0.24s)
+    --- PASS: TestConfigExportReportsValidationCause/dark (0.25s)
+=== RUN   TestConfigExportPickerFailureIsVisible
+=== RUN   TestConfigExportPickerFailureIsVisible/light
+2026/11/07 22:40:27 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigExportPickerFailureIsVisible/dark
+2026/11/07 22:40:27 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigExportPickerFailureIsVisible (0.49s)
+    --- PASS: TestConfigExportPickerFailureIsVisible/light (0.25s)
+    --- PASS: TestConfigExportPickerFailureIsVisible/dark (0.24s)
+=== RUN   TestIntegrationsExportPickerFailureIsVisible
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/light
+=== RUN   TestIntegrationsExportPickerFailureIsVisible/dark
+--- PASS: TestIntegrationsExportPickerFailureIsVisible (0.55s)
+    --- PASS: TestIntegrationsExportPickerFailureIsVisible/light (0.27s)
+    --- PASS: TestIntegrationsExportPickerFailureIsVisible/dark (0.28s)
+=== RUN   TestIntegrationsImportPickerFailureIsVisible
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/light
+=== RUN   TestIntegrationsImportPickerFailureIsVisible/dark
+--- PASS: TestIntegrationsImportPickerFailureIsVisible (0.52s)
+    --- PASS: TestIntegrationsImportPickerFailureIsVisible/light (0.26s)
+    --- PASS: TestIntegrationsImportPickerFailureIsVisible/dark (0.26s)
+PASS
+ok  	floter/internal/shell	2.548s

@@ -1,0 +1,33 @@
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/copy/light
+    transferfeedback_test.go:200: configuration success replaced the unrelated refusal
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/copy/dark
+    transferfeedback_test.go:200: configuration success replaced the unrelated refusal
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/export/light
+    transferfeedback_test.go:200: configuration success replaced the unrelated refusal
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/export/dark
+    transferfeedback_test.go:200: configuration success replaced the unrelated refusal
+--- FAIL: TestConfigTransferSuccessPreservesOtherRefusal (1.17s)
+    --- FAIL: TestConfigTransferSuccessPreservesOtherRefusal/copy/light (0.29s)
+    --- FAIL: TestConfigTransferSuccessPreservesOtherRefusal/copy/dark (0.30s)
+    --- FAIL: TestConfigTransferSuccessPreservesOtherRefusal/export/light (0.31s)
+    --- FAIL: TestConfigTransferSuccessPreservesOtherRefusal/export/dark (0.28s)
+FAIL
+FAIL	floter/internal/shell	1.175s
+=== RUN   TestImportReportRevealsItsSource
+=== RUN   TestImportReportRevealsItsSource/light/success
+    transferpath_test.go:43: import report hides its source path on hover
+=== RUN   TestImportReportRevealsItsSource/light/failed
+    transferpath_test.go:43: import report hides its source path on hover
+=== RUN   TestImportReportRevealsItsSource/dark/success
+    transferpath_test.go:43: import report hides its source path on hover
+=== RUN   TestImportReportRevealsItsSource/dark/failed
+    transferpath_test.go:43: import report hides its source path on hover
+--- FAIL: TestImportReportRevealsItsSource (0.10s)
+    --- FAIL: TestImportReportRevealsItsSource/light/success (0.05s)
+    --- FAIL: TestImportReportRevealsItsSource/light/failed (0.02s)
+    --- FAIL: TestImportReportRevealsItsSource/dark/success (0.02s)
+    --- FAIL: TestImportReportRevealsItsSource/dark/failed (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.107s
+FAIL

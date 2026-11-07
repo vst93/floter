@@ -1,0 +1,4 @@
+=== RUN   TestConfigCopyWaitsForClipboardDelivery
+--- PASS: TestConfigCopyWaitsForClipboardDelivery (0.01s)
+PASS
+ok  	floter/internal/shell	0.017s

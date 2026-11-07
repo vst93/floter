@@ -1,0 +1,24 @@
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/copy/light
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/copy/dark
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/export/light
+=== RUN   TestConfigTransferSuccessPreservesOtherRefusal/export/dark
+--- PASS: TestConfigTransferSuccessPreservesOtherRefusal (1.20s)
+    --- PASS: TestConfigTransferSuccessPreservesOtherRefusal/copy/light (0.27s)
+    --- PASS: TestConfigTransferSuccessPreservesOtherRefusal/copy/dark (0.31s)
+    --- PASS: TestConfigTransferSuccessPreservesOtherRefusal/export/light (0.30s)
+    --- PASS: TestConfigTransferSuccessPreservesOtherRefusal/export/dark (0.32s)
+PASS
+ok  	floter/internal/shell	1.210s
+=== RUN   TestImportReportRevealsItsSource
+=== RUN   TestImportReportRevealsItsSource/light/success
+=== RUN   TestImportReportRevealsItsSource/light/failed
+=== RUN   TestImportReportRevealsItsSource/dark/success
+=== RUN   TestImportReportRevealsItsSource/dark/failed
+--- PASS: TestImportReportRevealsItsSource (0.08s)
+    --- PASS: TestImportReportRevealsItsSource/light/success (0.06s)
+    --- PASS: TestImportReportRevealsItsSource/light/failed (0.01s)
+    --- PASS: TestImportReportRevealsItsSource/dark/success (0.01s)
+    --- PASS: TestImportReportRevealsItsSource/dark/failed (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.090s

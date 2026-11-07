@@ -1,0 +1,14 @@
+Locale: zh_CN.UTF-8; GOMAXPROCS=4
+Baseline: exit 0; PASS 5381; test functions 3218
+Final ordinary full test: exit 0
+Final verbose full test: exit 0; PASS 5407; FAIL 0
+Final test functions: 3226
+gofmt -l cmd internal: empty, exit 0
+Linux vet/build: exit 0/0
+Windows vet/build: exit 0/0
+Darwin vet/build: exit 0/0
+Targeted race -count=3: exit 0
+M1 injected: exit 1; restored MD5 OK; touch retest 15 PASS
+M2 injected: exit 1; restored MD5 OK; touch retest 10 PASS
+M3 injected: exit 1; restored MD5 OK; touch retest 1 PASS
+Existing assertions V/B/S: 0/0/1; new Skip: 0
