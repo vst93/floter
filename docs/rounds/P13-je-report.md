@@ -39,3 +39,10 @@
 
 5. 保存配置撤回：现象 → 点击保存时 provider 已撤回配置，空指针使动作崩溃。改动 → 保存接同一个当前配置校验，错误回到原表单错误带。验证 → 旧事件 `stale save panicked after missing refresh: runtime error: invalid memory address or nil pointer dereference` 实红；拒绝后磁盘原配置逐字节未变。
 6. 保存 ownership：现象 → provider 改成 tool 后，旧保存仍写入磁盘。改动 → 同一 host 条件阻止该写入。验证 → `stale save changed stored configuration: <nil>` 原事件实红；修后非 nil 错误可见、文件字节不变，不调整保存时机。
+
+## 第四批
+
+7. 行忙态复制：现象 → 真实 Recheck 在飞时复制图标仍亮、可派发。改动 → 工具条读取既有 configLocked/rowBusy，与字段和底部动作同锁。验证 → 原事件 `busy row dispatched copy-row-busy 1 times` 实红；修后零次，修复失败返回后可再复制一次。
+8. 行忙态导出：现象 → 同一在飞状态下可打开第二个导出动作。改动 → 导出与复制共享原行锁与 DimFace。验证 → `busy row dispatched export-row-busy 1 times` 实红；修后零次，行解锁后可导出一次，目标和草稿不变。
+
+跨宿主配置传输/保存与设置页工具条两个组件。未新增系统/依赖/设置项，旧 V/B/S 断言修改 0/0/0，新 Skip 0。

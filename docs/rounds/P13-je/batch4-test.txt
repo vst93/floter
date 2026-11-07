@@ -1,0 +1,170 @@
+=== RUN   TestTheConfigToolbarHoldsOneOperationAtATime
+--- PASS: TestTheConfigToolbarHoldsOneOperationAtATime (0.23s)
+=== RUN   TestTheConfigToolbarStopsAccusingWhileTheWriteIsOut
+--- PASS: TestTheConfigToolbarStopsAccusingWhileTheWriteIsOut (0.23s)
+=== RUN   TestConfigTransferCopyRespectsRowBusy
+=== RUN   TestConfigTransferCopyRespectsRowBusy/light
+=== RUN   TestConfigTransferCopyRespectsRowBusy/dark
+--- PASS: TestConfigTransferCopyRespectsRowBusy (0.25s)
+    --- PASS: TestConfigTransferCopyRespectsRowBusy/light (0.13s)
+    --- PASS: TestConfigTransferCopyRespectsRowBusy/dark (0.13s)
+=== RUN   TestConfigTransferExportRespectsRowBusy
+=== RUN   TestConfigTransferExportRespectsRowBusy/light
+=== RUN   TestConfigTransferExportRespectsRowBusy/dark
+--- PASS: TestConfigTransferExportRespectsRowBusy (0.26s)
+    --- PASS: TestConfigTransferExportRespectsRowBusy/light (0.13s)
+    --- PASS: TestConfigTransferExportRespectsRowBusy/dark (0.13s)
+=== RUN   TestFormOutletFieldRemove
+=== RUN   TestFormOutletFieldRemove/light/entry
+=== RUN   TestFormOutletFieldRemove/light/elsewhere
+=== RUN   TestFormOutletFieldRemove/dark/entry
+=== RUN   TestFormOutletFieldRemove/dark/elsewhere
+--- PASS: TestFormOutletFieldRemove (0.57s)
+    --- PASS: TestFormOutletFieldRemove/light/entry (0.11s)
+    --- PASS: TestFormOutletFieldRemove/light/elsewhere (0.18s)
+    --- PASS: TestFormOutletFieldRemove/dark/entry (0.11s)
+    --- PASS: TestFormOutletFieldRemove/dark/elsewhere (0.18s)
+=== RUN   TestFormOutletFieldType
+=== RUN   TestFormOutletFieldType/light/entry
+=== RUN   TestFormOutletFieldType/light/elsewhere
+=== RUN   TestFormOutletFieldType/dark/entry
+=== RUN   TestFormOutletFieldType/dark/elsewhere
+--- PASS: TestFormOutletFieldType (0.58s)
+    --- PASS: TestFormOutletFieldType/light/entry (0.11s)
+    --- PASS: TestFormOutletFieldType/light/elsewhere (0.18s)
+    --- PASS: TestFormOutletFieldType/dark/entry (0.11s)
+    --- PASS: TestFormOutletFieldType/dark/elsewhere (0.18s)
+=== RUN   TestFormOutletCopyUnavailable
+=== RUN   TestFormOutletCopyUnavailable/light/entry
+=== RUN   TestFormOutletCopyUnavailable/light/elsewhere
+=== RUN   TestFormOutletCopyUnavailable/dark/entry
+=== RUN   TestFormOutletCopyUnavailable/dark/elsewhere
+--- PASS: TestFormOutletCopyUnavailable (0.51s)
+    --- PASS: TestFormOutletCopyUnavailable/light/entry (0.08s)
+    --- PASS: TestFormOutletCopyUnavailable/light/elsewhere (0.18s)
+    --- PASS: TestFormOutletCopyUnavailable/dark/entry (0.08s)
+    --- PASS: TestFormOutletCopyUnavailable/dark/elsewhere (0.18s)
+=== RUN   TestFormOutletExportUnavailable
+=== RUN   TestFormOutletExportUnavailable/light/entry
+=== RUN   TestFormOutletExportUnavailable/light/elsewhere
+=== RUN   TestFormOutletExportUnavailable/dark/entry
+=== RUN   TestFormOutletExportUnavailable/dark/elsewhere
+--- PASS: TestFormOutletExportUnavailable (0.56s)
+    --- PASS: TestFormOutletExportUnavailable/light/entry (0.09s)
+    --- PASS: TestFormOutletExportUnavailable/light/elsewhere (0.19s)
+    --- PASS: TestFormOutletExportUnavailable/dark/entry (0.10s)
+    --- PASS: TestFormOutletExportUnavailable/dark/elsewhere (0.18s)
+=== RUN   TestFormOutletTransfersUnavailable
+=== RUN   TestFormOutletTransfersUnavailable/copy
+=== RUN   TestFormOutletTransfersUnavailable/copy/light/entry
+=== RUN   TestFormOutletTransfersUnavailable/copy/light/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/copy/dark/entry
+=== RUN   TestFormOutletTransfersUnavailable/copy/dark/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/export
+=== RUN   TestFormOutletTransfersUnavailable/export/light/entry
+=== RUN   TestFormOutletTransfersUnavailable/export/light/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/export/dark/entry
+=== RUN   TestFormOutletTransfersUnavailable/export/dark/elsewhere
+--- PASS: TestFormOutletTransfersUnavailable (1.04s)
+    --- PASS: TestFormOutletTransfersUnavailable/copy (0.51s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/light/entry (0.08s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/light/elsewhere (0.17s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/dark/entry (0.08s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/dark/elsewhere (0.18s)
+    --- PASS: TestFormOutletTransfersUnavailable/export (0.53s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/light/entry (0.09s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/light/elsewhere (0.17s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/dark/entry (0.09s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/dark/elsewhere (0.18s)
+=== RUN   TestFormOutletCopyOwner
+=== RUN   TestFormOutletCopyOwner/light/entry
+=== RUN   TestFormOutletCopyOwner/light/elsewhere
+=== RUN   TestFormOutletCopyOwner/dark/entry
+=== RUN   TestFormOutletCopyOwner/dark/elsewhere
+--- PASS: TestFormOutletCopyOwner (0.45s)
+    --- PASS: TestFormOutletCopyOwner/light/entry (0.10s)
+    --- PASS: TestFormOutletCopyOwner/light/elsewhere (0.12s)
+    --- PASS: TestFormOutletCopyOwner/dark/entry (0.10s)
+    --- PASS: TestFormOutletCopyOwner/dark/elsewhere (0.12s)
+=== RUN   TestFormOutletExportSchema
+=== RUN   TestFormOutletExportSchema/light/entry
+=== RUN   TestFormOutletExportSchema/light/elsewhere
+=== RUN   TestFormOutletExportSchema/dark/entry
+=== RUN   TestFormOutletExportSchema/dark/elsewhere
+--- PASS: TestFormOutletExportSchema (0.53s)
+    --- PASS: TestFormOutletExportSchema/light/entry (0.11s)
+    --- PASS: TestFormOutletExportSchema/light/elsewhere (0.16s)
+    --- PASS: TestFormOutletExportSchema/dark/entry (0.12s)
+    --- PASS: TestFormOutletExportSchema/dark/elsewhere (0.14s)
+=== RUN   TestFormOutletToolCommand
+=== RUN   TestFormOutletToolCommand/light/entry
+=== RUN   TestFormOutletToolCommand/light/elsewhere
+=== RUN   TestFormOutletToolCommand/dark/entry
+=== RUN   TestFormOutletToolCommand/dark/elsewhere
+--- PASS: TestFormOutletToolCommand (0.53s)
+    --- PASS: TestFormOutletToolCommand/light/entry (0.12s)
+    --- PASS: TestFormOutletToolCommand/light/elsewhere (0.14s)
+    --- PASS: TestFormOutletToolCommand/dark/entry (0.12s)
+    --- PASS: TestFormOutletToolCommand/dark/elsewhere (0.14s)
+=== RUN   TestFormOutletToolAction
+=== RUN   TestFormOutletToolAction/light/entry
+=== RUN   TestFormOutletToolAction/light/elsewhere
+=== RUN   TestFormOutletToolAction/dark/entry
+=== RUN   TestFormOutletToolAction/dark/elsewhere
+--- PASS: TestFormOutletToolAction (0.53s)
+    --- PASS: TestFormOutletToolAction/light/entry (0.13s)
+    --- PASS: TestFormOutletToolAction/light/elsewhere (0.14s)
+    --- PASS: TestFormOutletToolAction/dark/entry (0.11s)
+    --- PASS: TestFormOutletToolAction/dark/elsewhere (0.14s)
+=== RUN   TestFormOutletToolNoCheck
+=== RUN   TestFormOutletToolNoCheck/light/entry
+=== RUN   TestFormOutletToolNoCheck/light/elsewhere
+=== RUN   TestFormOutletToolNoCheck/dark/entry
+=== RUN   TestFormOutletToolNoCheck/dark/elsewhere
+--- PASS: TestFormOutletToolNoCheck (0.53s)
+    --- PASS: TestFormOutletToolNoCheck/light/entry (0.12s)
+    --- PASS: TestFormOutletToolNoCheck/light/elsewhere (0.14s)
+    --- PASS: TestFormOutletToolNoCheck/dark/entry (0.12s)
+    --- PASS: TestFormOutletToolNoCheck/dark/elsewhere (0.15s)
+=== RUN   TestFormOutletToolOwner
+=== RUN   TestFormOutletToolOwner/light/entry
+=== RUN   TestFormOutletToolOwner/light/elsewhere
+=== RUN   TestFormOutletToolOwner/dark/entry
+=== RUN   TestFormOutletToolOwner/dark/elsewhere
+--- PASS: TestFormOutletToolOwner (0.53s)
+    --- PASS: TestFormOutletToolOwner/light/entry (0.12s)
+    --- PASS: TestFormOutletToolOwner/light/elsewhere (0.15s)
+    --- PASS: TestFormOutletToolOwner/dark/entry (0.12s)
+    --- PASS: TestFormOutletToolOwner/dark/elsewhere (0.15s)
+=== RUN   TestFormOutletFold
+=== RUN   TestFormOutletFold/light/entry
+=== RUN   TestFormOutletFold/light/elsewhere
+=== RUN   TestFormOutletFold/dark/entry
+=== RUN   TestFormOutletFold/dark/elsewhere
+--- PASS: TestFormOutletFold (0.64s)
+    --- PASS: TestFormOutletFold/light/entry (0.12s)
+    --- PASS: TestFormOutletFold/light/elsewhere (0.20s)
+    --- PASS: TestFormOutletFold/dark/entry (0.12s)
+    --- PASS: TestFormOutletFold/dark/elsewhere (0.20s)
+=== RUN   TestFormOutletCopyFold
+=== RUN   TestFormOutletCopyFold/light/entry
+=== RUN   TestFormOutletCopyFold/light/elsewhere
+=== RUN   TestFormOutletCopyFold/dark/entry
+=== RUN   TestFormOutletCopyFold/dark/elsewhere
+--- PASS: TestFormOutletCopyFold (0.54s)
+    --- PASS: TestFormOutletCopyFold/light/entry (0.12s)
+    --- PASS: TestFormOutletCopyFold/light/elsewhere (0.15s)
+    --- PASS: TestFormOutletCopyFold/dark/entry (0.11s)
+    --- PASS: TestFormOutletCopyFold/dark/elsewhere (0.15s)
+=== RUN   TestFormOutletExportFold
+=== RUN   TestFormOutletExportFold/light/entry
+=== RUN   TestFormOutletExportFold/light/elsewhere
+=== RUN   TestFormOutletExportFold/dark/entry
+=== RUN   TestFormOutletExportFold/dark/elsewhere
+--- PASS: TestFormOutletExportFold (0.60s)
+    --- PASS: TestFormOutletExportFold/light/entry (0.13s)
+    --- PASS: TestFormOutletExportFold/light/elsewhere (0.17s)
+    --- PASS: TestFormOutletExportFold/dark/entry (0.13s)
+    --- PASS: TestFormOutletExportFold/dark/elsewhere (0.17s)
+PASS
+ok  	floter/internal/settingsui	9.114s
