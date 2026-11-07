@@ -39,3 +39,10 @@
 6. 现象：提供者整体ok但某检查失败时，页面总标题仍Ok，与通知矛盾。改动：已有失败标志成立时，用已记录的具体失败说明作为汇总；原始DiagnosisStatus不改。验证：真实提供者返回ok+account/error，`failed provider checks still display an OK summary` 深浅转绿，当前明细和失败标志保留。
 
 第三批相关 **49 PASS / 0 FAIL**、两包vet净；gofmt完成，旧V/B/S断言0/0/0。正式mutation仍待最终代码。
+
+第三批0ced391d已推送。
+
+7. 现象：真实生命周期探测exit7，但提供者随后返回ok，诊断汇总丢掉unhealthy。改动：提供者成功不覆盖已有生命周期失败说明。验证：真实健康子进程+提供者协议，原串 `provider OK erased a real lifecycle failure: diagnosis="ok" failed=true status="ok"` 深浅均红后绿，健康失败与提供者成功明细同时保留。
+8. 现象：诊断错误说明不在状态枚举中时呈灰色，视觉上与普通信息无差别。改动：已有DiagnosisFailed决定汇总Warning墨。验证：真实组件的错误文字像素由 `failed diagnosis summary has no warning ink` 转绿；成功及既有状态枚举旧pin不改。
+
+第四批相关 **99 PASS / 0 FAIL**、两包vet净；八项均已实红后绿，旧V/B/S断言0/0/0。截图夹具统一960×2400，解决首查命令区截断问题；非新增产品布局。

@@ -2577,8 +2577,12 @@ func (a *App) diagnosticsSection(c *ui.Context, copy i18n.Settings, integration 
 		// `ExtensionsPanel.tsx:2896-2899`), so a verdict the finding flag does not
 		// cover still wears its own state's ink.
 		verdict := diagnosisVerdict(integration, copy)
+		ink := statusInk(verdict, tokens, t, tokens.TextSecondary)
+		if integration.DiagnosisFailed {
+			ink = t.Warning
+		}
 		ui.Text(c, capitalizeWord(verdict)).FontSize(tokens.Caption).
-			TextColor(statusInk(verdict, tokens, t, tokens.TextSecondary))
+			TextColor(ink)
 		// One row per check: the reference's `.extension-diagnostics > div` is a
 		// `54px minmax(0,1fr)` grid with an 8px gap, a `8px 0` padding pair and a
 		// 1px bottom hairline — dropped on the last row

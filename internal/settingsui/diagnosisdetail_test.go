@@ -47,3 +47,25 @@ func TestDiagnosisDetailEmptyMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestDiagnosisDetailFailureInk(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			message := "连接检查失败，请重新连接"
+			tt := diagnosisDetailFrame(t, Integration{Diagnosis: message, DiagnosisFailed: true}, dark, "failure-ink")
+			r := mustFind(t, tt, message)
+			colored := 0
+			for y := int(r.Y); y < int(r.Y+r.H); y++ {
+				for x := int(r.X); x < int(r.X+r.W); x++ {
+					p := imagePixel(tt.Image(), x, y)
+					if p.R > p.G && p.R > p.B {
+						colored++
+					}
+				}
+			}
+			if colored == 0 {
+				t.Error("failed diagnosis summary has no warning ink")
+			}
+		})
+	}
+}

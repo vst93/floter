@@ -2057,10 +2057,13 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 			if result.Diagnosis == "" {
 				result.Diagnosis = diagnosis.Status
 			}
-		} else if diagnosis.Status != "" {
-			result.Diagnosis = diagnosis.Status
-		} else {
+		} else if !result.DiagnosisFailed {
+			// A provider's successful check cannot undo a failed lifecycle
+			// probe that ran just before it. Keep that failure's explanation.
 			result.Diagnosis = "ok"
+			if diagnosis.Status != "" {
+				result.Diagnosis = diagnosis.Status
+			}
 		}
 	}
 	// The stored lifecycle health survives across runs, so a row shows how

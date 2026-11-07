@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"floter/internal/extensions"
+	"floter/internal/settingsui"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -29,7 +30,14 @@ func dumpDiagnosisRecovery(t *testing.T, tt *ui.Tester, scenario string, dark bo
 
 func diagnosisRecoveryFrame(t *testing.T, f *diagnosisFixture, scenario string, dark bool) *ui.Tester {
 	t.Helper()
-	tt := f.frame(t, scenario, dark)
+	f.a.Open(SurfaceSettings)
+	f.a.Settings.Page = settingsui.PageIntegrations
+	f.a.Settings.Actions.Detected = nil
+	tt := ui.NewTester(f.a.View, 960, 2400)
+	tt.SetDark(dark)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.Frame()
+	tt.Frame()
 	dumpDiagnosisRecovery(t, tt, scenario, dark)
 	return tt
 }
@@ -138,6 +146,28 @@ func TestDiagnosisRecoveryFailedChecksOverrideOK(t *testing.T) {
 			row := f.a.integrationList()[0]
 			if !row.DiagnosisFailed || row.DiagnosisStatus != "ok" || !tt.HasText("需要重新登录") || tt.HasText("Ok") {
 				t.Errorf("failed provider checks still display an OK summary: failed=%v status=%q", row.DiagnosisFailed, row.DiagnosisStatus)
+			}
+		})
+	}
+}
+
+func TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := newDiagnosisFixture(t, dark)
+			base := filepath.Join(f.dir, "failed-lifecycle")
+			f.manifest.Lifecycle.Probes = []extensions.Probe{{ID: "connection", Required: true, Args: []string{"-test.run=^TestHealthCompletionProvider$", "--", "--floter-health", base}}}
+			if err := os.WriteFile(base+".release", []byte("7"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			f.write(t)
+			f.a.Integrations.Refresh(context.Background())
+			f.request(t, 0, "ok", []extensions.DiagnosisCheck{{ID: "configuration", Status: "ok", Message: "配置检查正常"}}, true)
+			diagnosisWait(t, f.start(t))
+			tt := diagnosisRecoveryFrame(t, f, "lifecycle-failure", dark)
+			row := f.a.integrationList()[0]
+			if !row.DiagnosisFailed || row.Diagnosis != extensions.HealthUnhealthy || row.DiagnosisStatus != "ok" || !tt.HasText("Unhealthy") || !tt.HasText("配置检查正常") {
+				t.Errorf("provider OK erased a real lifecycle failure: diagnosis=%q failed=%v status=%q", row.Diagnosis, row.DiagnosisFailed, row.DiagnosisStatus)
 			}
 		})
 	}
