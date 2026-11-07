@@ -1,0 +1,6 @@
+2861bb17ceed9fef51612be930c60e9a  internal/shell/configmemo.go
+220e64beeb5a26431d53edba11a7db55  internal/shell/integrationfacts.go
+2f0a5da58c579cf119548c128db790e5  internal/settingsui/config.go
+a62dfba728c989061b18eb4ca99fdeff  internal/shell/configrefreshresult_test.go
+0f91567b54f470a2b07de03a68e514d2  internal/shell/factsrefreshresult_test.go
+ca2836daf5f52c40a38fa51a4acd8e4e  internal/settingsui/configexternalresult_test.go

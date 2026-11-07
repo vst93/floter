@@ -1,0 +1,9 @@
+gofmt empty
+vet linux exit=0
+vet windows exit=0
+vet darwin exit=0
+test exit=0
+verbose exit=0
+build linux exit=0
+build windows exit=0
+build darwin exit=0
