@@ -5363,6 +5363,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 	if !a.residencyInit {
 		a.residencyInit = true
 		a.residencyCustomOpen = selectValue == residencyCustom
+		a.residencyDraft = strconv.FormatUint(uint64(residencyCustomSeedSeconds(value)), 10)
 	}
 	if !a.residencyCustomOpen {
 		a.residencyDraft = strconv.FormatUint(uint64(residencyCustomSeedSeconds(value)), 10)
@@ -5386,7 +5387,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 
 	t := c.Theme()
 	a.row(c, copy.SurfaceResidency, copy.SurfaceResidencyHint, func() {
-		e := a.fieldFace(c, valueSelect(c, &selected, labels, choices, selected, a.tokens(c), true).
+		e := a.fieldFace(c, valueSelect(c, &selected, labels, choices, selected, a.tokens(c), true, strconv.FormatUint(uint64(value), 10)).
 			Label(copy.SurfaceResidency).Width(200).Radius(999), true)
 		if e.Changed() {
 			a.residencyChoice(selected, value)

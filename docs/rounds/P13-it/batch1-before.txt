@@ -1,0 +1,25 @@
+=== RUN   TestResidencyRefreshInitialCustom
+=== RUN   TestResidencyRefreshInitialCustom/light
+    residencyrefresh_test.go:60: stored custom duration opened as "", want 45
+    residencyrefresh_test.go:64: unchanged custom Enter stored 0, want 45
+=== RUN   TestResidencyRefreshInitialCustom/dark
+    residencyrefresh_test.go:60: stored custom duration opened as "", want 45
+    residencyrefresh_test.go:64: unchanged custom Enter stored 0, want 45
+--- FAIL: TestResidencyRefreshInitialCustom (0.25s)
+    --- FAIL: TestResidencyRefreshInitialCustom/light (0.23s)
+    --- FAIL: TestResidencyRefreshInitialCustom/dark (0.03s)
+=== RUN   TestResidencyRefreshOpenDraftMenu
+=== RUN   TestResidencyRefreshOpenDraftMenu/light
+    residencyrefresh_test.go:89: raw duration refresh left obsolete draft menu open
+    residencyrefresh_test.go:93: stale draft menu overwrote host duration with 0
+    residencyrefresh_test.go:96: refresh discarded active draft: "10"
+=== RUN   TestResidencyRefreshOpenDraftMenu/dark
+    residencyrefresh_test.go:89: raw duration refresh left obsolete draft menu open
+    residencyrefresh_test.go:93: stale draft menu overwrote host duration with 0
+    residencyrefresh_test.go:96: refresh discarded active draft: "10"
+--- FAIL: TestResidencyRefreshOpenDraftMenu (0.10s)
+    --- FAIL: TestResidencyRefreshOpenDraftMenu/light (0.06s)
+    --- FAIL: TestResidencyRefreshOpenDraftMenu/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.370s
+FAIL

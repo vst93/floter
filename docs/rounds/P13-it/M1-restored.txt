@@ -1,0 +1,15 @@
+internal/settingsui/settingsui.go: OK
+=== RUN   TestResidencyRefreshInitialCustom
+=== RUN   TestResidencyRefreshInitialCustom/light
+=== RUN   TestResidencyRefreshInitialCustom/dark
+--- PASS: TestResidencyRefreshInitialCustom (0.07s)
+    --- PASS: TestResidencyRefreshInitialCustom/light (0.07s)
+    --- PASS: TestResidencyRefreshInitialCustom/dark (0.00s)
+=== RUN   TestResidencyRefreshOpenDraftMenu
+=== RUN   TestResidencyRefreshOpenDraftMenu/light
+=== RUN   TestResidencyRefreshOpenDraftMenu/dark
+--- PASS: TestResidencyRefreshOpenDraftMenu (0.03s)
+    --- PASS: TestResidencyRefreshOpenDraftMenu/light (0.01s)
+    --- PASS: TestResidencyRefreshOpenDraftMenu/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.111s

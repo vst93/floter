@@ -1,0 +1,34 @@
+=== RUN   TestMenuExitResidencyCustomChoice
+=== RUN   TestMenuExitResidencyCustomChoice/light
+=== RUN   TestMenuExitResidencyCustomChoice/dark
+--- PASS: TestMenuExitResidencyCustomChoice (0.23s)
+    --- PASS: TestMenuExitResidencyCustomChoice/light (0.22s)
+    --- PASS: TestMenuExitResidencyCustomChoice/dark (0.02s)
+=== RUN   TestMenuExitResidencyApply
+=== RUN   TestMenuExitResidencyApply/light
+=== RUN   TestMenuExitResidencyApply/dark
+--- PASS: TestMenuExitResidencyApply (0.02s)
+    --- PASS: TestMenuExitResidencyApply/light (0.01s)
+    --- PASS: TestMenuExitResidencyApply/dark (0.01s)
+=== RUN   TestMenuLanguageResidency
+=== RUN   TestMenuLanguageResidency/light
+=== RUN   TestMenuLanguageResidency/dark
+--- PASS: TestMenuLanguageResidency (0.02s)
+    --- PASS: TestMenuLanguageResidency/light (0.01s)
+    --- PASS: TestMenuLanguageResidency/dark (0.01s)
+=== RUN   TestResidencyRefreshInitialCustom
+=== RUN   TestResidencyRefreshInitialCustom/light
+=== RUN   TestResidencyRefreshInitialCustom/dark
+--- PASS: TestResidencyRefreshInitialCustom (0.03s)
+    --- PASS: TestResidencyRefreshInitialCustom/light (0.02s)
+    --- PASS: TestResidencyRefreshInitialCustom/dark (0.02s)
+=== RUN   TestResidencyRefreshOpenDraftMenu
+=== RUN   TestResidencyRefreshOpenDraftMenu/light
+=== RUN   TestResidencyRefreshOpenDraftMenu/dark
+--- PASS: TestResidencyRefreshOpenDraftMenu (0.05s)
+    --- PASS: TestResidencyRefreshOpenDraftMenu/light (0.03s)
+    --- PASS: TestResidencyRefreshOpenDraftMenu/dark (0.03s)
+=== RUN   TestSurfaceResidencyControlIsOneRow
+--- PASS: TestSurfaceResidencyControlIsOneRow (0.12s)
+PASS
+ok  	floter/internal/settingsui	0.524s
