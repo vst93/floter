@@ -1,0 +1,14 @@
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/light
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/dark
+--- PASS: TestCustomRecorderRefreshFollowsItsBinding (0.42s)
+    --- PASS: TestCustomRecorderRefreshFollowsItsBinding/light (0.22s)
+    --- PASS: TestCustomRecorderRefreshFollowsItsBinding/dark (0.21s)
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/light
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/dark
+--- PASS: TestCustomRecorderRefreshRetiresMissingBinding (0.25s)
+    --- PASS: TestCustomRecorderRefreshRetiresMissingBinding/light (0.06s)
+    --- PASS: TestCustomRecorderRefreshRetiresMissingBinding/dark (0.20s)
+PASS
+ok  	floter/internal/settingsui	0.685s

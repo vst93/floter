@@ -1022,6 +1022,7 @@ type App struct {
 	customDraftOpen bool
 	customRecording bool
 	customRecordRow int
+	customRecordKey string // identity survives a host list reorder
 	customKey       string
 	customAction    string
 	customCommand   string

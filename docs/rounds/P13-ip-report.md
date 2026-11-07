@@ -27,3 +27,10 @@ SHA 与上轮及 backlog 一致，无新增 stale-kill。逐条 reverse-check �
 2. 现象：快捷键命令输入切换内置动作再恢复后显示 say obsolete，Enter 覆盖宿主 say refreshed。改动：内置动作刷新时清对应命令草稿。验证：深浅真实输入、宿主刷新、复制读取、Enter，恢复后严格为 say refreshed。
 
 相关 **94 PASS / 0 FAIL**，包 vet 净。M1 注入开盘两处产品：`old alias conflict labels a different pending draft`、`reopened command resurrected retired draft: "say obsolete"`、`Enter overwrote the new host action`。MD5 恢复、touch 后 **6 PASS**。旧 V/B/S 0/0/0，新 Skip 0。
+
+### 第二批
+
+3. 现象：第二条录制中宿主交换前两条，Ctrl+Shift+R 写进原第一条。改动：录制目标保留 key，绘制及捕获时重新定位。验证：深浅真实 Tab/Enter 启动录制、宿主交换、录入新键，只改原目标的 key，其他两个对象逐字段相同。
+4. 现象：录制目标被宿主移除后，下一条仍显示录制态并接受新键。改动：目标 key 不再存在即退役录制状态。验证：深浅事件中原两条与草稿都不改变，录制提示消失。
+
+相关 **34 PASS / 0 FAIL**，包 vet 净；M2 回注上一产品实红：`reordered recorder targets row 1, want 0`、`recorded key reached wrong binding`、`missing binding left a recorder on its neighbor`。MD5 恢复并 touch 后 **6 PASS**。最初新夹具 Tab 到第三条，已改为从命令框反向三次 Tab 确认第二条，再取真实产品失败；不使用夹具失败计修复。

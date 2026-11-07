@@ -1,0 +1,23 @@
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/light
+    customrecorderrefresh_test.go:42: reordered recorder targets row 1, want 0
+    customrecorderrefresh_test.go:51: recorded key reached wrong binding: [{Key:Ctrl+Shift+B Action:say original} {Key:Ctrl+Shift+R Action:action:settings} {Key:Ctrl+Shift+C Action:plugin:clipboard}]
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/dark
+    customrecorderrefresh_test.go:42: reordered recorder targets row 1, want 0
+    customrecorderrefresh_test.go:51: recorded key reached wrong binding: [{Key:Ctrl+Shift+B Action:say original} {Key:Ctrl+Shift+R Action:action:settings} {Key:Ctrl+Shift+C Action:plugin:clipboard}]
+--- FAIL: TestCustomRecorderRefreshFollowsItsBinding (0.43s)
+    --- FAIL: TestCustomRecorderRefreshFollowsItsBinding/light (0.19s)
+    --- FAIL: TestCustomRecorderRefreshFollowsItsBinding/dark (0.24s)
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/light
+    customrecorderrefresh_test.go:39: missing binding left a recorder on its neighbor
+    customrecorderrefresh_test.go:48: removed recorder changed another binding: [{Key:Ctrl+Shift+A Action:action:settings} {Key:Ctrl+Shift+R Action:plugin:clipboard}] draft=""
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/dark
+    customrecorderrefresh_test.go:39: missing binding left a recorder on its neighbor
+    customrecorderrefresh_test.go:48: removed recorder changed another binding: [{Key:Ctrl+Shift+A Action:action:settings} {Key:Ctrl+Shift+R Action:plugin:clipboard}] draft=""
+--- FAIL: TestCustomRecorderRefreshRetiresMissingBinding (0.29s)
+    --- FAIL: TestCustomRecorderRefreshRetiresMissingBinding/light (0.07s)
+    --- FAIL: TestCustomRecorderRefreshRetiresMissingBinding/dark (0.22s)
+FAIL
+FAIL	floter/internal/settingsui	0.732s
+FAIL

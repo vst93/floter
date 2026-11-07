@@ -24,6 +24,18 @@ import (
 // customSection draws the list, the row being made and the empty region.
 func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	entries := a.customShortcuts()
+	if a.customRecording && a.customRecordRow >= 0 {
+		if a.customRecordKey == "" && a.customRecordRow < len(entries) {
+			a.customRecordKey = entries[a.customRecordRow].Key
+		}
+		a.customRecordRow = customBindingIndex(entries, a.customRecordKey)
+		if a.customRecordRow < 0 {
+			a.customRecording = false
+			a.customRecordKey = ""
+		}
+	} else {
+		a.customRecordKey = ""
+	}
 	for _, entry := range entries {
 		// An external action change can unmount the command editor too.
 		if strings.HasPrefix(entry.Action, "plugin:") || strings.HasPrefix(entry.Action, "action:") {
@@ -126,6 +138,7 @@ func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, inde
 	a.shortcutRecorder(c, copy.ShortcutRecord, shortcuts.Display(key), func() {
 		a.customRecording = true
 		a.customRecordRow = index
+		a.customRecordKey = key
 		a.customDuplicate, a.customDuplicateRow = "", customDraftRow
 	})
 }
@@ -137,6 +150,12 @@ func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, inde
 // never reaches the system.
 func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 	entries := a.customShortcuts()
+	if a.customRecordKey != "" && a.customRecordRow >= 0 {
+		a.customRecordRow = customBindingIndex(entries, a.customRecordKey)
+		if a.customRecordRow < 0 {
+			return
+		}
+	}
 	if a.customRecordRow < 0 || a.customRecordRow >= len(entries) {
 		keys := make([]string, len(entries))
 		for i, entry := range entries {
@@ -373,6 +392,15 @@ func (a *App) customShortcuts() []settings.CustomShortcut {
 		return nil
 	}
 	return a.Actions.CustomShortcuts()
+}
+
+func customBindingIndex(entries []settings.CustomShortcut, key string) int {
+	for i, entry := range entries {
+		if entry.Key == key {
+			return i
+		}
+	}
+	return -1
 }
 
 // addCustomShortcut stores the row being made, when it is whole, and reports
