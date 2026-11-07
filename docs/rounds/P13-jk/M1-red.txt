@@ -1,0 +1,23 @@
+=== RUN   TestConfigRefreshOldReadCannotUndoImport
+=== RUN   TestConfigRefreshOldReadCannotUndoImport/light
+    configrefreshresult_test.go:125: import-late-values: retired read replaced current value: https://before.example, want https://imported.example
+    configrefreshresult_test.go:142: import-late-values: editor displays "https://before.example", want "https://imported.example"
+=== RUN   TestConfigRefreshOldReadCannotUndoImport/dark
+    configrefreshresult_test.go:125: import-late-values: retired read replaced current value: https://before.example, want https://imported.example
+    configrefreshresult_test.go:142: import-late-values: editor displays "https://before.example", want "https://imported.example"
+--- FAIL: TestConfigRefreshOldReadCannotUndoImport (1.46s)
+    --- FAIL: TestConfigRefreshOldReadCannotUndoImport/light (0.81s)
+    --- FAIL: TestConfigRefreshOldReadCannotUndoImport/dark (0.65s)
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm/light
+    configrefreshresult_test.go:125: save-late-read-error: retired read replaced current value: <nil>, want https://saved.example
+    configrefreshresult_test.go:142: save-late-read-error: editor displays "", want "https://saved.example"
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm/dark
+    configrefreshresult_test.go:125: save-late-read-error: retired read replaced current value: <nil>, want https://saved.example
+    configrefreshresult_test.go:142: save-late-read-error: editor displays "", want "https://saved.example"
+--- FAIL: TestConfigRefreshOldReadFailureCannotBlankSavedForm (1.73s)
+    --- FAIL: TestConfigRefreshOldReadFailureCannotBlankSavedForm/light (0.85s)
+    --- FAIL: TestConfigRefreshOldReadFailureCannotBlankSavedForm/dark (0.88s)
+FAIL
+FAIL	floter/internal/shell	3.200s
+FAIL

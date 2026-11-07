@@ -65,6 +65,7 @@ type storedConfigMemoCache struct {
 	entries  map[string]storedConfig
 	computed time.Time
 	pending  bool
+	revision uint64
 }
 
 // storedConfigMemoC is the memo integrationList reads.
@@ -106,7 +107,20 @@ func (m *storedConfigMemoCache) snapshot() (map[string]storedConfig, time.Time, 
 func (m *storedConfigMemoCache) publish(entries map[string]storedConfig, at time.Time) {
 	m.mu.Lock()
 	m.entries, m.computed, m.pending = entries, at, false
+	m.revision++
 	m.mu.Unlock()
+}
+
+// A save, import or first read can supersede an in-flight background read.
+// Only the generation that started that read may publish its result.
+func (m *storedConfigMemoCache) publishCurrent(entries map[string]storedConfig, at time.Time, revision uint64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.revision != revision {
+		return
+	}
+	m.entries, m.computed, m.pending = entries, at, false
+	m.revision++
 }
 
 // invalidateStoredConfigs drops the memo, so the next frame reads in place. The
@@ -116,6 +130,8 @@ func invalidateStoredConfigs() {
 	storedConfigMemoC.mu.Lock()
 	storedConfigMemoC.entries = nil
 	storedConfigMemoC.computed = time.Time{}
+	storedConfigMemoC.pending = false
+	storedConfigMemoC.revision++
 	storedConfigMemoC.mu.Unlock()
 }
 
@@ -173,11 +189,12 @@ func refreshStoredConfigs(
 		m.mu.Lock()
 		start := !m.pending
 		m.pending = true
+		revision := m.revision
 		m.mu.Unlock()
 		if start {
 			go func() {
 				fresh := compute(items)
-				m.publish(fresh, time.Now())
+				m.publishCurrent(fresh, time.Now(), revision)
 				if invalidate != nil {
 					invalidate()
 				}
