@@ -86,6 +86,10 @@ func TestDeclarationRefreshNumberDefault(t *testing.T) {
 func TestDeclarationRefreshBooleanDefault(t *testing.T) {
 	checkDeclarationDefaultRefresh(t, extensions.ParamBoolean, "true")
 }
+func TestDeclarationRefreshSelectDefault(t *testing.T) {
+	checkDeclarationDefaultRefresh(t, extensions.ParamSelect, "fast")
+}
+func TestDeclarationRefreshPlaceholderExit(t *testing.T) { checkDeclarationPlaceholderExit(t) }
 func checkDeclarationPlaceholderExit(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {

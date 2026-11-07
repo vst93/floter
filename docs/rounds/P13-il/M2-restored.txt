@@ -1,0 +1,14 @@
+=== RUN   TestDeclarationRefreshSelectDefault
+=== RUN   TestDeclarationRefreshSelectDefault/light
+=== RUN   TestDeclarationRefreshSelectDefault/dark
+--- PASS: TestDeclarationRefreshSelectDefault (0.24s)
+    --- PASS: TestDeclarationRefreshSelectDefault/light (0.15s)
+    --- PASS: TestDeclarationRefreshSelectDefault/dark (0.09s)
+=== RUN   TestDeclarationRefreshPlaceholderExit
+=== RUN   TestDeclarationRefreshPlaceholderExit/light
+=== RUN   TestDeclarationRefreshPlaceholderExit/dark
+--- PASS: TestDeclarationRefreshPlaceholderExit (0.04s)
+    --- PASS: TestDeclarationRefreshPlaceholderExit/light (0.02s)
+    --- PASS: TestDeclarationRefreshPlaceholderExit/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.284s

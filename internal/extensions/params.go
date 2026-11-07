@@ -294,6 +294,8 @@ func ParamRowIssues(params []ParamDefinition) map[int]ParamRowIssue {
 			issues[i] = ParamIssueDefault
 		case param.Default != "" && param.Kind == ParamBoolean && param.Default != "true" && param.Default != "false":
 			issues[i] = ParamIssueDefault
+		case param.Default != "" && param.Kind == ParamSelect && !containsString(param.Options, param.Default):
+			issues[i] = ParamIssueDefault
 		}
 	}
 	return issues

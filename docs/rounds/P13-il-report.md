@@ -29,3 +29,10 @@
 2. 现象：布尔默认值输入 invalid，同样无提示且进入保存。改动：声明校验补齐后端 true/false 规则，保持空默认值可用。验证：Type→Save 被拒绝，修正为 true 后旧提示消失且可提交。
 
 相关 **33 PASS / 0 FAIL**，extensions/settingsui vet 净。M1 去掉两条默认值规则后 6 FAIL 记录（4 个深浅叶子），原串 `invalid default has no inline reason`、`invalid number default dispatched 1 saves, open=false`；MD5 恢复一致，touch 复跑 6 PASS。旧 V/B/S 断言修改 0/0/0，新 Skip 0。
+
+## 第二批（3–4）
+
+3. 现象：选择类型的默认值不属于当前选项仍进入保存，且没有本地错误。改动：校验默认值必须属于 Options，沿用后端严格匹配规则。验证：真实输入 invalid 后保存不调用宿主，修正 fast 后提示消失并保存一次；完整 1300px 夹具复现确认。
+4. 现象：占位符输入已获键盘焦点，类型刷新为布尔后输入退场且失焦。改动：给占位符保存独立焦点句柄，退场时回同盘类型选择。验证：Tab 往返→类型刷新→方向键/Home/Enter 可回文字类型，提示草稿仍为“记住此提示”。
+
+相关 **39 PASS / 0 FAIL**，包 vet 净。M2 去掉选择默认值校验与占位符回焦，6 FAIL 记录，原串 `invalid select default dispatched 1 saves, open=false`、`hidden placeholder lost kind focus`；两文件 MD5 一致、touch 后 6 PASS。

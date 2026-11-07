@@ -1,0 +1,25 @@
+=== RUN   TestDeclarationRefreshSelectDefault
+=== RUN   TestDeclarationRefreshSelectDefault/light
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not one of its options: invalid
+    paramvalidationrefresh_test.go:60: invalid select default dispatched 1 saves, open=false
+=== RUN   TestDeclarationRefreshSelectDefault/dark
+    paramvalidationrefresh_test.go:53: invalid default has no inline reason
+    paramvalidationrefresh_test.go:38: invalid declaration reached save: extensions: the parameter declaration is not usable: target default is not one of its options: invalid
+    paramvalidationrefresh_test.go:60: invalid select default dispatched 1 saves, open=false
+--- FAIL: TestDeclarationRefreshSelectDefault (0.19s)
+    --- FAIL: TestDeclarationRefreshSelectDefault/light (0.13s)
+    --- FAIL: TestDeclarationRefreshSelectDefault/dark (0.05s)
+=== RUN   TestDeclarationRefreshPlaceholderExit
+=== RUN   TestDeclarationRefreshPlaceholderExit/light
+    paramvalidationrefresh_test.go:112: hidden placeholder lost kind focus
+    paramvalidationrefresh_test.go:119: placeholder keyboard recovery failed: {key:0x30f617a7c348 ID:target Label: Kind:boolean Placeholder:记住此提示 Default: Flag:--target Required:false Options:}
+=== RUN   TestDeclarationRefreshPlaceholderExit/dark
+    paramvalidationrefresh_test.go:112: hidden placeholder lost kind focus
+    paramvalidationrefresh_test.go:119: placeholder keyboard recovery failed: {key:0x30f617d14010 ID:target Label: Kind:boolean Placeholder:记住此提示 Default: Flag:--target Required:false Options:}
+--- FAIL: TestDeclarationRefreshPlaceholderExit (0.04s)
+    --- FAIL: TestDeclarationRefreshPlaceholderExit/light (0.02s)
+    --- FAIL: TestDeclarationRefreshPlaceholderExit/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.235s
+FAIL

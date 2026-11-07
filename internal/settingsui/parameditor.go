@@ -156,6 +156,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		Padding(t.Space(paramEditorPlatePad)).Radius(tokens.RadiusSM).
 		Border(1, tokens.Hairline)
 	optionsFocus := ui.Local(plate, "options-focus", func() contentFocusState { return contentFocusState{} })
+	placeholderFocus := ui.Local(plate, "placeholder-focus", func() contentFocusState { return contentFocusState{} })
 	plate.Children(func() {
 		// `.extension-param-editor__fields`: `repeat(auto-fit, minmax(140px,
 		// 1fr))` with a `6px 8px` gap. A wrap row of 140u-minimum growing cells
@@ -172,7 +173,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)
 					chosen := runParamKindLabel(copy, kind)
-					a.paramSelect(c, &chosen, labels, copy.ParamsKind).Bind(&optionsFocus.source)
+					a.paramSelect(c, &chosen, labels, copy.ParamsKind).Bind(&optionsFocus.source).Bind(&placeholderFocus.source)
 					if chosen != runParamKindLabel(copy, kind) {
 						kind = paramKindFromLabel(copy, chosen)
 					}
@@ -181,8 +182,10 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				// value is its flag, so a field hint means nothing.
 				if kind != extensions.ParamBoolean {
 					a.paramField(c, "placeholder", copy.ParamsPlaceholder, func() {
-						a.extensionField(c, &placeholder, customFieldMetrics).Label(copy.ParamsPlaceholder)
+						a.extensionField(c, &placeholder, customFieldMetrics).Bind(&placeholderFocus.button).Label(copy.ParamsPlaceholder)
 					})
+				} else {
+					placeholderFocus.restore(c)
 				}
 				a.paramField(c, "default", copy.ParamsDefault, func() {
 					a.extensionField(c, &def, customFieldMetrics).Label(copy.ParamsDefault)
