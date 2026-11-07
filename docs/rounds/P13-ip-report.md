@@ -41,3 +41,10 @@ SHA 与上轮及 backlog 一致，无新增 stale-kill。逐条 reverse-check �
 6. 现象：冲突所属绑定被宿主移除后，相邻行仍显示冲突。改动：冲突目标不再存在即退役。验证：深浅真实重复键与移除事件，提示及 customDuplicate 均清空，其他绑定未改。
 
 相关 **40 PASS / 0 FAIL**、包 vet 净；M3 回注旧产品实红：`conflict followed row index instead of binding: row=1`、`missing binding left a conflict on its neighbor`。MD5 恢复、touch 后 **6 PASS**。旧 V/B/S 0/0/0。
+
+### 第四批
+
+7. 现象：输入 say obsolete 后宿主删除该绑定，再以同 key 新建 say new，旧草稿复活且 Enter 覆盖新值。改动：刷新时清除没有所属绑定的命令草稿。验证：深浅删除/重建后真实全选复制严格为 say new，Enter 不会恢复旧值。
+8. 现象：命令尚在编辑，重新录制原 Ctrl+Shift+B 后，say unfinished 变回 say original。改动：等价 chord 保留草稿，规范化拼写时转移到返回 key；不同键仍沿原清理契约。验证：深浅真实录制后复制严格为 say unfinished，存储仍为 say original，仅 Enter 才提交草稿。
+
+相关 **99 PASS / 0 FAIL**，包 vet 净；M4 回注旧产品实红：`recreated binding resurrected deleted command draft: "say obsolete"`、`same-key recording discarded unfinished command: "say original"`。MD5 恢复并 touch 后 **6 PASS**。八项跨命令别名与自定义快捷键组件，全部有行为红绿；没有用文案修改凑项。

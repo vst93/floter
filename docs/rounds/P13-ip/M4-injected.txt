@@ -1,0 +1,23 @@
+=== RUN   TestCustomDraftRetiresWithRemovedBinding
+=== RUN   TestCustomDraftRetiresWithRemovedBinding/light
+    customdraftreturn_test.go:27: recreated binding resurrected deleted command draft: "say obsolete"
+    customdraftreturn_test.go:31: retired draft overwrote recreated binding
+=== RUN   TestCustomDraftRetiresWithRemovedBinding/dark
+    customdraftreturn_test.go:27: recreated binding resurrected deleted command draft: "say obsolete"
+    customdraftreturn_test.go:31: retired draft overwrote recreated binding
+--- FAIL: TestCustomDraftRetiresWithRemovedBinding (0.36s)
+    --- FAIL: TestCustomDraftRetiresWithRemovedBinding/light (0.12s)
+    --- FAIL: TestCustomDraftRetiresWithRemovedBinding/dark (0.25s)
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey/light
+    customdraftreturn_test.go:56: same-key recording discarded unfinished command: "say original"
+    customdraftreturn_test.go:63: retained command cannot be committed
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey/dark
+    customdraftreturn_test.go:56: same-key recording discarded unfinished command: "say original"
+    customdraftreturn_test.go:63: retained command cannot be committed
+--- FAIL: TestCustomDraftSurvivesRecordingTheSameKey (0.24s)
+    --- FAIL: TestCustomDraftSurvivesRecordingTheSameKey/light (0.05s)
+    --- FAIL: TestCustomDraftSurvivesRecordingTheSameKey/dark (0.19s)
+FAIL
+FAIL	floter/internal/settingsui	0.616s
+FAIL

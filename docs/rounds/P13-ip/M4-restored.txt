@@ -1,0 +1,14 @@
+=== RUN   TestCustomDraftRetiresWithRemovedBinding
+=== RUN   TestCustomDraftRetiresWithRemovedBinding/light
+=== RUN   TestCustomDraftRetiresWithRemovedBinding/dark
+--- PASS: TestCustomDraftRetiresWithRemovedBinding (0.39s)
+    --- PASS: TestCustomDraftRetiresWithRemovedBinding/light (0.13s)
+    --- PASS: TestCustomDraftRetiresWithRemovedBinding/dark (0.27s)
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey/light
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey/dark
+--- PASS: TestCustomDraftSurvivesRecordingTheSameKey (0.25s)
+    --- PASS: TestCustomDraftSurvivesRecordingTheSameKey/light (0.05s)
+    --- PASS: TestCustomDraftSurvivesRecordingTheSameKey/dark (0.20s)
+PASS
+ok  	floter/internal/settingsui	0.660s

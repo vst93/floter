@@ -47,6 +47,11 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	} else {
 		a.customDuplicateKey = ""
 	}
+	for key := range a.customEdits {
+		if customBindingIndex(entries, key) < 0 {
+			delete(a.customEdits, key)
+		}
+	}
 	for _, entry := range entries {
 		// An external action change can unmount the command editor too.
 		if strings.HasPrefix(entry.Action, "plugin:") || strings.HasPrefix(entry.Action, "action:") {
@@ -190,9 +195,15 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 		return
 	}
 	a.customDuplicate = ""
-	// The in-place command draft belongs to the old key; the new binding starts
-	// from the stored action.
-	delete(a.customEdits, entries[a.customRecordRow].Key)
+	// Recording the same chord is not a new binding. Preserve its unfinished
+	// command even if the recorder canonicalizes the chord's spelling.
+	oldKey := entries[a.customRecordRow].Key
+	if text, ok := a.customEdits[oldKey]; ok {
+		delete(a.customEdits, oldKey)
+		if shortcuts.Equal(oldKey, accelerator) {
+			a.customEdits[accelerator] = text
+		}
+	}
 	entries[a.customRecordRow] = settings.CustomShortcut{
 		Key:    accelerator,
 		Action: entries[a.customRecordRow].Action,
