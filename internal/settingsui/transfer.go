@@ -105,6 +105,6 @@ func (a *App) transferNotice(c *ui.Context, color ui.Color, mark, text string) {
 	t := c.Theme()
 	ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, mustGlyph(mark)).Size(t.Space(4), t.Space(4)).TextColor(color)
-		ui.Text(c, text).FontSize(a.tokens(c).Caption).TextColor(color).Grow(1)
+		ui.Text(c, text).FontSize(a.tokens(c).Caption).TextColor(color).Grow(1).MinWidth(0)
 	})
 }

@@ -83,7 +83,7 @@ func (a *App) exportIntegrations() {
 		data, err := document.Marshal()
 		if err != nil {
 			log.Printf("floter: could not encode the integrations: %v", err)
-			a.transferFailed(copy.IntegrationsTransferBad)
+			a.transferFailed(err.Error())
 			return
 		}
 		if err := os.WriteFile(path, append(data, '\n'), 0o600); err != nil {

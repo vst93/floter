@@ -39,3 +39,10 @@
 6. 现象：脚本写入目录等真实磁盘错误也被压成笼统失败。改动：接回路径与文件系统原因。验证：原产品 `script-write hides failure cause`；修后原因可见，改用合法路径重试文件字节等于原脚本。
 
 第三批相关 **16 PASS / 0 FAIL**，shell vet 净。没有改变导出脚本、选择器或成功提示的时机。
+
+第三批 37cb7b6d 已推送。
+
+7. 现象：已安装包的 descriptor 损坏，导出编码失败却称无效导入文件。改动：显示 document.Marshal 的真实原因。验证：两主题真实损坏 descriptor 触发 `encoding failure hides its cause`；修后原因可读、已有备份字节不变、busy 释放；修复 descriptor 后同入口输出可解析文档。
+8. 现象：导入报告中的无断点长文件名越过文本列；旧右沿 360，允许右沿 328，越界 **32px**。改动：报告文字增加 MinWidth(0)，按真实剩余列宽换行。验证：深浅旧版均报 `import failure overflows the report column`；修后全文节点留在列内，后续内容不重叠。普通可断路径原本正常，不另凑一项。
+
+第四批相关 **16 PASS / 0 FAIL**，shell/settingsui vet 净。旧 V/B/S pin 修改 0/0/0；所有八项均有原产品失败和修后验收。
