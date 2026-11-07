@@ -36,3 +36,14 @@ done.log开盘不存在；收尾创建指定目录和记录。完整基线运行
 两项改前均红：`diagnosis lifecycle-failure leaves launcher commands stale: got=1 want=0`、`diagnosis lifecycle-recovery leaves launcher commands stale: got=0 want=1`。图来自修改前真实等待帧。
 
 第二批相关 **51 PASS / 0 FAIL**、shell/settingsui vet退出0。首次目视浅色等待帧：健康刷新与底部操作均使用原禁用面，没有新增面板；已失效命令将从原搜索行撤下。旧V/B/S修改0/0/0。
+
+第二批88816c81。
+
+## 第三批：完成时的当前启停状态
+
+5. 现象：没有生命周期probe的提供者等待中，同一工具在仓库停用，检查完成后设置已停用而搜索仍有Check Ping。改动：完成时刷新完整目录而不只读Store。验证：真实磁盘写入、release事件、深浅命令数组与搜索同时1→0，诊断正常结果仍保留。
+6. 现象：同一路径从停用恢复启用，检查结束后搜索仍为空。改动：完整刷新恢复当前已启用命令，沿用原命令开关。验证：深浅当前记录Enabled=true、诊断ok、命令与搜索同时0→1。
+
+改前实红：`diagnosis completion-disable leaves launcher commands stale: got=1 want=0`、`diagnosis completion-enable leaves launcher commands stale: got=0 want=1`；不是重复第二批的生命周期变化，而是提供者等待期间外部启停记录刷新。
+
+第三批相关 **76 PASS / 0 FAIL**、shell/settingsui vet退出0，旧V/B/S修改0/0/0。

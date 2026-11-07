@@ -2117,7 +2117,7 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 	}
 	// The provider can run while the on-disk declaration changes, even when
 	// there are no lifecycle probes. Publish only against freshly read facts.
-	a.Integrations.Refresh(context.Background())
+	a.RefreshIntegrations(context.Background())
 	if !a.rememberDiagnosis(integration, epoch, result) {
 		return
 	}
