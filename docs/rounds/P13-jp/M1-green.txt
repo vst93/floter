@@ -1,0 +1,21 @@
+=== RUN   TestDiagnosisRecoveryCommands
+=== RUN   TestDiagnosisRecoveryCommands/light
+2026/11/08 05:38:55 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 05:38:55 floter: re-probed dev.floter.drifttool (commands=3, was 0x1dd8a7dd4018)
+=== RUN   TestDiagnosisRecoveryCommands/dark
+2026/11/08 05:38:55 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 05:38:55 floter: re-probed dev.floter.drifttool (commands=3, was 0x1dd8a7d98068)
+--- PASS: TestDiagnosisRecoveryCommands (0.87s)
+    --- PASS: TestDiagnosisRecoveryCommands/light (0.43s)
+    --- PASS: TestDiagnosisRecoveryCommands/dark (0.44s)
+=== RUN   TestDiagnosisRecoverySupersededHealth
+=== RUN   TestDiagnosisRecoverySupersededHealth/light
+=== RUN   TestDiagnosisRecoverySupersededHealth/dark
+--- PASS: TestDiagnosisRecoverySupersededHealth (0.49s)
+    --- PASS: TestDiagnosisRecoverySupersededHealth/light (0.27s)
+    --- PASS: TestDiagnosisRecoverySupersededHealth/dark (0.23s)
+PASS
+ok  	floter/internal/shell	1.371s
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/settingsui	0.004s [no tests to run]

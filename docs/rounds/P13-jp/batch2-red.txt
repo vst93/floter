@@ -1,0 +1,31 @@
+=== RUN   TestDiagnosisRecoveryRuntimeVersion
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/light
+    diagnosisrecovery_test.go:113: changed runtime version inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/dark
+    diagnosisrecovery_test.go:113: changed runtime version inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/light
+    diagnosisrecovery_test.go:113: changed runtime version inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/dark
+    diagnosisrecovery_test.go:113: changed runtime version inherited stale diagnosis: "旧运行版本检查失败"
+--- FAIL: TestDiagnosisRecoveryRuntimeVersion (1.57s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeVersion/complete/light (0.67s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeVersion/complete/dark (0.30s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeVersion/pending/light (0.32s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeVersion/pending/dark (0.29s)
+=== RUN   TestDiagnosisRecoveryRuntimeRoot
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/light
+    diagnosisrecovery_test.go:113: changed runtime root inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/dark
+    diagnosisrecovery_test.go:113: changed runtime root inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/light
+    diagnosisrecovery_test.go:113: changed runtime root inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/dark
+    diagnosisrecovery_test.go:113: changed runtime root inherited stale diagnosis: "旧运行版本检查失败"
+--- FAIL: TestDiagnosisRecoveryRuntimeRoot (1.53s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeRoot/complete/light (0.28s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeRoot/complete/dark (0.39s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeRoot/pending/light (0.52s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeRoot/pending/dark (0.33s)
+FAIL
+FAIL	floter/internal/shell	3.108s
+FAIL

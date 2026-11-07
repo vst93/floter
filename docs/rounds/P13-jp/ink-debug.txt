@@ -1,0 +1,10 @@
+=== RUN   TestDiagnosisDetailFailureInk
+=== RUN   TestDiagnosisDetailFailureInk/light
+=== RUN   TestDiagnosisDetailFailureInk/dark
+    diagnosisdetail_test.go:73: failed diagnosis summary has no warning ink: want={R:255 G:178 B:164 A:209 wide:[0 0 0]}
+--- FAIL: TestDiagnosisDetailFailureInk (0.03s)
+    --- PASS: TestDiagnosisDetailFailureInk/light (0.03s)
+    --- FAIL: TestDiagnosisDetailFailureInk/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.033s
+FAIL

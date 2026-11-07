@@ -1,0 +1,81 @@
+=== RUN   TestDiagnosisRecoveryCommands
+=== RUN   TestDiagnosisRecoveryCommands/light
+2026/11/08 05:27:36 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 05:27:36 floter: re-probed dev.floter.drifttool (commands=3, was 0x1481f141e128)
+=== RUN   TestDiagnosisRecoveryCommands/dark
+2026/11/08 05:27:37 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 05:27:37 floter: re-probed dev.floter.drifttool (commands=3, was 0x1481f15b4058)
+--- PASS: TestDiagnosisRecoveryCommands (1.29s)
+    --- PASS: TestDiagnosisRecoveryCommands/light (0.69s)
+    --- PASS: TestDiagnosisRecoveryCommands/dark (0.60s)
+=== RUN   TestDiagnosisCurrentProvider
+--- PASS: TestDiagnosisCurrentProvider (0.00s)
+=== RUN   TestDiagnosisCurrentVerdictIsVisible
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/light
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/dark
+--- PASS: TestDiagnosisCurrentVerdictIsVisible (0.26s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/light (0.15s)
+    --- PASS: TestDiagnosisCurrentVerdictIsVisible/dark (0.11s)
+=== RUN   TestDiagnosisCurrentChecksAreVisible
+=== RUN   TestDiagnosisCurrentChecksAreVisible/light
+=== RUN   TestDiagnosisCurrentChecksAreVisible/dark
+--- PASS: TestDiagnosisCurrentChecksAreVisible (0.22s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/light (0.11s)
+    --- PASS: TestDiagnosisCurrentChecksAreVisible/dark (0.12s)
+=== RUN   TestDiagnosisCurrentHealthRefresh
+=== RUN   TestDiagnosisCurrentHealthRefresh/light
+=== RUN   TestDiagnosisCurrentHealthRefresh/dark
+--- PASS: TestDiagnosisCurrentHealthRefresh (0.30s)
+    --- PASS: TestDiagnosisCurrentHealthRefresh/light (0.15s)
+    --- PASS: TestDiagnosisCurrentHealthRefresh/dark (0.15s)
+=== RUN   TestDiagnosisCurrentHealthLanguage
+=== RUN   TestDiagnosisCurrentHealthLanguage/light
+=== RUN   TestDiagnosisCurrentHealthLanguage/dark
+--- PASS: TestDiagnosisCurrentHealthLanguage (0.32s)
+    --- PASS: TestDiagnosisCurrentHealthLanguage/light (0.12s)
+    --- PASS: TestDiagnosisCurrentHealthLanguage/dark (0.21s)
+=== RUN   TestDiagnosisCurrentPackageOwner
+=== RUN   TestDiagnosisCurrentPackageOwner/light
+=== RUN   TestDiagnosisCurrentPackageOwner/dark
+--- PASS: TestDiagnosisCurrentPackageOwner (0.37s)
+    --- PASS: TestDiagnosisCurrentPackageOwner/light (0.19s)
+    --- PASS: TestDiagnosisCurrentPackageOwner/dark (0.18s)
+=== RUN   TestDiagnosisCurrentPendingOwner
+=== RUN   TestDiagnosisCurrentPendingOwner/light
+=== RUN   TestDiagnosisCurrentPendingOwner/dark
+--- PASS: TestDiagnosisCurrentPendingOwner (0.37s)
+    --- PASS: TestDiagnosisCurrentPendingOwner/light (0.19s)
+    --- PASS: TestDiagnosisCurrentPendingOwner/dark (0.18s)
+=== RUN   TestDiagnosisCurrentLatestResult
+=== RUN   TestDiagnosisCurrentLatestResult/light
+=== RUN   TestDiagnosisCurrentLatestResult/dark
+--- PASS: TestDiagnosisCurrentLatestResult (0.23s)
+    --- PASS: TestDiagnosisCurrentLatestResult/light (0.12s)
+    --- PASS: TestDiagnosisCurrentLatestResult/dark (0.11s)
+=== RUN   TestDiagnosisCurrentLatestNotice
+=== RUN   TestDiagnosisCurrentLatestNotice/light
+=== RUN   TestDiagnosisCurrentLatestNotice/dark
+--- PASS: TestDiagnosisCurrentLatestNotice (0.62s)
+    --- PASS: TestDiagnosisCurrentLatestNotice/light (0.30s)
+    --- PASS: TestDiagnosisCurrentLatestNotice/dark (0.32s)
+=== RUN   TestDiagnosisRecoverySupersededHealth
+=== RUN   TestDiagnosisRecoverySupersededHealth/light
+=== RUN   TestDiagnosisRecoverySupersededHealth/dark
+--- PASS: TestDiagnosisRecoverySupersededHealth (0.71s)
+    --- PASS: TestDiagnosisRecoverySupersededHealth/light (0.36s)
+    --- PASS: TestDiagnosisRecoverySupersededHealth/dark (0.35s)
+=== RUN   TestTheDriftReprobeAnnouncesAChangedCommandList
+--- PASS: TestTheDriftReprobeAnnouncesAChangedCommandList (0.19s)
+=== RUN   TestTheDriftNoticeIsAnnouncedOnlyOnce
+--- PASS: TestTheDriftNoticeIsAnnouncedOnlyOnce (0.13s)
+=== RUN   TestTheDriftReprobeStaysSilentWithoutAVersion
+--- PASS: TestTheDriftReprobeStaysSilentWithoutAVersion (0.08s)
+=== RUN   TestTheDriftReprobeFailsSoft
+2026/11/08 05:27:41 floter: could not re-probe dev.floter.drifttool on version drift: extensions: the tool did not produce usable help output
+--- PASS: TestTheDriftReprobeFailsSoft (0.12s)
+=== RUN   TestTheDriftReprobeLoopDoesNotStack
+--- PASS: TestTheDriftReprobeLoopDoesNotStack (0.00s)
+=== RUN   TestTheDriftToastIsDrawnWithItsAction
+--- PASS: TestTheDriftToastIsDrawnWithItsAction (0.44s)
+PASS
+ok  	floter/internal/shell	5.677s

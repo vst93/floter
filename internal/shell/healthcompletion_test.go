@@ -69,7 +69,12 @@ func startHealthCompletion(t *testing.T, f *diagnosisFixture, name string) (stri
 
 func finishHealthCompletion(t *testing.T, base string, done <-chan healthCompletion, code int) healthCompletion {
 	t.Helper()
-	if err := os.WriteFile(base+".release", []byte(strconv.Itoa(code)), 0o600); err != nil {
+	// Publish a complete exit code: the child may read immediately after
+	// creation, before WriteFile has written the first byte.
+	if err := os.WriteFile(base+".release.tmp", []byte(strconv.Itoa(code)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(base+".release.tmp", base+".release"); err != nil {
 		t.Fatal(err)
 	}
 	select {

@@ -1,0 +1,25 @@
+=== RUN   TestDiagnosisRecoveryRuntimeVersion
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/light
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/dark
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/light
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/dark
+--- PASS: TestDiagnosisRecoveryRuntimeVersion (1.03s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/complete/light (0.41s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/complete/dark (0.22s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/pending/light (0.21s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/pending/dark (0.20s)
+=== RUN   TestDiagnosisRecoveryRuntimeRoot
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/light
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/dark
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/light
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/dark
+--- PASS: TestDiagnosisRecoveryRuntimeRoot (0.80s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/complete/light (0.20s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/complete/dark (0.20s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/pending/light (0.20s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/pending/dark (0.20s)
+PASS
+ok  	floter/internal/shell	1.837s
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/settingsui	0.005s [no tests to run]

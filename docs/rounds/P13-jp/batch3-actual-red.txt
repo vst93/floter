@@ -1,0 +1,23 @@
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK/light
+    diagnosisrecovery_test.go:140: failed provider checks still display an OK summary: failed=true status="ok"
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK/dark
+    diagnosisrecovery_test.go:140: failed provider checks still display an OK summary: failed=true status="ok"
+--- FAIL: TestDiagnosisRecoveryFailedChecksOverrideOK (2.88s)
+    --- FAIL: TestDiagnosisRecoveryFailedChecksOverrideOK/light (1.98s)
+    --- FAIL: TestDiagnosisRecoveryFailedChecksOverrideOK/dark (0.90s)
+FAIL
+FAIL	floter/internal/shell	2.998s
+=== RUN   TestDiagnosisDetailEmptyMessage
+=== RUN   TestDiagnosisDetailEmptyMessage/light
+    diagnosisdetail_test.go:41: empty check message hides the failing check identity
+    diagnosisdetail_test.go:41: empty check message hides the failing check identity
+=== RUN   TestDiagnosisDetailEmptyMessage/dark
+    diagnosisdetail_test.go:41: empty check message hides the failing check identity
+    diagnosisdetail_test.go:41: empty check message hides the failing check identity
+--- FAIL: TestDiagnosisDetailEmptyMessage (0.10s)
+    --- FAIL: TestDiagnosisDetailEmptyMessage/light (0.08s)
+    --- FAIL: TestDiagnosisDetailEmptyMessage/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.108s
+FAIL

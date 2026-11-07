@@ -1,0 +1,34 @@
+=== RUN   TestDiagnosisRecoveryRuntimeVersion
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/light
+    diagnosisrecovery_test.go:121: changed runtime version inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/dark
+    diagnosisrecovery_test.go:121: changed runtime version inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/light
+    diagnosisrecovery_test.go:121: changed runtime version inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/dark
+    diagnosisrecovery_test.go:121: changed runtime version inherited stale diagnosis: "旧运行版本检查失败"
+--- FAIL: TestDiagnosisRecoveryRuntimeVersion (0.90s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeVersion/complete/light (0.34s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeVersion/complete/dark (0.19s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeVersion/pending/light (0.19s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeVersion/pending/dark (0.19s)
+=== RUN   TestDiagnosisRecoveryRuntimeRoot
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/light
+    diagnosisrecovery_test.go:121: changed runtime root inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/dark
+    diagnosisrecovery_test.go:121: changed runtime root inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/light
+    diagnosisrecovery_test.go:121: changed runtime root inherited stale diagnosis: "旧运行版本检查失败"
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/dark
+    diagnosisrecovery_test.go:121: changed runtime root inherited stale diagnosis: "旧运行版本检查失败"
+--- FAIL: TestDiagnosisRecoveryRuntimeRoot (0.75s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeRoot/complete/light (0.19s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeRoot/complete/dark (0.19s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeRoot/pending/light (0.19s)
+    --- FAIL: TestDiagnosisRecoveryRuntimeRoot/pending/dark (0.19s)
+FAIL
+FAIL	floter/internal/shell	1.655s
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/settingsui	0.004s [no tests to run]
+FAIL

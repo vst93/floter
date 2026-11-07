@@ -1,0 +1,25 @@
+=== RUN   TestHealthCompletionRecovery
+=== RUN   TestHealthCompletionRecovery/enabled
+=== RUN   TestHealthCompletionRecovery/enabled/light
+=== RUN   TestHealthCompletionRecovery/enabled/dark
+=== RUN   TestHealthCompletionRecovery/disabled
+=== RUN   TestHealthCompletionRecovery/disabled/light
+=== RUN   TestHealthCompletionRecovery/disabled/dark
+=== RUN   TestHealthCompletionRecovery/other-failure
+=== RUN   TestHealthCompletionRecovery/other-failure/light
+=== RUN   TestHealthCompletionRecovery/other-failure/dark
+--- PASS: TestHealthCompletionRecovery (1.90s)
+    --- PASS: TestHealthCompletionRecovery/enabled (1.03s)
+        --- PASS: TestHealthCompletionRecovery/enabled/light (0.70s)
+        --- PASS: TestHealthCompletionRecovery/enabled/dark (0.32s)
+    --- PASS: TestHealthCompletionRecovery/disabled (0.49s)
+        --- PASS: TestHealthCompletionRecovery/disabled/light (0.32s)
+        --- PASS: TestHealthCompletionRecovery/disabled/dark (0.17s)
+    --- PASS: TestHealthCompletionRecovery/other-failure (0.38s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/light (0.18s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/dark (0.20s)
+PASS
+ok  	floter/internal/shell	1.913s
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/settingsui	0.005s [no tests to run]

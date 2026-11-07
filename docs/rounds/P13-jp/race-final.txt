@@ -1,0 +1,84 @@
+=== RUN   TestDiagnosisRecoveryCommands
+=== RUN   TestDiagnosisRecoveryCommands/light
+2026/11/08 05:40:53 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 05:40:53 floter: re-probed dev.floter.drifttool (commands=3, was 0xc00046a078)
+=== RUN   TestDiagnosisRecoveryCommands/dark
+2026/11/08 05:40:55 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 05:40:55 floter: re-probed dev.floter.drifttool (commands=3, was 0xc00061c228)
+--- PASS: TestDiagnosisRecoveryCommands (8.40s)
+    --- PASS: TestDiagnosisRecoveryCommands/light (1.91s)
+    --- PASS: TestDiagnosisRecoveryCommands/dark (6.48s)
+=== RUN   TestDiagnosisRecoverySupersededHealth
+=== RUN   TestDiagnosisRecoverySupersededHealth/light
+=== RUN   TestDiagnosisRecoverySupersededHealth/dark
+--- PASS: TestDiagnosisRecoverySupersededHealth (9.32s)
+    --- PASS: TestDiagnosisRecoverySupersededHealth/light (4.69s)
+    --- PASS: TestDiagnosisRecoverySupersededHealth/dark (4.63s)
+=== RUN   TestDiagnosisRecoveryRuntimeVersion
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/light
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/complete/dark
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/light
+=== RUN   TestDiagnosisRecoveryRuntimeVersion/pending/dark
+--- PASS: TestDiagnosisRecoveryRuntimeVersion (19.73s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/complete/light (5.15s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/complete/dark (4.60s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/pending/light (4.86s)
+    --- PASS: TestDiagnosisRecoveryRuntimeVersion/pending/dark (5.11s)
+=== RUN   TestDiagnosisRecoveryRuntimeRoot
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/light
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/complete/dark
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/light
+=== RUN   TestDiagnosisRecoveryRuntimeRoot/pending/dark
+--- PASS: TestDiagnosisRecoveryRuntimeRoot (20.42s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/complete/light (5.14s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/complete/dark (5.09s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/pending/light (5.07s)
+    --- PASS: TestDiagnosisRecoveryRuntimeRoot/pending/dark (5.12s)
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK/light
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK/dark
+--- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK (5.53s)
+    --- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK/light (2.75s)
+    --- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK/dark (2.78s)
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/light
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/dark
+--- PASS: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK (8.49s)
+    --- PASS: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/light (4.29s)
+    --- PASS: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/dark (4.20s)
+=== RUN   TestHealthCompletionRecovery
+=== RUN   TestHealthCompletionRecovery/enabled
+=== RUN   TestHealthCompletionRecovery/enabled/light
+=== RUN   TestHealthCompletionRecovery/enabled/dark
+=== RUN   TestHealthCompletionRecovery/disabled
+=== RUN   TestHealthCompletionRecovery/disabled/light
+=== RUN   TestHealthCompletionRecovery/disabled/dark
+=== RUN   TestHealthCompletionRecovery/other-failure
+=== RUN   TestHealthCompletionRecovery/other-failure/light
+=== RUN   TestHealthCompletionRecovery/other-failure/dark
+--- PASS: TestHealthCompletionRecovery (22.21s)
+    --- PASS: TestHealthCompletionRecovery/enabled (8.59s)
+        --- PASS: TestHealthCompletionRecovery/enabled/light (4.28s)
+        --- PASS: TestHealthCompletionRecovery/enabled/dark (4.31s)
+    --- PASS: TestHealthCompletionRecovery/disabled (6.74s)
+        --- PASS: TestHealthCompletionRecovery/disabled/light (3.32s)
+        --- PASS: TestHealthCompletionRecovery/disabled/dark (3.42s)
+    --- PASS: TestHealthCompletionRecovery/other-failure (6.88s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/light (3.45s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/dark (3.43s)
+PASS
+ok  	floter/internal/shell	95.179s
+=== RUN   TestDiagnosisDetailEmptyMessage
+=== RUN   TestDiagnosisDetailEmptyMessage/light
+=== RUN   TestDiagnosisDetailEmptyMessage/dark
+--- PASS: TestDiagnosisDetailEmptyMessage (0.18s)
+    --- PASS: TestDiagnosisDetailEmptyMessage/light (0.16s)
+    --- PASS: TestDiagnosisDetailEmptyMessage/dark (0.02s)
+=== RUN   TestDiagnosisDetailFailureInk
+=== RUN   TestDiagnosisDetailFailureInk/light
+=== RUN   TestDiagnosisDetailFailureInk/dark
+--- PASS: TestDiagnosisDetailFailureInk (0.04s)
+    --- PASS: TestDiagnosisDetailFailureInk/light (0.02s)
+    --- PASS: TestDiagnosisDetailFailureInk/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	1.295s

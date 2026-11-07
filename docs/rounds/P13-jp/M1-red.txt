@@ -1,0 +1,26 @@
+=== RUN   TestDiagnosisRecoveryCommands
+=== RUN   TestDiagnosisRecoveryCommands/light
+2026/11/08 05:38:52 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 05:38:52 floter: re-probed dev.floter.drifttool (commands=3, was 0x265090830398)
+    commandrecovery_unix_test.go:42: successful command retry retained old diagnosis: "extensions: the tool did not produce usable help output" failed=true
+=== RUN   TestDiagnosisRecoveryCommands/dark
+2026/11/08 05:38:52 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/08 05:38:52 floter: re-probed dev.floter.drifttool (commands=3, was 0x265090be8108)
+    commandrecovery_unix_test.go:42: successful command retry retained old diagnosis: "extensions: the tool did not produce usable help output" failed=true
+--- FAIL: TestDiagnosisRecoveryCommands (0.82s)
+    --- FAIL: TestDiagnosisRecoveryCommands/light (0.43s)
+    --- FAIL: TestDiagnosisRecoveryCommands/dark (0.39s)
+=== RUN   TestDiagnosisRecoverySupersededHealth
+=== RUN   TestDiagnosisRecoverySupersededHealth/light
+    diagnosisrecovery_test.go:83: discarded lifecycle check published a diagnosis or notice: diagnosis="extensions: the health check no longer matches the current integration" failed=true notices=["检查工具 报告了问题"]
+=== RUN   TestDiagnosisRecoverySupersededHealth/dark
+    diagnosisrecovery_test.go:83: discarded lifecycle check published a diagnosis or notice: diagnosis="extensions: the health check no longer matches the current integration" failed=true notices=["检查工具 报告了问题"]
+--- FAIL: TestDiagnosisRecoverySupersededHealth (0.84s)
+    --- FAIL: TestDiagnosisRecoverySupersededHealth/light (0.42s)
+    --- FAIL: TestDiagnosisRecoverySupersededHealth/dark (0.41s)
+FAIL
+FAIL	floter/internal/shell	1.666s
+testing: warning: no tests to run
+PASS
+ok  	floter/internal/settingsui	0.015s [no tests to run]
+FAIL

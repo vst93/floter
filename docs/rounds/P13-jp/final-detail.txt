@@ -1,0 +1,16 @@
+=== RUN   TestDiagnosisDetailEmptyMessage
+=== RUN   TestDiagnosisDetailEmptyMessage/light
+=== RUN   TestDiagnosisDetailEmptyMessage/dark
+--- PASS: TestDiagnosisDetailEmptyMessage (0.07s)
+    --- PASS: TestDiagnosisDetailEmptyMessage/light (0.07s)
+    --- PASS: TestDiagnosisDetailEmptyMessage/dark (0.00s)
+=== RUN   TestDiagnosisDetailFailureInk
+=== RUN   TestDiagnosisDetailFailureInk/light
+=== RUN   TestDiagnosisDetailFailureInk/dark
+    diagnosisdetail_test.go:73: failed diagnosis summary has no warning ink
+--- FAIL: TestDiagnosisDetailFailureInk (0.01s)
+    --- PASS: TestDiagnosisDetailFailureInk/light (0.01s)
+    --- FAIL: TestDiagnosisDetailFailureInk/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.077s
+FAIL

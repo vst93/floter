@@ -8,8 +8,8 @@
 
 1. shell.go:3062–3066：重探测失败写Diagnosis，成功只记日志；真实失败→成功后应撤掉旧诊断，不留下错误行。
 2. shell.go:2005：ErrProbeSuperseded进入普通失败分支；仅磁盘更新时Inventory仍旧，可能继续诊断并通知。过期结果应刷新当前事实并结束，不发旧通知。
-3. shell.go:1968：诊断来源未含CurrentVersion；同路径升级后旧诊断应退役。
-4. shell.go:1968：诊断来源未含RuntimeRoot；运行根变更后旧诊断应退役，当前检查仍可用。
+3. shell.go:1957：诊断来源未含CurrentVersion；同路径升级后旧诊断应退役。
+4. shell.go:1957：诊断来源未含RuntimeRoot；运行根变更后旧诊断应退役，当前检查仍可用。
 5. settingsui.go:2610：消息为空时画空白；检查ID作为无消息时的可读回退，非空消息不变。
 6. settingsui.go:2620：提供者总状态ok但明细失败，汇总仍Ok。汇总采用已记录的失败说明，原始状态保留。
 7. shell.go:2026–2053：提供者返回ok覆盖生命周期失败说明，失败flag保留。保留生命周期失败说明及提供者原始状态/明细。
@@ -23,14 +23,14 @@
 
 高度链、键盘模型、会话管理、确认3秒窗口、设置保存时机、i18n原文与命令执行语义不变。只修既有状态事实和内容换行；不加依赖/页面/系统/持久格式。V/B/S旧断言零改，不降低测试函数数。
 
-LC_ALL=zh_CN.UTF-8全量基线已启动，数字待实测填入。每两项定向测试、gofmt和相关vet全过即commit/push；轮末完整跑gofmt、三平台vet、普通/verbose全量及三平台build。
+LC_ALL=zh_CN.UTF-8开盘实测5777 PASS/3 FAIL（同一既有夹具竞态及父节点）、3337测试函数；上轮完整绿基线5780。基线复验再次复现文件发布竞态，最终采用完整写入后rename的握手，断言零改。每两项定向测试、gofmt和相关vet全过即commit/push；轮末完整跑gofmt、三平台vet、普通/verbose全量及三平台build。
 
-mutation计划：M1撤回恢复/过期出口，重试与过期通知pin应红；M2撤回CurrentVersion/RuntimeRoot来源字段，归属pin应红；M3撤回两个Wrap，长文字几何pin应红；M4撤回空消息回退及生命周期说明保护，事实与文字pin应红。每组注入→实红→还原→MD5→touch→重跑。
+mutation计划（以实证选题更新）：M1撤回恢复/过期出口，重试与过期通知pin应红；M2撤回CurrentVersion/RuntimeRoot来源字段，归属pin应红；M3撤回空消息回退及矛盾汇总修正，文字pin应红；M4撤回生命周期失败说明保护及Warning墨，事实与像素pin应红。每组注入→实红→还原→MD5→touch→重跑。
 
 ## 工艺选择
 
 实读qiaomu-design的SKILL、user-preferences、craft-loop、preflight、chinese-typography；Apple供体只借交互专用accent、8px圆角与0.22柔影的角色，本仓token优先。
 
-craft-loop菜单#6：54px状态列、8u列间隔保持，长文本溢出目标0px；#4：检查完成额外延迟0ms，过期通知0条；#11：无消息使用1个已有ID，不添图标；#12：原1px受光边、新玻璃0层；#5：浮层2层影，卡片内部新增影0层。后两项为保留约束，不冒充新增改动。
+craft-loop菜单#6：54px状态列、8u列间隔保持，空白消息使用1个已有ID；#4：检查完成额外延迟0ms，过期通知0条；#12：原1px受光边、新玻璃0层；#5：浮层2层影，卡片内部新增影0层。后两项为保留约束，不冒充新增改动；未采用#11图形资产，ID是文字而非图形。
 
 为什么更轻、更有空间感：恢复时收回过期故障，原列内完整呈现检查结果，避免溢出的文字跨越已有层级。

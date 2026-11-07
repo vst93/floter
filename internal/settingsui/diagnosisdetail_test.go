@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"floter/internal/i18n"
+	"floter/internal/settings"
+	"floter/internal/theme"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -13,6 +15,8 @@ func diagnosisDetailFrame(t *testing.T, integration Integration, dark bool, scen
 	t.Helper()
 	a := New(newStore(t), Actions{})
 	tt := ui.NewTester(func(c *ui.Context) {
+		tokens := theme.ForPreferences(settings.Default(), dark, c.Preferences())
+		c.SetTheme(tokens.Theme)
 		ui.Column(c).Width(360).Children(func() { a.diagnosticsSection(c, i18n.For("zh").Settings, integration) })
 	}, 400, 240)
 	tt.SetDark(dark)
@@ -55,16 +59,19 @@ func TestDiagnosisDetailFailureInk(t *testing.T) {
 			tt := diagnosisDetailFrame(t, Integration{Diagnosis: message, DiagnosisFailed: true}, dark, "failure-ink")
 			r := mustFind(t, tt, message)
 			colored := 0
+			img := tt.Image()
+			warning := theme.ForPreferences(settings.Default(), dark, ui.Preferences{ReduceMotion: true}).Theme.Warning
+			warning = panelOver(warning, imagePixel(img, 1, int(r.Y)))
 			for y := int(r.Y); y < int(r.Y+r.H); y++ {
 				for x := int(r.X); x < int(r.X+r.W); x++ {
-					p := imagePixel(tt.Image(), x, y)
-					if p.R > p.G && p.R > p.B {
+					p := imagePixel(img, x, y)
+					if p.R == warning.R && p.G == warning.G && p.B == warning.B {
 						colored++
 					}
 				}
 			}
 			if colored == 0 {
-				t.Error("failed diagnosis summary has no warning ink")
+				t.Errorf("failed diagnosis summary has no warning ink: want=%+v", warning)
 			}
 		})
 	}

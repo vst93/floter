@@ -1,0 +1,21 @@
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/light
+    diagnosisrecovery_test.go:170: provider OK erased a real lifecycle failure: diagnosis="ok" failed=true status="ok"
+=== RUN   TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/dark
+    diagnosisrecovery_test.go:170: provider OK erased a real lifecycle failure: diagnosis="ok" failed=true status="ok"
+--- FAIL: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK (3.69s)
+    --- FAIL: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/light (2.42s)
+    --- FAIL: TestDiagnosisRecoveryLifecycleFailureSurvivesProviderOK/dark (1.27s)
+FAIL
+FAIL	floter/internal/shell	3.717s
+=== RUN   TestDiagnosisDetailFailureInk
+=== RUN   TestDiagnosisDetailFailureInk/light
+    diagnosisdetail_test.go:67: failed diagnosis summary has no warning ink
+=== RUN   TestDiagnosisDetailFailureInk/dark
+    diagnosisdetail_test.go:67: failed diagnosis summary has no warning ink
+--- FAIL: TestDiagnosisDetailFailureInk (4.41s)
+    --- FAIL: TestDiagnosisDetailFailureInk/light (2.32s)
+    --- FAIL: TestDiagnosisDetailFailureInk/dark (2.10s)
+FAIL
+FAIL	floter/internal/settingsui	4.421s
+FAIL

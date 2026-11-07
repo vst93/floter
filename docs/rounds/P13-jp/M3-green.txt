@@ -1,0 +1,16 @@
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK/light
+=== RUN   TestDiagnosisRecoveryFailedChecksOverrideOK/dark
+--- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK (0.68s)
+    --- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK/light (0.46s)
+    --- PASS: TestDiagnosisRecoveryFailedChecksOverrideOK/dark (0.22s)
+PASS
+ok  	floter/internal/shell	0.692s
+=== RUN   TestDiagnosisDetailEmptyMessage
+=== RUN   TestDiagnosisDetailEmptyMessage/light
+=== RUN   TestDiagnosisDetailEmptyMessage/dark
+--- PASS: TestDiagnosisDetailEmptyMessage (0.07s)
+    --- PASS: TestDiagnosisDetailEmptyMessage/light (0.06s)
+    --- PASS: TestDiagnosisDetailEmptyMessage/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.083s

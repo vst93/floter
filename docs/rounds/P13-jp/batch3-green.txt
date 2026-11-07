@@ -1,0 +1,22 @@
+=== RUN   TestTheDiagnosticsBlockSitsOnTheCardsTextColumn
+--- PASS: TestTheDiagnosticsBlockSitsOnTheCardsTextColumn (0.20s)
+=== RUN   TestDiagnosisBoundsLongSummary
+=== RUN   TestDiagnosisBoundsLongSummary/light
+=== RUN   TestDiagnosisBoundsLongSummary/dark
+--- PASS: TestDiagnosisBoundsLongSummary (0.02s)
+    --- PASS: TestDiagnosisBoundsLongSummary/light (0.01s)
+    --- PASS: TestDiagnosisBoundsLongSummary/dark (0.01s)
+=== RUN   TestDiagnosisBoundsLongStatus
+=== RUN   TestDiagnosisBoundsLongStatus/light
+=== RUN   TestDiagnosisBoundsLongStatus/dark
+--- PASS: TestDiagnosisBoundsLongStatus (0.02s)
+    --- PASS: TestDiagnosisBoundsLongStatus/light (0.01s)
+    --- PASS: TestDiagnosisBoundsLongStatus/dark (0.01s)
+=== RUN   TestTheHealthVerdictWearsItsOwnChip
+--- PASS: TestTheHealthVerdictWearsItsOwnChip (0.09s)
+=== RUN   TestTheDiagnosticsWordsAreCapitalised
+--- PASS: TestTheDiagnosticsWordsAreCapitalised (0.04s)
+=== RUN   TestTheHealthChipReadsTheRawStatusNotTheWord
+--- PASS: TestTheHealthChipReadsTheRawStatusNotTheWord (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.455s
