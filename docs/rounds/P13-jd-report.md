@@ -143,6 +143,6 @@ M3 单独把成功通知提前到剪贴板写入前，实红：`configuration co
 
 四批产品提交：02e87cbf、85a80bf7、72d86c5a、217b6dfd；首批夹具及错误记录单独修正 22d1a0ec，全部已推送。结案 SHA 由本报告最新 git log 与 done.log 定位。
 
-原始证据：[基线](P13-jd/baseline.log)、[普通全量](P13-jd/full-test.txt)、[verbose 全量](P13-jd/full-verbose.txt)、[race](P13-jd/race.txt)、[门槛摘要](P13-jd/gates.txt)、[最终源码 MD5](P13-jd/final-source.md5)。M1/M2/M3 的 red/restored/md5 保留。原始 verbose 日志包含帮助文本的空格后 tab，保留原字节，日志 whitespace 检查只豁免这一项；源码文档检查仍正常。
+原始证据：[基线](P13-jd/baseline.txt)、[普通全量](P13-jd/full-test.txt)、[verbose 全量](P13-jd/full-verbose.txt)、[race](P13-jd/race.txt)、[门槛摘要](P13-jd/gates.txt)、[最终源码 MD5](P13-jd/final-source.md5)。M1/M2/M3 的 red/restored/md5 保留。原始 verbose 日志包含帮助文本的空格后 tab，保留原字节，日志 whitespace 检查只豁免这一项；源码文档检查仍正常。
 
 基线记录开始于 14:22:59 UTC，最终完整门槛约 14:49 UTC 结束，其后只归档与推送。本轮完成八项，但执行时间短于 45–75 分钟目标，连同提交与调用预算偏差如实保留。
