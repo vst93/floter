@@ -114,3 +114,10 @@ func TestFactsSyncFirstProbeCannotUndoRepair(t *testing.T) { checkFactsSyncRefre
 func TestFactsSyncFirstDigestCannotUndoApproval(t *testing.T) {
 	checkFactsSyncRefresh(t, "cold-approval")
 }
+
+func TestFactsSyncAddedProbeCannotUndoNeighbourRepair(t *testing.T) {
+	checkFactsSyncRefresh(t, "added-neighbour-runtime")
+}
+func TestFactsSyncAddedDigestCannotUndoOwnApproval(t *testing.T) {
+	checkFactsSyncRefresh(t, "added-own-approval")
+}

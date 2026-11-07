@@ -39,3 +39,10 @@
 6. 现象：首次摘要读取的旧值在刷新后返回，批准卡重新显示 manifest changed 警告。改动：事实首读保护覆盖批准摘要，保留已确认的新摘要。验证：真实批准记录/磁盘摘要、卡片与返回快照；深浅修前 `cold-approval: synchronous probe revived approval warning`，修后摘要等于磁盘。
 
 第三批相关 **18 PASS / 0 FAIL**，shell vet净、gofmt空、旧V/B/S 0/0/0。M2将在四批完成后统一回注旧代码。
+
+第三批 **8df4c0a0** 已推送。
+
+7. 现象：新行补探测与原行修复刷新交错，旧合并基底重新禁用原工具。改动：补探测同时核对基底代际，保留刷新后原行的可用状态。验证：两真实provider、实际刷新与卡片，深浅修前 `added-neighbour-runtime: synchronous probe disabled a repaired tool`，修后可用。
+8. 现象：补探测自己时返回旧摘要，已批准工具重新出现变更警告。改动：补探测结果发布检查代际，拒绝失效摘要。验证：真实批准记录、实际磁盘摘要、卡片和返回值，深浅修前 `added-own-approval: synchronous probe revived approval warning`，修后匹配。
+
+第四批相关 **24 PASS / 0 FAIL**、shell vet净、gofmt空、旧V/B/S 0/0/0；八项全部已红绿复现，完整门槛与两组mutation随后执行。

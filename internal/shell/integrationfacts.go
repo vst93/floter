@@ -229,7 +229,11 @@ func refreshIntegrationFacts(
 			for id, fact := range fresh {
 				merged[id] = fact
 			}
-			m.publish(merged, computed)
+			// The old map can contain another row's pre-repair facts. Accept
+			// neither that map nor the new row after a refresh supersedes it.
+			if !m.publishCurrent(merged, computed, revision) {
+				continue
+			}
 			facts = merged
 		}
 
