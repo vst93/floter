@@ -35,3 +35,8 @@
 6. 现象：配置字符串内的 0xff 被 JSON 解码替换，损坏值静默写入配置。改动：解析前拒绝非法 UTF-8 字节。验证：改前报 `invalid document wrote configuration`；修后验证具体原因、无写入、busy 释放和同入口恢复。合法中文与合法 U+FFFD 不误拒。
 
 第三批相关 **15 PASS / 0 FAIL**，extensions/shell vet 净；包括原 ImportSync 权限、合并、跳过、排除字段行为与 ReadSync 文档拒绝回归。
+
+7. 现象：已声明 script 的文件丢失，导出仍成功并覆盖已有备份，所得文件无法在新机器恢复。改动：读取必需脚本失败立即返回路径与原因，在选择保存位置前拒绝。验证：原产品两主题均报 `incomplete export replaced the existing backup`；修后备份逐字节不变、选择器 0 次、busy 释放，补回脚本后成功导出原文。
+8. 现象：已声明 static descriptor 的文件丢失，同样导出不完整备份。改动：descriptor 读错返回原因；无包集成的兼容路径不变。验证：两主题真实删除事件复现；修后同样保护备份，补回 descriptor 后完整 JSON 内容相等。独立覆盖 script 和 static-descriptor 两类现有组件。
+
+第四批相关 **19 PASS / 0 FAIL**，extensions/shell vet 净。八项均已完成首轮修后验证，正式 mutation 与最终门槛尚未结束。

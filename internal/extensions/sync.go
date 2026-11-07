@@ -162,15 +162,19 @@ func exportIntegration(paths Paths, integration Integration) (SyncEntry, error) 
 		// descriptor: those two are what a package cannot be rebuilt without.
 		if integration.Manifest.Runtime.Type == "script" {
 			if script := integration.Manifest.Runtime.Path; script != "" {
-				if data, err := os.ReadFile(filepath.Join(packageDir, filepath.FromSlash(script))); err == nil {
-					entry.ScriptContent = string(data)
+				data, err := os.ReadFile(filepath.Join(packageDir, filepath.FromSlash(script)))
+				if err != nil {
+					return SyncEntry{}, err
 				}
+				entry.ScriptContent = string(data)
 			}
 		}
 		if descriptor := integration.Manifest.Provider.Descriptor; descriptor != "" {
-			if data, err := os.ReadFile(filepath.Join(packageDir, filepath.FromSlash(descriptor))); err == nil {
-				entry.ProviderDescriptor = json.RawMessage(data)
+			data, err := os.ReadFile(filepath.Join(packageDir, filepath.FromSlash(descriptor)))
+			if err != nil {
+				return SyncEntry{}, err
 			}
+			entry.ProviderDescriptor = json.RawMessage(data)
 		}
 	}
 	return entry, nil

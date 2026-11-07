@@ -1,0 +1,129 @@
+=== RUN   TestExportMissingScriptPreservesBackup
+=== RUN   TestExportMissingScriptPreservesBackup/light
+    transferessential_test.go:58: missing essential was exported without visible cause: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingScriptPreservesBackuplight3143338464/002/extensions/dev.floter.configured/tool.sh: no such file or directory
+    transferessential_test.go:61: incomplete backup opened 1 save pickers
+    transferessential_test.go:65: incomplete export replaced the existing backup
+    transferessential_test.go:81: restored export failed: doc={Version:2 ExportedAt:2026-11-07T16:58:08Z Extensions:[{ID:dev.floter.configured Version:1.0.0 Enabled:true Config:map[] DistributionSource: RuntimeOwnership: FieldMetadata:[] Manifest:{
+                "schemaVersion": "2.0",
+                "id": "dev.floter.configured",
+                "name": "Configured",
+                "distribution": {
+                  "type": "local"
+                },
+                "runtime": {
+                  "type": "script",
+                  "language": "shell",
+                  "path": "tool.sh"
+                },
+                "provider": {
+                  "type": "executable",
+                  "argsPrefix": [
+                    "--floter"
+                  ]
+                }
+              } ScriptContent:#!/bin/sh
+        cat <<'JSONEOF'
+        {"protocolVersion":"1.0","provider":{"id":"dev.floter.configured","name":"Configured","version":"1.0.0"},
+        		  "configuration":{"configVersion":1,"owner":"host","schema":[
+        		    {"key":"endpoint","type":"text","required":true},
+        		    {"key":"token","type":"password","required":true},
+        		    {"key":"region","type":"select","options":["eu","us"]}]}}
+        JSONEOF
+         ProviderDescriptor:null Package:null}]} pickers=2 err=<nil>
+=== RUN   TestExportMissingScriptPreservesBackup/dark
+    transferessential_test.go:58: missing essential was exported without visible cause: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingScriptPreservesBackupdark2319598327/002/extensions/dev.floter.configured/tool.sh: no such file or directory
+    transferessential_test.go:61: incomplete backup opened 1 save pickers
+    transferessential_test.go:65: incomplete export replaced the existing backup
+    transferessential_test.go:81: restored export failed: doc={Version:2 ExportedAt:2026-11-07T16:58:08Z Extensions:[{ID:dev.floter.configured Version:1.0.0 Enabled:true Config:map[] DistributionSource: RuntimeOwnership: FieldMetadata:[] Manifest:{
+                "schemaVersion": "2.0",
+                "id": "dev.floter.configured",
+                "name": "Configured",
+                "distribution": {
+                  "type": "local"
+                },
+                "runtime": {
+                  "type": "script",
+                  "language": "shell",
+                  "path": "tool.sh"
+                },
+                "provider": {
+                  "type": "executable",
+                  "argsPrefix": [
+                    "--floter"
+                  ]
+                }
+              } ScriptContent:#!/bin/sh
+        cat <<'JSONEOF'
+        {"protocolVersion":"1.0","provider":{"id":"dev.floter.configured","name":"Configured","version":"1.0.0"},
+        		  "configuration":{"configVersion":1,"owner":"host","schema":[
+        		    {"key":"endpoint","type":"text","required":true},
+        		    {"key":"token","type":"password","required":true},
+        		    {"key":"region","type":"select","options":["eu","us"]}]}}
+        JSONEOF
+         ProviderDescriptor:null Package:null}]} pickers=2 err=<nil>
+--- FAIL: TestExportMissingScriptPreservesBackup (1.04s)
+    --- FAIL: TestExportMissingScriptPreservesBackup/light (0.68s)
+    --- FAIL: TestExportMissingScriptPreservesBackup/dark (0.36s)
+=== RUN   TestExportMissingDescriptorPreservesBackup
+=== RUN   TestExportMissingDescriptorPreservesBackup/light
+    transferessential_test.go:58: missing essential was exported without visible cause: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingDescriptorPreservesBackuplight1104283900/002/extensions/dev.floter.configured/description.json: no such file or directory
+    transferessential_test.go:61: incomplete backup opened 1 save pickers
+    transferessential_test.go:65: incomplete export replaced the existing backup
+    transferessential_test.go:81: restored export failed: doc={Version:2 ExportedAt:2026-11-07T16:58:08Z Extensions:[{ID:dev.floter.configured Version:1.0.0 Enabled:true Config:map[] DistributionSource: RuntimeOwnership: FieldMetadata:[] Manifest:{
+                "schemaVersion": "2.0",
+                "id": "dev.floter.configured",
+                "name": "Configured",
+                "distribution": {
+                  "type": "local"
+                },
+                "runtime": {
+                  "type": "system",
+                  "executableNames": [
+                    "sh"
+                  ]
+                },
+                "provider": {
+                  "type": "static-descriptor",
+                  "descriptor": "description.json"
+                }
+              } ScriptContent: ProviderDescriptor:{
+                "protocolVersion": "1.0",
+                "provider": {
+                  "id": "dev.floter.configured",
+                  "name": "Configured"
+                }
+              } Package:null}]} pickers=2 err=<nil>
+=== RUN   TestExportMissingDescriptorPreservesBackup/dark
+    transferessential_test.go:58: missing essential was exported without visible cause: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingDescriptorPreservesBackupdark3751536292/002/extensions/dev.floter.configured/description.json: no such file or directory
+    transferessential_test.go:61: incomplete backup opened 1 save pickers
+    transferessential_test.go:65: incomplete export replaced the existing backup
+    transferessential_test.go:81: restored export failed: doc={Version:2 ExportedAt:2026-11-07T16:58:09Z Extensions:[{ID:dev.floter.configured Version:1.0.0 Enabled:true Config:map[] DistributionSource: RuntimeOwnership: FieldMetadata:[] Manifest:{
+                "schemaVersion": "2.0",
+                "id": "dev.floter.configured",
+                "name": "Configured",
+                "distribution": {
+                  "type": "local"
+                },
+                "runtime": {
+                  "type": "system",
+                  "executableNames": [
+                    "sh"
+                  ]
+                },
+                "provider": {
+                  "type": "static-descriptor",
+                  "descriptor": "description.json"
+                }
+              } ScriptContent: ProviderDescriptor:{
+                "protocolVersion": "1.0",
+                "provider": {
+                  "id": "dev.floter.configured",
+                  "name": "Configured"
+                }
+              } Package:null}]} pickers=2 err=<nil>
+--- FAIL: TestExportMissingDescriptorPreservesBackup (0.89s)
+    --- FAIL: TestExportMissingDescriptorPreservesBackup/light (0.44s)
+    --- FAIL: TestExportMissingDescriptorPreservesBackup/dark (0.45s)
+FAIL
+FAIL	floter/internal/shell	1.958s
+FAIL
