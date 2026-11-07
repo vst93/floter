@@ -1,0 +1,45 @@
+=== RUN   TestFactsIdentityRuntimeTypeRefresh
+=== RUN   TestFactsIdentityRuntimeTypeRefresh/light
+=== RUN   TestFactsIdentityRuntimeTypeRefresh/dark
+--- PASS: TestFactsIdentityRuntimeTypeRefresh (0.49s)
+    --- PASS: TestFactsIdentityRuntimeTypeRefresh/light (0.36s)
+    --- PASS: TestFactsIdentityRuntimeTypeRefresh/dark (0.13s)
+=== RUN   TestFactsIdentityRuntimeLanguageRefresh
+=== RUN   TestFactsIdentityRuntimeLanguageRefresh/light
+=== RUN   TestFactsIdentityRuntimeLanguageRefresh/dark
+--- PASS: TestFactsIdentityRuntimeLanguageRefresh (0.26s)
+    --- PASS: TestFactsIdentityRuntimeLanguageRefresh/light (0.13s)
+    --- PASS: TestFactsIdentityRuntimeLanguageRefresh/dark (0.14s)
+=== RUN   TestFactsIdentityRuntimeNamesRefresh
+=== RUN   TestFactsIdentityRuntimeNamesRefresh/light
+    factsidentityrefresh_test.go:158: fixture did not change runtime availability: false (extensions: runtime-unavailable: runtime-unavailable:{"names":["/tmp/go-build589411286/b001/shell.test"]})
+=== RUN   TestFactsIdentityRuntimeNamesRefresh/dark
+    factsidentityrefresh_test.go:158: fixture did not change runtime availability: false (extensions: runtime-unavailable: runtime-unavailable:{"names":["/tmp/go-build589411286/b001/shell.test"]})
+--- FAIL: TestFactsIdentityRuntimeNamesRefresh (0.27s)
+    --- FAIL: TestFactsIdentityRuntimeNamesRefresh/light (0.14s)
+    --- FAIL: TestFactsIdentityRuntimeNamesRefresh/dark (0.14s)
+=== RUN   TestFactsIdentityRuntimePlatformRefresh
+=== RUN   TestFactsIdentityRuntimePlatformRefresh/light
+=== RUN   TestFactsIdentityRuntimePlatformRefresh/dark
+--- PASS: TestFactsIdentityRuntimePlatformRefresh (0.26s)
+    --- PASS: TestFactsIdentityRuntimePlatformRefresh/light (0.14s)
+    --- PASS: TestFactsIdentityRuntimePlatformRefresh/dark (0.13s)
+=== RUN   TestFactsIdentityHealthResultRefresh
+=== RUN   TestFactsIdentityHealthResultRefresh/light
+=== RUN   TestFactsIdentityHealthResultRefresh/dark
+--- PASS: TestFactsIdentityHealthResultRefresh (0.25s)
+    --- PASS: TestFactsIdentityHealthResultRefresh/light (0.13s)
+    --- PASS: TestFactsIdentityHealthResultRefresh/dark (0.13s)
+=== RUN   TestFactsIdentityHealthTimeRefresh
+=== RUN   TestFactsIdentityHealthTimeRefresh/light
+=== RUN   TestFactsIdentityHealthTimeRefresh/dark
+--- PASS: TestFactsIdentityHealthTimeRefresh (0.25s)
+    --- PASS: TestFactsIdentityHealthTimeRefresh/light (0.13s)
+    --- PASS: TestFactsIdentityHealthTimeRefresh/dark (0.12s)
+=== RUN   TestTheIntegrationFactsAreNotRecomputedEveryFrame
+--- PASS: TestTheIntegrationFactsAreNotRecomputedEveryFrame (0.00s)
+=== RUN   TestAPartialFactIsRefilledByTheList
+--- PASS: TestAPartialFactIsRefilledByTheList (0.03s)
+FAIL
+FAIL	floter/internal/shell	1.843s
+FAIL

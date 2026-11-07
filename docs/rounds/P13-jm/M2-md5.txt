@@ -1,0 +1,3 @@
+internal/shell/integrationfacts.go: OK
+internal/shell/shell.go: OK
+internal/shell/factsidentityrefresh_test.go: OK

@@ -1,0 +1,19 @@
+=== RUN   TestFactsIdentityRuntimeNamesRefresh
+=== RUN   TestFactsIdentityRuntimeNamesRefresh/light
+    factsidentityrefresh_test.go:163: runtime-names: refreshed declaration kept obsolete runtime badge: got=false want=true
+=== RUN   TestFactsIdentityRuntimeNamesRefresh/dark
+    factsidentityrefresh_test.go:163: runtime-names: refreshed declaration kept obsolete runtime badge: got=false want=true
+--- FAIL: TestFactsIdentityRuntimeNamesRefresh (0.27s)
+    --- FAIL: TestFactsIdentityRuntimeNamesRefresh/light (0.19s)
+    --- FAIL: TestFactsIdentityRuntimeNamesRefresh/dark (0.08s)
+=== RUN   TestFactsIdentityRuntimePlatformRefresh
+=== RUN   TestFactsIdentityRuntimePlatformRefresh/light
+    factsidentityrefresh_test.go:163: runtime-platform: refreshed declaration kept obsolete runtime badge: got=true want=false
+=== RUN   TestFactsIdentityRuntimePlatformRefresh/dark
+    factsidentityrefresh_test.go:163: runtime-platform: refreshed declaration kept obsolete runtime badge: got=true want=false
+--- FAIL: TestFactsIdentityRuntimePlatformRefresh (0.17s)
+    --- FAIL: TestFactsIdentityRuntimePlatformRefresh/light (0.08s)
+    --- FAIL: TestFactsIdentityRuntimePlatformRefresh/dark (0.08s)
+FAIL
+FAIL	floter/internal/shell	0.442s
+FAIL

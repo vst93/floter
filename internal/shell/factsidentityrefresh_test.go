@@ -14,6 +14,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
+	"github.com/egoist/mygo/ui"
 )
 
 // These are inventory refresh events, not preconstructed memo keys. The
@@ -98,7 +99,12 @@ func checkFactsIdentityRefresh(t *testing.T, scenario string) {
 				// warming it through a full-list probe first.
 				a.Settings.Integrations = func() []settingsui.Integration { return rows }
 			}
-			tt := transferCauseFrame(t, a, dark)
+			transferCauseFrame(t, a, dark)
+			tt := ui.NewTester(a.View, 960, 1600)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			tt.Frame()
 			switch scenario {
 			case "runtime-type":
 				manifest.Runtime.Type = "system"
@@ -140,6 +146,13 @@ func checkFactsIdentityRefresh(t *testing.T, scenario string) {
 			_, runtimeErr := extensions.ResolveRuntime(current)
 			wantAvailable := runtimeErr == nil
 			wantFreshness := extensions.FreshnessOf(paths, current)
+			if scenario == "row-health" {
+				// Keep the row's other health cells current as a single-row
+				// renderer would, without warming the full facts cache first.
+				rows[0].HealthStatus = current.Entry.ProbeReport.Status
+				rows[0].Health = i18n.For("zh").Settings.IntegrationsUnhealthy
+				rows[0].HealthReport = healthReportView(current.Entry.ProbeReport, current.Manifest.Lifecycle.Probes)
+			}
 			tt.Frame()
 			tt.Frame()
 			if tag := os.Getenv("FLOTER_P13JM_DUMP"); tag != "" {

@@ -1,0 +1,38 @@
+=== RUN   TestFactsIdentityRuntimeTypeRefresh
+=== RUN   TestFactsIdentityRuntimeTypeRefresh/light
+=== RUN   TestFactsIdentityRuntimeTypeRefresh/dark
+--- PASS: TestFactsIdentityRuntimeTypeRefresh (0.55s)
+    --- PASS: TestFactsIdentityRuntimeTypeRefresh/light (0.36s)
+    --- PASS: TestFactsIdentityRuntimeTypeRefresh/dark (0.19s)
+=== RUN   TestFactsIdentityRuntimeLanguageRefresh
+=== RUN   TestFactsIdentityRuntimeLanguageRefresh/light
+=== RUN   TestFactsIdentityRuntimeLanguageRefresh/dark
+--- PASS: TestFactsIdentityRuntimeLanguageRefresh (0.38s)
+    --- PASS: TestFactsIdentityRuntimeLanguageRefresh/light (0.19s)
+    --- PASS: TestFactsIdentityRuntimeLanguageRefresh/dark (0.19s)
+=== RUN   TestFactsIdentityRuntimeNamesRefresh
+=== RUN   TestFactsIdentityRuntimeNamesRefresh/light
+=== RUN   TestFactsIdentityRuntimeNamesRefresh/dark
+--- PASS: TestFactsIdentityRuntimeNamesRefresh (0.37s)
+    --- PASS: TestFactsIdentityRuntimeNamesRefresh/light (0.19s)
+    --- PASS: TestFactsIdentityRuntimeNamesRefresh/dark (0.18s)
+=== RUN   TestFactsIdentityRuntimePlatformRefresh
+=== RUN   TestFactsIdentityRuntimePlatformRefresh/light
+=== RUN   TestFactsIdentityRuntimePlatformRefresh/dark
+--- PASS: TestFactsIdentityRuntimePlatformRefresh (0.43s)
+    --- PASS: TestFactsIdentityRuntimePlatformRefresh/light (0.23s)
+    --- PASS: TestFactsIdentityRuntimePlatformRefresh/dark (0.21s)
+=== RUN   TestFactsIdentityHealthResultRefresh
+=== RUN   TestFactsIdentityHealthResultRefresh/light
+=== RUN   TestFactsIdentityHealthResultRefresh/dark
+--- PASS: TestFactsIdentityHealthResultRefresh (0.41s)
+    --- PASS: TestFactsIdentityHealthResultRefresh/light (0.20s)
+    --- PASS: TestFactsIdentityHealthResultRefresh/dark (0.22s)
+=== RUN   TestFactsIdentityHealthTimeRefresh
+=== RUN   TestFactsIdentityHealthTimeRefresh/light
+=== RUN   TestFactsIdentityHealthTimeRefresh/dark
+--- PASS: TestFactsIdentityHealthTimeRefresh (0.37s)
+    --- PASS: TestFactsIdentityHealthTimeRefresh/light (0.18s)
+    --- PASS: TestFactsIdentityHealthTimeRefresh/dark (0.19s)
+PASS
+ok  	floter/internal/shell	2.533s

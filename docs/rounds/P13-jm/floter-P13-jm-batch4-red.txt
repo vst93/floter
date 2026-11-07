@@ -1,0 +1,19 @@
+=== RUN   TestFactsIdentitySingleRowPathRefresh
+=== RUN   TestFactsIdentitySingleRowPathRefresh/light
+    factsidentityrefresh_test.go:183: row-path: new package still paints old command count: got={AtSeconds:1794081677 Source:probe Result:success CommandCount:0x28f3a9db1468 PreviousCommandCount:0x28f3a9db1490 Delta:unchanged Running:false} old={AtSeconds:1794081677 Source:probe Result:success CommandCount:0x28f3a9db1468 PreviousCommandCount:0x28f3a9db1490 Delta:unchanged Running:false}
+=== RUN   TestFactsIdentitySingleRowPathRefresh/dark
+    factsidentityrefresh_test.go:183: row-path: new package still paints old command count: got={AtSeconds:1794081677 Source:probe Result:success CommandCount:0x28f3a9f192f0 PreviousCommandCount:0x28f3a9f192f8 Delta:unchanged Running:false} old={AtSeconds:1794081677 Source:probe Result:success CommandCount:0x28f3a9f192f0 PreviousCommandCount:0x28f3a9f192f8 Delta:unchanged Running:false}
+--- FAIL: TestFactsIdentitySingleRowPathRefresh (0.34s)
+    --- FAIL: TestFactsIdentitySingleRowPathRefresh/light (0.25s)
+    --- FAIL: TestFactsIdentitySingleRowPathRefresh/dark (0.09s)
+=== RUN   TestFactsIdentitySingleRowHealthRefresh
+=== RUN   TestFactsIdentitySingleRowHealthRefresh/light
+    factsidentityrefresh_test.go:173: row-health: refreshed report still paints old result: got=success want=failed texts=["设置" "退出 floter" "关闭设置" "设置" "常规" "常规" "会话" "会话" "快捷键" "快捷键" "集成" "集成" "关于" "关于" "集成" "内置插件与你已接入的工具。" "「集成」是 floter 发现并在终端里运行的命令行工具。" "基础插件\u00a0section" "基础插件" "3" "随 floter 附带的内置功能。关闭后会同时停止其后台监听与全局快捷键。" "剪贴板历史" "保留最近复制的文本与图片，收藏永不过期。" "将记录系统内所有复制内容，仅保存在本地" "配置 剪贴板历史" "配置" "剪贴板历史" "浏览器书签与历史记录" "在启动器中搜索浏览器的书签和历史记录。" "配置 浏览器书签与历史记录" "配置" "浏览器书签与历史记录" "计算器" "在启动器中计算表达式并保留历史。" "配置 计算器" "配置" "连接本机工具\u00a0section" "连接本机工具" "添加本机工具" "指向这台机器上的一个程序，它就会成为一个带有自己命令的集成。" "推荐工具\u00a0section" "推荐工具" "V Tools" "Developer tools running in the terminal" "接管" "floter 自带这些工具的包；接管与安装本地工具走同一条路径。" "导出" "导入" "npm 包名，例如 @scope/name" "安装" "从文件夹安装" "本机上一个带有 floter 扩展清单的包目录。" "选择…" "在搜索中显示 PATH 命令" "把 PATH 上找到的可执行文件作为启动器结果提供。" "在搜索中显示 PATH 命令" "已安装\u00a0section" "已安装" "1" "声明刷新工具" "命令状态：未知（尚未对比）" "dev.floter.identity" "· 扩展包" "· 运行中" "新鲜度" "上次探测" "前天" "探测结果" "成功" "命令数" "未知" "·" "没有可对比的上次探测" "来自健康报告" "健康状态" "健康" "重新运行健康检查" "检查时间：2026-11-06 04:01" "批准记录" "该集成没有批准记录。" "" "运行" "检测" "移除扩展包" "启用"]
+=== RUN   TestFactsIdentitySingleRowHealthRefresh/dark
+    factsidentityrefresh_test.go:173: row-health: refreshed report still paints old result: got=success want=failed texts=["设置" "退出 floter" "关闭设置" "设置" "常规" "常规" "会话" "会话" "快捷键" "快捷键" "集成" "集成" "关于" "关于" "集成" "内置插件与你已接入的工具。" "「集成」是 floter 发现并在终端里运行的命令行工具。" "基础插件\u00a0section" "基础插件" "3" "随 floter 附带的内置功能。关闭后会同时停止其后台监听与全局快捷键。" "剪贴板历史" "保留最近复制的文本与图片，收藏永不过期。" "将记录系统内所有复制内容，仅保存在本地" "配置 剪贴板历史" "配置" "剪贴板历史" "浏览器书签与历史记录" "在启动器中搜索浏览器的书签和历史记录。" "配置 浏览器书签与历史记录" "配置" "浏览器书签与历史记录" "计算器" "在启动器中计算表达式并保留历史。" "配置 计算器" "配置" "连接本机工具\u00a0section" "连接本机工具" "添加本机工具" "指向这台机器上的一个程序，它就会成为一个带有自己命令的集成。" "推荐工具\u00a0section" "推荐工具" "V Tools" "Developer tools running in the terminal" "接管" "floter 自带这些工具的包；接管与安装本地工具走同一条路径。" "导出" "导入" "npm 包名，例如 @scope/name" "安装" "从文件夹安装" "本机上一个带有 floter 扩展清单的包目录。" "选择…" "在搜索中显示 PATH 命令" "把 PATH 上找到的可执行文件作为启动器结果提供。" "在搜索中显示 PATH 命令" "已安装\u00a0section" "已安装" "1" "声明刷新工具" "命令状态：未知（尚未对比）" "dev.floter.identity" "· 扩展包" "· 运行中" "新鲜度" "上次探测" "前天" "探测结果" "成功" "命令数" "未知" "·" "没有可对比的上次探测" "来自健康报告" "健康状态" "健康" "重新运行健康检查" "检查时间：2026-11-06 04:01" "批准记录" "该集成没有批准记录。" "" "运行" "检测" "移除扩展包" "启用"]
+--- FAIL: TestFactsIdentitySingleRowHealthRefresh (0.19s)
+    --- FAIL: TestFactsIdentitySingleRowHealthRefresh/light (0.10s)
+    --- FAIL: TestFactsIdentitySingleRowHealthRefresh/dark (0.09s)
+FAIL
+FAIL	floter/internal/shell	0.541s
+FAIL

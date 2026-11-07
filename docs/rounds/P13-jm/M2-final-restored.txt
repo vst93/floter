@@ -1,0 +1,14 @@
+=== RUN   TestFactsIdentitySingleRowPathRefresh
+=== RUN   TestFactsIdentitySingleRowPathRefresh/light
+=== RUN   TestFactsIdentitySingleRowPathRefresh/dark
+--- PASS: TestFactsIdentitySingleRowPathRefresh (0.76s)
+    --- PASS: TestFactsIdentitySingleRowPathRefresh/light (0.47s)
+    --- PASS: TestFactsIdentitySingleRowPathRefresh/dark (0.29s)
+=== RUN   TestFactsIdentitySingleRowHealthRefresh
+=== RUN   TestFactsIdentitySingleRowHealthRefresh/light
+=== RUN   TestFactsIdentitySingleRowHealthRefresh/dark
+--- PASS: TestFactsIdentitySingleRowHealthRefresh (0.59s)
+    --- PASS: TestFactsIdentitySingleRowHealthRefresh/light (0.29s)
+    --- PASS: TestFactsIdentitySingleRowHealthRefresh/dark (0.30s)
+PASS
+ok  	floter/internal/shell	1.362s
