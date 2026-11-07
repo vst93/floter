@@ -39,3 +39,12 @@ M1 删除注册回滚，两个 pin 实红；原串 `failed add left uncommitted 
 4. 现象：内置键录制保存失败，录制框退出却没有保存反馈。改动：观察同步宿主回调本次写入结果，接上既有保存错误面。验证：深浅真实 Tab/Enter/录制键，出现既有提示；无错误冲突标记，恢复文件可重录成功。
 
 相关宿主 9 PASS / UI 12 PASS，包 vet 净。M2 漏释放失败的新唤起键，原串 `failed summon save changed system registration: [Ctrl+Alt+J Ctrl+Alt+K Ctrl+Shift+B]`；1 FAIL，MD5 OK + touch 后 1 PASS。首次变异恢复遇备份尚未生成，未提交；重新顺序备份、注入、还原和复验完成后才提交。旧 V/B/S 0/0/0。
+
+第二批 `3b27a03e` 已推送。
+
+## 第三批（5–6）
+
+5. 现象：恢复快捷键默认值写失败，旧键还在却没有提示。改动：现有恢复入口观察本次 Store 写入错误。验证：真实按钮点击 + 磁盘拒写，旧键保留、提示出现；恢复路径后再点可写成功。
+6. 现象：内置插件开关写失败静默跳回，用户不知道是否生效。改动：接上同一既有保存提示面，仍从 Store 读回确认状态。验证：深浅 Tab/Space，旧开关值保留、提示可见，文件恢复后第二次操作成功。
+
+M3 反转“本次确有写入”条件，录制/恢复/插件三组事件 9 FAIL，MD5 OK + touch 后 9 PASS；原串 `reset write failure has no visible recovery feedback`、`plugin write failure has no visible recovery feedback`。旧 V/B/S 0/0/0，定向计数见 batch3。

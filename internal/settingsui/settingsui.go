@@ -2114,7 +2114,7 @@ func (a *App) basePluginCard(c *ui.Context, copy i18n.Settings, plugin basePlugi
 		enabled, changed = !enabled, true
 	}
 	if changed {
-		a.Actions.SetPluginEnabled(plugin.ID, enabled)
+		a.observeSettingsWrite(func() { a.Actions.SetPluginEnabled(plugin.ID, enabled) })
 	}
 }
 
@@ -4132,7 +4132,7 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 		a.sectionWithAction(c, copy.ShortcutsToggle, copy.ShortcutsHint,
 			copy.ShortcutsReset, func() {
 				if a.Actions.ResetShortcuts != nil {
-					a.Actions.ResetShortcuts()
+					a.observeSettingsWrite(a.Actions.ResetShortcuts)
 				}
 			}, func() {
 				a.card(c, func() {
