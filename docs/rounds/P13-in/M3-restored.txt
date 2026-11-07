@@ -1,0 +1,28 @@
+=== RUN   TestRefreshDestinationCommandRemoved
+=== RUN   TestRefreshDestinationCommandRemoved/removed
+=== RUN   TestRefreshDestinationCommandRemoved/removed/light
+=== RUN   TestRefreshDestinationCommandRemoved/removed/dark
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared/light
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared/dark
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed/light
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed/dark
+--- PASS: TestRefreshDestinationCommandRemoved (0.54s)
+    --- PASS: TestRefreshDestinationCommandRemoved/removed (0.27s)
+        --- PASS: TestRefreshDestinationCommandRemoved/removed/light (0.20s)
+        --- PASS: TestRefreshDestinationCommandRemoved/removed/dark (0.07s)
+    --- PASS: TestRefreshDestinationCommandRemoved/undeclared (0.14s)
+        --- PASS: TestRefreshDestinationCommandRemoved/undeclared/light (0.07s)
+        --- PASS: TestRefreshDestinationCommandRemoved/undeclared/dark (0.07s)
+    --- PASS: TestRefreshDestinationCommandRemoved/card-removed (0.13s)
+        --- PASS: TestRefreshDestinationCommandRemoved/card-removed/light (0.07s)
+        --- PASS: TestRefreshDestinationCommandRemoved/card-removed/dark (0.06s)
+=== RUN   TestRefreshDestinationCommandOrphan
+=== RUN   TestRefreshDestinationCommandOrphan/light
+=== RUN   TestRefreshDestinationCommandOrphan/dark
+--- PASS: TestRefreshDestinationCommandOrphan (0.15s)
+    --- PASS: TestRefreshDestinationCommandOrphan/light (0.08s)
+    --- PASS: TestRefreshDestinationCommandOrphan/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.704s

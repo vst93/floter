@@ -2997,7 +2997,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// x=196，所以命令板也回到 196，卡片自己的面在两者之间露出 8px 的沟。
 			//
 			// `Gap(0)` 是必须的：卡的子节点列本来就是 0 间隔，包一层不许顺手加一条。
-			ui.Column(c).FillWidth().Gap(0).Padding(0, a.rowInset(t)).Children(func() {
+			ui.Column(c.Key("integration.commands")).FillWidth().Gap(0).Padding(0, a.rowInset(t)).Children(func() {
 				// The per-command switches' caption and the one line that says
 				// what a switch does, printed above the list rather than repeated
 				// on every row (the old build's R39).
@@ -3042,8 +3042,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.restoreNotice(c, integration.ID, "toggle", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "editor", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "run", a.runOpen[integration.ID] && len(integration.Params) > 0 && a.Actions.RunWithParams != nil, adoptOpener)
+			a.restoreNotice(c, integration.ID, "command", false, adoptOpener)
 			return
 		}
+		commandFocus := a.noticeFocus(c, integration.ID, "command")
+		a.restoreNotice(c, integration.ID, "command", c.Resolve(commandFocus.panel).Valid(), ui.Element{})
 
 		enabled := integration.Enabled
 		enableChanged := false
@@ -3545,6 +3548,7 @@ func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string
 	plate := ui.Column(c).FillWidth().Gap(t.Space(2)).
 		Padding(t.Space(2.5), t.Space(3)).
 		Radius(tokens.RadiusSM).Background(tokens.Control)
+	a.rememberOperationFocus(c, extensionID, "command", plate)
 	// `.extension-command-list__row` is a hairline-edged plate; the edge is a
 	// real 1px border here because the reference's own box is `border: 1px` and
 	// the plate's box was never a pinned metric.

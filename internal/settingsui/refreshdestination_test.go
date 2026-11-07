@@ -3,6 +3,7 @@ package settingsui
 import (
 	"image/png"
 	"os"
+	"strings"
 	"testing"
 
 	"floter/internal/extensions"
@@ -42,8 +43,11 @@ func checkRunDestination(t *testing.T, scenario string) {
 			a.runOpen = map[string]bool{in.ID: true}
 			tt := noticeExitPage(t, a, dark)
 			focus := "Target"
-			if scenario == "submit-disabled" {
+			mode, reason, _ := strings.Cut(scenario, "-")
+			if mode == "submit" {
 				focus = a.copy().RunLabel
+			} else if mode == "disclosure" {
+				focus = a.copy().RunAction
 			}
 			optionExitFocus(t, tt, focus)
 			want := a.copy().Close
@@ -57,9 +61,20 @@ func checkRunDestination(t *testing.T, scenario string) {
 				in.Params[0].Kind = extensions.ParamNumber
 				a.repairBusy = map[string]bool{in.ID: true}
 				want = a.copy().RunCancel
-			case "submit-disabled":
-				in.Running = false
-				want = a.copy().RunCancel
+			default:
+				if mode == "submit" {
+					want = a.copy().RunCancel
+				}
+				switch reason {
+				case "stopped":
+					in.Running = false
+				case "broken":
+					in.Broken = true
+				case "busy":
+					a.repairBusy = map[string]bool{in.ID: true}
+				case "invalid":
+					in.Params[0].Kind, in.Params[0].Options = extensions.ParamSelect, []string{"valid"}
+				}
 			}
 			tt.Frame()
 			tt.Frame()
@@ -82,7 +97,11 @@ func checkRunDestination(t *testing.T, scenario string) {
 					t.Error("orphan run cannot reach adoption by keyboard")
 				}
 			default:
-				if a.runOpen[in.ID] {
+				if mode == "disclosure" {
+					if closed != 1 {
+						t.Error("disabled disclosure cannot exit by keyboard")
+					}
+				} else if a.runOpen[in.ID] {
 					t.Error("unavailable run cannot cancel by keyboard")
 				}
 			}
@@ -100,6 +119,13 @@ func TestRefreshDestinationCommandAliasReorder(t *testing.T) {
 func TestRefreshDestinationCommandToggleReorder(t *testing.T) {
 	checkCommandDestination(t, "toggle-reorder")
 }
+
+func TestRefreshDestinationCommandRemoved(t *testing.T) {
+	for _, scenario := range []string{"removed", "undeclared", "card-removed"} {
+		t.Run(scenario, func(t *testing.T) { checkCommandDestination(t, scenario) })
+	}
+}
+func TestRefreshDestinationCommandOrphan(t *testing.T) { checkCommandDestination(t, "orphan") }
 
 func TestRefreshDestinationDuplicateCommands(t *testing.T) {
 	a := noticeApp(t, true)

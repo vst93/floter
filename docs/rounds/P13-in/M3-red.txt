@@ -1,0 +1,45 @@
+=== RUN   TestRefreshDestinationCommandRemoved
+=== RUN   TestRefreshDestinationCommandRemoved/removed
+=== RUN   TestRefreshDestinationCommandRemoved/removed/light
+    refreshdestination_test.go:204: removed command lost keyboard destination "Close settings"
+    refreshdestination_test.go:233: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/removed/dark
+    refreshdestination_test.go:204: removed command lost keyboard destination "Close settings"
+    refreshdestination_test.go:233: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared/light
+    refreshdestination_test.go:204: undeclared command lost keyboard destination "Close settings"
+    refreshdestination_test.go:233: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/undeclared/dark
+    refreshdestination_test.go:204: undeclared command lost keyboard destination "Close settings"
+    refreshdestination_test.go:233: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed/light
+    refreshdestination_test.go:204: card-removed command lost keyboard destination "Close settings"
+    refreshdestination_test.go:233: retired command cannot exit by keyboard
+=== RUN   TestRefreshDestinationCommandRemoved/card-removed/dark
+    refreshdestination_test.go:204: card-removed command lost keyboard destination "Close settings"
+    refreshdestination_test.go:233: retired command cannot exit by keyboard
+--- FAIL: TestRefreshDestinationCommandRemoved (0.60s)
+    --- FAIL: TestRefreshDestinationCommandRemoved/removed (0.37s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/removed/light (0.30s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/removed/dark (0.06s)
+    --- FAIL: TestRefreshDestinationCommandRemoved/undeclared (0.13s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/undeclared/light (0.06s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/undeclared/dark (0.06s)
+    --- FAIL: TestRefreshDestinationCommandRemoved/card-removed (0.11s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/card-removed/light (0.05s)
+        --- FAIL: TestRefreshDestinationCommandRemoved/card-removed/dark (0.06s)
+=== RUN   TestRefreshDestinationCommandOrphan
+=== RUN   TestRefreshDestinationCommandOrphan/light
+    refreshdestination_test.go:204: orphan command lost keyboard destination "Adopt"
+    refreshdestination_test.go:227: orphan command cannot reach adoption by keyboard
+=== RUN   TestRefreshDestinationCommandOrphan/dark
+    refreshdestination_test.go:204: orphan command lost keyboard destination "Adopt"
+    refreshdestination_test.go:227: orphan command cannot reach adoption by keyboard
+--- FAIL: TestRefreshDestinationCommandOrphan (0.13s)
+    --- FAIL: TestRefreshDestinationCommandOrphan/light (0.07s)
+    --- FAIL: TestRefreshDestinationCommandOrphan/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.741s
+FAIL

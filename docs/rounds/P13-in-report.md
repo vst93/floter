@@ -32,3 +32,12 @@
 4. 现象：重排后按 Space 切换邻居 build。改动：同一身份覆盖板内开关。验证：深浅焦点仍跟随 JSON Viewer，Space 只切 jv；重复 ID 的 Build 开关仍能使用，无 key 冲突。
 
 相关 **65 PASS / 0 FAIL**，包 vet 净。M2 撤回身份接线实跑红，原串 `reordered alias edited wrong command: id="build" value="jview"`、`reordered switch toggled wrong command "build"`；MD5 恢复、touch 后 **6 PASS**。旧 V/B/S 0/0/0。已看浅色前后全幅：蓝色输入边从错误的 Build 回到 JSON Viewer；深色开关环跟着原命令，几何不变。
+
+## 第三批（5–6）
+
+5. 现象：命令移除、Declared 撤回或整张卡移除后，键盘停在消失的别名框。改动：命令板登记当前持焦成员，退场回页头 Close；命令区有稳定身份。验证：三个路径 × 深浅，刷新零回调，Enter 关闭一次。
+6. 现象：命令列表因卡片变 orphan 消失，键盘无出口。改动：orphan 分支把命令持焦位置交给既有 Adopt。验证：深浅刷新不执行操作，Enter 才 Adopt 一次。
+
+相关 **277 PASS / 0 FAIL**，包 vet 净。M3 撤回本批两文件实跑红，原串 `removed command lost keyboard destination "Close settings"`、`undeclared command lost keyboard destination "Close settings"`、`card-removed command lost keyboard destination "Close settings"`、`orphan command lost keyboard destination "Adopt"`；MD5 恢复、touch 后 **13 PASS**。旧 V/B/S 0/0/0。
+
+第八项补查成立：运行入口停止/破损/忙态禁用均无法 Enter 退出；表单提交键的停止/破损/忙态/验证失败共四类同样失焦。深浅共 14 个叶子在旧产品全红，下一批修这两个控件。
