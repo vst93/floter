@@ -2040,7 +2040,8 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 			result.Diagnosis, result.DiagnosisFailed = report.Status, report.Status != extensions.HealthHealthy && report.Status != extensions.HealthDegraded
 			// The next provider operation may take seconds. Show the report
 			// already persisted by the lifecycle check before waiting for it.
-			a.Integrations.Refresh(context.Background())
+			// Its availability also owns the launcher's command outlets.
+			a.RefreshIntegrations(context.Background())
 			if !a.rememberDiagnosis(integration, epoch, result) {
 				return
 			}
