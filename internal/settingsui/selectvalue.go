@@ -11,6 +11,7 @@ type selectHighlight[T comparable] struct {
 	value    T
 	valid    bool
 	selected T
+	open     bool
 }
 
 type selectLifetime[T comparable] struct {
@@ -148,6 +149,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	highlight.values = append(highlight.values[:0], values...)
 	highlight.value, highlight.valid = current, hasCurrent
 	highlight.selected = *selected
+	highlight.open = sel.Open()
 	lifetime.values = append(lifetime.values[:0], values...)
 	lifetime.selected, lifetime.enabled = *selected, enabled
 	lifetime.open = sel.Open()

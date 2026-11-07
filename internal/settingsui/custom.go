@@ -284,6 +284,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 		picker := a.customActionPicker(c, copy, action, func(next string) {
 			a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: next})
 		}).Bind(&focus.picker)
+		focusOpenCustomPicker(picker)
 		if !commandLine && focus.command.Focused(c) {
 			picker.Focus()
 		}
@@ -417,6 +418,15 @@ const commandAction = "command"
 
 // customDraftRow names the row being made, where a row index is expected.
 const customDraftRow = -1
+
+// An armed recorder takes focus every frame. Its row's open menu is above
+// that recorder and must receive navigation and Escape until it closes.
+func focusOpenCustomPicker(picker ui.Element) {
+	state := ui.Local(picker, "floter.highlight", func() selectHighlight[string] { return selectHighlight[string]{} })
+	if state.open {
+		picker.Focus()
+	}
+}
 
 // customActionPicker draws the action choice: one drop-down listing the
 // plugins, the app's actions and the command-line slot. Its accessible name is
