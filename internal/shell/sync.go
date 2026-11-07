@@ -354,17 +354,17 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 		description.Configuration.Schema, values)
 	if err != nil {
 		log.Printf("floter: could not build the configuration export for %s: %v", id, err)
-		a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+		a.queueNotice(err.Error(), refusalNotice)
 		finish(err)
 		return
 	}
 	go func() {
 		path, err := a.saveFile("floter-" + id + "-config.json")
 		if err != nil {
-			// The dialog failed or the user closed it: the reference's
-			// `extensions_config_export` treats a closed picker as "nothing to
-			// do", not as a failure to report (it returns `Ok(None)`).
+			// A picker failure is distinct from the empty, successful result
+			// returned when the user cancels it.
 			log.Printf("floter: could not pick a path for the configuration export of %s: %v", id, err)
+			a.queueNotice(err.Error(), refusalNotice)
 			finish(err)
 			return
 		}

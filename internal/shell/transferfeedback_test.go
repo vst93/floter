@@ -124,8 +124,8 @@ func checkConfigValidationFeedback(t *testing.T, export bool) {
 	}
 }
 
-func TestConfigCopyReportsValidationCause(t *testing.T)    { checkConfigValidationFeedback(t, false) }
-func probeConfigExportReportsValidationCause(t *testing.T) { checkConfigValidationFeedback(t, true) }
+func TestConfigCopyReportsValidationCause(t *testing.T)   { checkConfigValidationFeedback(t, false) }
+func TestConfigExportReportsValidationCause(t *testing.T) { checkConfigValidationFeedback(t, true) }
 
 func checkTransferDialogFailure(t *testing.T, kind string) {
 	for _, dark := range []bool{false, true} {
@@ -168,7 +168,7 @@ func checkTransferDialogFailure(t *testing.T, kind string) {
 	}
 }
 
-func probeConfigExportPickerFailureIsVisible(t *testing.T) { checkTransferDialogFailure(t, "config") }
+func TestConfigExportPickerFailureIsVisible(t *testing.T) { checkTransferDialogFailure(t, "config") }
 func probeIntegrationsExportPickerFailureIsVisible(t *testing.T) {
 	checkTransferDialogFailure(t, "export")
 }
