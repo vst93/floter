@@ -1,0 +1,31 @@
+=== RUN   TestShortcutExitBuiltinPage
+=== RUN   TestShortcutExitBuiltinPage/light
+    shortcutexit_test.go:77: invisible recorder still suspends global shortcuts
+    shortcutexit_test.go:80: exit did not restore the summon and custom registrations
+    shortcutexit_test.go:86: return resurrected the old recording
+    shortcutexit_test.go:93: invisible recording swallowed page Escape
+=== RUN   TestShortcutExitBuiltinPage/dark
+    shortcutexit_test.go:77: invisible recorder still suspends global shortcuts
+    shortcutexit_test.go:80: exit did not restore the summon and custom registrations
+    shortcutexit_test.go:86: return resurrected the old recording
+    shortcutexit_test.go:93: invisible recording swallowed page Escape
+--- FAIL: TestShortcutExitBuiltinPage (1.28s)
+    --- FAIL: TestShortcutExitBuiltinPage/light (0.64s)
+    --- FAIL: TestShortcutExitBuiltinPage/dark (0.64s)
+=== RUN   TestShortcutExitCustomPage
+=== RUN   TestShortcutExitCustomPage/light
+    shortcutexit_test.go:77: invisible recorder still suspends global shortcuts
+    shortcutexit_test.go:80: exit did not restore the summon and custom registrations
+    shortcutexit_test.go:86: return resurrected the old recording
+    shortcutexit_test.go:93: invisible recording swallowed page Escape
+=== RUN   TestShortcutExitCustomPage/dark
+    shortcutexit_test.go:77: invisible recorder still suspends global shortcuts
+    shortcutexit_test.go:80: exit did not restore the summon and custom registrations
+    shortcutexit_test.go:86: return resurrected the old recording
+    shortcutexit_test.go:93: invisible recording swallowed page Escape
+--- FAIL: TestShortcutExitCustomPage (0.97s)
+    --- FAIL: TestShortcutExitCustomPage/light (0.44s)
+    --- FAIL: TestShortcutExitCustomPage/dark (0.52s)
+FAIL
+FAIL	floter/internal/shell	2.255s
+FAIL

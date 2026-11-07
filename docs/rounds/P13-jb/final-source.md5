@@ -1,0 +1,7 @@
+1802f5ae47ea96fc57c25aa6719f50b2  internal/settingsui/settingsui.go
+da40c85b595f2969035190184975edd4  internal/settingsui/builtinrefusalowner_test.go
+daa08493ddb29677f25189692a2677c3  internal/shell/shell.go
+1f0b97c081b36989704de920177e5933  internal/shell/shortcutexit_test.go
+2901c88828c779897214bc3741634053  internal/shell/shortcutpageexit_test.go
+554464ab47770c8d80cc9b7bdf7a4616  internal/shell/shortcutcloseexit_test.go
+f2e4b1a8ceef662b3adbfc66c05c3fa5  internal/shell/shortcuthideexit_test.go

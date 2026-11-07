@@ -1,0 +1,14 @@
+=== RUN   TestBuiltinRefusalSurvivesNeighborRecording
+=== RUN   TestBuiltinRefusalSurvivesNeighborRecording/light
+=== RUN   TestBuiltinRefusalSurvivesNeighborRecording/dark
+--- PASS: TestBuiltinRefusalSurvivesNeighborRecording (0.64s)
+    --- PASS: TestBuiltinRefusalSurvivesNeighborRecording/light (0.27s)
+    --- PASS: TestBuiltinRefusalSurvivesNeighborRecording/dark (0.36s)
+=== RUN   TestBuiltinRefusalSurvivesNeighborAcceptance
+=== RUN   TestBuiltinRefusalSurvivesNeighborAcceptance/light
+=== RUN   TestBuiltinRefusalSurvivesNeighborAcceptance/dark
+--- PASS: TestBuiltinRefusalSurvivesNeighborAcceptance (0.68s)
+    --- PASS: TestBuiltinRefusalSurvivesNeighborAcceptance/light (0.29s)
+    --- PASS: TestBuiltinRefusalSurvivesNeighborAcceptance/dark (0.39s)
+PASS
+ok  	floter/internal/settingsui	1.333s

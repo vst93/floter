@@ -1,0 +1,17 @@
+=== RUN   TestBuiltinRefusalSurvivesNeighborRecording
+=== RUN   TestBuiltinRefusalSurvivesNeighborRecording/light
+=== RUN   TestBuiltinRefusalSurvivesNeighborRecording/dark
+--- PASS: TestBuiltinRefusalSurvivesNeighborRecording (0.63s)
+    --- PASS: TestBuiltinRefusalSurvivesNeighborRecording/light (0.31s)
+    --- PASS: TestBuiltinRefusalSurvivesNeighborRecording/dark (0.31s)
+=== RUN   TestBuiltinRefusalSurvivesNeighborAcceptance
+=== RUN   TestBuiltinRefusalSurvivesNeighborAcceptance/light
+    builtinrefusalowner_test.go:65: neighbor recording erased the original row refusal
+=== RUN   TestBuiltinRefusalSurvivesNeighborAcceptance/dark
+    builtinrefusalowner_test.go:65: neighbor recording erased the original row refusal
+--- FAIL: TestBuiltinRefusalSurvivesNeighborAcceptance (0.59s)
+    --- FAIL: TestBuiltinRefusalSurvivesNeighborAcceptance/light (0.25s)
+    --- FAIL: TestBuiltinRefusalSurvivesNeighborAcceptance/dark (0.34s)
+FAIL
+FAIL	floter/internal/settingsui	1.235s
+FAIL

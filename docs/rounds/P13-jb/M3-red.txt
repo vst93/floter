@@ -1,0 +1,27 @@
+=== RUN   TestShortcutExitBuiltinHide
+=== RUN   TestShortcutExitBuiltinHide/light
+    shortcutexit_test.go:77: invisible recorder still suspends global shortcuts
+    shortcutexit_test.go:80: exit did not restore the summon and custom registrations
+    shortcutexit_test.go:107: reopen resurrected the old recording
+=== RUN   TestShortcutExitBuiltinHide/dark
+    shortcutexit_test.go:77: invisible recorder still suspends global shortcuts
+    shortcutexit_test.go:80: exit did not restore the summon and custom registrations
+    shortcutexit_test.go:107: reopen resurrected the old recording
+--- FAIL: TestShortcutExitBuiltinHide (0.42s)
+    --- FAIL: TestShortcutExitBuiltinHide/light (0.19s)
+    --- FAIL: TestShortcutExitBuiltinHide/dark (0.23s)
+=== RUN   TestShortcutExitCustomHide
+=== RUN   TestShortcutExitCustomHide/light
+    shortcutexit_test.go:77: invisible recorder still suspends global shortcuts
+    shortcutexit_test.go:80: exit did not restore the summon and custom registrations
+    shortcutexit_test.go:107: reopen resurrected the old recording
+=== RUN   TestShortcutExitCustomHide/dark
+    shortcutexit_test.go:77: invisible recorder still suspends global shortcuts
+    shortcutexit_test.go:80: exit did not restore the summon and custom registrations
+    shortcutexit_test.go:107: reopen resurrected the old recording
+--- FAIL: TestShortcutExitCustomHide (0.36s)
+    --- FAIL: TestShortcutExitCustomHide/light (0.14s)
+    --- FAIL: TestShortcutExitCustomHide/dark (0.22s)
+FAIL
+FAIL	floter/internal/shell	0.790s
+FAIL

@@ -1,0 +1,12 @@
+gofmt=0
+test=0
+verbose=0
+vet-darwin=0
+build-darwin=0
+vet-linux=0
+build-linux=0
+vet-windows=0
+build-windows=0
+PASS=5352
+FAIL=0
+Test functions=3209

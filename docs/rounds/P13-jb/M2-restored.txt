@@ -1,0 +1,14 @@
+=== RUN   TestShortcutExitBuiltinClose
+=== RUN   TestShortcutExitBuiltinClose/light
+=== RUN   TestShortcutExitBuiltinClose/dark
+--- PASS: TestShortcutExitBuiltinClose (1.09s)
+    --- PASS: TestShortcutExitBuiltinClose/light (0.51s)
+    --- PASS: TestShortcutExitBuiltinClose/dark (0.57s)
+=== RUN   TestShortcutExitCustomClose
+=== RUN   TestShortcutExitCustomClose/light
+=== RUN   TestShortcutExitCustomClose/dark
+--- PASS: TestShortcutExitCustomClose (0.80s)
+    --- PASS: TestShortcutExitCustomClose/light (0.33s)
+    --- PASS: TestShortcutExitCustomClose/dark (0.47s)
+PASS
+ok  	floter/internal/shell	1.899s

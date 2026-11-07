@@ -1,0 +1,14 @@
+=== RUN   TestShortcutExitBuiltinPage
+=== RUN   TestShortcutExitBuiltinPage/light
+=== RUN   TestShortcutExitBuiltinPage/dark
+--- PASS: TestShortcutExitBuiltinPage (1.05s)
+    --- PASS: TestShortcutExitBuiltinPage/light (0.49s)
+    --- PASS: TestShortcutExitBuiltinPage/dark (0.55s)
+=== RUN   TestShortcutExitCustomPage
+=== RUN   TestShortcutExitCustomPage/light
+=== RUN   TestShortcutExitCustomPage/dark
+--- PASS: TestShortcutExitCustomPage (0.96s)
+    --- PASS: TestShortcutExitCustomPage/light (0.42s)
+    --- PASS: TestShortcutExitCustomPage/dark (0.54s)
+PASS
+ok  	floter/internal/shell	2.015s
