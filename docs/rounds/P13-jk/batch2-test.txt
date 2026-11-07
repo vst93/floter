@@ -1,0 +1,32 @@
+=== RUN   TestANewRowIsAnsweredOnItsFirstFrame
+--- PASS: TestANewRowIsAnsweredOnItsFirstFrame (0.00s)
+=== RUN   TestConfigRefreshOldReadCannotUndoImport
+=== RUN   TestConfigRefreshOldReadCannotUndoImport/light
+=== RUN   TestConfigRefreshOldReadCannotUndoImport/dark
+--- PASS: TestConfigRefreshOldReadCannotUndoImport (0.45s)
+    --- PASS: TestConfigRefreshOldReadCannotUndoImport/light (0.25s)
+    --- PASS: TestConfigRefreshOldReadCannotUndoImport/dark (0.21s)
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm/light
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm/dark
+--- PASS: TestConfigRefreshOldReadFailureCannotBlankSavedForm (0.60s)
+    --- PASS: TestConfigRefreshOldReadFailureCannotBlankSavedForm/light (0.30s)
+    --- PASS: TestConfigRefreshOldReadFailureCannotBlankSavedForm/dark (0.31s)
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair/light
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair/dark
+--- PASS: TestFactsRefreshOldRuntimeCannotUndoRepair (0.22s)
+    --- PASS: TestFactsRefreshOldRuntimeCannotUndoRepair/light (0.11s)
+    --- PASS: TestFactsRefreshOldRuntimeCannotUndoRepair/dark (0.11s)
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval/light
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval/dark
+--- PASS: TestFactsRefreshOldDigestCannotUndoApproval (0.23s)
+    --- PASS: TestFactsRefreshOldDigestCannotUndoApproval/light (0.11s)
+    --- PASS: TestFactsRefreshOldDigestCannotUndoApproval/dark (0.12s)
+=== RUN   TestTheIntegrationFactsAreNotRecomputedEveryFrame
+--- PASS: TestTheIntegrationFactsAreNotRecomputedEveryFrame (0.00s)
+=== RUN   TestTheFreshnessRowReadsTheFactsMemo
+--- PASS: TestTheFreshnessRowReadsTheFactsMemo (0.01s)
+PASS
+ok  	floter/internal/shell	1.532s

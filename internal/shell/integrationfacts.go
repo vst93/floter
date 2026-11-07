@@ -83,6 +83,7 @@ type integrationFactsCache struct {
 	facts    map[string]integrationFact
 	computed time.Time
 	pending  bool
+	revision uint64
 }
 
 // integrationFactsMemo is the memo integrationList reads.
@@ -140,7 +141,19 @@ func (m *integrationFactsCache) snapshot() (map[string]integrationFact, time.Tim
 func (m *integrationFactsCache) publish(facts map[string]integrationFact, at time.Time) {
 	m.mu.Lock()
 	m.facts, m.computed, m.pending = facts, at, false
+	m.revision++
 	m.mu.Unlock()
+}
+
+// A refresh, repair or approval supersedes the probe that preceded it.
+func (m *integrationFactsCache) publishCurrent(facts map[string]integrationFact, at time.Time, revision uint64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.revision != revision {
+		return
+	}
+	m.facts, m.computed, m.pending = facts, at, false
+	m.revision++
 }
 
 // rememberIntegrationFact adds one computed fact to the memo without moving its
@@ -158,6 +171,8 @@ func rememberIntegrationFact(m *integrationFactsCache, id string, fact integrati
 	}
 	merged[id] = fact
 	m.facts = merged
+	m.revision++
+	m.pending = false
 	m.mu.Unlock()
 }
 
@@ -168,6 +183,8 @@ func invalidateIntegrationFacts() {
 	integrationFactsMemo.mu.Lock()
 	integrationFactsMemo.facts = nil
 	integrationFactsMemo.computed = time.Time{}
+	integrationFactsMemo.pending = false
+	integrationFactsMemo.revision++
 	integrationFactsMemo.mu.Unlock()
 }
 
@@ -224,6 +241,7 @@ func refreshIntegrationFacts(
 		m.mu.Lock()
 		start := !m.pending
 		m.pending = true
+		revision := m.revision
 		m.mu.Unlock()
 		if start {
 			// Keep the frame's clock domain through publication. Switching to
@@ -233,7 +251,7 @@ func refreshIntegrationFacts(
 			started := time.Now()
 			go func() {
 				fresh := compute(items)
-				m.publish(fresh, now.Add(time.Since(started)))
+				m.publishCurrent(fresh, now.Add(time.Since(started)), revision)
 				if invalidate != nil {
 					invalidate()
 				}

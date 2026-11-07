@@ -1,0 +1,19 @@
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair/light
+    factsrefreshresult_test.go:82: retired runtime failure disabled a repaired integration
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair/dark
+    factsrefreshresult_test.go:82: retired runtime failure disabled a repaired integration
+--- FAIL: TestFactsRefreshOldRuntimeCannotUndoRepair (0.42s)
+    --- FAIL: TestFactsRefreshOldRuntimeCannotUndoRepair/light (0.24s)
+    --- FAIL: TestFactsRefreshOldRuntimeCannotUndoRepair/dark (0.18s)
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval/light
+    factsrefreshresult_test.go:79: retired digest revived approval warning: &{At:1 ApprovedDigest:sha256-b64e746a6f5c6ef897497624ea643f6cd2b3c15952fdd3fe87dd374782607801 CurrentDigest:obsolete-manifest-digest Enforced:[] Disclosure:[]}
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval/dark
+    factsrefreshresult_test.go:79: retired digest revived approval warning: &{At:1 ApprovedDigest:sha256-b64e746a6f5c6ef897497624ea643f6cd2b3c15952fdd3fe87dd374782607801 CurrentDigest:obsolete-manifest-digest Enforced:[] Disclosure:[]}
+--- FAIL: TestFactsRefreshOldDigestCannotUndoApproval (0.39s)
+    --- FAIL: TestFactsRefreshOldDigestCannotUndoApproval/light (0.20s)
+    --- FAIL: TestFactsRefreshOldDigestCannotUndoApproval/dark (0.19s)
+FAIL
+FAIL	floter/internal/shell	0.821s
+FAIL
