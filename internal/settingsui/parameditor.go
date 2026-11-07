@@ -50,6 +50,12 @@ const (
 // `extensions.css:1786-1792`): one option per line is code, not prose.
 const paramEditorMono = "SF Mono, Menlo, Monaco, Consolas, monospace"
 
+type paramEditorFocusKey struct{ app *App }
+
+func (a *App) paramEditorFocus(c *ui.Context) *ui.Handle {
+	return ui.Local(c.Root(), paramEditorFocusKey{a}, func() ui.Handle { return ui.Handle{} })
+}
+
 // toolParamsEditor edits the declared inputs of a connection: the reference's
 // argument-editor heading with its add key, one caption hint line, and then one
 // plate per parameter. A flag that is not one argv token is refused at connect
@@ -57,6 +63,8 @@ const paramEditorMono = "SF Mono, Menlo, Monaco, Consolas, monospace"
 func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
+	focused := a.paramEditorFocus(c)
+	hadFocus := focused.FocusWithin(c)
 
 	// `.extension-argument-editor__heading`: the list's title at the caption
 	// step (600, muted) with the add key at its end. The key is the reference's
@@ -73,6 +81,13 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 			a.toolParams = append(a.toolParams, toolParam{Kind: extensions.ParamText})
 		}
 	})
+	defer func() {
+		// Discovery may withdraw the active declaration without clicking its
+		// remove key. Return only its keyboard to the existing Add outlet.
+		if hadFocus && !c.Resolve(*focused).Valid() {
+			add.Focus()
+		}
+	}()
 	// `.extension-param-editor__hint`: one caption line under the heading, in
 	// the tertiary ink at 1.35 (`extensions.css:1869`).
 	if hint := copy.ParamsHint; hint != "" {
@@ -218,6 +233,9 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 			a.paramEditorError(c, message)
 		}
 	})
+	if plate.FocusWithin() {
+		plate.Bind(a.paramEditorFocus(c))
+	}
 	param.ID, param.Label, param.Flag, param.Options = id, label, flag, options
 	param.Placeholder, param.Default = placeholder, def
 	param.Kind, param.Required = kind, required

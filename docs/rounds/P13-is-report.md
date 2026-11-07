@@ -40,3 +40,12 @@ P13-hx 已覆盖任务书中目标仍在但 owner/schema/状态变化的八条�
 4. 现象：调色板被宿主更新为未知 ID 后，控件把它伪装为首项，Enter 写回旧 contrast。改动：保留未知 ID，复用现有未知值菜单退役路径。验证：深浅真实事件保留 retired-palette、写入 0 次，焦点可继续选择。
 
 包 vet 净；相关与 mutation 实测计数见同目录 batch2-test/M2 日志。回注旧实现原串 `command-refresh overwrote refreshed value: "plugin:browser" writes=1`、`palette-unknown overwrote refreshed value: "contrast" writes=1`；MD5 还原、touch 后复验。V/B/S 旧断言修改 **0/0/0**。
+
+第二批 `c626a424` 已推送；相关 **92 PASS**，M2 **6 FAIL → MD5 OK → touch → 6 PASS**。
+
+## 第三批：声明整块退场的两个入口
+
+5. 现象：参数名称输入到 Edited target 时宿主移除声明，Enter 无法继续添加参数。改动：记录正在使用的参数板，仅当该板退场且仍拥有焦点时归还 Add。验证：深浅真实 Tab/Type/Enter，移除后 Add 聚焦，Enter 新增一条；不改变原保存时机。
+6. 现象：参数类型菜单展开时宿主移除声明，浮层撤走但键盘没有出口。改动：参数板跟踪覆盖菜单触发器的焦点归属。验证：深浅 Down 展开后移除，Add 保有焦点，Enter 可新增。
+
+相关测试与包 vet 通过。M3 回注旧实现，原串 `param-editor-removed lost Add outlet`、`param-menu-removed lost Add outlet`，以及各自 `could not add after refresh`；MD5 还原 touch 后两主题复验。旧 V/B/S **0/0/0**。驻留两项仅见红，尚未计为完成。

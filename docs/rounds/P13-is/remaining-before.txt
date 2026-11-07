@@ -1,0 +1,39 @@
+=== RUN   TestMenuExitRemovedParameterEditor
+=== RUN   TestMenuExitRemovedParameterEditor/light
+    menuexitlifetime_test.go:32: param-editor-removed lost Add outlet
+    menuexitlifetime_test.go:37: param-editor-removed could not add after refresh
+=== RUN   TestMenuExitRemovedParameterEditor/dark
+    menuexitlifetime_test.go:32: param-editor-removed lost Add outlet
+    menuexitlifetime_test.go:37: param-editor-removed could not add after refresh
+--- FAIL: TestMenuExitRemovedParameterEditor (0.64s)
+    --- FAIL: TestMenuExitRemovedParameterEditor/light (0.59s)
+    --- FAIL: TestMenuExitRemovedParameterEditor/dark (0.05s)
+=== RUN   TestMenuExitRemovedParameterMenu
+=== RUN   TestMenuExitRemovedParameterMenu/light
+    menuexitlifetime_test.go:32: param-menu-removed lost Add outlet
+    menuexitlifetime_test.go:37: param-menu-removed could not add after refresh
+=== RUN   TestMenuExitRemovedParameterMenu/dark
+    menuexitlifetime_test.go:32: param-menu-removed lost Add outlet
+    menuexitlifetime_test.go:37: param-menu-removed could not add after refresh
+--- FAIL: TestMenuExitRemovedParameterMenu (0.11s)
+    --- FAIL: TestMenuExitRemovedParameterMenu/light (0.05s)
+    --- FAIL: TestMenuExitRemovedParameterMenu/dark (0.05s)
+=== RUN   TestMenuExitResidencyCustomChoice
+=== RUN   TestMenuExitResidencyCustomChoice/light
+    menuexitlifetime_test.go:95: selecting stored Off cannot dismiss custom draft
+=== RUN   TestMenuExitResidencyCustomChoice/dark
+    menuexitlifetime_test.go:95: selecting stored Off cannot dismiss custom draft
+--- FAIL: TestMenuExitResidencyCustomChoice (0.06s)
+    --- FAIL: TestMenuExitResidencyCustomChoice/light (0.04s)
+    --- FAIL: TestMenuExitResidencyCustomChoice/dark (0.02s)
+=== RUN   TestMenuExitResidencyApply
+=== RUN   TestMenuExitResidencyApply/light
+    menuexitlifetime_test.go:84: preset apply removed focused input without returning to selector
+=== RUN   TestMenuExitResidencyApply/dark
+    menuexitlifetime_test.go:84: preset apply removed focused input without returning to selector
+--- FAIL: TestMenuExitResidencyApply (0.04s)
+    --- FAIL: TestMenuExitResidencyApply/light (0.02s)
+    --- FAIL: TestMenuExitResidencyApply/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.896s
+FAIL

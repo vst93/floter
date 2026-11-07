@@ -1,0 +1,23 @@
+=== RUN   TestMenuExitRemovedParameterEditor
+=== RUN   TestMenuExitRemovedParameterEditor/light
+    menuexitlifetime_test.go:32: param-editor-removed lost Add outlet
+    menuexitlifetime_test.go:37: param-editor-removed could not add after refresh
+=== RUN   TestMenuExitRemovedParameterEditor/dark
+    menuexitlifetime_test.go:32: param-editor-removed lost Add outlet
+    menuexitlifetime_test.go:37: param-editor-removed could not add after refresh
+--- FAIL: TestMenuExitRemovedParameterEditor (0.08s)
+    --- FAIL: TestMenuExitRemovedParameterEditor/light (0.07s)
+    --- FAIL: TestMenuExitRemovedParameterEditor/dark (0.01s)
+=== RUN   TestMenuExitRemovedParameterMenu
+=== RUN   TestMenuExitRemovedParameterMenu/light
+    menuexitlifetime_test.go:32: param-menu-removed lost Add outlet
+    menuexitlifetime_test.go:37: param-menu-removed could not add after refresh
+=== RUN   TestMenuExitRemovedParameterMenu/dark
+    menuexitlifetime_test.go:32: param-menu-removed lost Add outlet
+    menuexitlifetime_test.go:37: param-menu-removed could not add after refresh
+--- FAIL: TestMenuExitRemovedParameterMenu (0.02s)
+    --- FAIL: TestMenuExitRemovedParameterMenu/light (0.01s)
+    --- FAIL: TestMenuExitRemovedParameterMenu/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.110s
+FAIL

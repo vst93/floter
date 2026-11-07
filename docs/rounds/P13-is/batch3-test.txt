@@ -1,0 +1,42 @@
+=== RUN   TestLocalDraftParameterRemovalKeepsRemainingInput
+--- PASS: TestLocalDraftParameterRemovalKeepsRemainingInput (0.13s)
+=== RUN   TestLocalDraftParameterKindKeepsDefaultInput
+--- PASS: TestLocalDraftParameterKindKeepsDefaultInput (0.02s)
+=== RUN   TestMenuExitRemovedParameterEditor
+=== RUN   TestMenuExitRemovedParameterEditor/light
+=== RUN   TestMenuExitRemovedParameterEditor/dark
+--- PASS: TestMenuExitRemovedParameterEditor (0.06s)
+    --- PASS: TestMenuExitRemovedParameterEditor/light (0.04s)
+    --- PASS: TestMenuExitRemovedParameterEditor/dark (0.02s)
+=== RUN   TestMenuExitRemovedParameterMenu
+=== RUN   TestMenuExitRemovedParameterMenu/light
+=== RUN   TestMenuExitRemovedParameterMenu/dark
+--- PASS: TestMenuExitRemovedParameterMenu (0.04s)
+    --- PASS: TestMenuExitRemovedParameterMenu/light (0.02s)
+    --- PASS: TestMenuExitRemovedParameterMenu/dark (0.02s)
+=== RUN   TestMenuLanguageParameter
+=== RUN   TestMenuLanguageParameter/light
+=== RUN   TestMenuLanguageParameter/dark
+--- PASS: TestMenuLanguageParameter (0.05s)
+    --- PASS: TestMenuLanguageParameter/light (0.03s)
+    --- PASS: TestMenuLanguageParameter/dark (0.02s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.04s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.02s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.02s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.02s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.01s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.01s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.03s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.01s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.383s
