@@ -7419,7 +7419,8 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	// flush against the card's edge (the reference's `.extension-run-params`
 	// box, `extensions.css:1224-1236`, sits inside the row's own padding).
 	inset := a.rowInset(theme)
-	ui.Column(c.Key("settings.runform."+integration.ID)).FillWidth().Padding(0, inset, 0, inset).Children(func() {
+	form := ui.Column(c.Key("settings.runform."+integration.ID)).FillWidth().Padding(0, inset, 0, inset)
+	form.Children(func() {
 		// The form's own frame: the heading and hint the reference drew above the
 		// inputs (`RunParamForm.tsx`: `.extension-run-params__head` +
 		// `customRunValuesHint`), so a user meets the form as a named block rather
@@ -7435,11 +7436,10 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				index, param := index, param
 				occurrence := occurrences[param.ID]
 				occurrences[param.ID]++
-				focus := ui.Local(c.Root(), struct {
-					app                *App
-					integration, param string
-					occurrence         int
-				}{a, integration.ID, param.ID, occurrence}, func() runParamFocus { return runParamFocus{} })
+				focus := ui.Local(form, struct {
+					param      string
+					occurrence int
+				}{param.ID, occurrence}, func() runParamFocus { return runParamFocus{} })
 				refocus := focus.kind != param.Kind && focus.control.FocusWithin(c)
 				focus.kind = param.Kind
 				bindFocus := func(control ui.Element) {

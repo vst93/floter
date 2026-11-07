@@ -1,0 +1,70 @@
+=== RUN   TestRunDefaultRefreshKnownLater
+=== RUN   TestRunDefaultRefreshKnownLater/light
+=== RUN   TestRunDefaultRefreshKnownLater/dark
+--- PASS: TestRunDefaultRefreshKnownLater (0.32s)
+    --- PASS: TestRunDefaultRefreshKnownLater/light (0.26s)
+    --- PASS: TestRunDefaultRefreshKnownLater/dark (0.05s)
+=== RUN   TestRunDefaultRefreshUnknownLater
+=== RUN   TestRunDefaultRefreshUnknownLater/light
+=== RUN   TestRunDefaultRefreshUnknownLater/dark
+--- PASS: TestRunDefaultRefreshUnknownLater (0.12s)
+    --- PASS: TestRunDefaultRefreshUnknownLater/light (0.06s)
+    --- PASS: TestRunDefaultRefreshUnknownLater/dark (0.05s)
+=== RUN   TestRunDefaultRefreshKnownCallback
+=== RUN   TestRunDefaultRefreshKnownCallback/light
+=== RUN   TestRunDefaultRefreshKnownCallback/dark
+--- PASS: TestRunDefaultRefreshKnownCallback (0.11s)
+    --- PASS: TestRunDefaultRefreshKnownCallback/light (0.05s)
+    --- PASS: TestRunDefaultRefreshKnownCallback/dark (0.06s)
+=== RUN   TestRunDefaultRefreshUnknownCallback
+=== RUN   TestRunDefaultRefreshUnknownCallback/light
+=== RUN   TestRunDefaultRefreshUnknownCallback/dark
+--- PASS: TestRunDefaultRefreshUnknownCallback (0.11s)
+    --- PASS: TestRunDefaultRefreshUnknownCallback/light (0.06s)
+    --- PASS: TestRunDefaultRefreshUnknownCallback/dark (0.05s)
+=== RUN   TestRunKindFocusTextToNumber
+=== RUN   TestRunKindFocusTextToNumber/light
+=== RUN   TestRunKindFocusTextToNumber/dark
+--- PASS: TestRunKindFocusTextToNumber (0.10s)
+    --- PASS: TestRunKindFocusTextToNumber/light (0.06s)
+    --- PASS: TestRunKindFocusTextToNumber/dark (0.04s)
+=== RUN   TestRunKindFocusChoiceToBoolean
+=== RUN   TestRunKindFocusChoiceToBoolean/light
+=== RUN   TestRunKindFocusChoiceToBoolean/dark
+--- PASS: TestRunKindFocusChoiceToBoolean (0.08s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/light (0.04s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/dark (0.04s)
+=== RUN   TestRunKindFocusDuplicateIDsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIDsDoNotShareHandles (0.02s)
+=== RUN   TestRunKindFocusDoesNotStealFromCancel
+--- PASS: TestRunKindFocusDoesNotStealFromCancel (0.03s)
+=== RUN   TestRunKindFocusDuplicateIntegrationsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIntegrationsDoNotShareHandles (0.02s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.05s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.03s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.03s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.11s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.06s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.06s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.06s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.03s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.03s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.08s)
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (0.45s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.24s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.21s)
+PASS
+ok  	floter/internal/settingsui	1.693s

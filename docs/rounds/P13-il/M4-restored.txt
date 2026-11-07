@@ -1,18 +1,20 @@
 === RUN   TestRunKindFocusTextToNumber
 === RUN   TestRunKindFocusTextToNumber/light
 === RUN   TestRunKindFocusTextToNumber/dark
---- PASS: TestRunKindFocusTextToNumber (0.23s)
-    --- PASS: TestRunKindFocusTextToNumber/light (0.17s)
-    --- PASS: TestRunKindFocusTextToNumber/dark (0.05s)
+--- PASS: TestRunKindFocusTextToNumber (0.16s)
+    --- PASS: TestRunKindFocusTextToNumber/light (0.13s)
+    --- PASS: TestRunKindFocusTextToNumber/dark (0.03s)
 === RUN   TestRunKindFocusChoiceToBoolean
 === RUN   TestRunKindFocusChoiceToBoolean/light
 === RUN   TestRunKindFocusChoiceToBoolean/dark
---- PASS: TestRunKindFocusChoiceToBoolean (0.10s)
-    --- PASS: TestRunKindFocusChoiceToBoolean/light (0.05s)
-    --- PASS: TestRunKindFocusChoiceToBoolean/dark (0.05s)
+--- PASS: TestRunKindFocusChoiceToBoolean (0.08s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/light (0.04s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/dark (0.04s)
 === RUN   TestRunKindFocusDuplicateIDsDoNotShareHandles
 --- PASS: TestRunKindFocusDuplicateIDsDoNotShareHandles (0.02s)
 === RUN   TestRunKindFocusDoesNotStealFromCancel
---- PASS: TestRunKindFocusDoesNotStealFromCancel (0.02s)
+--- PASS: TestRunKindFocusDoesNotStealFromCancel (0.03s)
+=== RUN   TestRunKindFocusDuplicateIntegrationsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIntegrationsDoNotShareHandles (0.01s)
 PASS
-ok  	floter/internal/settingsui	0.380s
+ok  	floter/internal/settingsui	0.310s

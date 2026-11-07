@@ -99,3 +99,19 @@ func TestRunKindFocusDoesNotStealFromCancel(t *testing.T) {
 		t.Fatal("unfocused parameter stole Cancel focus")
 	}
 }
+
+func TestRunKindFocusDuplicateIntegrationsDoNotShareHandles(t *testing.T) {
+	a, in := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText})
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Children(func() {
+			ui.Column(c.Key("first-card")).Children(func() { a.runForm(c, a.copy(), *in) })
+			ui.Column(c.Key("second-card")).Children(func() { a.runForm(c, a.copy(), *in) })
+		})
+	}, 720, 900)
+	tt.Frame()
+	in.Params[0].Kind = extensions.ParamNumber
+	tt.Frame()
+	if !tt.HasText("Target") {
+		t.Fatal("duplicate integration lost parameter forms")
+	}
+}

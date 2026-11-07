@@ -1,0 +1,93 @@
+=== RUN   TestRunKindFocusDuplicateIntegrationsDoNotShareHandles
+--- FAIL: TestRunKindFocusDuplicateIntegrationsDoNotShareHandles (0.00s)
+panic: ui: Handle bound to two controls in one build [recovered, repanicked]
+
+goroutine 8 [running]:
+testing.tRunner.func1.2({0x155d3c8, 0xd69c70})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x155d3c8?, 0xd69c70?})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+github.com/egoist/mygo/ui.Element.Bind({0xb67ca4c2020?, 0x1?, 0x41200000?}, 0xb67ca4c8040)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/ref.go:125 +0x168
+floter/internal/settingsui.(*App).runForm.func1.2.2({0xb67ca4c2020?, 0x17000000?, 0x0?})
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:7447 +0x45
+floter/internal/settingsui.(*App).runForm.func1.2.6()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:7513 +0xf8
+github.com/egoist/mygo/ui.(*node).Children(0xb67ca6bc2b0, 0x71f2bd?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0xb67ca4c2020?, 0xbd9540c8?, 0x415b57f4?}, 0xb67ca692938)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).cardRow.func1.1.1()
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1662 +0x148
+github.com/egoist/mygo/ui.(*node).Children(0xb67ca6ba6f0, 0xb67ca691380?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0xb67ca4c2020?, 0x6a?, 0x0?}, 0xb67ca6913c0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).cardRow.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1643 +0x1f4
+github.com/egoist/mygo/ui.(*node).Children(0xb67ca4f9710, 0x721a65?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0xb67ca4c2020?, 0xca6914c8?, 0xb67?}, 0xb67ca691798)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).cardRow.func1()
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1637 +0x585
+github.com/egoist/mygo/ui.(*node).Children(0xb67ca4f9020, 0x720b98?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0xb67ca4c2020?, 0x5?, 0x0?}, 0xb67ca691e18)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).cardRow(0xb67ca4bc008, 0xb67ca4c2030, 0x1, 0x0, {{0x0, 0x0, 0x0, 0x0, {0x0, 0x0, ...}}, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1588 +0x3f8
+floter/internal/settingsui.(*App).rowTitle(0xb67ca4bc008, 0xb67ca4c2030, 0x1, 0x0, {{0x0, 0x0, 0x0, 0x0, {0x0, 0x0, ...}}, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1283 +0x2bd
+floter/internal/settingsui.(*App).rowAligned(...)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1248
+floter/internal/settingsui.(*App).runForm.func1.2()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:7511 +0xec7
+github.com/egoist/mygo/ui.(*node).Children(0xb67ca4f8930, 0x71fe58?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0xb67ca4c2020?, 0x0?, 0x0?}, 0xb67ca6953d8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).runParamsBox(0xb67ca4bc008, 0xb67ca4c2030, 0xb67ca6953d8)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:412 +0x2f2
+floter/internal/settingsui.(*App).runForm.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:7433 +0x218
+github.com/egoist/mygo/ui.(*node).Children(0xb67ca4f6d70, 0xb67ca695528?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0xb67ca4c2020?, 0x17?, 0x0?}, 0xb67ca6956a8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).runForm(_, _, {{0xce771c, 0x8}, {0xcee3dc, 0xe}, {0xcf5d69, 0x14}, {0xceabe6, 0xb}, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:7423 +0x121e
+floter/internal/settingsui.TestRunKindFocusDuplicateIntegrationsDoNotShareHandles.func1.1.2()
+	/home/tar/workspace/floter/internal/settingsui/runkindfocus_test.go:108 +0x129
+github.com/egoist/mygo/ui.(*node).Children(0xb67ca4f6680, 0x15f9400?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0xb67ca4c2020?, 0xa381e9ba?, 0x68ef3324?}, 0xb67ca699c28)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.TestRunKindFocusDuplicateIntegrationsDoNotShareHandles.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/runkindfocus_test.go:108 +0x199
+github.com/egoist/mygo/ui.(*node).Children(0xb67ca4ec6f0, 0x0?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0xb67ca4c2020?, 0x0?, 0x0?}, 0xb67ca541cd8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.TestRunKindFocusDuplicateIntegrationsDoNotShareHandles.func1(0xb67ca4c2030)
+	/home/tar/workspace/floter/internal/settingsui/runkindfocus_test.go:106 +0x5e
+github.com/egoist/mygo/ui.NewTester.func1(0xb67ca4e2138?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0xb67ca4e2008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0x67a
+github.com/egoist/mygo/ui.(*Tester).settle(0xb67ca4e8000)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.coreNewTester(0xb67ca4c2010, 0x2d0, 0x384)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:252 +0x1df
+github.com/egoist/mygo/ui.NewTester(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399
+floter/internal/settingsui.TestRunKindFocusDuplicateIntegrationsDoNotShareHandles(0xb67ca5fab48)
+	/home/tar/workspace/floter/internal/settingsui/runkindfocus_test.go:105 +0x125
+testing.tRunner(0xb67ca5fab48, 0x16084d0)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 1
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	floter/internal/settingsui	0.008s
+FAIL
