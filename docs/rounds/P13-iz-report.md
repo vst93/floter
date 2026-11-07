@@ -51,3 +51,12 @@
 另一个探针确实观察到“命令编辑回原文但未 Enter，外部更新仍被草稿覆盖”；这是仍持有未提交草稿的既有契约，自动认定 pristine 会改变草稿优先级，未修改、不计修复。原始输出保留 batch3-before。
 
 第三批相关 **191 PASS / 0 FAIL**，settingsui vet 净；M3 **6 FAIL**，MD5 OK、touch 后复验。另加真实 shell 宿主路径（实际注册器拒绝、写入成功列表、恢复注册），连同既有草稿拒绝恢复共 **9 PASS / 0 FAIL**，不以单独 fake setter 代替宿主验证。
+
+第三批 00bce344 已推送。
+
+### 第四批
+
+7. 现象：large 档长未知动作把 picker 伸到 x699.2（内容右沿 x684.8），文字吃掉下拉箭头。改动：仅快捷键动作 picker 跟随已有 FlexibleControls 槽收缩，选择器文字让出箭头与间距。验证：真实完整设置页两主题，箭头保留 33px 预算，原值仍可见且能选择命令恢复；旧串 `long action consumes dropdown arrow space` / `long action exceeds row content edge`。
+8. 现象：插件选项名很长时，popup 按窗口满宽再带 margin，选中面的蓝色到达最右可绘制列 x718，右侧间隙与圆角被裁。改动：popup 最大宽度扣除左右各 1u 间隙（default 共 7.2px）；正常宽度与键盘选择不变。验证：真实插件配置下拉→End，逐像素检查 x718 不得仍是选中面的颜色，Enter 保留正确 value。最初的文字右沿 710px 阈值并无契约依据，已弃用；第一版像素探针误取根本不绘制的 x719，旧代码通过，已修为实际被裁的位置。不以 0.4px 凑修复，不隐去探针失误。
+
+第四批相关 **253 PASS / 0 FAIL**，settingsui/shell vet 净。最终 M4 两处旧实现回注 **6 FAIL**，包括 `long option highlight is cut off at the window edge`；两文件 MD5 OK，touch 后 **6 PASS / 0 FAIL**。长动作 trigger 宽 **342.4 → 328.0px**，文字宽 **326.0 → 277.6px**；长选项文字宽 **692.8 → 685.6px**。旧 V/B/S 0/0/0。

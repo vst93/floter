@@ -452,7 +452,7 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	}
 	chosen := ""
 	picker := a.fieldFace(c, valueSelect(c, &selected, labels, values, display, a.tokens(c), true, current).
-		Radius(999).Label(copy.ShortcutsAction), true)
+		Radius(999).Shrink(1).Label(copy.ShortcutsAction), true)
 	if picker.Changed() {
 		chosen = selected
 	}

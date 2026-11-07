@@ -104,7 +104,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	}
 	b.Value(display)
 	b.Children(func() {
-		ui.Text(c, display).SingleLine()
+		ui.Text(c, display).SingleLine().Shrink(1).MinWidth(0)
 		ui.Box(c).Size(t.Space(2.5), t.Space(2.5)).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
 			var path ui.Path
 			path.MoveTo(r.X+r.W*0.1, r.Y+r.H*0.3).LineTo(r.X+r.W*0.5, r.Y+r.H*0.7).LineTo(r.X+r.W*0.9, r.Y+r.H*0.3)
@@ -116,6 +116,11 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 			panel.Margin(t.Space(1), 0, 0, 0).Padding(t.Space(1)).Radius(t.Radius+2).
 				Background(t.Background).Border(1, t.Border).Shadow(0, 6, 20, 0, tokens.ShadowAmbient)
 			anchor, frame := b.Bounds(), c.Root().Bounds()
+			// Leave the same one-space gutter on both sides. A window-wide
+			// natural popup plus its margin would clip the right border and
+			// the highlighted option's corner at the viewport edge.
+			width := max(0, frame.W-2*t.Space(1))
+			panel.MinWidth(min(anchor.W, width)).MaxWidth(width)
 			room := max(anchor.Y-frame.Y, frame.Y+frame.H-anchor.Y-anchor.H)
 			// The popup itself is window-clamped by SelectBase; its inner
 			// scroller also needs a bound so ScrollIntoView can move the list.
