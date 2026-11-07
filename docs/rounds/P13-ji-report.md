@@ -1,0 +1,31 @@
+# P13-ji · 导入部分生效与传输重试的结果归属
+
+起点 da23e1b8。17:55 UTC 开盘，Codex 独立执行。已读 qiaomu-design、偏好账本、craft-loop、preflight、chinese-typography 与 Apple DESIGN；保持既定方向。done.log 开盘不存在，收尾建立。基线与候选正在实测，不把计划记成完成。
+
+## Stash 清点
+
+活动清单无 stale-kill；以下八条与 P13-jh SHA 相同，reverse-check 全为 1。沿用已审核的早期 WIP 保留结论，不把旧主题或 Tauri 链重新覆盖现产品。每条原 patch 与检查日志暂存 /tmp/floter-P13-ji。
+
+| ref | SHA | 判断 | 处置 |
+| --- | --- | --- | --- |
+| stash@{0} | 422483b4 | 旧 keycap，reverse=1 | 保留 |
+| stash@{1} | 8af94a07 | 旧 rows/slider，reverse=1 | 保留 |
+| stash@{2} | 7e4aa710 | 旧卸载/探针，reverse=1 | 保留 |
+| stash@{3} | 1e3aec94 | 旧数字字段，reverse=1 | 保留 |
+| stash@{4} | 363f5a42 | 旧插件字段，reverse=1 | 保留 |
+| stash@{5} | 9b8ce23c | 旧快捷键，reverse=1 | 保留 |
+| stash@{6} | 90d314b2 | 旧启动器动作栏，reverse=1 | 保留 |
+| stash@{7} | 7a9f6e13 | 旧 main/Tauri，reverse=1 | 保留 |
+
+## 增量记录
+
+真实 UI 的 transferRow 点击已清空旧报告（settingsui.go:2219/2231），所以“新导入保留旧报告”线索不成立，不改产品、不计修复。下一步只验证部分生效与已解决通知。
+
+基线中文 locale verbose 全量实测 **5555 PASS / 0 FAIL**、退出 0；全仓 Go 测试函数 **3270**（git grep '^func Test' -- '*.go'；只数 cmd/internal 的窄路径会漏掉两条，不能混口径）。八项候选均已在原产品复现：部分生效三阶段遗漏事实，五入口成功仍显示旧错。初次新夹具部分场景按钮在滚动区外，补真实 Scroll 后全部复现；初次日志保留，不拿夹具错误计产品缺陷。
+
+1. 现象：导入已把原工具停用，随后损坏配置解析失败，报告只显示 JSON 原因。改动：已写回启用状态后遇到配置失败，补充真实 enabled 值与未完成阶段，保留原始 cause。验证：深浅真实 Click 导入、磁盘 enabled=false、破损配置字节未变；原始红 `partial enabled hides committed state`，修复配置可同入口重试。
+2. 现象：新包已经安装并出现在仓库里，配置错误却让报告只说失败。改动：安装完成后的配置错误加“package was installed”，不改变写入顺序或回滚语义。验证：深浅 Click、新包记录存在/已停用、失败计数 1 成功 0；原始红 `partial package hides committed state`，修复后导入值真正落盘。
+
+第一批相关回归与 vet 结果见 batch1-test.txt / batch1-vet.txt；完整全量留到轮末。旧 V/B/S 断言修改 0/0/0。
+
+第一批定向 **13 PASS / 0 FAIL**，extensions/shell vet 净。新夹具首次有一次未等 Click 的下一帧派发就检查磁盘，补事件派发断言和 Frame 后通过；原失败日志保留。未来六项目前仅保留复现 helper，逐批启用相应测试，避免提交已知红测试。

@@ -1,0 +1,35 @@
+=== RUN   TestIntegrationExportAndImport
+2026/11/08 02:04:19 floter: could not read /tmp/TestIntegrationExportAndImport2665398519/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+--- PASS: TestIntegrationExportAndImport (0.23s)
+=== RUN   TestTheTransferIsOneAtATime
+--- PASS: TestTheTransferIsOneAtATime (0.14s)
+=== RUN   TestImportEnabledFailureReportsCommittedState
+=== RUN   TestImportEnabledFailureReportsCommittedState/light
+2026/11/08 02:04:20 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight2236244020/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+=== RUN   TestImportEnabledFailureReportsCommittedState/dark
+2026/11/08 02:04:21 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark1629074094/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+--- PASS: TestImportEnabledFailureReportsCommittedState (2.32s)
+    --- PASS: TestImportEnabledFailureReportsCommittedState/light (1.29s)
+    --- PASS: TestImportEnabledFailureReportsCommittedState/dark (1.03s)
+=== RUN   TestImportPackageFailureReportsCommittedState
+=== RUN   TestImportPackageFailureReportsCommittedState/light
+2026/11/08 02:04:22 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight3871767530/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+=== RUN   TestImportPackageFailureReportsCommittedState/dark
+2026/11/08 02:04:23 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatedark3426779431/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+--- PASS: TestImportPackageFailureReportsCommittedState (2.55s)
+    --- PASS: TestImportPackageFailureReportsCommittedState/light (1.36s)
+    --- PASS: TestImportPackageFailureReportsCommittedState/dark (1.19s)
+PASS
+ok  	floter/internal/shell	5.274s
+=== RUN   TestImportSyncInstallsAndConfigures
+--- PASS: TestImportSyncInstallsAndConfigures (0.76s)
+=== RUN   TestImportSyncReportsExcludedFields
+--- PASS: TestImportSyncReportsExcludedFields (0.70s)
+=== RUN   TestImportSyncMergesIntoAnInstalledIntegration
+--- PASS: TestImportSyncMergesIntoAnInstalledIntegration (0.20s)
+=== RUN   TestImportSyncSkipsWhatItCannotInstall
+--- PASS: TestImportSyncSkipsWhatItCannotInstall (0.00s)
+=== RUN   TestImportSyncAsksOnceAndRefusalInstallsNothing
+--- PASS: TestImportSyncAsksOnceAndRefusalInstallsNothing (0.32s)
+PASS
+ok  	floter/internal/extensions	1.991s

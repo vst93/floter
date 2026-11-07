@@ -1,0 +1,82 @@
+=== RUN   TestImportEnabledFailureReportsCommittedState
+=== RUN   TestImportEnabledFailureReportsCommittedState/light
+2026/11/08 02:01:26 floter: dev.floter.configured was not imported: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight1146157712/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+    transferrecovery_test.go:119: partial enabled hides committed state: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight1146157712/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+    transferrecovery_test.go:122: partial enabled state is absent from the visible report
+=== RUN   TestImportEnabledFailureReportsCommittedState/dark
+2026/11/08 02:01:26 floter: dev.floter.configured was not imported: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark3968378129/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+    transferrecovery_test.go:119: partial enabled hides committed state: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark3968378129/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+    transferrecovery_test.go:122: partial enabled state is absent from the visible report
+--- FAIL: TestImportEnabledFailureReportsCommittedState (1.82s)
+    --- FAIL: TestImportEnabledFailureReportsCommittedState/light (1.07s)
+    --- FAIL: TestImportEnabledFailureReportsCommittedState/dark (0.75s)
+=== RUN   TestImportPackageFailureReportsCommittedState
+=== RUN   TestImportPackageFailureReportsCommittedState/light
+2026/11/08 02:01:27 floter: dev.floter.imported was not imported: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight3129335031/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+    transferrecovery_test.go:119: partial package hides committed state: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight3129335031/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+    transferrecovery_test.go:122: partial package state is absent from the visible report
+    transferrecovery_test.go:143: ui: "Import" is at (278.8, 2096.4001), outside the window
+=== RUN   TestImportPackageFailureReportsCommittedState/dark
+    transferrecovery_test.go:97: ui: "Import" is at (278.8, 2096.4001), outside the window
+--- FAIL: TestImportPackageFailureReportsCommittedState (0.78s)
+    --- FAIL: TestImportPackageFailureReportsCommittedState/light (0.67s)
+    --- FAIL: TestImportPackageFailureReportsCommittedState/dark (0.11s)
+=== RUN   TestP13JIRecoveryCandidates
+=== RUN   TestP13JIRecoveryCandidates/template
+=== RUN   TestP13JIRecoveryCandidates/template/light
+    transferrecovery_test.go:97: ui: "Import" is at (278.8, 2096.4001), outside the window
+=== RUN   TestP13JIRecoveryCandidates/template/dark
+    transferrecovery_test.go:97: ui: "Import" is at (278.8, 2096.4001), outside the window
+=== RUN   TestP13JIRecoveryCandidates/export
+=== RUN   TestP13JIRecoveryCandidates/export/light
+    transferrecovery_test.go:173: ui: "Export" is at (216.8, 2096.4001), outside the window
+=== RUN   TestP13JIRecoveryCandidates/export/dark
+    transferrecovery_test.go:173: ui: "Export" is at (216.8, 2096.4001), outside the window
+=== RUN   TestP13JIRecoveryCandidates/copy
+=== RUN   TestP13JIRecoveryCandidates/copy/light
+2026/11/08 02:01:28 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+    transferrecovery_test.go:229: successful copy retry retains its resolved error
+=== RUN   TestP13JIRecoveryCandidates/copy/dark
+2026/11/08 02:01:28 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+    transferrecovery_test.go:229: successful copy retry retains its resolved error
+=== RUN   TestP13JIRecoveryCandidates/config-export
+=== RUN   TestP13JIRecoveryCandidates/config-export/light
+2026/11/08 02:01:29 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+    transferrecovery_test.go:229: successful config-export retry retains its resolved error
+=== RUN   TestP13JIRecoveryCandidates/config-export/dark
+2026/11/08 02:01:29 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+    transferrecovery_test.go:229: successful config-export retry retains its resolved error
+=== RUN   TestP13JIRecoveryCandidates/script
+=== RUN   TestP13JIRecoveryCandidates/script/light
+2026/11/08 02:01:29 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+    transferrecovery_test.go:229: successful script retry retains its resolved error
+=== RUN   TestP13JIRecoveryCandidates/script/dark
+2026/11/08 02:01:29 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+    transferrecovery_test.go:229: successful script retry retains its resolved error
+=== RUN   TestP13JIRecoveryCandidates/import
+=== RUN   TestP13JIRecoveryCandidates/import/light
+    transferrecovery_test.go:175: ui: "Import" is at (278.8, 2096.4001), outside the window
+=== RUN   TestP13JIRecoveryCandidates/import/dark
+    transferrecovery_test.go:175: ui: "Import" is at (278.8, 2096.4001), outside the window
+--- FAIL: TestP13JIRecoveryCandidates (1.68s)
+    --- FAIL: TestP13JIRecoveryCandidates/template (0.23s)
+        --- FAIL: TestP13JIRecoveryCandidates/template/light (0.11s)
+        --- FAIL: TestP13JIRecoveryCandidates/template/dark (0.12s)
+    --- FAIL: TestP13JIRecoveryCandidates/export (0.18s)
+        --- FAIL: TestP13JIRecoveryCandidates/export/light (0.09s)
+        --- FAIL: TestP13JIRecoveryCandidates/export/dark (0.09s)
+    --- FAIL: TestP13JIRecoveryCandidates/copy (0.36s)
+        --- FAIL: TestP13JIRecoveryCandidates/copy/light (0.18s)
+        --- FAIL: TestP13JIRecoveryCandidates/copy/dark (0.18s)
+    --- FAIL: TestP13JIRecoveryCandidates/config-export (0.36s)
+        --- FAIL: TestP13JIRecoveryCandidates/config-export/light (0.19s)
+        --- FAIL: TestP13JIRecoveryCandidates/config-export/dark (0.17s)
+    --- FAIL: TestP13JIRecoveryCandidates/script (0.38s)
+        --- FAIL: TestP13JIRecoveryCandidates/script/light (0.18s)
+        --- FAIL: TestP13JIRecoveryCandidates/script/dark (0.19s)
+    --- FAIL: TestP13JIRecoveryCandidates/import (0.17s)
+        --- FAIL: TestP13JIRecoveryCandidates/import/light (0.08s)
+        --- FAIL: TestP13JIRecoveryCandidates/import/dark (0.08s)
+FAIL
+FAIL	floter/internal/shell	4.302s
+FAIL

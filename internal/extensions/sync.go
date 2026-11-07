@@ -438,11 +438,19 @@ func applySyncEntry(paths Paths, integration Integration, entry SyncEntry) error
 	if len(entry.Config) == 0 {
 		return nil
 	}
+	// The enabled flag is already durable. Keep the existing partial-apply
+	// order, but do not describe a later failure as if nothing changed.
+	configurationFailure := func(err error) error {
+		if err != nil && integration.Entry.Enabled != entry.Enabled {
+			return fmt.Errorf("enabled state was set to %t; configuration was not applied: %w", entry.Enabled, err)
+		}
+		return err
+	}
 	// The raw values, not the ones with the secrets merged in: writing those
 	// back would copy a secret out of the secrets file into the values file.
 	stored, err := loadRawConfiguration(paths.Data, entry.ID)
 	if err != nil {
-		return err
+		return configurationFailure(err)
 	}
 	values := map[string]any{}
 	for key, value := range stored.Values {
@@ -451,12 +459,12 @@ func applySyncEntry(paths Paths, integration Integration, entry SyncEntry) error
 	for key, value := range entry.Config {
 		values[key] = value
 	}
-	return SaveStoredConfiguration(paths.Data, entry.ID, StoredConfiguration{
+	return configurationFailure(SaveStoredConfiguration(paths.Data, entry.ID, StoredConfiguration{
 		ConfigVersion:    stored.ConfigVersion,
 		SecretGeneration: stored.SecretGeneration,
 		Values:           values,
 		Schema:           stored.Schema,
-	})
+	}))
 }
 
 // stageSyncEntry writes an entry's package into a staging directory and works
@@ -529,7 +537,10 @@ func commitSyncEntry(paths Paths, item pendingInstall) error {
 	}
 	// The document's configuration goes in after the package, so the
 	// integration arrives configured.
-	return applySyncEntry(paths, Integration{Entry: installed, Paths: paths}, item.entry)
+	if err := applySyncEntry(paths, Integration{Entry: installed, Paths: paths}, item.entry); err != nil {
+		return fmt.Errorf("package was installed; %w", err)
+	}
+	return nil
 }
 
 // loadRawConfiguration reads an integration's stored configuration *without*
