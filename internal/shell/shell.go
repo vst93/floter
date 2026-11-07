@@ -2003,6 +2003,16 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 	if len(integration.Manifest.Lifecycle.Probes) > 0 {
 		report, err := extensions.Reprobe(context.Background(), a.Paths, id)
 		switch {
+		case errors.Is(err, extensions.ErrProbeSuperseded), errors.Is(err, extensions.ErrNoIntegration):
+			// The repository advanced while the probe ran. Refresh before
+			// returning; an obsolete check has no diagnosis or toast to publish.
+			a.RefreshIntegrations(context.Background())
+			a.onMain(func() {
+				if a.Win != nil {
+					a.Win.Invalidate()
+				}
+			})
+			return
 		case errors.Is(err, extensions.ErrNoProbes):
 		case err != nil:
 			result.Diagnosis, result.DiagnosisFailed = err.Error(), true
@@ -3051,27 +3061,32 @@ func (a *App) connectLocalTool(tool settingsui.CustomTool) {
 // --help, and the launcher's command list follows. A failure says so as a
 // diagnosis, and the previous descriptor stays.
 func (a *App) reprobeCommands(id string) {
+	integration, ok := a.Integrations.Inventory().WithID(id)
+	if !ok {
+		return
+	}
 	epoch := a.beginDiagnosis(id)
-	go func() {
-		integration, ok := a.Integrations.Inventory().WithID(id)
-		if !ok {
-			return
+	go a.runCommandReprobe(integration, epoch)
+}
+
+func (a *App) runCommandReprobe(integration extensions.Integration, epoch uint64) {
+	id := integration.Entry.ID
+	report, err := extensions.ReprobeCommands(context.Background(), a.Paths, id)
+	if err != nil {
+		log.Printf("floter: could not re-probe %s: %v", id, err)
+		a.rememberDiagnosis(integration, epoch, settingsui.Integration{Diagnosis: err.Error(), DiagnosisFailed: true})
+	} else {
+		log.Printf("floter: re-probed %s (commands=%d, was %v)", id, report.CommandCount, report.PreviousCommandCount)
+		// A completed retry replaces its previous failure just as a new
+		// diagnosis does, while preserving a newer check's result.
+		a.rememberDiagnosis(integration, epoch, settingsui.Integration{})
+	}
+	a.RefreshIntegrations(context.Background())
+	a.onMain(func() {
+		if a.Win != nil {
+			a.Win.Invalidate()
 		}
-		report, err := extensions.ReprobeCommands(context.Background(), a.Paths, id)
-		if err != nil {
-			log.Printf("floter: could not re-probe %s: %v", id, err)
-			a.rememberDiagnosis(integration, epoch, settingsui.Integration{Diagnosis: err.Error(), DiagnosisFailed: true})
-		} else {
-			log.Printf("floter: re-probed %s (commands=%d, was %v)", id, report.CommandCount, report.PreviousCommandCount)
-		}
-		a.onMain(func() {
-			a.Launcher.SetCommands(a.launcherCommands())
-			a.RefreshIntegrations(context.Background())
-			if a.Win != nil {
-				a.Win.Invalidate()
-			}
-		})
-	}()
+	})
 }
 
 // setCommandEnabled records a command's switch and re-hands the launcher its
