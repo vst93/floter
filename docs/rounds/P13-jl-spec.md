@@ -27,6 +27,6 @@ qiaomu-design 已读 SKILL、偏好账本、craft-loop、preflight、chinese-typ
 
 ## 门槛与 mutation
 
-基线全量 verbose 正在运行，完成后填实测数，不复制上轮数字。每批定向事件和包 vet 通过再提交；全量门槛最终统一运行：gofmt -l cmd internal；go vet ./...；GOOS=windows/darwin go vet ./...；go test -count=1 ./...；verbose PASS计数；linux/windows/darwin go build ./...。正式测试统一 LC_ALL/LANG=zh_CN.UTF-8。
+基线全量 verbose 实测5654 PASS / 0 FAIL，退出0；起点087bee9f树实测3303函数。每批定向事件和包 vet 通过再提交；全量门槛最终统一运行：gofmt -l cmd internal；go vet ./...；GOOS=windows/darwin go vet ./...；go test -count=1 ./...；verbose PASS计数；linux/windows/darwin go build ./...。正式测试统一 LC_ALL/LANG=zh_CN.UTF-8。
 
 M1：撤回配置首读/补读代际保护，应让导入地址、保存字段及邻行合并事件变红。M2：撤回事实首读/补读保护，应让运行时与批准警告事件变红。每条实跑失败、逐字节 MD5 还原、touch 后重跑。旧 V/B/S 测试不改，不新增 Skip。深浅 before/after 用 ui.Tester 导出、入库并目检。

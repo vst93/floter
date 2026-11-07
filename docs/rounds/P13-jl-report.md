@@ -32,3 +32,10 @@
 4. 现象：补读自己的配置期间导入新值，旧读取让打开的字段回到旧地址。改动：补读结果也受同一代际保护。验证：真实导入、实际编辑框复制与磁盘；修前 `added-own-import: visible editor reverted to "https://before.example"`，修后保持 imported.example。
 
 第二批相关 **20 PASS / 0 FAIL**，shell vet净、gofmt空，V/B/S旧断言0/0/0。第一帧证据额外使用实际applyIntegrationConfig映射返回快照，防止后续帧自动修复掩盖错误；M1会再次验证这一加强后的事件。基线函数数从087bee9f树实测为 **3303**。
+
+第二批 **25eccc8f** 已推送。
+
+5. 现象：同步首次探测的旧不可用结果晚于刷新完成，已修好的工具重新显示 Tool unavailable。改动：事实首读检查所属代，旧结果被拒后取当前已确认状态。验证：真实provider、RefreshIntegrations、实际卡片；深浅修前 `cold-runtime: synchronous probe disabled a repaired tool`，修后工具可用。
+6. 现象：首次摘要读取的旧值在刷新后返回，批准卡重新显示 manifest changed 警告。改动：事实首读保护覆盖批准摘要，保留已确认的新摘要。验证：真实批准记录/磁盘摘要、卡片与返回快照；深浅修前 `cold-approval: synchronous probe revived approval warning`，修后摘要等于磁盘。
+
+第三批相关 **18 PASS / 0 FAIL**，shell vet净、gofmt空、旧V/B/S 0/0/0。M2将在四批完成后统一回注旧代码。

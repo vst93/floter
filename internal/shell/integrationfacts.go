@@ -146,14 +146,15 @@ func (m *integrationFactsCache) publish(facts map[string]integrationFact, at tim
 }
 
 // A refresh, repair or approval supersedes the probe that preceded it.
-func (m *integrationFactsCache) publishCurrent(facts map[string]integrationFact, at time.Time, revision uint64) {
+func (m *integrationFactsCache) publishCurrent(facts map[string]integrationFact, at time.Time, revision uint64) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.revision != revision {
-		return
+		return false
 	}
 	m.facts, m.computed, m.pending = facts, at, false
 	m.revision++
+	return true
 }
 
 // rememberIntegrationFact adds one computed fact to the memo without moving its
@@ -204,61 +205,69 @@ func refreshIntegrationFacts(
 	invalidate func(),
 	now time.Time,
 ) map[string]integrationFact {
-	facts, computed, _ := m.snapshot()
-
-	// A changed identity is answered on the spot: one integration is one stat,
-	// and the alternative — serving the old answer until the TTL runs out — is a
-	// card showing the repair verb for a tool the user just installed.
-	var changed []extensions.Integration
-	for _, integration := range items {
-		fact, known := facts[integration.Entry.ID]
-		if !known || fact.partial || fact.key != integrationFactKey(integration) {
-			changed = append(changed, integration)
-		}
-	}
-	if len(changed) > 0 && !computed.IsZero() {
-		fresh := compute(changed)
-		merged := make(map[string]integrationFact, len(facts)+len(fresh))
-		for id, fact := range facts {
-			merged[id] = fact
-		}
-		for id, fact := range fresh {
-			merged[id] = fact
-		}
-		m.publish(merged, computed)
-		facts = merged
-	}
-
-	if computed.IsZero() || now.Sub(computed) >= integrationFactsTTL {
-		if computed.IsZero() {
-			// The visit's first question: answered in place (see the header).
-			fresh := compute(items)
-			m.publish(fresh, now)
-			return fresh
-		}
-		// One pass at a time: a frame that arrives while the previous one is
-		// still walking the PATH must not start a second.
+	for {
 		m.mu.Lock()
-		start := !m.pending
-		m.pending = true
-		revision := m.revision
+		facts, computed, revision := m.facts, m.computed, m.revision
 		m.mu.Unlock()
-		if start {
-			// Keep the frame's clock domain through publication. Switching to
-			// time.Now here made a completed pass stale to an injected clock,
-			// so the very next frame could start the same work again (P13-gp).
-			// Include elapsed work so the TTL still begins at completion.
-			started := time.Now()
-			go func() {
-				fresh := compute(items)
-				m.publishCurrent(fresh, now.Add(time.Since(started)), revision)
-				if invalidate != nil {
-					invalidate()
-				}
-			}()
+
+		// A changed identity is answered on the spot: one integration is one stat,
+		// and the alternative — serving the old answer until the TTL runs out — is a
+		// card showing the repair verb for a tool the user just installed.
+		var changed []extensions.Integration
+		for _, integration := range items {
+			fact, known := facts[integration.Entry.ID]
+			if !known || fact.partial || fact.key != integrationFactKey(integration) {
+				changed = append(changed, integration)
+			}
 		}
+		if len(changed) > 0 && !computed.IsZero() {
+			fresh := compute(changed)
+			merged := make(map[string]integrationFact, len(facts)+len(fresh))
+			for id, fact := range facts {
+				merged[id] = fact
+			}
+			for id, fact := range fresh {
+				merged[id] = fact
+			}
+			m.publish(merged, computed)
+			facts = merged
+		}
+
+		if computed.IsZero() || now.Sub(computed) >= integrationFactsTTL {
+			if computed.IsZero() {
+				// The visit's first question: answered in place (see the header).
+				fresh := compute(items)
+				// Refresh/repair can finish during a synchronous probe too. Its
+				// superseded result must not become the current frame's answer.
+				if !m.publishCurrent(fresh, now, revision) {
+					continue
+				}
+				return fresh
+			}
+			// One pass at a time: a frame that arrives while the previous one is
+			// still walking the PATH must not start a second.
+			m.mu.Lock()
+			start := !m.pending
+			m.pending = true
+			revision := m.revision
+			m.mu.Unlock()
+			if start {
+				// Keep the frame's clock domain through publication. Switching to
+				// time.Now here made a completed pass stale to an injected clock,
+				// so the very next frame could start the same work again (P13-gp).
+				// Include elapsed work so the TTL still begins at completion.
+				started := time.Now()
+				go func() {
+					fresh := compute(items)
+					m.publishCurrent(fresh, now.Add(time.Since(started)), revision)
+					if invalidate != nil {
+						invalidate()
+					}
+				}()
+			}
+		}
+		return facts
 	}
-	return facts
 }
 
 // integrationFacts is the drawing thread's view of the memo (see
