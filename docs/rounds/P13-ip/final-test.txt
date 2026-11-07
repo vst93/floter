@@ -1,0 +1,47 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.004s
+ok  	floter/internal/apps	0.136s
+ok  	floter/internal/browser	0.010s
+ok  	floter/internal/calc	0.002s
+ok  	floter/internal/calculator	0.007s
+ok  	floter/internal/ci	1.792s
+ok  	floter/internal/clipboard	0.043s
+ok  	floter/internal/control	0.067s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.002s
+ok  	floter/internal/drops	0.002s
+ok  	floter/internal/extensions	24.660s
+ok  	floter/internal/extensions/recommended	0.042s
+ok  	floter/internal/frameaudit	0.031s
+ok  	floter/internal/glassmap	0.003s
+ok  	floter/internal/homepath	0.001s
+ok  	floter/internal/i18n	0.320s
+ok  	floter/internal/inputtext	0.015s
+ok  	floter/internal/inventory	0.072s
+ok  	floter/internal/launcher	42.706s
+ok  	floter/internal/motion	0.061s
+ok  	floter/internal/pathid	0.070s
+ok  	floter/internal/pathlist	0.052s
+ok  	floter/internal/pinyin	0.009s
+ok  	floter/internal/plist	0.040s
+ok  	floter/internal/plugincfg	0.010s
+ok  	floter/internal/progname	0.005s
+ok  	floter/internal/progtype	0.007s
+ok  	floter/internal/scriptlang	0.006s
+ok  	floter/internal/semver	0.008s
+ok  	floter/internal/settings	2.556s
+ok  	floter/internal/settingsui	337.123s
+ok  	floter/internal/shell	45.252s
+ok  	floter/internal/shortcuts	0.006s
+ok  	floter/internal/spawn	0.160s
+ok  	floter/internal/statefile	0.005s
+ok  	floter/internal/terminalui	21.237s
+ok  	floter/internal/termsession	4.373s
+ok  	floter/internal/textlines	0.004s
+ok  	floter/internal/theme	0.046s
+ok  	floter/internal/tools	0.005s
+ok  	floter/internal/usage	0.004s
+ok  	floter/internal/valuedomain	0.003s
+ok  	floter/internal/versioning	0.003s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.004s

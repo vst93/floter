@@ -1,0 +1,15 @@
+baseline verbose exit=0 PASS=4937 FAIL=0 funcs=3077
+final ordinary exit=0
+final verbose exit=0 PASS=4961 FAIL=0 funcs=3085
+gofmt -l cmd internal: 0 lines
+linux go vet ./...: exit=0 output=0 bytes
+windows go vet ./...: exit=0 output=0 bytes
+darwin go vet ./...: exit=0 output=0 bytes
+linux go build ./...: exit=0 output=0 bytes
+windows go build ./...: exit=0 output=0 bytes
+darwin go build ./...: exit=0 output=0 bytes
+internal/ci test: exit=0
+old V/B/S assertion changes=0/0/0
+new t.Skip=0
+M1/M2/M3/M4 injected FAIL=6/6/6/6
+M1/M2/M3/M4 restored PASS=6/6/6/6
