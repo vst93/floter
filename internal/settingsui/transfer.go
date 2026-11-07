@@ -32,6 +32,8 @@ type ImportReport struct {
 	Succeeded int
 	Skipped   int
 	Failed    []TransferFailure
+	// SkippedDetails retains the reasons behind the unchanged count.
+	SkippedDetails []TransferFailure
 	// ExcludedFields names the integrations whose export left fields out (a
 	// secret or a device path), so the notice can say what will not come back.
 	ExcludedFields []ExcludedField
@@ -69,6 +71,11 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 			}
 			a.transferNotice(c, t.Warning, "alert", copy.IntegrationsImportExcludedFields(strings.Join(names, ", ")))
 		}
+		// Entries are applied independently: a failure must not hide the
+		// integrations already changed, or the count that remained unchanged.
+		if len(report.Failed) == 0 || report.Succeeded > 0 || report.Skipped > 0 {
+			a.transferNotice(c, tokens.TextStrong, "check", copy.IntegrationsImportSummary(report.Succeeded, report.Skipped))
+		}
 		if len(report.Failed) > 0 {
 			// The reference shows the first three failures by `id: message`,
 			// then "and N more" (`ExtensionsPanel.tsx:2370-2374`).
@@ -85,9 +92,14 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 				body += " (" + copy.IntegrationsImportFailedMore(extra) + ")"
 			}
 			a.transferNotice(c, t.Warning, "alert", body)
-			return
 		}
-		a.transferNotice(c, tokens.TextStrong, "check", copy.IntegrationsImportSummary(report.Succeeded, report.Skipped))
+		if len(report.SkippedDetails) > 0 {
+			lines := make([]string, 0, len(report.SkippedDetails))
+			for _, skipped := range report.SkippedDetails {
+				lines = append(lines, skipped.ID+": "+skipped.Reason)
+			}
+			a.transferNotice(c, t.Warning, "alert", strings.Join(lines, "\n"))
+		}
 	})
 	if report.Path != "" {
 		tokens.Tip(c, block, report.Path)

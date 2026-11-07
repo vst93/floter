@@ -1,0 +1,25 @@
+=== RUN   TestImportPartialResultRetainsAppliedSummary
+=== RUN   TestImportPartialResultRetainsAppliedSummary/light
+2026/11/08 00:53:20 floter: dev.workspace.broken was not imported: extensions: the package declares dev.workspace.other, not dev.workspace.broken
+2026/11/08 00:53:20 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+    transferpartial_test.go:65: partial failure hides the already-applied result
+=== RUN   TestImportPartialResultRetainsAppliedSummary/dark
+2026/11/08 00:53:20 floter: dev.workspace.broken was not imported: extensions: the package declares dev.workspace.other, not dev.workspace.broken
+2026/11/08 00:53:20 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+    transferpartial_test.go:65: partial failure hides the already-applied result
+--- FAIL: TestImportPartialResultRetainsAppliedSummary (0.73s)
+    --- FAIL: TestImportPartialResultRetainsAppliedSummary/light (0.48s)
+    --- FAIL: TestImportPartialResultRetainsAppliedSummary/dark (0.26s)
+=== RUN   TestImportSkippedResultExplainsUnchangedEntry
+=== RUN   TestImportSkippedResultExplainsUnchangedEntry/light
+2026/11/08 00:53:20 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+    transferpartial_test.go:83: skipped import hides the integration and its reason
+=== RUN   TestImportSkippedResultExplainsUnchangedEntry/dark
+2026/11/08 00:53:21 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+    transferpartial_test.go:83: skipped import hides the integration and its reason
+--- FAIL: TestImportSkippedResultExplainsUnchangedEntry (0.65s)
+    --- FAIL: TestImportSkippedResultExplainsUnchangedEntry/light (0.33s)
+    --- FAIL: TestImportSkippedResultExplainsUnchangedEntry/dark (0.32s)
+FAIL
+FAIL	floter/internal/shell	1.403s
+FAIL

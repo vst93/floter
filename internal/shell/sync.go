@@ -163,6 +163,9 @@ func importReport(path string, report extensions.SyncReport) *settingsui.ImportR
 	for _, failure := range report.Failed {
 		out.Failed = append(out.Failed, settingsui.TransferFailure{ID: failure.ID, Reason: failure.Reason})
 	}
+	for _, skipped := range report.Skipped {
+		out.SkippedDetails = append(out.SkippedDetails, settingsui.TransferFailure{ID: skipped.ID, Reason: skipped.Reason})
+	}
 	for _, warning := range report.ExcludedFields {
 		out.ExcludedFields = append(out.ExcludedFields, settingsui.ExcludedField{
 			ExtensionID: warning.ExtensionID,
