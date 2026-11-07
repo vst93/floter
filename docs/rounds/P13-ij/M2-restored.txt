@@ -1,0 +1,14 @@
+=== RUN   TestActionAvailabilityScriptWithdrawal
+=== RUN   TestActionAvailabilityScriptWithdrawal/light
+=== RUN   TestActionAvailabilityScriptWithdrawal/dark
+--- PASS: TestActionAvailabilityScriptWithdrawal (0.36s)
+    --- PASS: TestActionAvailabilityScriptWithdrawal/light (0.23s)
+    --- PASS: TestActionAvailabilityScriptWithdrawal/dark (0.13s)
+=== RUN   TestActionAvailabilityExportWithdrawal
+=== RUN   TestActionAvailabilityExportWithdrawal/light
+=== RUN   TestActionAvailabilityExportWithdrawal/dark
+--- PASS: TestActionAvailabilityExportWithdrawal (0.20s)
+    --- PASS: TestActionAvailabilityExportWithdrawal/light (0.10s)
+    --- PASS: TestActionAvailabilityExportWithdrawal/dark (0.10s)
+PASS
+ok  	floter/internal/settingsui	0.571s

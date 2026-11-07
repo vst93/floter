@@ -1,0 +1,23 @@
+=== RUN   TestActionAvailabilityScriptWithdrawal
+=== RUN   TestActionAvailabilityScriptWithdrawal/light
+    actionavailability_test.go:71: script withdrawal lost source-field focus: want 脚本
+    actionavailability_test.go:84: restored capability stole source focus
+=== RUN   TestActionAvailabilityScriptWithdrawal/dark
+    actionavailability_test.go:71: script withdrawal lost source-field focus: want 脚本
+    actionavailability_test.go:84: restored capability stole source focus
+--- FAIL: TestActionAvailabilityScriptWithdrawal (0.51s)
+    --- FAIL: TestActionAvailabilityScriptWithdrawal/light (0.36s)
+    --- FAIL: TestActionAvailabilityScriptWithdrawal/dark (0.15s)
+=== RUN   TestActionAvailabilityExportWithdrawal
+=== RUN   TestActionAvailabilityExportWithdrawal/light
+    actionavailability_test.go:71: export withdrawal lost source-field focus: want 脚本
+    actionavailability_test.go:84: restored capability stole source focus
+=== RUN   TestActionAvailabilityExportWithdrawal/dark
+    actionavailability_test.go:71: export withdrawal lost source-field focus: want 脚本
+    actionavailability_test.go:84: restored capability stole source focus
+--- FAIL: TestActionAvailabilityExportWithdrawal (0.23s)
+    --- FAIL: TestActionAvailabilityExportWithdrawal/light (0.12s)
+    --- FAIL: TestActionAvailabilityExportWithdrawal/dark (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.750s
+FAIL

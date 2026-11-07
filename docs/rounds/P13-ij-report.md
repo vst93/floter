@@ -31,3 +31,12 @@
 当批相关41 PASS / 0 FAIL，包vet净。M1撤回当批settingsui.go补丁实红6条FAIL记录（4个深浅叶子），原串 `command withdrawal lost source-field focus: want 命令`、`plan withdrawal lost source-field focus: want 程序`；MD5还原一致，touch后6 PASS / 0 FAIL。V/B/S旧断言0/0/0，无新增Skip。浅色after目视：命令槽有明确焦点环，灰色复制药丸保留原位置，未增加外框或浮层。
 
 补测首链接恢复后的Shift-Tab确实不能回侧栏，已保留原红日志。测试函数数按全仓tracked `*.go` 实测3011；之前cmd/internal口径3009少算根目录2条，后续统一全仓口径。
+
+## 第二批（3–4）
+
+第一批3a4cbfa9已推送。
+
+3. 现象：复制脚本入口撤回宿主能力后没有可继续输入的焦点。改动：原脚本编辑器绑定复制动作的来源句柄。验证：深浅真实复制→能力撤回后脚本编辑器持焦点，恢复能力仍保持编辑焦点，明确再复制才增加一次调用。
+4. 现象：导出能力撤回使按钮消失，原导出焦点随之丢失。改动：导出消失前检查原按钮是否持焦点，并归还同一脚本编辑器。验证：深浅原导出收到local.weather-script.js和完整脚本，撤回/恢复不额外导出，恢复后明确点击再派发一次。
+
+当批相关51 PASS / 0 FAIL，包vet净。M2实红6条FAIL记录（4个深浅叶子），原串 `script withdrawal lost source-field focus: want 脚本`、`export withdrawal lost source-field focus: want 脚本`；MD5一致、touch复验6 PASS / 0 FAIL。旧V/B/S 0/0/0。深色after目视：导出按钮已经退场，蓝色焦点环归到脚本编辑区域，代码和复制按钮仍在原位。

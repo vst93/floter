@@ -100,6 +100,8 @@ func checkToolActionWithdrawal(t *testing.T, action string) {
 
 func TestActionAvailabilityCommandWithdrawal(t *testing.T) { checkToolActionWithdrawal(t, "command") }
 func TestActionAvailabilityPlanWithdrawal(t *testing.T)    { checkToolActionWithdrawal(t, "plan") }
+func TestActionAvailabilityScriptWithdrawal(t *testing.T)  { checkToolActionWithdrawal(t, "script") }
+func TestActionAvailabilityExportWithdrawal(t *testing.T)  { checkToolActionWithdrawal(t, "export") }
 
 func checkLinkActionAvailability(t *testing.T, second, restore bool) {
 	t.Helper()

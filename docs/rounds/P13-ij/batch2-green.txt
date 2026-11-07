@@ -1,0 +1,105 @@
+=== RUN   TestActionAvailabilityCommandWithdrawal
+=== RUN   TestActionAvailabilityCommandWithdrawal/light
+=== RUN   TestActionAvailabilityCommandWithdrawal/dark
+--- PASS: TestActionAvailabilityCommandWithdrawal (0.70s)
+    --- PASS: TestActionAvailabilityCommandWithdrawal/light (0.44s)
+    --- PASS: TestActionAvailabilityCommandWithdrawal/dark (0.26s)
+=== RUN   TestActionAvailabilityPlanWithdrawal
+=== RUN   TestActionAvailabilityPlanWithdrawal/light
+=== RUN   TestActionAvailabilityPlanWithdrawal/dark
+--- PASS: TestActionAvailabilityPlanWithdrawal (0.49s)
+    --- PASS: TestActionAvailabilityPlanWithdrawal/light (0.26s)
+    --- PASS: TestActionAvailabilityPlanWithdrawal/dark (0.24s)
+=== RUN   TestActionAvailabilityScriptWithdrawal
+=== RUN   TestActionAvailabilityScriptWithdrawal/light
+=== RUN   TestActionAvailabilityScriptWithdrawal/dark
+--- PASS: TestActionAvailabilityScriptWithdrawal (0.44s)
+    --- PASS: TestActionAvailabilityScriptWithdrawal/light (0.22s)
+    --- PASS: TestActionAvailabilityScriptWithdrawal/dark (0.22s)
+=== RUN   TestActionAvailabilityExportWithdrawal
+=== RUN   TestActionAvailabilityExportWithdrawal/light
+=== RUN   TestActionAvailabilityExportWithdrawal/dark
+--- PASS: TestActionAvailabilityExportWithdrawal (0.36s)
+    --- PASS: TestActionAvailabilityExportWithdrawal/light (0.18s)
+    --- PASS: TestActionAvailabilityExportWithdrawal/dark (0.18s)
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.19s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.10s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.09s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.13s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.07s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.06s)
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+--- PASS: TestCopyLifecycleProgramModeRetiresSuccess (0.48s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.11s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.12s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.12s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.13s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+--- PASS: TestCopyLifecycleScriptModeRetiresSuccess (0.31s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.16s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.16s)
+=== RUN   TestCopyLifecycleFoldRetiresSuccess
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/light
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/dark
+--- PASS: TestCopyLifecycleFoldRetiresSuccess (0.33s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/light (0.16s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/dark (0.17s)
+=== RUN   TestCopyLifecyclePageRetiresSuccess
+=== RUN   TestCopyLifecyclePageRetiresSuccess/light
+=== RUN   TestCopyLifecyclePageRetiresSuccess/dark
+--- PASS: TestCopyLifecyclePageRetiresSuccess (0.61s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/light (0.32s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/dark (0.28s)
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/light
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/dark
+--- PASS: TestCopyLifecycleAboutUnavailableIsInert (0.10s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/light (0.06s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/dark (0.04s)
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/light
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/dark
+--- PASS: TestCopyLifecycleAboutPageRetiresSuccess (0.32s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/light (0.15s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/dark (0.16s)
+=== RUN   TestNoOneTakesTheKeyboardRingAway
+--- PASS: TestNoOneTakesTheKeyboardRingAway (0.09s)
+=== RUN   TestLocalToolFormBuildsAScript
+--- PASS: TestLocalToolFormBuildsAScript (0.45s)
+=== RUN   TestLocalToolFormRefusesAnEmptyScript
+--- PASS: TestLocalToolFormRefusesAnEmptyScript (0.27s)
+=== RUN   TestScriptEditorDrawsLineNumbers
+--- PASS: TestScriptEditorDrawsLineNumbers (0.20s)
+=== RUN   TestScriptEditorTakesAnOutsideDraft
+--- PASS: TestScriptEditorTakesAnOutsideDraft (0.25s)
+=== RUN   TestScriptEditorFollowsTheLanguageSwitch
+--- PASS: TestScriptEditorFollowsTheLanguageSwitch (0.29s)
+=== RUN   TestScriptEditorHandsTheUsersTypingOn
+--- PASS: TestScriptEditorHandsTheUsersTypingOn (0.33s)
+=== RUN   TestLocalToolFormCopiesItsContent
+--- PASS: TestLocalToolFormCopiesItsContent (0.27s)
+=== RUN   TestLocalToolFormCopiesTheScript
+    toolcontent_test.go:145: copied script = "#!/usr/bin/env node\n\n// Floter provider script\n// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n// Read them with process.argv.slice(2).\n// 编辑器里声明的参数会作为 argv 传入，可用 process.argv.slice(2) 读取。\n"
+--- PASS: TestLocalToolFormCopiesTheScript (0.24s)
+=== RUN   TestLocalToolFormExportsTheScript
+--- PASS: TestLocalToolFormExportsTheScript (0.24s)
+=== RUN   TestLocalToolFormNamesTheIntegrationBeingEdited
+--- PASS: TestLocalToolFormNamesTheIntegrationBeingEdited (0.18s)
+=== RUN   TestLocalToolForm
+--- PASS: TestLocalToolForm (0.37s)
+=== RUN   TestLocalToolFormNamesTheShapeRules
+--- PASS: TestLocalToolFormNamesTheShapeRules (0.49s)
+PASS
+ok  	floter/internal/settingsui	8.208s

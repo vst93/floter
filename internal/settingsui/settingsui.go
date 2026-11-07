@@ -5791,10 +5791,12 @@ func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, comman
 // wired no exporter, and inert while the script is blank — the reference
 // mounted it always but the write would have produced an empty file.
 func (a *App) exportScriptAction(c *ui.Context, copy i18n.Settings, command, script, language string) {
+	focus := a.contentFocus(c, "export")
 	if a.Actions.ExportScript == nil || strings.TrimSpace(script) == "" {
+		focus.restore(c)
 		return
 	}
-	if a.actionButton(c, copy.LocalToolExportScript).Clicked() {
+	if a.actionButton(c, copy.LocalToolExportScript).Bind(&focus.button).Clicked() {
 		a.Actions.ExportScript(scriptExportName(a.toolEditing, command, language), script)
 	}
 }
@@ -6017,7 +6019,9 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 	// mygo's code editor (line numbers, syntax highlighting) rather than a bare
 	// TextArea; scriptEditorView keeps its state across frames.
 	a.stackedRow(c, copy.LocalToolScript, copy.LocalToolScriptHint, func() {
-		a.scriptEditorView(c, copy, language, script)
+		a.scriptEditorView(c, copy, language, script).
+			Bind(&a.contentFocus(c, "script").source).
+			Bind(&a.contentFocus(c, "export").source)
 		a.toolIssueUnder(c, copy, issues, extensions.CustomFieldScript)
 	})
 }
