@@ -2004,7 +2004,7 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 	if len(integration.Manifest.Lifecycle.Probes) > 0 {
 		report, err := extensions.Reprobe(context.Background(), a.Paths, id)
 		switch {
-		case errors.Is(err, extensions.ErrProbeSuperseded), errors.Is(err, extensions.ErrNoIntegration):
+		case errors.Is(err, extensions.ErrProbeSuperseded), errors.Is(err, extensions.ErrNoIntegration), errors.Is(err, extensions.ErrNoProbes):
 			// The repository advanced while the probe ran. Refresh before
 			// returning; an obsolete check has no diagnosis or toast to publish.
 			a.RefreshIntegrations(context.Background())
@@ -2014,7 +2014,6 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 				}
 			})
 			return
-		case errors.Is(err, extensions.ErrNoProbes):
 		case err != nil:
 			result.Diagnosis, result.DiagnosisFailed = err.Error(), true
 		default:
@@ -2080,6 +2079,9 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 			result.Health = copy.IntegrationsUnhealthy
 		}
 	}
+	// The provider can run while the on-disk declaration changes, even when
+	// there are no lifecycle probes. Publish only against freshly read facts.
+	a.Integrations.Refresh(context.Background())
 	if !a.rememberDiagnosis(integration, epoch, result) {
 		return
 	}
@@ -2089,12 +2091,6 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 		}
 		return c.IntegrationChecked(integration.Name)
 	}, result.DiagnosisFailed)
-	// The probes may have written a report (and marked the integration
-	// broken): the list is re-read from the repository, so the row shows
-	// it.
-	if len(integration.Manifest.Lifecycle.Probes) > 0 {
-		a.Integrations.Refresh(context.Background())
-	}
 	a.onMain(func() {
 		if a.Win != nil {
 			a.Win.Invalidate()
