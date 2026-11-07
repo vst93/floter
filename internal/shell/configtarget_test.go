@@ -195,3 +195,6 @@ func TestConfigTargetExportMissing(t *testing.T) {
 
 func TestConfigTargetCopyTool(t *testing.T)   { checkConfigTarget(t, "copy", "tool") }
 func TestConfigTargetExportTool(t *testing.T) { checkConfigTarget(t, "export", "tool") }
+
+func TestConfigTargetSaveMissing(t *testing.T) { checkConfigTarget(t, "save", "missing") }
+func TestConfigTargetSaveTool(t *testing.T)    { checkConfigTarget(t, "save", "tool") }

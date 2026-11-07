@@ -1,0 +1,102 @@
+=== RUN   TestConfigTargetCopyMissing
+=== RUN   TestConfigTargetCopyMissing/missing
+=== RUN   TestConfigTargetCopyMissing/missing/light
+=== RUN   TestConfigTargetCopyMissing/missing/dark
+=== RUN   TestConfigTargetCopyMissing/disabled
+=== RUN   TestConfigTargetCopyMissing/disabled/light
+=== RUN   TestConfigTargetCopyMissing/disabled/dark
+=== RUN   TestConfigTargetCopyMissing/empty
+=== RUN   TestConfigTargetCopyMissing/empty/light
+2026/11/07 23:31:06 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "endpoint"
+=== RUN   TestConfigTargetCopyMissing/empty/dark
+2026/11/07 23:31:07 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "region"
+--- PASS: TestConfigTargetCopyMissing (1.44s)
+    --- PASS: TestConfigTargetCopyMissing/missing (0.50s)
+        --- PASS: TestConfigTargetCopyMissing/missing/light (0.27s)
+        --- PASS: TestConfigTargetCopyMissing/missing/dark (0.23s)
+    --- PASS: TestConfigTargetCopyMissing/disabled (0.46s)
+        --- PASS: TestConfigTargetCopyMissing/disabled/light (0.23s)
+        --- PASS: TestConfigTargetCopyMissing/disabled/dark (0.23s)
+    --- PASS: TestConfigTargetCopyMissing/empty (0.47s)
+        --- PASS: TestConfigTargetCopyMissing/empty/light (0.24s)
+        --- PASS: TestConfigTargetCopyMissing/empty/dark (0.23s)
+=== RUN   TestConfigTargetExportMissing
+=== RUN   TestConfigTargetExportMissing/missing
+=== RUN   TestConfigTargetExportMissing/missing/light
+=== RUN   TestConfigTargetExportMissing/missing/dark
+=== RUN   TestConfigTargetExportMissing/disabled
+=== RUN   TestConfigTargetExportMissing/disabled/light
+=== RUN   TestConfigTargetExportMissing/disabled/dark
+=== RUN   TestConfigTargetExportMissing/empty
+=== RUN   TestConfigTargetExportMissing/empty/light
+2026/11/07 23:31:08 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+=== RUN   TestConfigTargetExportMissing/empty/dark
+2026/11/07 23:31:08 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "token"
+--- PASS: TestConfigTargetExportMissing (1.43s)
+    --- PASS: TestConfigTargetExportMissing/missing (0.46s)
+        --- PASS: TestConfigTargetExportMissing/missing/light (0.23s)
+        --- PASS: TestConfigTargetExportMissing/missing/dark (0.23s)
+    --- PASS: TestConfigTargetExportMissing/disabled (0.47s)
+        --- PASS: TestConfigTargetExportMissing/disabled/light (0.23s)
+        --- PASS: TestConfigTargetExportMissing/disabled/dark (0.24s)
+    --- PASS: TestConfigTargetExportMissing/empty (0.50s)
+        --- PASS: TestConfigTargetExportMissing/empty/light (0.25s)
+        --- PASS: TestConfigTargetExportMissing/empty/dark (0.25s)
+=== RUN   TestConfigTargetCopyTool
+=== RUN   TestConfigTargetCopyTool/light
+=== RUN   TestConfigTargetCopyTool/dark
+--- PASS: TestConfigTargetCopyTool (0.48s)
+    --- PASS: TestConfigTargetCopyTool/light (0.25s)
+    --- PASS: TestConfigTargetCopyTool/dark (0.23s)
+=== RUN   TestConfigTargetExportTool
+=== RUN   TestConfigTargetExportTool/light
+=== RUN   TestConfigTargetExportTool/dark
+--- PASS: TestConfigTargetExportTool (0.46s)
+    --- PASS: TestConfigTargetExportTool/light (0.23s)
+    --- PASS: TestConfigTargetExportTool/dark (0.23s)
+=== RUN   TestConfigTargetSaveMissing
+=== RUN   TestConfigTargetSaveMissing/light
+=== RUN   TestConfigTargetSaveMissing/dark
+--- PASS: TestConfigTargetSaveMissing (0.53s)
+    --- PASS: TestConfigTargetSaveMissing/light (0.26s)
+    --- PASS: TestConfigTargetSaveMissing/dark (0.27s)
+=== RUN   TestConfigTargetSaveTool
+=== RUN   TestConfigTargetSaveTool/light
+=== RUN   TestConfigTargetSaveTool/dark
+--- PASS: TestConfigTargetSaveTool (0.53s)
+    --- PASS: TestConfigTargetSaveTool/light (0.26s)
+    --- PASS: TestConfigTargetSaveTool/dark (0.27s)
+=== RUN   TestIntegrationConfigurationFormEndToEnd
+--- PASS: TestIntegrationConfigurationFormEndToEnd (0.01s)
+=== RUN   TestConfigurationExportWritesTheRedactedDocument
+--- PASS: TestConfigurationExportWritesTheRedactedDocument (0.07s)
+=== RUN   TestConfigurationCopyRaisesTheNotice
+--- PASS: TestConfigurationCopyRaisesTheNotice (0.06s)
+=== RUN   TestConfigCopyWaitsForClipboardDelivery
+--- PASS: TestConfigCopyWaitsForClipboardDelivery (0.01s)
+=== RUN   TestConfigCopyReportsValidationCause
+=== RUN   TestConfigCopyReportsValidationCause/light
+2026/11/07 23:31:10 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigCopyReportsValidationCause/dark
+2026/11/07 23:31:11 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigCopyReportsValidationCause (0.50s)
+    --- PASS: TestConfigCopyReportsValidationCause/light (0.25s)
+    --- PASS: TestConfigCopyReportsValidationCause/dark (0.25s)
+=== RUN   TestConfigExportReportsValidationCause
+=== RUN   TestConfigExportReportsValidationCause/light
+2026/11/07 23:31:11 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+=== RUN   TestConfigExportReportsValidationCause/dark
+2026/11/07 23:31:11 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+--- PASS: TestConfigExportReportsValidationCause (0.49s)
+    --- PASS: TestConfigExportReportsValidationCause/light (0.24s)
+    --- PASS: TestConfigExportReportsValidationCause/dark (0.25s)
+=== RUN   TestConfigExportPickerFailureIsVisible
+=== RUN   TestConfigExportPickerFailureIsVisible/light
+2026/11/07 23:31:11 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigExportPickerFailureIsVisible/dark
+2026/11/07 23:31:12 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigExportPickerFailureIsVisible (0.48s)
+    --- PASS: TestConfigExportPickerFailureIsVisible/light (0.24s)
+    --- PASS: TestConfigExportPickerFailureIsVisible/dark (0.24s)
+PASS
+ok  	floter/internal/shell	6.507s

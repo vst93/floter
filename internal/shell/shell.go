@@ -2379,11 +2379,11 @@ func (a *App) saveIntegrationConfiguration(id string, values map[string]any, don
 // saveIntegrationConfigurationNow is the write itself, so the hand-off above can
 // report whatever it did back on the main thread.
 func (a *App) saveIntegrationConfigurationNow(id string, values map[string]any) error {
-	description, ok := a.Integrations.Description(id)
-	if !ok {
-		return errors.New("extensions: no such integration")
+	configuration, err := a.configurationForAction(id)
+	if err != nil {
+		return err
 	}
-	if err := extensions.SaveConfiguration(a.Paths, id, description.Configuration.Schema, values); err != nil {
+	if err := extensions.SaveConfiguration(a.Paths, id, configuration.Schema, values); err != nil {
 		return err
 	}
 	// The values just written are what the card has to draw, so the memo that

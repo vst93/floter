@@ -1,0 +1,41 @@
+=== RUN   TestConfigTargetSaveMissing
+=== RUN   TestConfigTargetSaveMissing/light
+    configtarget_test.go:126: stale save panicked after missing refresh: runtime error: invalid memory address or nil pointer dereference
+    configtarget_test.go:150: stale save silently succeeded after missing refresh
+=== RUN   TestConfigTargetSaveMissing/dark
+    configtarget_test.go:126: stale save panicked after missing refresh: runtime error: invalid memory address or nil pointer dereference
+    configtarget_test.go:150: stale save silently succeeded after missing refresh
+--- FAIL: TestConfigTargetSaveMissing (1.04s)
+    --- FAIL: TestConfigTargetSaveMissing/light (0.62s)
+    --- FAIL: TestConfigTargetSaveMissing/dark (0.42s)
+=== RUN   TestConfigTargetSaveTool
+=== RUN   TestConfigTargetSaveTool/light
+    configtarget_test.go:150: stale save silently succeeded after tool refresh
+    configtarget_test.go:159: stale save changed stored configuration: <nil>
+=== RUN   TestConfigTargetSaveTool/dark
+    configtarget_test.go:150: stale save silently succeeded after tool refresh
+    configtarget_test.go:159: stale save changed stored configuration: <nil>
+--- FAIL: TestConfigTargetSaveTool (0.89s)
+    --- FAIL: TestConfigTargetSaveTool/light (0.46s)
+    --- FAIL: TestConfigTargetSaveTool/dark (0.42s)
+FAIL
+FAIL	floter/internal/shell	1.945s
+=== RUN   TestConfigTransferCopyRespectsRowBusy
+=== RUN   TestConfigTransferCopyRespectsRowBusy/light
+    configtransferbusy_test.go:67: busy row dispatched copy-row-busy 1 times
+=== RUN   TestConfigTransferCopyRespectsRowBusy/dark
+    configtransferbusy_test.go:67: busy row dispatched copy-row-busy 1 times
+--- FAIL: TestConfigTransferCopyRespectsRowBusy (0.36s)
+    --- FAIL: TestConfigTransferCopyRespectsRowBusy/light (0.23s)
+    --- FAIL: TestConfigTransferCopyRespectsRowBusy/dark (0.13s)
+=== RUN   TestConfigTransferExportRespectsRowBusy
+=== RUN   TestConfigTransferExportRespectsRowBusy/light
+    configtransferbusy_test.go:67: busy row dispatched export-row-busy 1 times
+=== RUN   TestConfigTransferExportRespectsRowBusy/dark
+    configtransferbusy_test.go:67: busy row dispatched export-row-busy 1 times
+--- FAIL: TestConfigTransferExportRespectsRowBusy (0.25s)
+    --- FAIL: TestConfigTransferExportRespectsRowBusy/light (0.12s)
+    --- FAIL: TestConfigTransferExportRespectsRowBusy/dark (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	0.620s
+FAIL

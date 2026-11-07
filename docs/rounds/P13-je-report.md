@@ -32,3 +32,10 @@
 
 3. 复制 ownership：现象 → provider 改由 tool 持有后，旧复制仍写剪贴板。改动 → 沿既有 tool-owner 语义在宿主拒绝，提示打开工具配置。验证 → `stale copy reached output: picker=0 clipboard=1` 原事件实红；修后不输出、不改草稿，恢复 host 后可重试。
 4. 导出 ownership：现象 → 相同刷新后仍打开选择器、落文件。改动 → 同一宿主 owner 校验拦在选择器前。验证 → `stale export reached output: picker=1 clipboard=0` 原事件实红；修后选择器零次，恢复 host 后导出一次。
+
+第二批定向 38 PASS / 0 FAIL，shell vet 净，ee3e1107 已推送。
+
+## 第三批
+
+5. 保存配置撤回：现象 → 点击保存时 provider 已撤回配置，空指针使动作崩溃。改动 → 保存接同一个当前配置校验，错误回到原表单错误带。验证 → 旧事件 `stale save panicked after missing refresh: runtime error: invalid memory address or nil pointer dereference` 实红；拒绝后磁盘原配置逐字节未变。
+6. 保存 ownership：现象 → provider 改成 tool 后，旧保存仍写入磁盘。改动 → 同一 host 条件阻止该写入。验证 → `stale save changed stored configuration: <nil>` 原事件实红；修后非 nil 错误可见、文件字节不变，不调整保存时机。
