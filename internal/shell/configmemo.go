@@ -175,7 +175,11 @@ func refreshStoredConfigs(
 			for id, fact := range fresh {
 				merged[id] = fact
 			}
-			m.publish(merged, computed)
+			// Both the new row and the map it is merged into must still belong
+			// to this read. Otherwise a save to a neighbour is rolled back too.
+			if !m.publishCurrent(merged, computed, revision) {
+				continue
+			}
 			entries = merged
 		}
 
