@@ -1,0 +1,124 @@
+=== RUN   TestRepeatedImportUsesLatestEnabledState
+=== RUN   TestRepeatedImportUsesLatestEnabledState/light/disabled
+=== RUN   TestRepeatedImportUsesLatestEnabledState/light/enabled
+=== RUN   TestRepeatedImportUsesLatestEnabledState/dark/disabled
+=== RUN   TestRepeatedImportUsesLatestEnabledState/dark/enabled
+--- PASS: TestRepeatedImportUsesLatestEnabledState (0.61s)
+    --- PASS: TestRepeatedImportUsesLatestEnabledState/light/disabled (0.22s)
+    --- PASS: TestRepeatedImportUsesLatestEnabledState/light/enabled (0.13s)
+    --- PASS: TestRepeatedImportUsesLatestEnabledState/dark/disabled (0.13s)
+    --- PASS: TestRepeatedImportUsesLatestEnabledState/dark/enabled (0.13s)
+=== RUN   TestScriptLateFailureKeepsCurrentFailure
+=== RUN   TestScriptLateFailureKeepsCurrentFailure/light
+2026/11/08 02:38:29 floter: could not pick a path for diagnose.py: current picker failure
+2026/11/08 02:38:29 floter: could not pick a path for diagnose.py: obsolete picker failure
+=== RUN   TestScriptLateFailureKeepsCurrentFailure/dark
+2026/11/08 02:38:29 floter: could not pick a path for diagnose.py: current picker failure
+2026/11/08 02:38:29 floter: could not pick a path for diagnose.py: obsolete picker failure
+--- PASS: TestScriptLateFailureKeepsCurrentFailure (0.26s)
+    --- PASS: TestScriptLateFailureKeepsCurrentFailure/light (0.14s)
+    --- PASS: TestScriptLateFailureKeepsCurrentFailure/dark (0.12s)
+=== RUN   TestIntegrationExportFailureRetiresSuccess
+=== RUN   TestIntegrationExportFailureRetiresSuccess/light
+=== RUN   TestIntegrationExportFailureRetiresSuccess/dark
+--- PASS: TestIntegrationExportFailureRetiresSuccess (0.55s)
+    --- PASS: TestIntegrationExportFailureRetiresSuccess/light (0.28s)
+    --- PASS: TestIntegrationExportFailureRetiresSuccess/dark (0.27s)
+=== RUN   TestConfigurationCopyFailureRetiresSuccess
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/light
+2026/11/08 02:38:29 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/dark
+2026/11/08 02:38:29 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationCopyFailureRetiresSuccess (0.14s)
+    --- PASS: TestConfigurationCopyFailureRetiresSuccess/light (0.07s)
+    --- PASS: TestConfigurationCopyFailureRetiresSuccess/dark (0.08s)
+=== RUN   TestConfigurationExportFailureRetiresSuccess
+=== RUN   TestConfigurationExportFailureRetiresSuccess/light
+2026/11/08 02:38:30 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+=== RUN   TestConfigurationExportFailureRetiresSuccess/dark
+2026/11/08 02:38:30 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+--- PASS: TestConfigurationExportFailureRetiresSuccess (0.13s)
+    --- PASS: TestConfigurationExportFailureRetiresSuccess/light (0.06s)
+    --- PASS: TestConfigurationExportFailureRetiresSuccess/dark (0.06s)
+=== RUN   TestScriptExportFailureRetiresSuccess
+=== RUN   TestScriptExportFailureRetiresSuccess/light
+2026/11/08 02:38:30 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+=== RUN   TestScriptExportFailureRetiresSuccess/dark
+2026/11/08 02:38:30 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+--- PASS: TestScriptExportFailureRetiresSuccess (0.15s)
+    --- PASS: TestScriptExportFailureRetiresSuccess/light (0.08s)
+    --- PASS: TestScriptExportFailureRetiresSuccess/dark (0.07s)
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess/light
+2026/11/08 02:38:30 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess/dark
+2026/11/08 02:38:30 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+--- PASS: TestConfigurationLateFailureDoesNotUndoSuccess (0.12s)
+    --- PASS: TestConfigurationLateFailureDoesNotUndoSuccess/light (0.06s)
+    --- PASS: TestConfigurationLateFailureDoesNotUndoSuccess/dark (0.06s)
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess/light
+2026/11/08 02:38:30 floter: could not pick a path for diagnose.py: obsolete picker failure
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess/dark
+2026/11/08 02:38:30 floter: could not pick a path for diagnose.py: obsolete picker failure
+--- PASS: TestScriptLateFailureDoesNotUndoSuccess (0.26s)
+    --- PASS: TestScriptLateFailureDoesNotUndoSuccess/light (0.13s)
+    --- PASS: TestScriptLateFailureDoesNotUndoSuccess/dark (0.13s)
+=== RUN   TestIntegrationExportRetryRetiresResolvedError
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/light
+2026/11/08 02:38:30 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrorlight82192887/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/dark
+2026/11/08 02:38:30 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrordark828399496/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRetryRetiresResolvedError (0.46s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/light (0.23s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/dark (0.23s)
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/light
+2026/11/08 02:38:31 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/dark
+2026/11/08 02:38:31 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationCopyRetryRetiresResolvedError (0.08s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/light (0.04s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/dark (0.04s)
+=== RUN   TestConfigurationExportRetryRetiresResolvedError
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/light
+2026/11/08 02:38:31 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/dark
+2026/11/08 02:38:31 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigurationExportRetryRetiresResolvedError (0.07s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/light (0.04s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/dark (0.03s)
+=== RUN   TestScriptExportRetryRetiresResolvedError
+=== RUN   TestScriptExportRetryRetiresResolvedError/light
+2026/11/08 02:38:31 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportRetryRetiresResolvedError/dark
+2026/11/08 02:38:31 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+--- PASS: TestScriptExportRetryRetiresResolvedError (0.10s)
+    --- PASS: TestScriptExportRetryRetiresResolvedError/light (0.05s)
+    --- PASS: TestScriptExportRetryRetiresResolvedError/dark (0.05s)
+=== RUN   TestIntegrationImportRetryRetiresResolvedError
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/light
+2026/11/08 02:38:31 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrorlight1154668178/003/import.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/dark
+2026/11/08 02:38:31 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrordark943746163/003/import.json: extensions: import version 99 is not supported
+--- PASS: TestIntegrationImportRetryRetiresResolvedError (0.47s)
+    --- PASS: TestIntegrationImportRetryRetiresResolvedError/light (0.23s)
+    --- PASS: TestIntegrationImportRetryRetiresResolvedError/dark (0.23s)
+=== RUN   TestOlderCompletionKeepsNewerFailure
+--- PASS: TestOlderCompletionKeepsNewerFailure (0.04s)
+=== RUN   TestResolvedNoticeBeforePaintKeepsLaterNotice
+--- PASS: TestResolvedNoticeBeforePaintKeepsLaterNotice (0.03s)
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError/copy
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError/export
+--- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError (0.08s)
+    --- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError/copy (0.04s)
+    --- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError/export (0.04s)
+=== RUN   TestCancelledConfigurationExportDoesNotResolveFailure
+2026/11/08 02:38:31 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable
+--- PASS: TestCancelledConfigurationExportDoesNotResolveFailure (0.03s)
+=== RUN   TestScriptOlderSuccessKeepsNewerFailure
+2026/11/08 02:38:32 floter: could not pick a path for diagnose.py: newer picker failed
+--- PASS: TestScriptOlderSuccessKeepsNewerFailure (0.05s)
+PASS
+ok  	floter/internal/shell	3.664s

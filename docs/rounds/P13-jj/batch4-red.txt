@@ -1,0 +1,23 @@
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess/light
+2026/11/08 02:37:50 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+    transfercurrent_test.go:157: config-late-success: obsolete failure replaced current result
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess/dark
+2026/11/08 02:37:50 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+    transfercurrent_test.go:157: config-late-success: obsolete failure replaced current result
+--- FAIL: TestConfigurationLateFailureDoesNotUndoSuccess (0.38s)
+    --- FAIL: TestConfigurationLateFailureDoesNotUndoSuccess/light (0.24s)
+    --- FAIL: TestConfigurationLateFailureDoesNotUndoSuccess/dark (0.14s)
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess/light
+2026/11/08 02:37:50 floter: could not pick a path for diagnose.py: obsolete picker failure
+    transfercurrent_test.go:157: script-late-success: obsolete failure replaced current result
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess/dark
+2026/11/08 02:37:51 floter: could not pick a path for diagnose.py: obsolete picker failure
+    transfercurrent_test.go:157: script-late-success: obsolete failure replaced current result
+--- FAIL: TestScriptLateFailureDoesNotUndoSuccess (0.38s)
+    --- FAIL: TestScriptLateFailureDoesNotUndoSuccess/light (0.19s)
+    --- FAIL: TestScriptLateFailureDoesNotUndoSuccess/dark (0.19s)
+FAIL
+FAIL	floter/internal/shell	0.774s
+FAIL

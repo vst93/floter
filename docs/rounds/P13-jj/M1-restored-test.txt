@@ -1,0 +1,12 @@
+=== RUN   TestRepeatedImportUsesLatestEnabledState
+=== RUN   TestRepeatedImportUsesLatestEnabledState/light/disabled
+=== RUN   TestRepeatedImportUsesLatestEnabledState/light/enabled
+=== RUN   TestRepeatedImportUsesLatestEnabledState/dark/disabled
+=== RUN   TestRepeatedImportUsesLatestEnabledState/dark/enabled
+--- PASS: TestRepeatedImportUsesLatestEnabledState (2.30s)
+    --- PASS: TestRepeatedImportUsesLatestEnabledState/light/disabled (0.70s)
+    --- PASS: TestRepeatedImportUsesLatestEnabledState/light/enabled (0.54s)
+    --- PASS: TestRepeatedImportUsesLatestEnabledState/dark/disabled (0.51s)
+    --- PASS: TestRepeatedImportUsesLatestEnabledState/dark/enabled (0.53s)
+PASS
+ok  	floter/internal/shell	2.309s

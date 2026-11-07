@@ -1,0 +1,21 @@
+=== RUN   TestIntegrationExportFailureRetiresSuccess
+=== RUN   TestIntegrationExportFailureRetiresSuccess/light
+    transfercurrent_test.go:238: failed export retains obsolete success
+=== RUN   TestIntegrationExportFailureRetiresSuccess/dark
+    transfercurrent_test.go:238: failed export retains obsolete success
+--- FAIL: TestIntegrationExportFailureRetiresSuccess (1.73s)
+    --- FAIL: TestIntegrationExportFailureRetiresSuccess/light (0.93s)
+    --- FAIL: TestIntegrationExportFailureRetiresSuccess/dark (0.80s)
+=== RUN   TestConfigurationCopyFailureRetiresSuccess
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/light
+2026/11/08 02:34:12 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+    transfercurrent_test.go:238: failed copy retains obsolete success
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/dark
+2026/11/08 02:34:13 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+    transfercurrent_test.go:238: failed copy retains obsolete success
+--- FAIL: TestConfigurationCopyFailureRetiresSuccess (0.40s)
+    --- FAIL: TestConfigurationCopyFailureRetiresSuccess/light (0.22s)
+    --- FAIL: TestConfigurationCopyFailureRetiresSuccess/dark (0.18s)
+FAIL
+FAIL	floter/internal/shell	2.151s
+FAIL

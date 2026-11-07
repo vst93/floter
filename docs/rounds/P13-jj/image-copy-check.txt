@@ -1,0 +1,4 @@
+=== RUN   TestTheImageCopyLeavesTheDrawingThread
+--- PASS: TestTheImageCopyLeavesTheDrawingThread (0.00s)
+PASS
+ok  	floter/internal/shell	0.003s

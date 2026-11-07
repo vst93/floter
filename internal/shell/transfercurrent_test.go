@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"floter/internal/extensions"
+	"floter/internal/settings"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -72,6 +73,11 @@ func TestRepeatedImportUsesLatestEnabledState(t *testing.T) {
 				a.openFileDialog = func() (string, error) { return path, nil }
 				tt := transferCauseFrame(t, a, dark)
 				currentTransfer(t, a, tt, false)
+				if r, ok := tt.Find("Configured"); ok {
+					tt.Scroll(500, 500, 0, r.Y-450)
+					tt.Frame()
+					tt.Frame()
+				}
 				currentDump(t, tt, "repeat-"+map[bool]string{false: "disabled", true: "enabled"}[initial], dark)
 				repo, err := extensions.LoadRepository(paths.RepositoryFile)
 				if err != nil {
@@ -195,6 +201,94 @@ func TestConfigurationLateFailureDoesNotUndoSuccess(t *testing.T) {
 
 func TestScriptLateFailureDoesNotUndoSuccess(t *testing.T) {
 	checkLateTransferFailure(t, false, true)
+}
+
+func TestCurrentTransferNoticeOwnership(t *testing.T) {
+	for _, mode := range []string{"pending", "other-action", "other-target", "unowned", "newer-after-close", "older-success"} {
+		t.Run(mode, func(t *testing.T) {
+			a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", nil })
+			tt := transferCauseFrame(t, a, false)
+			old := a.beginNotice("configuration-copy:configured")
+			latest := a.beginNotice("configuration-copy:configured")
+			a.transferSucceededFor(latest, "current completed result")
+			if mode != "pending" {
+				tt.Frame()
+			}
+			switch mode {
+			case "other-action":
+				a.transferFailedFor(a.beginNotice("configuration-export:configured"), "other failure", nil)
+			case "other-target":
+				a.transferFailedFor(a.beginNotice("configuration-copy:other"), "other failure", nil)
+			case "unowned":
+				a.transferSucceeded("unowned completed result")
+				a.transferFailedFor(a.beginNotice(latest.owner), "own failure", nil)
+			case "older-success":
+				a.transferSucceededFor(old, "older completed result")
+				a.transferFailedFor(old, "obsolete failure", nil)
+			default:
+				a.transferFailedFor(a.beginNotice(latest.owner), "own failure", nil)
+				if mode == "newer-after-close" {
+					a.transferSucceededFor(a.beginNotice(latest.owner), "newest completed result")
+				}
+			}
+			tt.Frame()
+			tt.Frame()
+			switch mode {
+			case "other-action", "other-target":
+				if !tt.HasText("current completed result") || !tt.HasText("other failure") {
+					t.Fatal("failure erased another result")
+				}
+			case "unowned":
+				if !tt.HasText("unowned completed result") {
+					t.Fatal("owned failure erased an unowned result")
+				}
+			case "older-success":
+				if tt.HasText("obsolete failure") {
+					t.Fatal("older completion downgraded the successful version")
+				}
+			case "newer-after-close":
+				if !tt.HasText("newest completed result") || tt.HasText("own failure") {
+					t.Fatal("queued close erased newer success")
+				}
+			default:
+				if tt.HasText("current completed result") || !tt.HasText("own failure") {
+					t.Fatal("queued obsolete success resurrected")
+				}
+			}
+		})
+	}
+}
+
+func TestCurrentTransferChineseCompact(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", nil })
+			if err := a.Store.Update(func(s *settings.Settings) { s.Language = "zh" }); err != nil {
+				t.Fatal(err)
+			}
+			tt := transferCauseFrame(t, a, dark)
+			tt.SetSize(720, 520)
+			tt.Frame()
+			done := make(chan error, 1)
+			values := transferFeedbackValues()
+			a.Settings.Actions.CopyConfiguration("dev.floter.configured", values, func(err error) { done <- err })
+			if err := transferFeedbackAwait(t, done); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			values["endpoint"] = "https://bad\xff.example"
+			a.Settings.Actions.CopyConfiguration("dev.floter.configured", values, func(err error) { done <- err })
+			if err := transferFeedbackAwait(t, done); err == nil {
+				t.Fatal("invalid copy succeeded")
+			}
+			tt.Frame()
+			tt.Frame()
+			if tt.HasText(a.SettingsCopy().ConfigCopied) {
+				t.Fatal("Chinese compact page retained obsolete success")
+			}
+			currentDump(t, tt, "chinese-compact", dark)
+		})
+	}
 }
 
 func checkTransferFailureRetiresSuccess(t *testing.T, operation string) {

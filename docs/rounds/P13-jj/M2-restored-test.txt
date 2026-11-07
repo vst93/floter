@@ -1,0 +1,58 @@
+=== RUN   TestScriptLateFailureKeepsCurrentFailure
+=== RUN   TestScriptLateFailureKeepsCurrentFailure/light
+2026/11/08 02:40:59 floter: could not pick a path for diagnose.py: current picker failure
+2026/11/08 02:40:59 floter: could not pick a path for diagnose.py: obsolete picker failure
+=== RUN   TestScriptLateFailureKeepsCurrentFailure/dark
+2026/11/08 02:40:59 floter: could not pick a path for diagnose.py: current picker failure
+2026/11/08 02:40:59 floter: could not pick a path for diagnose.py: obsolete picker failure
+--- PASS: TestScriptLateFailureKeepsCurrentFailure (0.63s)
+    --- PASS: TestScriptLateFailureKeepsCurrentFailure/light (0.40s)
+    --- PASS: TestScriptLateFailureKeepsCurrentFailure/dark (0.22s)
+=== RUN   TestIntegrationExportFailureRetiresSuccess
+=== RUN   TestIntegrationExportFailureRetiresSuccess/light
+=== RUN   TestIntegrationExportFailureRetiresSuccess/dark
+--- PASS: TestIntegrationExportFailureRetiresSuccess (1.71s)
+    --- PASS: TestIntegrationExportFailureRetiresSuccess/light (0.86s)
+    --- PASS: TestIntegrationExportFailureRetiresSuccess/dark (0.85s)
+=== RUN   TestConfigurationCopyFailureRetiresSuccess
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/light
+2026/11/08 02:41:01 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/dark
+2026/11/08 02:41:01 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationCopyFailureRetiresSuccess (0.37s)
+    --- PASS: TestConfigurationCopyFailureRetiresSuccess/light (0.21s)
+    --- PASS: TestConfigurationCopyFailureRetiresSuccess/dark (0.16s)
+=== RUN   TestConfigurationExportFailureRetiresSuccess
+=== RUN   TestConfigurationExportFailureRetiresSuccess/light
+2026/11/08 02:41:02 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+=== RUN   TestConfigurationExportFailureRetiresSuccess/dark
+2026/11/08 02:41:02 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+--- PASS: TestConfigurationExportFailureRetiresSuccess (0.35s)
+    --- PASS: TestConfigurationExportFailureRetiresSuccess/light (0.17s)
+    --- PASS: TestConfigurationExportFailureRetiresSuccess/dark (0.18s)
+=== RUN   TestScriptExportFailureRetiresSuccess
+=== RUN   TestScriptExportFailureRetiresSuccess/light
+2026/11/08 02:41:02 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+=== RUN   TestScriptExportFailureRetiresSuccess/dark
+2026/11/08 02:41:02 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+--- PASS: TestScriptExportFailureRetiresSuccess (0.35s)
+    --- PASS: TestScriptExportFailureRetiresSuccess/light (0.19s)
+    --- PASS: TestScriptExportFailureRetiresSuccess/dark (0.17s)
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess/light
+2026/11/08 02:41:02 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess/dark
+2026/11/08 02:41:03 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+--- PASS: TestConfigurationLateFailureDoesNotUndoSuccess (0.34s)
+    --- PASS: TestConfigurationLateFailureDoesNotUndoSuccess/light (0.17s)
+    --- PASS: TestConfigurationLateFailureDoesNotUndoSuccess/dark (0.16s)
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess/light
+2026/11/08 02:41:03 floter: could not pick a path for diagnose.py: obsolete picker failure
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess/dark
+2026/11/08 02:41:03 floter: could not pick a path for diagnose.py: obsolete picker failure
+--- PASS: TestScriptLateFailureDoesNotUndoSuccess (0.44s)
+    --- PASS: TestScriptLateFailureDoesNotUndoSuccess/light (0.21s)
+    --- PASS: TestScriptLateFailureDoesNotUndoSuccess/dark (0.23s)
+PASS
+ok  	floter/internal/shell	4.216s

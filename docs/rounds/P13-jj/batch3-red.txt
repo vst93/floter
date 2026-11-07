@@ -1,0 +1,23 @@
+=== RUN   TestConfigurationExportFailureRetiresSuccess
+=== RUN   TestConfigurationExportFailureRetiresSuccess/light
+2026/11/08 02:35:22 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+    transfercurrent_test.go:246: failed config-export retains obsolete success
+=== RUN   TestConfigurationExportFailureRetiresSuccess/dark
+2026/11/08 02:35:22 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+    transfercurrent_test.go:246: failed config-export retains obsolete success
+--- FAIL: TestConfigurationExportFailureRetiresSuccess (0.23s)
+    --- FAIL: TestConfigurationExportFailureRetiresSuccess/light (0.16s)
+    --- FAIL: TestConfigurationExportFailureRetiresSuccess/dark (0.07s)
+=== RUN   TestScriptExportFailureRetiresSuccess
+=== RUN   TestScriptExportFailureRetiresSuccess/light
+2026/11/08 02:35:22 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+    transfercurrent_test.go:246: failed script retains obsolete success
+=== RUN   TestScriptExportFailureRetiresSuccess/dark
+2026/11/08 02:35:22 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+    transfercurrent_test.go:246: failed script retains obsolete success
+--- FAIL: TestScriptExportFailureRetiresSuccess (0.16s)
+    --- FAIL: TestScriptExportFailureRetiresSuccess/light (0.08s)
+    --- FAIL: TestScriptExportFailureRetiresSuccess/dark (0.08s)
+FAIL
+FAIL	floter/internal/shell	0.403s
+FAIL

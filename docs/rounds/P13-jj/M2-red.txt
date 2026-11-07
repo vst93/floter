@@ -1,0 +1,75 @@
+=== RUN   TestScriptLateFailureKeepsCurrentFailure
+=== RUN   TestScriptLateFailureKeepsCurrentFailure/light
+2026/11/08 02:40:53 floter: could not pick a path for diagnose.py: current picker failure
+2026/11/08 02:40:53 floter: could not pick a path for diagnose.py: obsolete picker failure
+    transfercurrent_test.go:163: script-late-failure: obsolete failure replaced current result
+    transfercurrent_test.go:166: latest failure disappeared
+=== RUN   TestScriptLateFailureKeepsCurrentFailure/dark
+2026/11/08 02:40:53 floter: could not pick a path for diagnose.py: current picker failure
+2026/11/08 02:40:53 floter: could not pick a path for diagnose.py: obsolete picker failure
+    transfercurrent_test.go:163: script-late-failure: obsolete failure replaced current result
+    transfercurrent_test.go:166: latest failure disappeared
+--- FAIL: TestScriptLateFailureKeepsCurrentFailure (0.71s)
+    --- FAIL: TestScriptLateFailureKeepsCurrentFailure/light (0.49s)
+    --- FAIL: TestScriptLateFailureKeepsCurrentFailure/dark (0.22s)
+=== RUN   TestIntegrationExportFailureRetiresSuccess
+=== RUN   TestIntegrationExportFailureRetiresSuccess/light
+    transfercurrent_test.go:348: failed export retains obsolete success
+=== RUN   TestIntegrationExportFailureRetiresSuccess/dark
+    transfercurrent_test.go:348: failed export retains obsolete success
+--- FAIL: TestIntegrationExportFailureRetiresSuccess (1.75s)
+    --- FAIL: TestIntegrationExportFailureRetiresSuccess/light (0.87s)
+    --- FAIL: TestIntegrationExportFailureRetiresSuccess/dark (0.88s)
+=== RUN   TestConfigurationCopyFailureRetiresSuccess
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/light
+2026/11/08 02:40:55 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+    transfercurrent_test.go:348: failed copy retains obsolete success
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/dark
+2026/11/08 02:40:55 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+    transfercurrent_test.go:348: failed copy retains obsolete success
+--- FAIL: TestConfigurationCopyFailureRetiresSuccess (0.40s)
+    --- FAIL: TestConfigurationCopyFailureRetiresSuccess/light (0.21s)
+    --- FAIL: TestConfigurationCopyFailureRetiresSuccess/dark (0.20s)
+=== RUN   TestConfigurationExportFailureRetiresSuccess
+=== RUN   TestConfigurationExportFailureRetiresSuccess/light
+2026/11/08 02:40:55 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+    transfercurrent_test.go:348: failed config-export retains obsolete success
+=== RUN   TestConfigurationExportFailureRetiresSuccess/dark
+2026/11/08 02:40:55 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+    transfercurrent_test.go:348: failed config-export retains obsolete success
+--- FAIL: TestConfigurationExportFailureRetiresSuccess (0.38s)
+    --- FAIL: TestConfigurationExportFailureRetiresSuccess/light (0.19s)
+    --- FAIL: TestConfigurationExportFailureRetiresSuccess/dark (0.19s)
+=== RUN   TestScriptExportFailureRetiresSuccess
+=== RUN   TestScriptExportFailureRetiresSuccess/light
+2026/11/08 02:40:56 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+    transfercurrent_test.go:348: failed script retains obsolete success
+=== RUN   TestScriptExportFailureRetiresSuccess/dark
+2026/11/08 02:40:56 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+    transfercurrent_test.go:348: failed script retains obsolete success
+--- FAIL: TestScriptExportFailureRetiresSuccess (0.40s)
+    --- FAIL: TestScriptExportFailureRetiresSuccess/light (0.21s)
+    --- FAIL: TestScriptExportFailureRetiresSuccess/dark (0.20s)
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess/light
+2026/11/08 02:40:56 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+    transfercurrent_test.go:163: config-late-success: obsolete failure replaced current result
+=== RUN   TestConfigurationLateFailureDoesNotUndoSuccess/dark
+2026/11/08 02:40:56 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+    transfercurrent_test.go:163: config-late-success: obsolete failure replaced current result
+--- FAIL: TestConfigurationLateFailureDoesNotUndoSuccess (0.39s)
+    --- FAIL: TestConfigurationLateFailureDoesNotUndoSuccess/light (0.19s)
+    --- FAIL: TestConfigurationLateFailureDoesNotUndoSuccess/dark (0.19s)
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess/light
+2026/11/08 02:40:56 floter: could not pick a path for diagnose.py: obsolete picker failure
+    transfercurrent_test.go:163: script-late-success: obsolete failure replaced current result
+=== RUN   TestScriptLateFailureDoesNotUndoSuccess/dark
+2026/11/08 02:40:57 floter: could not pick a path for diagnose.py: obsolete picker failure
+    transfercurrent_test.go:163: script-late-success: obsolete failure replaced current result
+--- FAIL: TestScriptLateFailureDoesNotUndoSuccess (0.48s)
+    --- FAIL: TestScriptLateFailureDoesNotUndoSuccess/light (0.24s)
+    --- FAIL: TestScriptLateFailureDoesNotUndoSuccess/dark (0.24s)
+FAIL
+FAIL	floter/internal/shell	4.547s
+FAIL

@@ -1,0 +1,172 @@
+=== RUN   TestTheDriftNoticeIsAnnouncedOnlyOnce
+--- PASS: TestTheDriftNoticeIsAnnouncedOnlyOnce (0.05s)
+=== RUN   TestTheDriftToastIsDrawnWithItsAction
+--- PASS: TestTheDriftToastIsDrawnWithItsAction (0.39s)
+=== RUN   TestRefreshIntegrationsRaisesTheDriftToast
+--- PASS: TestRefreshIntegrationsRaisesTheDriftToast (0.09s)
+=== RUN   TestNoticeLongPathKeepsDismissReachable
+=== RUN   TestNoticeLongPathKeepsDismissReachable/light
+=== RUN   TestNoticeLongPathKeepsDismissReachable/dark
+--- PASS: TestNoticeLongPathKeepsDismissReachable (0.52s)
+    --- PASS: TestNoticeLongPathKeepsDismissReachable/light (0.25s)
+    --- PASS: TestNoticeLongPathKeepsDismissReachable/dark (0.26s)
+=== RUN   TestToastTonesAndMarksFollowTheirKind
+--- PASS: TestToastTonesAndMarksFollowTheirKind (0.00s)
+=== RUN   TestTheToastIsDrawnByTheAppsOwnViewport
+--- PASS: TestTheToastIsDrawnByTheAppsOwnViewport (0.24s)
+=== RUN   TestTheToastActionRunsAndClosesTheToast
+--- PASS: TestTheToastActionRunsAndClosesTheToast (0.23s)
+=== RUN   TestTheToastStackAnchorsPerSurface
+--- PASS: TestTheToastStackAnchorsPerSurface (0.23s)
+=== RUN   TestTheLauncherToastStackKeepsOnlyTheNewest
+--- PASS: TestTheLauncherToastStackKeepsOnlyTheNewest (0.24s)
+=== RUN   TestWarningNoticeShowsWhereTheUserIs
+--- PASS: TestWarningNoticeShowsWhereTheUserIs (0.26s)
+=== RUN   TestTheSuccessNoticeCarriesItsKindAndWindow
+--- PASS: TestTheSuccessNoticeCarriesItsKindAndWindow (0.25s)
+=== RUN   TestTheToastSpringsInOverTheSurfaceDuration
+--- PASS: TestTheToastSpringsInOverTheSurfaceDuration (0.02s)
+=== RUN   TestTheToastFloatsOnTheElevationLadder
+--- PASS: TestTheToastFloatsOnTheElevationLadder (0.02s)
+=== RUN   TestTheToastDismissKeyIsAnE1Face
+    notices_test.go:569: light/toast dismiss: crown y=65 +0 (face -26) shade y=86 -39
+    notices_test.go:569: dark/toast dismiss: crown y=66 +51 (face +33) shade y=86 +22
+--- PASS: TestTheToastDismissKeyIsAnE1Face (0.08s)
+=== RUN   TestDumpP13ZToastPNGs
+    notices_test.go:585: set FLOTER_PNG=1 to write the round's visual evidence
+--- SKIP: TestDumpP13ZToastPNGs (0.00s)
+=== RUN   TestDumpP13GToastFrames
+    p13g_dump_test.go:29: set FLOTER_PNG=1 to write the round's visual evidence
+--- SKIP: TestDumpP13GToastFrames (0.00s)
+=== RUN   TestTheToastControlsStepThePointer
+    pointerstep_test.go:123: light/toast / dismiss: rest 0 → f0 0 → settled -26114
+    pointerstep_test.go:123: dark/toast / dismiss: rest 0 → f0 0 → settled 32886
+    pointerstep_test.go:153: light/toast / action: rest -14000 → f0 -14000 → settled -21114
+    pointerstep_test.go:153: dark/toast / action: rest -14000 → f0 -14000 → settled -21114
+--- PASS: TestTheToastControlsStepThePointer (0.56s)
+=== RUN   TestTheRepairNoticesSplitRepairedFromRechecked
+=== RUN   TestTheRepairNoticesSplitRepairedFromRechecked/a_package_that_verifies_says_it_was_re-checked
+=== RUN   TestTheRepairNoticesSplitRepairedFromRechecked/a_record_that_drifted_says_it_was_repaired
+--- PASS: TestTheRepairNoticesSplitRepairedFromRechecked (0.12s)
+    --- PASS: TestTheRepairNoticesSplitRepairedFromRechecked/a_package_that_verifies_says_it_was_re-checked (0.05s)
+    --- PASS: TestTheRepairNoticesSplitRepairedFromRechecked/a_record_that_drifted_says_it_was_repaired (0.06s)
+=== RUN   TestIntegrationRemovalNoticeFollowsTheKind
+--- PASS: TestIntegrationRemovalNoticeFollowsTheKind (0.00s)
+=== RUN   TestConfigurationCopyRaisesTheNotice
+--- PASS: TestConfigurationCopyRaisesTheNotice (0.08s)
+=== RUN   TestTheToastEntranceRestsUnderReduceMotion
+--- PASS: TestTheToastEntranceRestsUnderReduceMotion (0.00s)
+=== RUN   TestTheToastActionChipIsAFaceNotARing
+=== RUN   TestTheToastActionChipIsAFaceNotARing/light
+    toastactionface_test.go:184: [light] box={X:622.6 Y:66.7 W:42.400024 H:19.800003} face={231 231 233 255 [0 0 0]} crown={234 234 235 255 [0 0 0]} shade={224 224 226 255 [0 0 0]} left={231 231 233 255 [0 0 0]} right={231 231 233 255 [0 0 0]} pane={249 249 251 255 [0 0 0]} near={249 249 251 255 [0 0 0]}
+=== RUN   TestTheToastActionChipIsAFaceNotARing/dark
+    toastactionface_test.go:184: [dark] box={X:622.6 Y:66.7 W:42.400024 H:19.800003} face={48 48 50 255 [0 0 0]} crown={57 57 59 255 [0 0 0]} shade={43 43 45 255 [0 0 0]} left={48 48 50 255 [0 0 0]} right={47 47 49 255 [0 0 0]} pane={24 24 27 255 [0 0 0]} near={24 24 27 255 [0 0 0]}
+--- PASS: TestTheToastActionChipIsAFaceNotARing (0.09s)
+    --- PASS: TestTheToastActionChipIsAFaceNotARing/light (0.03s)
+    --- PASS: TestTheToastActionChipIsAFaceNotARing/dark (0.05s)
+=== RUN   TestDumpP13JToastActionPNGs
+    toastactionface_test.go:223: set FLOTER_PNG=1 to write the before/after sheet
+--- SKIP: TestDumpP13JToastActionPNGs (0.00s)
+=== RUN   TestDumpP13KToastStack
+    toastramp_test.go:44: set FLOTER_PNG=1 to write the stack sheets
+--- SKIP: TestDumpP13KToastStack (0.00s)
+=== RUN   TestTheToastFaceOnlyAttenuatesItsBackdrop
+=== RUN   TestTheToastFaceOnlyAttenuatesItsBackdrop/light
+=== RUN   TestTheToastFaceOnlyAttenuatesItsBackdrop/dark
+--- PASS: TestTheToastFaceOnlyAttenuatesItsBackdrop (0.18s)
+    --- PASS: TestTheToastFaceOnlyAttenuatesItsBackdrop/light (0.04s)
+    --- PASS: TestTheToastFaceOnlyAttenuatesItsBackdrop/dark (0.13s)
+=== RUN   TestTheToastThrowFollowsTheFrameTransparency
+    toastthrow_test.go:108: deepest relative darkening: 100% = 0.156, 10% = 0.413
+--- PASS: TestTheToastThrowFollowsTheFrameTransparency (0.04s)
+=== RUN   TestBothToastArmsWearTheFloatingRim
+=== RUN   TestBothToastArmsWearTheFloatingRim/full/dark
+    toastthrow_test.go:142: full/dark: rim 67228 vs face 20342 at x=682 top=56
+=== RUN   TestBothToastArmsWearTheFloatingRim/full/light
+    toastthrow_test.go:142: full/light: rim 250000 vs face 193114 at x=682 top=56
+=== RUN   TestBothToastArmsWearTheFloatingRim/collapsed/dark
+    toastthrow_test.go:142: collapsed/dark: rim 66228 vs face 19228 at x=259 top=556
+=== RUN   TestBothToastArmsWearTheFloatingRim/collapsed/light
+    toastthrow_test.go:142: collapsed/light: rim 251000 vs face 202228 at x=259 top=556
+--- PASS: TestBothToastArmsWearTheFloatingRim (0.10s)
+    --- PASS: TestBothToastArmsWearTheFloatingRim/full/dark (0.05s)
+    --- PASS: TestBothToastArmsWearTheFloatingRim/full/light (0.02s)
+    --- PASS: TestBothToastArmsWearTheFloatingRim/collapsed/dark (0.02s)
+    --- PASS: TestBothToastArmsWearTheFloatingRim/collapsed/light (0.01s)
+=== RUN   TestTheLauncherToastKeepsItsContactLayer
+    toastthrow_test.go:169: alpha added under the strip: +1 row = 65, +5 rows = 32
+--- PASS: TestTheLauncherToastKeepsItsContactLayer (0.01s)
+=== RUN   TestIntegrationExportFailureRetiresSuccess
+=== RUN   TestIntegrationExportFailureRetiresSuccess/light
+=== RUN   TestIntegrationExportFailureRetiresSuccess/dark
+--- PASS: TestIntegrationExportFailureRetiresSuccess (0.74s)
+    --- PASS: TestIntegrationExportFailureRetiresSuccess/light (0.33s)
+    --- PASS: TestIntegrationExportFailureRetiresSuccess/dark (0.41s)
+=== RUN   TestConfigurationCopyFailureRetiresSuccess
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/light
+2026/11/08 02:34:46 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationCopyFailureRetiresSuccess/dark
+2026/11/08 02:34:46 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationCopyFailureRetiresSuccess (0.21s)
+    --- PASS: TestConfigurationCopyFailureRetiresSuccess/light (0.11s)
+    --- PASS: TestConfigurationCopyFailureRetiresSuccess/dark (0.09s)
+=== RUN   TestIntegrationExportRetryRetiresResolvedError
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/light
+2026/11/08 02:34:46 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrorlight4012186529/002/extension-repository.json: invalid character 'b' looking for beginning of value
+=== RUN   TestIntegrationExportRetryRetiresResolvedError/dark
+2026/11/08 02:34:46 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrordark673843483/002/extension-repository.json: invalid character 'b' looking for beginning of value
+--- PASS: TestIntegrationExportRetryRetiresResolvedError (0.84s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/light (0.40s)
+    --- PASS: TestIntegrationExportRetryRetiresResolvedError/dark (0.44s)
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/light
+2026/11/08 02:34:47 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+=== RUN   TestConfigurationCopyRetryRetiresResolvedError/dark
+2026/11/08 02:34:47 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+--- PASS: TestConfigurationCopyRetryRetiresResolvedError (0.13s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/light (0.07s)
+    --- PASS: TestConfigurationCopyRetryRetiresResolvedError/dark (0.06s)
+=== RUN   TestConfigurationExportRetryRetiresResolvedError
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/light
+2026/11/08 02:34:47 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+=== RUN   TestConfigurationExportRetryRetiresResolvedError/dark
+2026/11/08 02:34:47 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+--- PASS: TestConfigurationExportRetryRetiresResolvedError (0.12s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/light (0.06s)
+    --- PASS: TestConfigurationExportRetryRetiresResolvedError/dark (0.06s)
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/external/painted
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/another-operation/painted
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/external/queued
+=== RUN   TestResolvedNoticeKeepsAnotherOperationsError/another-operation/queued
+--- PASS: TestResolvedNoticeKeepsAnotherOperationsError (0.23s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/external/painted (0.06s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/another-operation/painted (0.06s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/external/queued (0.05s)
+    --- PASS: TestResolvedNoticeKeepsAnotherOperationsError/another-operation/queued (0.06s)
+=== RUN   TestScriptExportRetryRetiresResolvedError
+=== RUN   TestScriptExportRetryRetiresResolvedError/light
+2026/11/08 02:34:47 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportRetryRetiresResolvedError/dark
+2026/11/08 02:34:47 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+--- PASS: TestScriptExportRetryRetiresResolvedError (0.15s)
+    --- PASS: TestScriptExportRetryRetiresResolvedError/light (0.08s)
+    --- PASS: TestScriptExportRetryRetiresResolvedError/dark (0.07s)
+=== RUN   TestIntegrationImportRetryRetiresResolvedError
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/light
+2026/11/08 02:34:47 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrorlight2529680454/003/import.json: extensions: import version 99 is not supported
+=== RUN   TestIntegrationImportRetryRetiresResolvedError/dark
+2026/11/08 02:34:48 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrordark2150536945/003/import.json: extensions: import version 99 is not supported
+--- PASS: TestIntegrationImportRetryRetiresResolvedError (0.87s)
+    --- PASS: TestIntegrationImportRetryRetiresResolvedError/light (0.43s)
+    --- PASS: TestIntegrationImportRetryRetiresResolvedError/dark (0.44s)
+=== RUN   TestResolvedNoticeBeforePaintKeepsLaterNotice
+--- PASS: TestResolvedNoticeBeforePaintKeepsLaterNotice (0.06s)
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError/copy
+=== RUN   TestConfigurationRecoveryKeepsAnotherTargetsError/export
+--- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError (0.13s)
+    --- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError/copy (0.06s)
+    --- PASS: TestConfigurationRecoveryKeepsAnotherTargetsError/export (0.07s)
+PASS
+ok  	floter/internal/shell	7.288s

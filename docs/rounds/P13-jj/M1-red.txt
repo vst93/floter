@@ -1,0 +1,17 @@
+=== RUN   TestRepeatedImportUsesLatestEnabledState
+=== RUN   TestRepeatedImportUsesLatestEnabledState/light/disabled
+    transfercurrent_test.go:87: repeated import reports success but enabled=true, want false
+=== RUN   TestRepeatedImportUsesLatestEnabledState/light/enabled
+    transfercurrent_test.go:87: repeated import reports success but enabled=false, want true
+=== RUN   TestRepeatedImportUsesLatestEnabledState/dark/disabled
+    transfercurrent_test.go:87: repeated import reports success but enabled=true, want false
+=== RUN   TestRepeatedImportUsesLatestEnabledState/dark/enabled
+    transfercurrent_test.go:87: repeated import reports success but enabled=false, want true
+--- FAIL: TestRepeatedImportUsesLatestEnabledState (2.37s)
+    --- FAIL: TestRepeatedImportUsesLatestEnabledState/light/disabled (0.78s)
+    --- FAIL: TestRepeatedImportUsesLatestEnabledState/light/enabled (0.54s)
+    --- FAIL: TestRepeatedImportUsesLatestEnabledState/dark/disabled (0.50s)
+    --- FAIL: TestRepeatedImportUsesLatestEnabledState/dark/enabled (0.54s)
+FAIL
+FAIL	floter/internal/shell	2.380s
+FAIL
