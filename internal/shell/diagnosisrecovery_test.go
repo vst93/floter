@@ -127,3 +127,18 @@ func checkDiagnosisRuntimeChange(t *testing.T, change string) {
 
 func TestDiagnosisRecoveryRuntimeVersion(t *testing.T) { checkDiagnosisRuntimeChange(t, "version") }
 func TestDiagnosisRecoveryRuntimeRoot(t *testing.T)    { checkDiagnosisRuntimeChange(t, "root") }
+
+func TestDiagnosisRecoveryFailedChecksOverrideOK(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := newDiagnosisFixture(t, dark)
+			f.request(t, 0, "ok", []extensions.DiagnosisCheck{{ID: "account", Status: "error", Message: "需要重新登录"}}, true)
+			diagnosisWait(t, f.start(t))
+			tt := diagnosisRecoveryFrame(t, f, "failed-checks", dark)
+			row := f.a.integrationList()[0]
+			if !row.DiagnosisFailed || row.DiagnosisStatus != "ok" || !tt.HasText("需要重新登录") || tt.HasText("Ok") {
+				t.Errorf("failed provider checks still display an OK summary: failed=%v status=%q", row.DiagnosisFailed, row.DiagnosisStatus)
+			}
+		})
+	}
+}

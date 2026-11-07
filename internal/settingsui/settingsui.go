@@ -2604,7 +2604,11 @@ func (a *App) diagnosisCheckRow(c *ui.Context, check DiagnosisCheck, last bool) 
 		grid.Children(func() {
 			ui.Text(c, capitalizeWord(check.Status)).FontSize(tokens.Caption).
 				TextColor(statusInk(check.Status, tokens, t, tokens.TextTertiary)).ColumnStart(1)
-			ui.Text(c, check.Message).FontSize(tokens.Caption).
+			message := check.Message
+			if strings.TrimSpace(message) == "" {
+				message = check.ID
+			}
+			ui.Text(c, message).FontSize(tokens.Caption).
 				TextColor(t.TextMuted).Wrap().ColumnStart(2)
 		})
 		if !last {
@@ -2617,6 +2621,12 @@ func (a *App) diagnosisCheckRow(c *ui.Context, check DiagnosisCheck, last bool) 
 // status when it gave one, and the integration's state word when the check
 // itself said nothing (`Diagnosis` is that fallback's spelling).
 func diagnosisVerdict(integration Integration, copy i18n.Settings) string {
+	// A provider's overall "ok" does not cancel a failed individual check.
+	if integration.DiagnosisFailed && strings.TrimSpace(integration.DiagnosisStatus) == "ok" {
+		if problem := strings.TrimSpace(integration.Diagnosis); problem != "" {
+			return problem
+		}
+	}
 	if status := strings.TrimSpace(integration.DiagnosisStatus); status != "" {
 		return status
 	}

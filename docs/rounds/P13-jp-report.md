@@ -32,3 +32,10 @@
 4. 现象：RuntimeRoot刷新后同样沿用旧诊断。改动：诊断来源包含RuntimeRoot的值。验证：真实提供者子进程配合仓库运行根刷新，同样四场景由 `changed runtime root inherited stale diagnosis` 转绿；没有运行新命令或改变会话语义。
 
 第二批相关 **41 PASS / 0 FAIL**、shell vet净，gofmt完成；旧V/B/S断言0/0/0。
+
+第二批0871d6aa已推送。长汇总/长状态两个探针在开盘代码上已通过，撤回候选改动与测试，不计修复；规格以实际缺陷替换。开盘全量为5777 PASS / 3 FAIL（同一个既有TestHealthCompletionRecovery/disabled/dark及父节点），原串exit=4：夹具release文件被读到空内容，非产品断言被改弱；保留日志并复验。
+
+5. 现象：提供者某项只有ID、状态而没有消息时，诊断行只画Error，看不出检查对象。改动：空白消息回退已有ID，非空消息原样。验证：空字符串与空格/Tab两种情况，深浅均由 `empty check message hides the failing check identity` 转绿，非空消息的ID不额外显示。
+6. 现象：提供者整体ok但某检查失败时，页面总标题仍Ok，与通知矛盾。改动：已有失败标志成立时，用已记录的具体失败说明作为汇总；原始DiagnosisStatus不改。验证：真实提供者返回ok+account/error，`failed provider checks still display an OK summary` 深浅转绿，当前明细和失败标志保留。
+
+第三批相关 **49 PASS / 0 FAIL**、两包vet净；gofmt完成，旧V/B/S断言0/0/0。正式mutation仍待最终代码。
