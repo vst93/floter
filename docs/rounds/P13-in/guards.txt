@@ -1,0 +1,16 @@
+=== RUN   TestRefreshDestinationDuplicateCommands
+--- PASS: TestRefreshDestinationDuplicateCommands (0.18s)
+=== RUN   TestRefreshDestinationDoesNotSteal
+=== RUN   TestRefreshDestinationDoesNotSteal/run-removed
+=== RUN   TestRefreshDestinationDoesNotSteal/run-orphan
+=== RUN   TestRefreshDestinationDoesNotSteal/run-disabled
+=== RUN   TestRefreshDestinationDoesNotSteal/command-removed
+=== RUN   TestRefreshDestinationDoesNotSteal/command-orphan
+--- PASS: TestRefreshDestinationDoesNotSteal (0.21s)
+    --- PASS: TestRefreshDestinationDoesNotSteal/run-removed (0.05s)
+    --- PASS: TestRefreshDestinationDoesNotSteal/run-orphan (0.04s)
+    --- PASS: TestRefreshDestinationDoesNotSteal/run-disabled (0.04s)
+    --- PASS: TestRefreshDestinationDoesNotSteal/command-removed (0.04s)
+    --- PASS: TestRefreshDestinationDoesNotSteal/command-orphan (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.408s

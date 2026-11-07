@@ -41,3 +41,12 @@
 相关 **277 PASS / 0 FAIL**，包 vet 净。M3 撤回本批两文件实跑红，原串 `removed command lost keyboard destination "Close settings"`、`undeclared command lost keyboard destination "Close settings"`、`card-removed command lost keyboard destination "Close settings"`、`orphan command lost keyboard destination "Adopt"`；MD5 恢复、touch 后 **13 PASS**。旧 V/B/S 0/0/0。
 
 第八项补查成立：运行入口停止/破损/忙态禁用均无法 Enter 退出；表单提交键的停止/破损/忙态/验证失败共四类同样失焦。深浅共 14 个叶子在旧产品全红，下一批修这两个控件。
+
+## 第四批（7–8）
+
+7. 现象：已聚焦的表单提交键因停止、破损、忙态或参数验证刷新而禁用，Enter 不能取消。改动：提交键记住当前表单的持焦身份，失效时回原 Cancel。验证：四类 × 深浅，刷新不运行、不清答案，Enter 取消。
+8. 现象：卡片 Run 入口禁用或撤回后失焦。改动：禁用时回页头 Close；整卡移除、能力撤回同样回 Close，变为 orphan 时回 Adopt。验证：六类 × 深浅，刷新零动作，Enter 只到对应出口；orphan 仍声明参数时也覆盖，不改变既有表单保留语义。
+
+最终相关 **142 PASS / 0 FAIL**，包 vet 净；额外不抢焦与重复 ID 检查 **7 PASS / 0 FAIL**（也包含在 142 内）。M4 初版 **23 PASS** 还原；补全入口撤回后最终变异覆盖十组深浅场景。旧 V/B/S 0/0/0，新增 Skip 0。所有八项均有事件复现，忙态改型只是既有正确行为保护。
+
+M4 最终撤回两文件实跑红，原串 `submit-stopped run lost keyboard destination "Cancel"`、`disclosure-stopped run lost keyboard destination "Close settings"`、`disclosure-orphan run lost keyboard destination "Adopt"`；MD5 恢复、touch 后 **32 PASS**。最终两套 before/after 独立保存，mutation 恢复帧明确用 after 后缀。

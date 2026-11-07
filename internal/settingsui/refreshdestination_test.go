@@ -74,6 +74,13 @@ func checkRunDestination(t *testing.T, scenario string) {
 					a.repairBusy = map[string]bool{in.ID: true}
 				case "invalid":
 					in.Params[0].Kind, in.Params[0].Options = extensions.ParamSelect, []string{"valid"}
+				case "removed":
+					present = false
+				case "orphan":
+					in.Orphan = true
+					want = a.copy().IntegrationsAdopt
+				case "withdrawn":
+					a.Actions.RunWithParams = nil
 				}
 			}
 			tt.Frame()
@@ -98,7 +105,11 @@ func checkRunDestination(t *testing.T, scenario string) {
 				}
 			default:
 				if mode == "disclosure" {
-					if closed != 1 {
+					if reason == "orphan" {
+						if adopted != 1 {
+							t.Error("withdrawn disclosure cannot reach adoption")
+						}
+					} else if closed != 1 {
 						t.Error("disabled disclosure cannot exit by keyboard")
 					}
 				} else if a.runOpen[in.ID] {
@@ -112,6 +123,17 @@ func checkRunDestination(t *testing.T, scenario string) {
 func TestRefreshDestinationRunRemoved(t *testing.T)  { checkRunDestination(t, "removed") }
 func TestRefreshDestinationRunOrphan(t *testing.T)   { checkRunDestination(t, "orphan") }
 func TestRefreshDestinationRunBusyKind(t *testing.T) { checkRunDestination(t, "busy-kind") }
+
+func TestRefreshDestinationRunSubmitDisabled(t *testing.T) {
+	for _, reason := range []string{"stopped", "broken", "busy", "invalid"} {
+		t.Run(reason, func(t *testing.T) { checkRunDestination(t, "submit-"+reason) })
+	}
+}
+func TestRefreshDestinationRunDisclosureDisabled(t *testing.T) {
+	for _, reason := range []string{"stopped", "broken", "busy", "removed", "orphan", "withdrawn"} {
+		t.Run(reason, func(t *testing.T) { checkRunDestination(t, "disclosure-"+reason) })
+	}
+}
 
 func TestRefreshDestinationCommandAliasReorder(t *testing.T) {
 	checkCommandDestination(t, "alias-reorder")
@@ -140,6 +162,54 @@ func TestRefreshDestinationDuplicateCommands(t *testing.T) {
 	tt.Frame()
 	if toggled != "jv" {
 		t.Fatal("duplicate command declarations lost keyboard switch")
+	}
+}
+
+func TestRefreshDestinationDoesNotSteal(t *testing.T) {
+	for _, scenario := range []string{"run-removed", "run-orphan", "run-disabled", "command-removed", "command-orphan"} {
+		t.Run(scenario, func(t *testing.T) {
+			a := noticeApp(t, true)
+			in := commandListIntegration()
+			in.RuntimeAvailable = true
+			in.Commands = in.Commands[:1]
+			in.Params = []Param{{ID: "target", Label: "Target", Kind: extensions.ParamText}}
+			present := true
+			a.Integrations = func() []Integration {
+				if present {
+					return []Integration{in}
+				}
+				return nil
+			}
+			a.Actions.Close = func() { t.Error("refresh unexpectedly closed settings") }
+			a.Actions.AdoptIntegration = func(string) { t.Error("refresh unexpectedly adopted integration") }
+			a.Actions.RunWithParams = func(string, map[string]string) *extensions.ParamFailure {
+				t.Error("refresh unexpectedly ran command")
+				return nil
+			}
+			a.runOpen = map[string]bool{in.ID: true}
+			tt := noticeExitPage(t, a, true)
+			label := "Target"
+			if strings.HasPrefix(scenario, "command-") {
+				label = a.copy().IntegrationsCommandAliasFor("JSON Viewer")
+			}
+			optionExitFocus(t, tt, label)
+			optionExitFocus(t, tt, a.copy().Close)
+			switch scenario {
+			case "run-removed":
+				present = false
+			case "run-orphan", "command-orphan":
+				in.Orphan, in.Params = true, nil
+			case "run-disabled":
+				in.Running = false
+			case "command-removed":
+				in.Commands = nil
+			}
+			tt.Frame()
+			tt.Frame()
+			if !tt.Focused(a.copy().Close) {
+				t.Fatal("unfocused refresh stole header keyboard position")
+			}
+		})
 	}
 }
 

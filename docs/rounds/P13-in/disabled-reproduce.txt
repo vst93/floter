@@ -1,0 +1,77 @@
+=== RUN   TestRefreshDestinationRunSubmitDisabled
+=== RUN   TestRefreshDestinationRunSubmitDisabled/stopped
+=== RUN   TestRefreshDestinationRunSubmitDisabled/stopped/light
+    refreshdestination_test.go:83: submit-stopped run lost keyboard destination "Cancel"
+    refreshdestination_test.go:105: unavailable run cannot cancel by keyboard
+=== RUN   TestRefreshDestinationRunSubmitDisabled/stopped/dark
+    refreshdestination_test.go:83: submit-stopped run lost keyboard destination "Cancel"
+    refreshdestination_test.go:105: unavailable run cannot cancel by keyboard
+=== RUN   TestRefreshDestinationRunSubmitDisabled/broken
+=== RUN   TestRefreshDestinationRunSubmitDisabled/broken/light
+    refreshdestination_test.go:83: submit-broken run lost keyboard destination "Cancel"
+    refreshdestination_test.go:105: unavailable run cannot cancel by keyboard
+=== RUN   TestRefreshDestinationRunSubmitDisabled/broken/dark
+    refreshdestination_test.go:83: submit-broken run lost keyboard destination "Cancel"
+    refreshdestination_test.go:105: unavailable run cannot cancel by keyboard
+=== RUN   TestRefreshDestinationRunSubmitDisabled/busy
+=== RUN   TestRefreshDestinationRunSubmitDisabled/busy/light
+    refreshdestination_test.go:83: submit-busy run lost keyboard destination "Cancel"
+    refreshdestination_test.go:105: unavailable run cannot cancel by keyboard
+=== RUN   TestRefreshDestinationRunSubmitDisabled/busy/dark
+    refreshdestination_test.go:83: submit-busy run lost keyboard destination "Cancel"
+    refreshdestination_test.go:105: unavailable run cannot cancel by keyboard
+=== RUN   TestRefreshDestinationRunSubmitDisabled/invalid
+=== RUN   TestRefreshDestinationRunSubmitDisabled/invalid/light
+    refreshdestination_test.go:83: submit-invalid run lost keyboard destination "Cancel"
+    refreshdestination_test.go:105: unavailable run cannot cancel by keyboard
+=== RUN   TestRefreshDestinationRunSubmitDisabled/invalid/dark
+    refreshdestination_test.go:83: submit-invalid run lost keyboard destination "Cancel"
+    refreshdestination_test.go:105: unavailable run cannot cancel by keyboard
+--- FAIL: TestRefreshDestinationRunSubmitDisabled (1.18s)
+    --- FAIL: TestRefreshDestinationRunSubmitDisabled/stopped (0.45s)
+        --- FAIL: TestRefreshDestinationRunSubmitDisabled/stopped/light (0.31s)
+        --- FAIL: TestRefreshDestinationRunSubmitDisabled/stopped/dark (0.14s)
+    --- FAIL: TestRefreshDestinationRunSubmitDisabled/broken (0.25s)
+        --- FAIL: TestRefreshDestinationRunSubmitDisabled/broken/light (0.13s)
+        --- FAIL: TestRefreshDestinationRunSubmitDisabled/broken/dark (0.12s)
+    --- FAIL: TestRefreshDestinationRunSubmitDisabled/busy (0.25s)
+        --- FAIL: TestRefreshDestinationRunSubmitDisabled/busy/light (0.13s)
+        --- FAIL: TestRefreshDestinationRunSubmitDisabled/busy/dark (0.12s)
+    --- FAIL: TestRefreshDestinationRunSubmitDisabled/invalid (0.23s)
+        --- FAIL: TestRefreshDestinationRunSubmitDisabled/invalid/light (0.11s)
+        --- FAIL: TestRefreshDestinationRunSubmitDisabled/invalid/dark (0.12s)
+=== RUN   TestRefreshDestinationRunDisclosureDisabled
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/stopped
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/stopped/light
+    refreshdestination_test.go:83: disclosure-stopped run lost keyboard destination "Close settings"
+    refreshdestination_test.go:102: disabled disclosure cannot exit by keyboard
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/stopped/dark
+    refreshdestination_test.go:83: disclosure-stopped run lost keyboard destination "Close settings"
+    refreshdestination_test.go:102: disabled disclosure cannot exit by keyboard
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/broken
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/broken/light
+    refreshdestination_test.go:83: disclosure-broken run lost keyboard destination "Close settings"
+    refreshdestination_test.go:102: disabled disclosure cannot exit by keyboard
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/broken/dark
+    refreshdestination_test.go:83: disclosure-broken run lost keyboard destination "Close settings"
+    refreshdestination_test.go:102: disabled disclosure cannot exit by keyboard
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/busy
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/busy/light
+    refreshdestination_test.go:83: disclosure-busy run lost keyboard destination "Close settings"
+    refreshdestination_test.go:102: disabled disclosure cannot exit by keyboard
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/busy/dark
+    refreshdestination_test.go:83: disclosure-busy run lost keyboard destination "Close settings"
+    refreshdestination_test.go:102: disabled disclosure cannot exit by keyboard
+--- FAIL: TestRefreshDestinationRunDisclosureDisabled (0.72s)
+    --- FAIL: TestRefreshDestinationRunDisclosureDisabled/stopped (0.24s)
+        --- FAIL: TestRefreshDestinationRunDisclosureDisabled/stopped/light (0.12s)
+        --- FAIL: TestRefreshDestinationRunDisclosureDisabled/stopped/dark (0.12s)
+    --- FAIL: TestRefreshDestinationRunDisclosureDisabled/broken (0.24s)
+        --- FAIL: TestRefreshDestinationRunDisclosureDisabled/broken/light (0.11s)
+        --- FAIL: TestRefreshDestinationRunDisclosureDisabled/broken/dark (0.13s)
+    --- FAIL: TestRefreshDestinationRunDisclosureDisabled/busy (0.24s)
+        --- FAIL: TestRefreshDestinationRunDisclosureDisabled/busy/light (0.12s)
+        --- FAIL: TestRefreshDestinationRunDisclosureDisabled/busy/dark (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	1.911s
+FAIL

@@ -3043,6 +3043,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.restoreNotice(c, integration.ID, "editor", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "run", a.runOpen[integration.ID] && len(integration.Params) > 0 && a.Actions.RunWithParams != nil, adoptOpener)
 			a.restoreNotice(c, integration.ID, "command", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "run-opener", false, adoptOpener)
 			return
 		}
 		commandFocus := a.noticeFocus(c, integration.ID, "command")
@@ -3096,6 +3097,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				default:
 					run = a.actionButton(c, copy.RunAction)
 				}
+				a.rememberOperationFocus(c, integration.ID, "run-opener", run)
+				if run.IsDisabled() && run.FocusWithin() {
+					c.Resolve(*noticeExit(c)).Focus()
+				}
 				if runWasOpen && !a.runOpen[integration.ID] {
 					run.Focus()
 				}
@@ -3117,6 +3122,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				}
 			} else {
 				a.restoreNotice(c, integration.ID, "run", false, ui.Element{})
+				a.restoreNotice(c, integration.ID, "run-opener", false, ui.Element{})
 			}
 			// A broken row's entry is the re-check, not a reconnect: the
 			// reference drew the Wrench on a `broken` row and the reconnect
@@ -7446,6 +7452,8 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	a.rememberOperationFocus(c, integration.ID, "run", form)
 	fieldFocus := ui.Local(form, "focused-parameter", func() ui.Handle { return ui.Handle{} })
 	hadFieldFocus := fieldFocus.FocusWithin(c)
+	submitFocus := ui.Local(form, "submit-focus", func() ui.Handle { return ui.Handle{} })
+	hadSubmitFocus := submitFocus.Focused(c)
 	form.Children(func() {
 		// The form's own frame: the heading and hint the reference drew above the
 		// inputs (`RunParamForm.tsx`: `.extension-run-params__head` +
@@ -7584,7 +7592,10 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				delete(a.runError, integration.ID)
 			}
 			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
-			run := a.extensionPrimaryButton(c, copy.RunLabel, runDisabled)
+			run := a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus)
+			if runDisabled && hadSubmitFocus {
+				cancel.Focus()
+			}
 			if run.Clicked() && !runDisabled {
 				delete(a.runError, integration.ID)
 				// A run owns the answers at the instant of submission. Further

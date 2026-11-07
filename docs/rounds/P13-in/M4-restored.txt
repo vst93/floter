@@ -1,0 +1,48 @@
+=== RUN   TestRefreshDestinationRunSubmitDisabled
+=== RUN   TestRefreshDestinationRunSubmitDisabled/stopped
+=== RUN   TestRefreshDestinationRunSubmitDisabled/stopped/light
+=== RUN   TestRefreshDestinationRunSubmitDisabled/stopped/dark
+=== RUN   TestRefreshDestinationRunSubmitDisabled/broken
+=== RUN   TestRefreshDestinationRunSubmitDisabled/broken/light
+=== RUN   TestRefreshDestinationRunSubmitDisabled/broken/dark
+=== RUN   TestRefreshDestinationRunSubmitDisabled/busy
+=== RUN   TestRefreshDestinationRunSubmitDisabled/busy/light
+=== RUN   TestRefreshDestinationRunSubmitDisabled/busy/dark
+=== RUN   TestRefreshDestinationRunSubmitDisabled/invalid
+=== RUN   TestRefreshDestinationRunSubmitDisabled/invalid/light
+=== RUN   TestRefreshDestinationRunSubmitDisabled/invalid/dark
+--- PASS: TestRefreshDestinationRunSubmitDisabled (0.63s)
+    --- PASS: TestRefreshDestinationRunSubmitDisabled/stopped (0.23s)
+        --- PASS: TestRefreshDestinationRunSubmitDisabled/stopped/light (0.17s)
+        --- PASS: TestRefreshDestinationRunSubmitDisabled/stopped/dark (0.06s)
+    --- PASS: TestRefreshDestinationRunSubmitDisabled/broken (0.15s)
+        --- PASS: TestRefreshDestinationRunSubmitDisabled/broken/light (0.07s)
+        --- PASS: TestRefreshDestinationRunSubmitDisabled/broken/dark (0.08s)
+    --- PASS: TestRefreshDestinationRunSubmitDisabled/busy (0.12s)
+        --- PASS: TestRefreshDestinationRunSubmitDisabled/busy/light (0.06s)
+        --- PASS: TestRefreshDestinationRunSubmitDisabled/busy/dark (0.06s)
+    --- PASS: TestRefreshDestinationRunSubmitDisabled/invalid (0.13s)
+        --- PASS: TestRefreshDestinationRunSubmitDisabled/invalid/light (0.06s)
+        --- PASS: TestRefreshDestinationRunSubmitDisabled/invalid/dark (0.07s)
+=== RUN   TestRefreshDestinationRunDisclosureDisabled
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/stopped
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/stopped/light
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/stopped/dark
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/broken
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/broken/light
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/broken/dark
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/busy
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/busy/light
+=== RUN   TestRefreshDestinationRunDisclosureDisabled/busy/dark
+--- PASS: TestRefreshDestinationRunDisclosureDisabled (0.38s)
+    --- PASS: TestRefreshDestinationRunDisclosureDisabled/stopped (0.13s)
+        --- PASS: TestRefreshDestinationRunDisclosureDisabled/stopped/light (0.06s)
+        --- PASS: TestRefreshDestinationRunDisclosureDisabled/stopped/dark (0.06s)
+    --- PASS: TestRefreshDestinationRunDisclosureDisabled/broken (0.13s)
+        --- PASS: TestRefreshDestinationRunDisclosureDisabled/broken/light (0.06s)
+        --- PASS: TestRefreshDestinationRunDisclosureDisabled/broken/dark (0.06s)
+    --- PASS: TestRefreshDestinationRunDisclosureDisabled/busy (0.13s)
+        --- PASS: TestRefreshDestinationRunDisclosureDisabled/busy/light (0.07s)
+        --- PASS: TestRefreshDestinationRunDisclosureDisabled/busy/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	1.027s
