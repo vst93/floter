@@ -1,0 +1,56 @@
+diff --git a/internal/settingsui/contentfocus.go b/internal/settingsui/contentfocus.go
+index a98ceaf4..8ad26a95 100644
+--- a/internal/settingsui/contentfocus.go
++++ b/internal/settingsui/contentfocus.go
+@@ -24,3 +24,12 @@ func (s *contentFocusState) restore(c *ui.Context) {
+ 		}
+ 	}
+ }
++
++// Deep links share labels, so their return targets are keyed by the URL.
++func (a *App) linkFocus(c *ui.Context, link string) *contentFocusState {
++	key := struct {
++		app  *App
++		link string
++	}{a, link}
++	return ui.Local(c.Root(), key, func() contentFocusState { return contentFocusState{} })
++}
+diff --git a/internal/settingsui/rows.go b/internal/settingsui/rows.go
+index b0598e1d..e75bbd67 100644
+--- a/internal/settingsui/rows.go
++++ b/internal/settingsui/rows.go
+@@ -1409,6 +1409,7 @@ func (a *App) factRow(c *ui.Context, name, value string) {
+ // （`FaceOver(地, Sunken)`，与内容列同一个表达式）：dark 39 → **15**（−24 级）、
+ // light 230 → **246**（+16 级），它真的是一块挖穿的洞。
+ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func()) {
++	focus := a.linkFocus(c, value)
+ 	tokens := a.tokens(c)
+ 	t := c.Theme()
+ 	a.cardRow(c, ui.Center, nil, rowFace{}, control, func() {
+@@ -1418,11 +1419,12 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
+ 			Border(1, tokens.ControlEdge)
+ 		chip.Children(func() {
+ 			text := ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
+-				TextColor(tokens.TextSecondary).Selectable()
++				TextColor(tokens.TextSecondary).Selectable().Bind(&focus.source)
+ 			// Without the host copy action, the value itself is the useful
+ 			// keyboard destination. Keep the usual action's tab order intact.
+ 			if a.Actions.CopyText == nil {
+ 				text.Focusable()
++				focus.restore(c)
+ 			}
+ 		})
+ 	}, below...)
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index bf7c9c1d..4e48a36f 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -4514,7 +4514,7 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
+ 									a.Actions.NotifySuccess(copy.DeepLinkCopied)
+ 								}
+ 							}
+-						}, a.Actions.CopyText == nil)
++						}, a.Actions.CopyText == nil).Bind(&a.linkFocus(c, link).button)
+ 					})
+ 				}
+ 			})

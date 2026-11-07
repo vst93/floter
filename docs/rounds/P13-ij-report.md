@@ -39,4 +39,13 @@
 3. 现象：复制脚本入口撤回宿主能力后没有可继续输入的焦点。改动：原脚本编辑器绑定复制动作的来源句柄。验证：深浅真实复制→能力撤回后脚本编辑器持焦点，恢复能力仍保持编辑焦点，明确再复制才增加一次调用。
 4. 现象：导出能力撤回使按钮消失，原导出焦点随之丢失。改动：导出消失前检查原按钮是否持焦点，并归还同一脚本编辑器。验证：深浅原导出收到local.weather-script.js和完整脚本，撤回/恢复不额外导出，恢复后明确点击再派发一次。
 
-当批相关51 PASS / 0 FAIL，包vet净。M2实红6条FAIL记录（4个深浅叶子），原串 `script withdrawal lost source-field focus: want 脚本`、`export withdrawal lost source-field focus: want 脚本`；MD5一致、touch复验6 PASS / 0 FAIL。旧V/B/S 0/0/0。深色after目视：导出按钮已经退场，蓝色焦点环归到脚本编辑区域，代码和复制按钮仍在原位。
+当批相关51 PASS / 0 FAIL，包vet净。M2实红6条FAIL记录（4个深浅叶子），原串 `script withdrawal lost source-field focus: want 脚本`、`export withdrawal lost source-field focus: want 脚本`；MD5一致、touch复验6 PASS / 0 FAIL。旧V/B/S 0/0/0。深色after目视：导出按钮已经退场，输入光标归到脚本编辑区域，代码和复制按钮仍在原位；该编辑器以插入点表达焦点，不将其描述成外环。
+
+## 第三批（5–6）
+
+第二批b09882fb已推送。
+
+5. 现象：connect链接完成复制后撤回能力，文字按钮禁用，selectAll/copy拿不到URL。改动：按URL保存按钮/文本句柄，禁用时只将当前动作焦点还给同一行文本。验证：深浅侧栏Tab进入、Enter复制、能力撤回，原生selectAll/copy得到完整connect链接，宿主只被调用一次。
+6. 现象：register链接撤回能力后同样失焦，不能继续从当前行取值。改动：第二行使用自己的URL身份，焦点不串到首行。验证：两主题侧栏第二次Tab进入register，禁用后焦点及剪贴板均为register全文。
+
+当批相关53 PASS / 0 FAIL，包vet净；M3撤回三个产品文件的当批差异实红6条FAIL记录，原串 `connect-withdraw lost the current link's keyboard focus`、`register-withdraw lost the current link's keyboard focus`、`fallback copied "", want "floter://register?cmd=rg"`。三文件MD5还原全部一致，touch后6 PASS / 0 FAIL。旧V/B/S 0/0/0。

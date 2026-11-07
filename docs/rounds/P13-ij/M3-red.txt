@@ -1,0 +1,23 @@
+=== RUN   TestActionAvailabilityConnectWithdrawal
+=== RUN   TestActionAvailabilityConnectWithdrawal/light
+    actionavailability_test.go:148: connect-withdraw lost the current link's keyboard focus
+    actionavailability_test.go:168: fallback copied "", want "floter://connect?manifest=/path/to/tool.json"
+=== RUN   TestActionAvailabilityConnectWithdrawal/dark
+    actionavailability_test.go:148: connect-withdraw lost the current link's keyboard focus
+    actionavailability_test.go:168: fallback copied "", want "floter://connect?manifest=/path/to/tool.json"
+--- FAIL: TestActionAvailabilityConnectWithdrawal (0.22s)
+    --- FAIL: TestActionAvailabilityConnectWithdrawal/light (0.19s)
+    --- FAIL: TestActionAvailabilityConnectWithdrawal/dark (0.03s)
+=== RUN   TestActionAvailabilityRegisterWithdrawal
+=== RUN   TestActionAvailabilityRegisterWithdrawal/light
+    actionavailability_test.go:148: register-withdraw lost the current link's keyboard focus
+    actionavailability_test.go:168: fallback copied "", want "floter://register?cmd=rg"
+=== RUN   TestActionAvailabilityRegisterWithdrawal/dark
+    actionavailability_test.go:148: register-withdraw lost the current link's keyboard focus
+    actionavailability_test.go:168: fallback copied "", want "floter://register?cmd=rg"
+--- FAIL: TestActionAvailabilityRegisterWithdrawal (0.07s)
+    --- FAIL: TestActionAvailabilityRegisterWithdrawal/light (0.03s)
+    --- FAIL: TestActionAvailabilityRegisterWithdrawal/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.294s
+FAIL

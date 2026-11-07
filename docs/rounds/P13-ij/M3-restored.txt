@@ -1,0 +1,14 @@
+=== RUN   TestActionAvailabilityConnectWithdrawal
+=== RUN   TestActionAvailabilityConnectWithdrawal/light
+=== RUN   TestActionAvailabilityConnectWithdrawal/dark
+--- PASS: TestActionAvailabilityConnectWithdrawal (0.15s)
+    --- PASS: TestActionAvailabilityConnectWithdrawal/light (0.12s)
+    --- PASS: TestActionAvailabilityConnectWithdrawal/dark (0.03s)
+=== RUN   TestActionAvailabilityRegisterWithdrawal
+=== RUN   TestActionAvailabilityRegisterWithdrawal/light
+=== RUN   TestActionAvailabilityRegisterWithdrawal/dark
+--- PASS: TestActionAvailabilityRegisterWithdrawal (0.06s)
+    --- PASS: TestActionAvailabilityRegisterWithdrawal/light (0.03s)
+    --- PASS: TestActionAvailabilityRegisterWithdrawal/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.215s

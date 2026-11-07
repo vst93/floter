@@ -4514,7 +4514,7 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 									a.Actions.NotifySuccess(copy.DeepLinkCopied)
 								}
 							}
-						}, a.Actions.CopyText == nil)
+						}, a.Actions.CopyText == nil).Bind(&a.linkFocus(c, link).button)
 					})
 				}
 			})

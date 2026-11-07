@@ -171,3 +171,10 @@ func checkLinkActionAvailability(t *testing.T, second, restore bool) {
 		})
 	}
 }
+
+func TestActionAvailabilityConnectWithdrawal(t *testing.T) {
+	checkLinkActionAvailability(t, false, false)
+}
+func TestActionAvailabilityRegisterWithdrawal(t *testing.T) {
+	checkLinkActionAvailability(t, true, false)
+}

@@ -1409,6 +1409,7 @@ func (a *App) factRow(c *ui.Context, name, value string) {
 // （`FaceOver(地, Sunken)`，与内容列同一个表达式）：dark 39 → **15**（−24 级）、
 // light 230 → **246**（+16 级），它真的是一块挖穿的洞。
 func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func()) {
+	focus := a.linkFocus(c, value)
 	tokens := a.tokens(c)
 	t := c.Theme()
 	a.cardRow(c, ui.Center, nil, rowFace{}, control, func() {
@@ -1418,11 +1419,12 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
 			Border(1, tokens.ControlEdge)
 		chip.Children(func() {
 			text := ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
-				TextColor(tokens.TextSecondary).Selectable()
+				TextColor(tokens.TextSecondary).Selectable().Bind(&focus.source)
 			// Without the host copy action, the value itself is the useful
 			// keyboard destination. Keep the usual action's tab order intact.
 			if a.Actions.CopyText == nil {
 				text.Focusable()
+				focus.restore(c)
 			}
 		})
 	}, below...)

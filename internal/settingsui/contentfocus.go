@@ -24,3 +24,12 @@ func (s *contentFocusState) restore(c *ui.Context) {
 		}
 	}
 }
+
+// Deep links share labels, so their return targets are keyed by the URL.
+func (a *App) linkFocus(c *ui.Context, link string) *contentFocusState {
+	key := struct {
+		app  *App
+		link string
+	}{a, link}
+	return ui.Local(c.Root(), key, func() contentFocusState { return contentFocusState{} })
+}
