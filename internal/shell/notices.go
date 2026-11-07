@@ -117,7 +117,29 @@ func (a *App) queueOwnedToast(toast ui.Toast, attempt noticeAttempt) {
 			a.noticeMu.Unlock()
 			return
 		}
+		if attempt.owner != "" {
+			for id, success := range a.noticeSuccess {
+				if success.owner != attempt.owner || success.version > attempt.version {
+					continue
+				}
+				a.closeSuccess = append(a.closeSuccess, id)
+				delete(a.noticeSuccess, id)
+				kept := a.notices[:0]
+				for _, queued := range a.notices {
+					if queued.ID != id {
+						kept = append(kept, queued)
+					}
+				}
+				clear(a.notices[len(kept):])
+				a.notices = kept
+			}
+		}
 		a.noticeOwner, a.noticeVersion = attempt.owner, attempt.version
+	} else if toast.Type == "success" {
+		if a.noticeSuccess == nil {
+			a.noticeSuccess = make(map[string]noticeAttempt)
+		}
+		a.noticeSuccess[toast.ID] = attempt
 	}
 	a.notices = append(a.notices, toast)
 	a.noticeMu.Unlock()
@@ -235,9 +257,14 @@ func (a *App) flushNotices(c *ui.Context) {
 	a.notices = nil
 	closeNotice := a.closeNotice
 	a.closeNotice = false
+	closeSuccess := a.closeSuccess
+	a.closeSuccess = nil
 	a.noticeMu.Unlock()
 	if closeNotice {
 		c.CloseToast("floter-notice")
+	}
+	for _, id := range closeSuccess {
+		c.CloseToast(id)
 	}
 	for _, toast := range pending {
 		c.AddToast(toast)

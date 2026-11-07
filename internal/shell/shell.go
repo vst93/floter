@@ -302,6 +302,10 @@ type App struct {
 	closeNotice   bool
 	noticeVersion uint64
 	noticeNext    uint64
+	// Successful transfer slots keep their operation identity, so a later
+	// failure can retire its own earlier success without touching another tool.
+	noticeSuccess map[string]noticeAttempt
+	closeSuccess  []string
 	// toastSeen is when each showing toast first appeared, keyed by its id: the
 	// entrance animation's clock (the old build's `app-toast-in` keyframes ran
 	// from the element's own mount, which React gave it on the frame the toast

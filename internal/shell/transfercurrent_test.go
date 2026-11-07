@@ -173,6 +173,14 @@ func TestScriptLateFailureKeepsCurrentFailure(t *testing.T) {
 	checkLateTransferFailure(t, false, false)
 }
 
+func TestIntegrationExportFailureRetiresSuccess(t *testing.T) {
+	checkTransferFailureRetiresSuccess(t, "export")
+}
+
+func TestConfigurationCopyFailureRetiresSuccess(t *testing.T) {
+	checkTransferFailureRetiresSuccess(t, "copy")
+}
+
 func checkTransferFailureRetiresSuccess(t *testing.T, operation string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {

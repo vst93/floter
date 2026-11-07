@@ -95,7 +95,7 @@ func (a *App) exportIntegrations() {
 		// The reference reports a clean export as a success toast naming the
 		// count and the two things that never travel.
 		a.resolveNotice(attempt)
-		a.transferSucceeded(copy.IntegrationsExported(len(document.Extensions)))
+		a.transferSucceededFor(attempt, copy.IntegrationsExported(len(document.Extensions)))
 	}()
 }
 
@@ -221,12 +221,16 @@ const scriptExportNoticeID = "script-export"
 
 // transferSucceeded raises the export's success toast.
 func (a *App) transferSucceeded(message string) {
-	a.queueToast(ui.Toast{
+	a.transferSucceededFor(noticeAttempt{}, message)
+}
+
+func (a *App) transferSucceededFor(attempt noticeAttempt, message string) {
+	a.queueOwnedToast(ui.Toast{
 		ID:      transferNoticeID,
 		Title:   message,
 		Type:    "success",
 		Timeout: successNotice,
-	})
+	}, attempt)
 }
 
 // transferFailed raises the actual cause when the failure is not a bad document.
@@ -372,7 +376,7 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 	go func() {
 		a.writeClipboard(ClipboardPayload{Kind: clipboard.KindText, Text: text})
 		a.resolveNotice(owner)
-		a.transferSucceeded(a.SettingsCopy().ConfigCopied)
+		a.transferSucceededFor(owner, a.SettingsCopy().ConfigCopied)
 		finish(nil)
 	}()
 }
