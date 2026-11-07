@@ -43,3 +43,12 @@
 6. 现象：输入闭合时宿主更新为 53 秒，自定义菜单可见却无法选择同值打开编辑器。改动：闭合态收到 custom 时种入原值并打开输入，不触碰活动草稿。验证：两主题真实 Down/End/Enter，53 可读可编辑且未产生写入。
 
 相关 **46 PASS / 0 FAIL**，包 vet 净。旧 V/B/S 0/0/0。上述全部数值先在旧实现上见红；沿用前两组正式 mutation，不虚称本批额外变异。最初尝试的历史路径 `src/components/settings/GeneralPage.tsx` 不存在，随后通过该分支树清单定位 `src/settings/GeneralPage.tsx`；未做全盘搜索。
+
+第三批 `fd06c6bd` 已推送。
+
+## 第四批
+
+7. 现象：新快捷键草稿绑定时磁盘写入失败，整行消失、键位及命令清空，未提示失败。改动：检查本次 Store 写入结果，失败时保留草稿并沿用 save alert；系统注册拒绝语义不变。验证：真实 Add/录制/输入/Bind，原实现深浅均红，修后恢复文件能直接重试原命令。
+8. 现象：已存命令编辑 Enter 写失败，原编辑缓存被清，下一次 Enter 只能存回旧值。改动：接受写入后再清缓存。验证：深浅真实命令编辑、文件故障、Enter、恢复后再次 Enter，原文本与焦点保留，最终提交 unfinished。
+
+相关 **94 PASS / 0 FAIL**，包 vet 净；旧 V/B/S 0/0/0。原始红串 `failed add discarded draft: open=false key="" command=""`、`failed command discarded command draft: map[]`；本批先见红再修，正式 mutation 仍为 M1/M2 两组。

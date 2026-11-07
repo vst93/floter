@@ -498,7 +498,9 @@ func (a *App) addCustomShortcut() {
 	}
 	entries := append(append([]settings.CustomShortcut{}, a.customShortcuts()...),
 		settings.CustomShortcut{Key: a.customKey, Action: action})
-	a.commitCustomShortcuts(entries)
+	if !a.commitCustomShortcuts(entries) {
+		return
+	}
 	a.customDraftOpen = false
 	a.customKey, a.customCommand = "", ""
 }
@@ -539,8 +541,8 @@ func (a *App) updateCustomShortcut(index int, entry settings.CustomShortcut) {
 	// Whatever was typed into the row's command field is committed (or dropped
 	// with the binding); the row must not keep showing a draft over a new
 	// action, as the reference's `setAction` cleared `row.command` too.
-	delete(a.customEdits, entries[index].Key)
 	if entry.Action == commandAction {
+		delete(a.customEdits, entries[index].Key)
 		a.customKey, a.customCommand, a.customAction = entry.Key, "", commandAction
 		a.customDraftOpen = true
 		a.rebaseCustomRecorder(index)
@@ -549,7 +551,9 @@ func (a *App) updateCustomShortcut(index int, entry settings.CustomShortcut) {
 		return
 	}
 	entries[index] = entry
-	a.commitCustomShortcuts(entries)
+	if a.commitCustomShortcuts(entries) {
+		delete(a.customEdits, entry.Key)
+	}
 }
 
 // removeCustomShortcut drops one row.
@@ -583,9 +587,18 @@ func (a *App) rebaseCustomRecorder(removed int) {
 // commitCustomShortcuts hands the list to the shell, which persists it and
 // registers the keys; a key the system refused is reported on its own row
 // rather than left looking bound.
-func (a *App) commitCustomShortcuts(entries []settings.CustomShortcut) {
+func (a *App) commitCustomShortcuts(entries []settings.CustomShortcut) bool {
 	if a.Actions.SetCustomShortcuts == nil {
-		return
+		return false
 	}
+	writes := a.Store.Writes()
 	a.customRejections = a.Actions.SetCustomShortcuts(entries)
+	// Registration rejections are still the shell's per-key result. A disk
+	// failure is different: the store has kept the previous list, so keep
+	// this form's draft and use the existing save-failure feedback.
+	if a.Store.Writes() != writes && a.Store.LastError() != nil {
+		a.noteSaveFailed()
+		return false
+	}
+	return true
 }

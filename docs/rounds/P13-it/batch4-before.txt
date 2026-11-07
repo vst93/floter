@@ -1,0 +1,25 @@
+=== RUN   TestCustomSaveFailureAdd
+=== RUN   TestCustomSaveFailureAdd/light
+    customsavefailure_test.go:91: shortcut disk failure has no visible save feedback
+    customsavefailure_test.go:96: failed add discarded draft: open=false key="" command=""
+=== RUN   TestCustomSaveFailureAdd/dark
+    customsavefailure_test.go:91: shortcut disk failure has no visible save feedback
+    customsavefailure_test.go:96: failed add discarded draft: open=false key="" command=""
+--- FAIL: TestCustomSaveFailureAdd (0.29s)
+    --- FAIL: TestCustomSaveFailureAdd/light (0.25s)
+    --- FAIL: TestCustomSaveFailureAdd/dark (0.04s)
+=== RUN   TestCustomSaveFailureCommand
+=== RUN   TestCustomSaveFailureCommand/light
+    customsavefailure_test.go:91: shortcut disk failure has no visible save feedback
+    customsavefailure_test.go:107: failed command discarded command draft: map[]
+    customsavefailure_test.go:133: failed command cannot retry its retained edit
+=== RUN   TestCustomSaveFailureCommand/dark
+    customsavefailure_test.go:91: shortcut disk failure has no visible save feedback
+    customsavefailure_test.go:107: failed command discarded command draft: map[]
+    customsavefailure_test.go:133: failed command cannot retry its retained edit
+--- FAIL: TestCustomSaveFailureCommand (0.06s)
+    --- FAIL: TestCustomSaveFailureCommand/light (0.03s)
+    --- FAIL: TestCustomSaveFailureCommand/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.361s
+FAIL
