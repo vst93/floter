@@ -24,4 +24,11 @@
 1. 现象：当前有效诊断报告问题，浮层却显示成功勾。改动：将 DiagnosisFailed 传到既有反馈路由，显示警告字形和警告墨。验证：真实提供者子进程由设置 DiagnoseIntegration 动作启动，深浅 ui.Tester 均复现 `diagnosis-failed failure wears a success mark: type="success" timeout=4s`，改后警告类型/原 warningNotice 与可见句子同时通过。
 2. 现象：剪贴板清除失败也显示成功勾。改动：清除结果沿原完成出口携带失败类型。验证：清除失败完成回调深浅图与准确类型/时效断言；原 hidden 系统通知及成功启动器路由继续通过。不声称模拟了磁盘写失败，后续补实事件验证。
 
-第一批相关 **35 PASS / 0 FAIL**（batch1-green.txt），shell vet 退出0，旧 V/B/S 断言修改 **0/0/0**。深浅前后图已导出。正式 mutation 在最终产品上执行。
+第一批相关 **34 PASS / 0 FAIL**（batch1-green.txt），shell vet 退出0，旧 V/B/S 断言修改 **0/0/0**。深浅前后图已导出。正式 mutation 在最终产品上执行。cf949cd2 已推送；其正文及初版报告误写35，本处按原日志纠正为34，不改历史日志。
+
+剪贴板进一步补验真实写失败：创建非空目录占住索引目标，使 Clear 原子写入失败；确认历史仍保留且警告可见，不只调用完成回调。
+
+3. 现象：重连失败文案带成功勾。改动：Reconnect 的失败分支进入 notifyFailure。验证：设置动作真实返回 ErrNoIntegration 后，深浅图与回调均确认失败，改前原串 `reconnect-failed failure wears a success mark: type="success" timeout=4s`。
+4. 现象：修复失败文案带成功勾。改动：Repair 的失败分支使用同一警告出口。验证：设置动作真实错误回调、深浅截图，改前 `repair-failed failure wears a success mark: type="success" timeout=4s`，改后失败类型与6s既有警告窗口正确。
+
+第二批相关 **21 PASS / 0 FAIL**，shell vet 退出0。首稿测试导入误落在函数外导致编译错误，修正后才记录有效红绿；旧测试未修改。旧 V/B/S **0/0/0**。

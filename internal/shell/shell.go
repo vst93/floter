@@ -2135,7 +2135,7 @@ func (a *App) reconnectIntegration(id string, done func(error)) {
 		switch {
 		case err != nil:
 			log.Printf("floter: could not reconnect %s: %v", id, err)
-			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationCheckFailed(name) })
+			a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationCheckFailed(name) })
 		case report.Reconnected:
 			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationReconnected(name) })
 		default:
@@ -2171,7 +2171,7 @@ func (a *App) repairIntegration(id string, done func(error)) {
 		switch {
 		case err != nil:
 			log.Printf("floter: could not re-check %s: %v", id, err)
-			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationCheckFailed(name) })
+			a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationCheckFailed(name) })
 		case report.Repaired:
 			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRepaired(name) })
 		default:

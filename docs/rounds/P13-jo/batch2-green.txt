@@ -1,0 +1,52 @@
+=== RUN   TestCompletionSeverityDiagnosis
+=== RUN   TestCompletionSeverityDiagnosis/light
+=== RUN   TestCompletionSeverityDiagnosis/dark
+--- PASS: TestCompletionSeverityDiagnosis (0.84s)
+    --- PASS: TestCompletionSeverityDiagnosis/light (0.43s)
+    --- PASS: TestCompletionSeverityDiagnosis/dark (0.41s)
+=== RUN   TestCompletionSeverityClipboard
+=== RUN   TestCompletionSeverityClipboard/light
+2026/11/08 04:57:25 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboardlight3727971479/003/clipboard-history/.floter-state-708246923.tmp /tmp/TestCompletionSeverityClipboardlight3727971479/003/clipboard-history/index.json: file exists
+=== RUN   TestCompletionSeverityClipboard/dark
+2026/11/08 04:57:25 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboarddark1552954527/003/clipboard-history/.floter-state-1194808604.tmp /tmp/TestCompletionSeverityClipboarddark1552954527/003/clipboard-history/index.json: file exists
+--- PASS: TestCompletionSeverityClipboard (0.78s)
+    --- PASS: TestCompletionSeverityClipboard/light (0.38s)
+    --- PASS: TestCompletionSeverityClipboard/dark (0.40s)
+=== RUN   TestCompletionSeverityReconnect
+=== RUN   TestCompletionSeverityReconnect/light
+2026/11/08 04:57:26 floter: could not reconnect missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityReconnect/dark
+2026/11/08 04:57:26 floter: could not reconnect missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityReconnect (0.89s)
+    --- PASS: TestCompletionSeverityReconnect/light (0.46s)
+    --- PASS: TestCompletionSeverityReconnect/dark (0.43s)
+=== RUN   TestCompletionSeverityRepair
+=== RUN   TestCompletionSeverityRepair/light
+2026/11/08 04:57:27 floter: could not re-check missing-tool: extensions: no such integration
+=== RUN   TestCompletionSeverityRepair/dark
+2026/11/08 04:57:27 floter: could not re-check missing-tool: extensions: no such integration
+--- PASS: TestCompletionSeverityRepair (0.88s)
+    --- PASS: TestCompletionSeverityRepair/light (0.42s)
+    --- PASS: TestCompletionSeverityRepair/dark (0.46s)
+=== RUN   TestTheReconnectActionRebindsAMovedProgram
+--- PASS: TestTheReconnectActionRebindsAMovedProgram (0.10s)
+=== RUN   TestAReconnectWithNothingToBindToReportsIt
+2026/11/08 04:57:28 floter: could not reconnect dev.floter.moved: extensions: runtime-unavailable: runtime-unavailable:{"names":["systool"]}
+--- PASS: TestAReconnectWithNothingToBindToReportsIt (0.09s)
+=== RUN   TestTheRepairOpensTheProjectPageItWasGiven
+--- PASS: TestTheRepairOpensTheProjectPageItWasGiven (0.04s)
+=== RUN   TestTheRepairNoticesSplitRepairedFromRechecked
+=== RUN   TestTheRepairNoticesSplitRepairedFromRechecked/a_package_that_verifies_says_it_was_re-checked
+=== RUN   TestTheRepairNoticesSplitRepairedFromRechecked/a_record_that_drifted_says_it_was_repaired
+--- PASS: TestTheRepairNoticesSplitRepairedFromRechecked (0.20s)
+    --- PASS: TestTheRepairNoticesSplitRepairedFromRechecked/a_package_that_verifies_says_it_was_re-checked (0.09s)
+    --- PASS: TestTheRepairNoticesSplitRepairedFromRechecked/a_record_that_drifted_says_it_was_repaired (0.11s)
+=== RUN   TestTheRepairReportsBackToTheRow
+=== RUN   TestTheRepairReportsBackToTheRow/a_repair_reports_success
+=== RUN   TestTheRepairReportsBackToTheRow/a_reconnect_reports_its_failure
+2026/11/08 04:57:28 floter: could not reconnect dev.floter.moved: extensions: runtime-unavailable: runtime-unavailable:{"names":["systool"]}
+--- PASS: TestTheRepairReportsBackToTheRow (0.19s)
+    --- PASS: TestTheRepairReportsBackToTheRow/a_repair_reports_success (0.09s)
+    --- PASS: TestTheRepairReportsBackToTheRow/a_reconnect_reports_its_failure (0.10s)
+PASS
+ok  	floter/internal/shell	4.028s

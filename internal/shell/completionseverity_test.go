@@ -3,9 +3,11 @@ package shell
 import (
 	"image/png"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settingsui"
@@ -90,7 +92,48 @@ func TestCompletionSeverityDiagnosis(t *testing.T) {
 
 func TestCompletionSeverityClipboard(t *testing.T) {
 	checkCompletionSeverity(t, "clipboard-failed", func(t *testing.T, f *diagnosisFixture) string {
-		f.a.notifyClipboardClear(false)
+		paths := clipboard.FromConfigRoot(t.TempDir())
+		f.a.Clipboard = clipboard.NewStore(paths, 0)
+		if _, _, err := f.a.Clipboard.AddText("保留这条历史"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(paths.Index()); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(paths.Index(), "blocked"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if f.a.clearClipboardHistory() || len(f.a.Clipboard.Entries()) != 1 {
+			t.Fatal("failed clear lost the history or claimed success")
+		}
 		return i18n.NotificationsFor("zh").ClipboardClearFailed(i18n.For("zh").Settings.ClipboardPlugin)
+	})
+}
+
+func completionFailureDone(t *testing.T, start func(func(error))) {
+	t.Helper()
+	done := make(chan error, 1)
+	start(func(err error) { done <- err })
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("invalid action unexpectedly succeeded")
+		}
+	case <-time.After(6 * time.Second):
+		t.Fatal("action completion did not arrive")
+	}
+}
+
+func TestCompletionSeverityReconnect(t *testing.T) {
+	checkCompletionSeverity(t, "reconnect-failed", func(t *testing.T, f *diagnosisFixture) string {
+		completionFailureDone(t, func(done func(error)) { f.a.Settings.Actions.ReconnectIntegration("missing-tool", done) })
+		return i18n.NotificationsFor("zh").IntegrationCheckFailed("missing-tool")
+	})
+}
+
+func TestCompletionSeverityRepair(t *testing.T) {
+	checkCompletionSeverity(t, "repair-failed", func(t *testing.T, f *diagnosisFixture) string {
+		completionFailureDone(t, func(done func(error)) { f.a.Settings.Actions.RepairIntegration("missing-tool", done) })
+		return i18n.NotificationsFor("zh").IntegrationCheckFailed("missing-tool")
 	})
 }
