@@ -1846,6 +1846,7 @@ func (a *App) integrationList() []settingsui.Integration {
 		a.diagnosisMu.Lock()
 		if diagnosis, ok := a.diagnoses[item.ID]; ok {
 			item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
+			item.DiagnosisStatus, item.DiagnosisChecks = diagnosis.DiagnosisStatus, diagnosis.DiagnosisChecks
 			item.Health = diagnosis.Health
 		}
 		a.diagnosisMu.Unlock()

@@ -1,0 +1,19 @@
+=== RUN   TestDiagnosisCurrentVerdictIsVisible
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/light
+    diagnosiscurrent_test.go:197: provider verdict never reaches the diagnosis heading
+=== RUN   TestDiagnosisCurrentVerdictIsVisible/dark
+    diagnosiscurrent_test.go:197: provider verdict never reaches the diagnosis heading
+--- FAIL: TestDiagnosisCurrentVerdictIsVisible (1.09s)
+    --- FAIL: TestDiagnosisCurrentVerdictIsVisible/light (0.76s)
+    --- FAIL: TestDiagnosisCurrentVerdictIsVisible/dark (0.32s)
+=== RUN   TestDiagnosisCurrentChecksAreVisible
+=== RUN   TestDiagnosisCurrentChecksAreVisible/light
+    diagnosiscurrent_test.go:201: provider checks never reach the diagnostic grid
+=== RUN   TestDiagnosisCurrentChecksAreVisible/dark
+    diagnosiscurrent_test.go:201: provider checks never reach the diagnostic grid
+--- FAIL: TestDiagnosisCurrentChecksAreVisible (0.65s)
+    --- FAIL: TestDiagnosisCurrentChecksAreVisible/light (0.33s)
+    --- FAIL: TestDiagnosisCurrentChecksAreVisible/dark (0.32s)
+FAIL
+FAIL	floter/internal/shell	1.756s
+FAIL
