@@ -1,0 +1,15 @@
+internal/settingsui/settingsui.go: OK
+=== RUN   TestPaletteMenuExternalSelection
+=== RUN   TestPaletteMenuExternalSelection/light
+=== RUN   TestPaletteMenuExternalSelection/dark
+--- PASS: TestPaletteMenuExternalSelection (0.12s)
+    --- PASS: TestPaletteMenuExternalSelection/light (0.12s)
+    --- PASS: TestPaletteMenuExternalSelection/dark (0.01s)
+=== RUN   TestPaletteMenuReorder
+=== RUN   TestPaletteMenuReorder/light
+=== RUN   TestPaletteMenuReorder/dark
+--- PASS: TestPaletteMenuReorder (0.01s)
+    --- PASS: TestPaletteMenuReorder/light (0.00s)
+    --- PASS: TestPaletteMenuReorder/dark (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.141s

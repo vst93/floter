@@ -28,3 +28,12 @@
 2. 现象：展开动作菜单重排后，Enter 按旧索引选中剪贴板。改动：高亮随值重排。验证：深浅真实事件，Enter 只写浏览器一次，触发器焦点仍在。
 
 相关 **64 PASS / 0 FAIL**，包 vet 净；旧 V/B/S **0/0/0**。M1 恢复原 custom.go，**6 FAIL**，原串 `custom external selected "plugin:browser", want "plugin:calculator"`、`custom reorder selected "plugin:clipboard", want "plugin:browser"`；MD5 还原 touch 后 **6 PASS**。
+
+第一批 `44dbb0ef` 已推送。
+
+## 第二批
+
+3. 现象：调色板菜单展开后，宿主从 inherit 改为 dracula，Enter 又写回 contrast。改动：复用当前值刷新高亮。验证：深浅真实 Down/Enter，外部值保持 dracula、没有多余回调、焦点留在触发器。
+4. 现象：调色板选项重排后，Enter 落回 inherit。改动：保存选项值身份。验证：深浅真实事件，重排后只提交 contrast 一次，预览依旧跟随被选中的 ID。
+
+其余四项已见红但测试待对应批次再启用；不提交未修复的红测试。旧 V/B/S **0/0/0**。

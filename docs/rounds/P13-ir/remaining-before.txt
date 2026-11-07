@@ -1,0 +1,57 @@
+=== RUN   TestPaletteMenuExternalSelection
+=== RUN   TestPaletteMenuExternalSelection/light
+    menurefresh_test.go:81: palette external selected "contrast", want "dracula"
+    menurefresh_test.go:88: palette external wrote 1 choices, want 0
+=== RUN   TestPaletteMenuExternalSelection/dark
+    menurefresh_test.go:81: palette external selected "contrast", want "dracula"
+    menurefresh_test.go:88: palette external wrote 1 choices, want 0
+--- FAIL: TestPaletteMenuExternalSelection (0.15s)
+    --- FAIL: TestPaletteMenuExternalSelection/light (0.13s)
+    --- FAIL: TestPaletteMenuExternalSelection/dark (0.02s)
+=== RUN   TestPaletteMenuReorder
+=== RUN   TestPaletteMenuReorder/light
+    menurefresh_test.go:81: palette reorder selected "inherit", want "contrast"
+    menurefresh_test.go:88: palette reorder wrote 0 choices, want 1
+=== RUN   TestPaletteMenuReorder/dark
+    menurefresh_test.go:81: palette reorder selected "inherit", want "contrast"
+    menurefresh_test.go:88: palette reorder wrote 0 choices, want 1
+--- FAIL: TestPaletteMenuReorder (0.03s)
+    --- FAIL: TestPaletteMenuReorder/light (0.02s)
+    --- FAIL: TestPaletteMenuReorder/dark (0.02s)
+=== RUN   TestCustomMenuDuplicateLabels
+=== RUN   TestCustomMenuDuplicateLabels/light
+    menurefresh_test.go:81: custom duplicate selected "plugin:calculator", want "plugin:browser"
+=== RUN   TestCustomMenuDuplicateLabels/dark
+    menurefresh_test.go:81: custom duplicate selected "plugin:calculator", want "plugin:browser"
+--- FAIL: TestCustomMenuDuplicateLabels (0.04s)
+    --- FAIL: TestCustomMenuDuplicateLabels/light (0.02s)
+    --- FAIL: TestCustomMenuDuplicateLabels/dark (0.02s)
+=== RUN   TestPaletteMenuDuplicateLabels
+=== RUN   TestPaletteMenuDuplicateLabels/light
+    menurefresh_test.go:81: palette duplicate selected "inherit", want "contrast"
+    menurefresh_test.go:88: palette duplicate wrote 0 choices, want 1
+=== RUN   TestPaletteMenuDuplicateLabels/dark
+    menurefresh_test.go:81: palette duplicate selected "inherit", want "contrast"
+    menurefresh_test.go:88: palette duplicate wrote 0 choices, want 1
+--- FAIL: TestPaletteMenuDuplicateLabels (0.03s)
+    --- FAIL: TestPaletteMenuDuplicateLabels/light (0.02s)
+    --- FAIL: TestPaletteMenuDuplicateLabels/dark (0.02s)
+=== RUN   TestParameterMenuExternalSelection
+=== RUN   TestParameterMenuExternalSelection/light
+    menurefresh_test.go:150: open parameter menu overwrote external kind with "数字"
+=== RUN   TestParameterMenuExternalSelection/dark
+    menurefresh_test.go:150: open parameter menu overwrote external kind with "数字"
+--- FAIL: TestParameterMenuExternalSelection (0.03s)
+    --- FAIL: TestParameterMenuExternalSelection/light (0.02s)
+    --- FAIL: TestParameterMenuExternalSelection/dark (0.02s)
+=== RUN   TestResidencyMenuExternalSelection
+=== RUN   TestResidencyMenuExternalSelection/light
+    menurefresh_test.go:147: open residency menu overwrote external 120 with 20
+=== RUN   TestResidencyMenuExternalSelection/dark
+    menurefresh_test.go:147: open residency menu overwrote external 120 with 20
+--- FAIL: TestResidencyMenuExternalSelection (0.08s)
+    --- FAIL: TestResidencyMenuExternalSelection/light (0.06s)
+    --- FAIL: TestResidencyMenuExternalSelection/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.375s
+FAIL

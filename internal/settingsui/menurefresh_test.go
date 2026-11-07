@@ -97,6 +97,9 @@ func checkMenuRefresh(t *testing.T, component, scenario string) {
 func TestCustomMenuExternalSelection(t *testing.T) { checkMenuRefresh(t, "custom", "external") }
 func TestCustomMenuReorder(t *testing.T)           { checkMenuRefresh(t, "custom", "reorder") }
 
+func TestPaletteMenuExternalSelection(t *testing.T) { checkMenuRefresh(t, "palette", "external") }
+func TestPaletteMenuReorder(t *testing.T)           { checkMenuRefresh(t, "palette", "reorder") }
+
 func checkFixedMenuExternal(t *testing.T, residency bool) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {

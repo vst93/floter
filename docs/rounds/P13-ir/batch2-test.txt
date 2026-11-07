@@ -1,0 +1,44 @@
+=== RUN   TestCustomMenuExternalSelection
+=== RUN   TestCustomMenuExternalSelection/light
+=== RUN   TestCustomMenuExternalSelection/dark
+--- PASS: TestCustomMenuExternalSelection (0.11s)
+    --- PASS: TestCustomMenuExternalSelection/light (0.09s)
+    --- PASS: TestCustomMenuExternalSelection/dark (0.02s)
+=== RUN   TestCustomMenuReorder
+=== RUN   TestCustomMenuReorder/light
+=== RUN   TestCustomMenuReorder/dark
+--- PASS: TestCustomMenuReorder (0.04s)
+    --- PASS: TestCustomMenuReorder/light (0.02s)
+    --- PASS: TestCustomMenuReorder/dark (0.02s)
+=== RUN   TestPaletteMenuExternalSelection
+=== RUN   TestPaletteMenuExternalSelection/light
+=== RUN   TestPaletteMenuExternalSelection/dark
+--- PASS: TestPaletteMenuExternalSelection (0.05s)
+    --- PASS: TestPaletteMenuExternalSelection/light (0.03s)
+    --- PASS: TestPaletteMenuExternalSelection/dark (0.02s)
+=== RUN   TestPaletteMenuReorder
+=== RUN   TestPaletteMenuReorder/light
+=== RUN   TestPaletteMenuReorder/dark
+--- PASS: TestPaletteMenuReorder (0.04s)
+    --- PASS: TestPaletteMenuReorder/light (0.02s)
+    --- PASS: TestPaletteMenuReorder/dark (0.02s)
+=== RUN   TestThePalettePickerIsAFloorNotACeiling
+--- PASS: TestThePalettePickerIsAFloorNotACeiling (3.63s)
+=== RUN   TestThePalettePickerSharesTheCardsPickerBox
+--- PASS: TestThePalettePickerSharesTheCardsPickerBox (0.34s)
+=== RUN   TestThePaletteHoleIsARemainderNotAToken
+    palettepair_test.go:211: tiny: row 194.8…693.4 (498.6) | picker 194.8…414.8 (220) | block 575.0 (118.4) | hole 160.2
+    palettepair_test.go:211: small: row 200.4…690.2 (489.8) | picker 200.4…420.4 (220) | block 557.0 (133.2) | hole 136.6
+    palettepair_test.go:211: default: row 206.0…687.0 (481.0) | picker 206.0…426.0 (220) | block 539.0 (148.0) | hole 113.0
+    palettepair_test.go:211: large: row 211.6…683.8 (472.2) | picker 211.6…431.6 (220) | block 521.0 (162.8) | hole 89.4
+--- PASS: TestThePaletteHoleIsARemainderNotAToken (0.05s)
+=== RUN   TestThePaletteRowSharesOneLineWithItsPreview
+--- PASS: TestThePaletteRowSharesOneLineWithItsPreview (0.04s)
+=== RUN   TestSurfaceResidencyControlIsOneRow
+--- PASS: TestSurfaceResidencyControlIsOneRow (0.05s)
+=== RUN   TestThePaletteRowPreviewsItsColors
+--- PASS: TestThePaletteRowPreviewsItsColors (0.04s)
+=== RUN   TestThePalettePreviewFollowsTheAppearanceForInherit
+--- PASS: TestThePalettePreviewFollowsTheAppearanceForInherit (0.09s)
+PASS
+ok  	floter/internal/settingsui	4.484s

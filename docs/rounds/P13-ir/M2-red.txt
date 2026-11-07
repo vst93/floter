@@ -1,0 +1,23 @@
+=== RUN   TestPaletteMenuExternalSelection
+=== RUN   TestPaletteMenuExternalSelection/light
+    menurefresh_test.go:81: palette external selected "contrast", want "dracula"
+    menurefresh_test.go:88: palette external wrote 1 choices, want 0
+=== RUN   TestPaletteMenuExternalSelection/dark
+    menurefresh_test.go:81: palette external selected "contrast", want "dracula"
+    menurefresh_test.go:88: palette external wrote 1 choices, want 0
+--- FAIL: TestPaletteMenuExternalSelection (0.13s)
+    --- FAIL: TestPaletteMenuExternalSelection/light (0.12s)
+    --- FAIL: TestPaletteMenuExternalSelection/dark (0.01s)
+=== RUN   TestPaletteMenuReorder
+=== RUN   TestPaletteMenuReorder/light
+    menurefresh_test.go:81: palette reorder selected "inherit", want "contrast"
+    menurefresh_test.go:88: palette reorder wrote 0 choices, want 1
+=== RUN   TestPaletteMenuReorder/dark
+    menurefresh_test.go:81: palette reorder selected "inherit", want "contrast"
+    menurefresh_test.go:88: palette reorder wrote 0 choices, want 1
+--- FAIL: TestPaletteMenuReorder (0.01s)
+    --- FAIL: TestPaletteMenuReorder/light (0.00s)
+    --- FAIL: TestPaletteMenuReorder/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.145s
+FAIL

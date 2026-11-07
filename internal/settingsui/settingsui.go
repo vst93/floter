@@ -5030,7 +5030,8 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 			// 55 字 +5.0、75 字 +124.0，large 台阶 75 字 +186.6；120 字时预览块的盒子
 			// 落在 x=808，720 宽的窗口里已经画不出来了）。`Shrink(1)` 让它先借标签列
 			// 的地、借完了就在自己的盒子边收口（框架的省略号），预览块一个像素不挪。
-			e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.Palette).MinWidth(220).Shrink(1).Radius(999), true)
+			e := a.fieldFace(c, valueSelect(c, &selected, labels, labels, selected, a.tokens(c), len(labels) > 0).
+				Label(copy.Palette).MinWidth(220).Shrink(1).Radius(999), true)
 			if e.Changed() {
 				for _, option := range options {
 					if option.Label == selected {
