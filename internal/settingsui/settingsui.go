@@ -4136,6 +4136,9 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 			copy.ShortcutsReset, func() {
 				if a.Actions.ResetShortcuts != nil {
 					a.observeSettingsWrite(a.Actions.ResetShortcuts)
+					if a.Actions.ShortcutRefused != nil && a.Actions.ShortcutRefused(settings.ShortcutToggleWindow) {
+						a.rejectedShortcut = settings.ShortcutToggleWindow
+					}
 				}
 			}, func() {
 				a.card(c, func() {

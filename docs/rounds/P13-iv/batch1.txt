@@ -1,0 +1,68 @@
+=== RUN   TestResetShortcuts
+--- PASS: TestResetShortcuts (0.00s)
+=== RUN   TestASystemRefusedChordIsReportedAndChangesNothing
+2026/11/07 17:20:32 floter: could not register Cmd+Shift+G: taken
+--- PASS: TestASystemRefusedChordIsReportedAndChangesNothing (0.00s)
+=== RUN   TestASystemRefusedSummonShortcutNamesTheSummonAction
+2026/11/07 17:20:32 floter: could not register Ctrl+Space: taken
+--- PASS: TestASystemRefusedSummonShortcutNamesTheSummonAction (0.00s)
+=== RUN   TestResetSystemRefusalKeepsConfirmedBindings
+--- PASS: TestResetSystemRefusalKeepsConfirmedBindings (0.00s)
+PASS
+ok  	floter/internal/shell	0.006s
+=== RUN   TestActionWriteFailureAliases
+=== RUN   TestActionWriteFailureAliases/light/alias-single
+=== RUN   TestActionWriteFailureAliases/light/alias-mixed
+=== RUN   TestActionWriteFailureAliases/dark/alias-single
+=== RUN   TestActionWriteFailureAliases/dark/alias-mixed
+--- PASS: TestActionWriteFailureAliases (0.12s)
+    --- PASS: TestActionWriteFailureAliases/light/alias-single (0.10s)
+    --- PASS: TestActionWriteFailureAliases/light/alias-mixed (0.01s)
+    --- PASS: TestActionWriteFailureAliases/dark/alias-single (0.01s)
+    --- PASS: TestActionWriteFailureAliases/dark/alias-mixed (0.01s)
+=== RUN   TestActionWriteFailureCommand
+=== RUN   TestActionWriteFailureCommand/light
+=== RUN   TestActionWriteFailureCommand/dark
+--- PASS: TestActionWriteFailureCommand (0.01s)
+    --- PASS: TestActionWriteFailureCommand/light (0.01s)
+    --- PASS: TestActionWriteFailureCommand/dark (0.00s)
+=== RUN   TestActionWriteFailureKeepsFullPageFocus
+=== RUN   TestActionWriteFailureKeepsFullPageFocus/light
+=== RUN   TestActionWriteFailureKeepsFullPageFocus/dark
+--- PASS: TestActionWriteFailureKeepsFullPageFocus (0.08s)
+    --- PASS: TestActionWriteFailureKeepsFullPageFocus/light (0.07s)
+    --- PASS: TestActionWriteFailureKeepsFullPageFocus/dark (0.01s)
+=== RUN   TestActionWriteFailureIgnoresOldError
+=== RUN   TestActionWriteFailureIgnoresOldError/no-write
+=== RUN   TestActionWriteFailureIgnoresOldError/system-refusal
+--- PASS: TestActionWriteFailureIgnoresOldError (0.01s)
+    --- PASS: TestActionWriteFailureIgnoresOldError/no-write (0.00s)
+    --- PASS: TestActionWriteFailureIgnoresOldError/system-refusal (0.00s)
+=== RUN   TestActionWriteFailurePlugin
+=== RUN   TestActionWriteFailurePlugin/light
+=== RUN   TestActionWriteFailurePlugin/dark
+--- PASS: TestActionWriteFailurePlugin (0.00s)
+    --- PASS: TestActionWriteFailurePlugin/light (0.00s)
+    --- PASS: TestActionWriteFailurePlugin/dark (0.00s)
+=== RUN   TestActionWriteFailureRecorder
+=== RUN   TestActionWriteFailureRecorder/light
+=== RUN   TestActionWriteFailureRecorder/dark
+--- PASS: TestActionWriteFailureRecorder (0.00s)
+    --- PASS: TestActionWriteFailureRecorder/light (0.00s)
+    --- PASS: TestActionWriteFailureRecorder/dark (0.00s)
+=== RUN   TestActionWriteFailureReset
+=== RUN   TestActionWriteFailureReset/light
+=== RUN   TestActionWriteFailureReset/dark
+--- PASS: TestActionWriteFailureReset (0.02s)
+    --- PASS: TestActionWriteFailureReset/light (0.02s)
+    --- PASS: TestActionWriteFailureReset/dark (0.01s)
+=== RUN   TestTheRecorderSaysWhenTheSystemRefusedTheChord
+--- PASS: TestTheRecorderSaysWhenTheSystemRefusedTheChord (0.00s)
+=== RUN   TestResetSystemRefusalIsVisible
+=== RUN   TestResetSystemRefusalIsVisible/light
+=== RUN   TestResetSystemRefusalIsVisible/dark
+--- PASS: TestResetSystemRefusalIsVisible (0.07s)
+    --- PASS: TestResetSystemRefusalIsVisible/light (0.02s)
+    --- PASS: TestResetSystemRefusalIsVisible/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.317s

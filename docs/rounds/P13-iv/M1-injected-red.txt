@@ -1,0 +1,7 @@
+=== RUN   TestResetSystemRefusalKeepsConfirmedBindings
+2026/11/07 17:20:29 floter: could not register Ctrl+Space: occupied
+    shortcutresetrecovery_test.go:30: system-refused reset persisted unregistered defaults: map[hotkey:Ctrl+Space shortcuts:map[]]
+--- FAIL: TestResetSystemRefusalKeepsConfirmedBindings (0.00s)
+FAIL
+FAIL	floter/internal/shell	0.004s
+FAIL

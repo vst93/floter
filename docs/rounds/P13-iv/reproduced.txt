@@ -1,0 +1,70 @@
+=== RUN   TestResetSystemRefusalKeepsConfirmedBindings
+2026/11/07 17:18:21 floter: could not register Ctrl+Space: occupied
+    shortcutresetrecovery_test.go:31: system-refused reset persisted unregistered defaults: map[hotkey:Ctrl+Space shortcuts:map[]]
+--- FAIL: TestResetSystemRefusalKeepsConfirmedBindings (0.00s)
+=== RUN   TestSummonDiskFailureDoesNotRepeatOldSystemRefusal
+2026/11/07 17:18:21 floter: could not register Ctrl+Alt+K: occupied
+2026/11/07 17:18:21 floter: could not save Ctrl+Alt+L: rename /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal2133377878/001/.floter-state-3618019074.tmp /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal2133377878/001/settings.json: file exists
+    shortcutresetrecovery_test.go:61: new disk failure retained the previous system refusal
+--- FAIL: TestSummonDiskFailureDoesNotRepeatOldSystemRefusal (0.00s)
+=== RUN   TestConfirmedSummonKeyClearsPreviousRefusal
+=== RUN   TestConfirmedSummonKeyClearsPreviousRefusal/record
+2026/11/07 17:18:21 floter: could not register Ctrl+Alt+K: occupied
+    shortcutresetrecovery_test.go:87: record of the working key retained stale refusal
+=== RUN   TestConfirmedSummonKeyClearsPreviousRefusal/apply
+2026/11/07 17:18:21 floter: could not register Ctrl+Alt+K: occupied
+    shortcutresetrecovery_test.go:87: apply of the working key retained stale refusal
+--- FAIL: TestConfirmedSummonKeyClearsPreviousRefusal (0.00s)
+    --- FAIL: TestConfirmedSummonKeyClearsPreviousRefusal/record (0.00s)
+    --- FAIL: TestConfirmedSummonKeyClearsPreviousRefusal/apply (0.00s)
+FAIL
+FAIL	floter/internal/shell	0.006s
+=== RUN   TestResetSystemRefusalIsVisible
+=== RUN   TestResetSystemRefusalIsVisible/light
+    shortcutresetrecovery_test.go:71: system-refused reset has no visible recovery feedback
+=== RUN   TestResetSystemRefusalIsVisible/dark
+    shortcutresetrecovery_test.go:71: system-refused reset has no visible recovery feedback
+--- FAIL: TestResetSystemRefusalIsVisible (0.25s)
+    --- FAIL: TestResetSystemRefusalIsVisible/light (0.13s)
+    --- FAIL: TestResetSystemRefusalIsVisible/dark (0.12s)
+=== RUN   TestSuccessfulResetClearsRefusal
+=== RUN   TestSuccessfulResetClearsRefusal/light
+    shortcutresetrecovery_test.go:75: successful reset retained obsolete refusal
+=== RUN   TestSuccessfulResetClearsRefusal/dark
+    shortcutresetrecovery_test.go:75: successful reset retained obsolete refusal
+--- FAIL: TestSuccessfulResetClearsRefusal (0.15s)
+    --- FAIL: TestSuccessfulResetClearsRefusal/light (0.04s)
+    --- FAIL: TestSuccessfulResetClearsRefusal/dark (0.11s)
+=== RUN   TestResetRefusalKeepsKeyboardRetry
+=== RUN   TestResetRefusalKeepsKeyboardRetry/light
+    shortcutresetrecovery_test.go:87: refused-focus lost reset keyboard focus
+    shortcutresetrecovery_test.go:92: refused-focus cannot retry from keyboard: calls=1
+=== RUN   TestResetRefusalKeepsKeyboardRetry/dark
+    shortcutresetrecovery_test.go:87: refused-focus lost reset keyboard focus
+    shortcutresetrecovery_test.go:92: refused-focus cannot retry from keyboard: calls=1
+--- FAIL: TestResetRefusalKeepsKeyboardRetry (0.18s)
+    --- FAIL: TestResetRefusalKeepsKeyboardRetry/light (0.06s)
+    --- FAIL: TestResetRefusalKeepsKeyboardRetry/dark (0.12s)
+=== RUN   TestResetResolutionKeepsKeyboardFocus
+=== RUN   TestResetResolutionKeepsKeyboardFocus/light
+    shortcutresetrecovery_test.go:87: resolved-focus lost reset keyboard focus
+    shortcutresetrecovery_test.go:92: resolved-focus cannot retry from keyboard: calls=1
+=== RUN   TestResetResolutionKeepsKeyboardFocus/dark
+    shortcutresetrecovery_test.go:87: resolved-focus lost reset keyboard focus
+    shortcutresetrecovery_test.go:92: resolved-focus cannot retry from keyboard: calls=1
+--- FAIL: TestResetResolutionKeepsKeyboardFocus (0.17s)
+    --- FAIL: TestResetResolutionKeepsKeyboardFocus/light (0.05s)
+    --- FAIL: TestResetResolutionKeepsKeyboardFocus/dark (0.12s)
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/light
+    shortcutresetrecovery_test.go:115: full-page refusal lost original recorder focus
+    shortcutresetrecovery_test.go:119: Enter did not retry original action
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/dark
+    shortcutresetrecovery_test.go:115: full-page refusal lost original recorder focus
+    shortcutresetrecovery_test.go:119: Enter did not retry original action
+--- FAIL: TestBuiltinRefusalKeepsFullPageRecorderFocus (0.15s)
+    --- FAIL: TestBuiltinRefusalKeepsFullPageRecorderFocus/light (0.04s)
+    --- FAIL: TestBuiltinRefusalKeepsFullPageRecorderFocus/dark (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.905s
+FAIL

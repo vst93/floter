@@ -2215,14 +2215,31 @@ func (a *App) browserProfileList(customBase string) []browser.Profile {
 // (so every action falls back to its default) and the summon key goes back to
 // the default one, re-registered with the system.
 func (a *App) resetShortcuts() {
+	// Claim the replacement before committing it: a system refusal must leave
+	// both the working key and its confirmed settings available for retry.
+	replacing := a.summonKey != settings.DefaultSummonShortcut
+	if replacing {
+		if err := a.registerShortcut(settings.DefaultSummonShortcut, a.Toggle); err != nil {
+			a.ShortcutErr, a.shortcutRefusal = err, settings.ShortcutToggleWindow
+			return
+		}
+	}
 	if err := a.Store.Update(func(s *settings.Settings) {
 		s.SetExtra("shortcuts", map[string]any{})
 		s.SetExtra("hotkey", settings.DefaultSummonShortcut)
 	}); err != nil {
 		log.Printf("floter: could not reset the shortcuts: %v", err)
+		if replacing {
+			a.unregisterShortcut(settings.DefaultSummonShortcut)
+		}
 		return
 	}
-	a.ApplySummonShortcut()
+	if replacing && a.summonKey != "" {
+		a.unregisterShortcut(a.summonKey)
+	}
+	a.summonKey = settings.DefaultSummonShortcut
+	a.Settings.Shortcut = settings.DefaultSummonShortcut
+	a.ShortcutErr, a.shortcutRefusal = nil, ""
 	a.ApplyCustomShortcuts()
 }
 
