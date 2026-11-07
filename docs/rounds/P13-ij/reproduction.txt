@@ -1,0 +1,77 @@
+=== RUN   TestActionAvailabilityCommandWithdrawal
+=== RUN   TestActionAvailabilityCommandWithdrawal/light
+    actionavailability_test.go:71: command withdrawal lost source-field focus: want 命令
+    actionavailability_test.go:84: restored capability stole source focus
+=== RUN   TestActionAvailabilityCommandWithdrawal/dark
+    actionavailability_test.go:71: command withdrawal lost source-field focus: want 命令
+    actionavailability_test.go:84: restored capability stole source focus
+--- FAIL: TestActionAvailabilityCommandWithdrawal (0.54s)
+    --- FAIL: TestActionAvailabilityCommandWithdrawal/light (0.37s)
+    --- FAIL: TestActionAvailabilityCommandWithdrawal/dark (0.17s)
+=== RUN   TestActionAvailabilityPlanWithdrawal
+=== RUN   TestActionAvailabilityPlanWithdrawal/light
+    actionavailability_test.go:71: plan withdrawal lost source-field focus: want 程序
+    actionavailability_test.go:84: restored capability stole source focus
+=== RUN   TestActionAvailabilityPlanWithdrawal/dark
+    actionavailability_test.go:71: plan withdrawal lost source-field focus: want 程序
+    actionavailability_test.go:84: restored capability stole source focus
+--- FAIL: TestActionAvailabilityPlanWithdrawal (0.34s)
+    --- FAIL: TestActionAvailabilityPlanWithdrawal/light (0.17s)
+    --- FAIL: TestActionAvailabilityPlanWithdrawal/dark (0.17s)
+=== RUN   TestActionAvailabilityScriptWithdrawal
+=== RUN   TestActionAvailabilityScriptWithdrawal/light
+    actionavailability_test.go:71: script withdrawal lost source-field focus: want 脚本
+    actionavailability_test.go:84: restored capability stole source focus
+=== RUN   TestActionAvailabilityScriptWithdrawal/dark
+    actionavailability_test.go:71: script withdrawal lost source-field focus: want 脚本
+    actionavailability_test.go:84: restored capability stole source focus
+--- FAIL: TestActionAvailabilityScriptWithdrawal (0.32s)
+    --- FAIL: TestActionAvailabilityScriptWithdrawal/light (0.16s)
+    --- FAIL: TestActionAvailabilityScriptWithdrawal/dark (0.16s)
+=== RUN   TestActionAvailabilityExportWithdrawal
+=== RUN   TestActionAvailabilityExportWithdrawal/light
+    actionavailability_test.go:71: export withdrawal lost source-field focus: want 脚本
+    actionavailability_test.go:84: restored capability stole source focus
+=== RUN   TestActionAvailabilityExportWithdrawal/dark
+    actionavailability_test.go:71: export withdrawal lost source-field focus: want 脚本
+    actionavailability_test.go:84: restored capability stole source focus
+--- FAIL: TestActionAvailabilityExportWithdrawal (0.25s)
+    --- FAIL: TestActionAvailabilityExportWithdrawal/light (0.13s)
+    --- FAIL: TestActionAvailabilityExportWithdrawal/dark (0.13s)
+=== RUN   TestActionAvailabilityConnectWithdrawal
+=== RUN   TestActionAvailabilityConnectWithdrawal/light
+    actionavailability_test.go:148: connect-withdraw lost the current link's keyboard focus
+    actionavailability_test.go:161: fallback copied "", want "floter://connect?manifest=/path/to/tool.json"
+=== RUN   TestActionAvailabilityConnectWithdrawal/dark
+    actionavailability_test.go:148: connect-withdraw lost the current link's keyboard focus
+    actionavailability_test.go:161: fallback copied "", want "floter://connect?manifest=/path/to/tool.json"
+--- FAIL: TestActionAvailabilityConnectWithdrawal (0.11s)
+    --- FAIL: TestActionAvailabilityConnectWithdrawal/light (0.06s)
+    --- FAIL: TestActionAvailabilityConnectWithdrawal/dark (0.05s)
+=== RUN   TestActionAvailabilityRegisterWithdrawal
+=== RUN   TestActionAvailabilityRegisterWithdrawal/light
+    actionavailability_test.go:148: register-withdraw lost the current link's keyboard focus
+    actionavailability_test.go:161: fallback copied "", want "floter://register?cmd=rg"
+=== RUN   TestActionAvailabilityRegisterWithdrawal/dark
+    actionavailability_test.go:148: register-withdraw lost the current link's keyboard focus
+    actionavailability_test.go:161: fallback copied "", want "floter://register?cmd=rg"
+--- FAIL: TestActionAvailabilityRegisterWithdrawal (0.11s)
+    --- FAIL: TestActionAvailabilityRegisterWithdrawal/light (0.05s)
+    --- FAIL: TestActionAvailabilityRegisterWithdrawal/dark (0.05s)
+=== RUN   TestActionAvailabilityConnectRestored
+=== RUN   TestActionAvailabilityConnectRestored/light
+=== RUN   TestActionAvailabilityConnectRestored/dark
+--- PASS: TestActionAvailabilityConnectRestored (0.10s)
+    --- PASS: TestActionAvailabilityConnectRestored/light (0.05s)
+    --- PASS: TestActionAvailabilityConnectRestored/dark (0.05s)
+=== RUN   TestActionAvailabilityRegisterRestored
+=== RUN   TestActionAvailabilityRegisterRestored/light
+    actionavailability_test.go:155: restored link Tab copied ["floter://connect?manifest=/path/to/tool.json"], want only "floter://register?cmd=rg"
+=== RUN   TestActionAvailabilityRegisterRestored/dark
+    actionavailability_test.go:155: restored link Tab copied ["floter://connect?manifest=/path/to/tool.json"], want only "floter://register?cmd=rg"
+--- FAIL: TestActionAvailabilityRegisterRestored (0.11s)
+    --- FAIL: TestActionAvailabilityRegisterRestored/light (0.05s)
+    --- FAIL: TestActionAvailabilityRegisterRestored/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	1.891s
+FAIL

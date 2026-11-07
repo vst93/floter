@@ -1,0 +1,23 @@
+=== RUN   TestActionAvailabilityCommandWithdrawal
+=== RUN   TestActionAvailabilityCommandWithdrawal/light
+    actionavailability_test.go:71: command withdrawal lost source-field focus: want 命令
+    actionavailability_test.go:84: restored capability stole source focus
+=== RUN   TestActionAvailabilityCommandWithdrawal/dark
+    actionavailability_test.go:71: command withdrawal lost source-field focus: want 命令
+    actionavailability_test.go:84: restored capability stole source focus
+--- FAIL: TestActionAvailabilityCommandWithdrawal (0.62s)
+    --- FAIL: TestActionAvailabilityCommandWithdrawal/light (0.42s)
+    --- FAIL: TestActionAvailabilityCommandWithdrawal/dark (0.20s)
+=== RUN   TestActionAvailabilityPlanWithdrawal
+=== RUN   TestActionAvailabilityPlanWithdrawal/light
+    actionavailability_test.go:71: plan withdrawal lost source-field focus: want 程序
+    actionavailability_test.go:84: restored capability stole source focus
+=== RUN   TestActionAvailabilityPlanWithdrawal/dark
+    actionavailability_test.go:71: plan withdrawal lost source-field focus: want 程序
+    actionavailability_test.go:84: restored capability stole source focus
+--- FAIL: TestActionAvailabilityPlanWithdrawal (0.40s)
+    --- FAIL: TestActionAvailabilityPlanWithdrawal/light (0.20s)
+    --- FAIL: TestActionAvailabilityPlanWithdrawal/dark (0.20s)
+FAIL
+FAIL	floter/internal/settingsui	1.032s
+FAIL

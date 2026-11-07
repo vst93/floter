@@ -1,0 +1,42 @@
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index 1945d6b7..5dfdc968 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -5520,7 +5520,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
+ 				a.scriptRows(c, copy, &language, &script, issues)
+ 			} else {
+ 				a.row(c, copy.LocalToolProgram, copy.LocalToolProgramHint, func() {
+-					a.extensionField(c, &program, customFieldMetrics).Label(copy.LocalToolProgram).Width(240).Grow(1).
++					a.extensionField(c, &program, customFieldMetrics).Bind(&a.contentFocus(c, "plan").source).Label(copy.LocalToolProgram).Width(240).Grow(1).
+ 						Placeholder(copy.LocalToolProgramPlaceholder)
+ 					if a.Actions.ChooseProgram != nil {
+ 						if a.actionButton(c, copy.LocalToolChoose).Clicked() {
+@@ -5532,7 +5532,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
+ 				})
+ 			}
+ 			a.row(c.Key("local-command"), copy.LocalToolCommand, copy.LocalToolCommandHint, func() {
+-				a.extensionField(c, &command, customFieldMetrics).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
++				a.extensionField(c, &command, customFieldMetrics).Bind(&a.contentFocus(c, "command").source).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
+ 			}, func() {
+ 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldCommand)
+ 			})
+@@ -5828,6 +5828,10 @@ func scriptExportName(id, command, language string) string {
+ // 现在胶囊的地板取两句里**更宽**的那一句（`MeasureText` 画的同一支画笔、同一档
+ // 字号与字重），确认语换上时盒子一个像素都不动。
+ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
++	focus := a.contentFocus(c, action)
++	if a.Actions.CopyText == nil || strings.TrimSpace(value) == "" {
++		focus.restore(c)
++	}
+ 	if a.Actions.CopyText == nil || (a.copiedContent == action && a.copiedContentValue != value) {
+ 		a.copiedContent, a.copiedContentValue = "", ""
+ 	}
+@@ -5846,7 +5850,7 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
+ 	if copied {
+ 		label = done
+ 	}
+-	button := a.actionButton(c, label).MinWidth(floor)
++	button := a.actionButton(c, label).MinWidth(floor).Bind(&focus.button)
+ 	if button.Clicked() {
+ 		if a.Actions.CopyText != nil {
+ 			form, open := a.toolFormKey, a.toolOpen

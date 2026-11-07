@@ -1,0 +1,11 @@
+=== RUN   TestActionAvailabilityConnectRestored
+=== RUN   TestActionAvailabilityConnectRestored/light
+    actionavailability_test.go:154: restored first link Shift-Tab did not return to sidebar
+=== RUN   TestActionAvailabilityConnectRestored/dark
+    actionavailability_test.go:154: restored first link Shift-Tab did not return to sidebar
+--- FAIL: TestActionAvailabilityConnectRestored (0.33s)
+    --- FAIL: TestActionAvailabilityConnectRestored/light (0.23s)
+    --- FAIL: TestActionAvailabilityConnectRestored/dark (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	0.339s
+FAIL
