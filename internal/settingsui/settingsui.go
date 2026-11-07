@@ -7495,7 +7495,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 						}
 					}
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
-						picker := a.segmentedControl(c, &index, param.Options...)
+						picker := a.segmentedControlKeyed(c, &index, param.Options, param.Options)
 						bindFocus(picker)
 						if locked {
 							lockedControl(picker)

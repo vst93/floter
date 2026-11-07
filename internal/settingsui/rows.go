@@ -940,6 +940,11 @@ func (a *App) busySwitchControl(c *ui.Context, on *bool, key string) ui.Element 
 // switches beside it keep following the step the way the reference's `--u`
 // rows do.
 func (a *App) segmentedControl(c *ui.Context, index *int, labels ...string) ui.Element {
+	return a.segmentedControlKeyed(c, index, labels)
+}
+
+// Dynamic parameter choices keep their identity when the manifest reorders them.
+func (a *App) segmentedControlKeyed(c *ui.Context, index *int, labels []string, keys ...[]string) ui.Element {
 	saved := c.Theme()
 	if a.cardUnit > 0 {
 		pinned := *saved
@@ -950,7 +955,7 @@ func (a *App) segmentedControl(c *ui.Context, index *int, labels ...string) ui.E
 	// gap (0.5 unit), both taken through `cardSpace` so they are the panel's
 	// literal px inside `extensionMetrics` and the settings `--u` outside it.
 	t := a.cardTheme(c)
-	track := control.SegmentedIndex(c, a.tokens(c), index, labels, false, false, a.cardSpace(t, 0.75), a.cardSpace(t, 0.5))
+	track := control.SegmentedIndex(c, a.tokens(c), index, labels, false, false, a.cardSpace(t, 0.75), a.cardSpace(t, 0.5), keys...)
 	c.SetTheme(saved)
 	return track
 }
