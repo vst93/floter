@@ -60,7 +60,8 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 	}
 	t := c.Theme()
 	tokens := a.tokens(c)
-	ui.Column(c).FillWidth().Gap(t.Space(1.5)).Children(func() {
+	block := ui.Column(c).FillWidth().Gap(t.Space(1.5))
+	block.Children(func() {
 		if len(report.ExcludedFields) > 0 {
 			names := make([]string, 0, len(report.ExcludedFields))
 			for _, warning := range report.ExcludedFields {
@@ -88,6 +89,9 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 		}
 		a.transferNotice(c, tokens.TextStrong, "check", copy.IntegrationsImportSummary(report.Succeeded, report.Skipped))
 	})
+	if report.Path != "" {
+		tokens.Tip(c, block, report.Path)
+	}
 }
 
 // transferNotice is one line of the report block: the reference's

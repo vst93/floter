@@ -333,7 +333,7 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 	text := string(document)
 	go func() {
 		a.writeClipboard(ClipboardPayload{Kind: clipboard.KindText, Text: text})
-		a.notifySuccess(a.SettingsCopy().ConfigCopied)
+		a.transferSucceeded(a.SettingsCopy().ConfigCopied)
 		finish(nil)
 	}()
 }
@@ -386,7 +386,7 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 			finish(err)
 			return
 		}
-		a.notifySuccess(a.SettingsCopy().ConfigExported)
+		a.transferSucceeded(a.SettingsCopy().ConfigExported)
 		finish(nil)
 	}()
 }

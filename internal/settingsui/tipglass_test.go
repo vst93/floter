@@ -255,13 +255,15 @@ func TestATruncatedIntegrationNameStillReadsInFull(t *testing.T) {
 }
 
 // TestTheSettingsPageHasNoFrameworkTips is the census: `internal/settingsui` holds
-// exactly eleven tips and every one of them is a `tokens.Tip`.
+// exactly twelve tips and every one of them is a `tokens.Tip`.
 // P13-jc S: ten anchors -> eleven; the shortcut recorder now exposes its
 // truncated chord through the existing glass tip, including draft rows.
+// P13-jd S: eleven anchors -> twelve; the import report exposes its source.
 var settingsTipCensus = map[string]int{
 	"rows.go":       3, // sessionIconButton · sessionKillConfirm · rowTitle's truncated name
 	"settingsui.go": 7, // integration name · Run's reason · homepage rowAction · repairAction ×2 · freshness dot · shortcut chord
 	"config.go":     1, // the required `*` marker
+	"transfer.go":   1, // import report source path
 }
 
 func TestTheSettingsPageHasNoFrameworkTips(t *testing.T) {
@@ -303,8 +305,8 @@ func TestTheSettingsPageHasNoFrameworkTips(t *testing.T) {
 			t.Errorf("%s carries %d `tokens.Tip` calls, want %d", n, got, want)
 		}
 	}
-	if total != 11 {
-		t.Errorf("the settings page carries %d tips, want 11 (§6.20 20-3 + §6.230)", total)
+	if total != 12 {
+		t.Errorf("the settings page carries %d tips, want 12 (§6.20 20-3 + §6.231)", total)
 	}
 	if lines != total {
 		t.Errorf("counted %d tip lines against %d calls — a call spans lines here", lines, total)

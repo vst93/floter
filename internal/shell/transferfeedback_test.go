@@ -39,6 +39,7 @@ func transferFeedbackFrame(t *testing.T, a *App, name string, dark bool) *ui.Tes
 	if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 		t.Fatal(err)
 	}
+	a.Open(SurfaceSettings)
 	tt := ui.NewTester(a.View, 720, 520)
 	tt.SetDark(dark)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
@@ -176,7 +177,7 @@ func TestIntegrationsImportPickerFailureIsVisible(t *testing.T) {
 	checkTransferDialogFailure(t, "import")
 }
 
-func probeConfigTransferSuccessPreservesOtherRefusal(t *testing.T) {
+func TestConfigTransferSuccessPreservesOtherRefusal(t *testing.T) {
 	for _, export := range []bool{false, true} {
 		for _, dark := range []bool{false, true} {
 			t.Run(map[bool]string{false: "copy", true: "export"}[export]+"/"+map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
