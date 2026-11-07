@@ -38,3 +38,10 @@ M1 已回注旧恢复流程实跑红，原串 `system-refused reset persisted un
 M2 回注上一批 shell 代码，`new disk failure retained the previous system refusal` 实红；MD5 还原通过。初次回归 **32 PASS / 3 FAIL**，shell 单项复验通过；执行者未按汇总退出码阻止提交，`1d57a242` 已推送。先前报告的 35 PASS/包 vet 净是错误记录，现明确撤回；batch2.txt 保留原失败。根因为用 Writes 判断恢复成功，内存 Store/已默认 no-op 不会写。已改为显式新尝试规则，修正后完整本批回归另记 batch2-corrected.txt。旧 V/B/S 0/0/0。
 
 第二批修正后 **35 PASS / 0 FAIL**，包 vet 退出 0，允许继续提交。
+
+### 第三批（5–6）
+
+5. 现象：宿主在拒绝新键后收到确认原工作键，仍报告旧系统拒绝。改动：确认原工作键时清掉已结束尝试的错误，不写入、不重注册。验证：真实注册回调留住 Ctrl+Alt+J，Actions 对应入口确认原键后错误清除、写入 0 次；这是宿主边界补强，页面 no-op 录制本来就会清自己的提示，最终不以此凑玩家可见八项。
+6. 现象：整页内置应用键录制被拒绝时，顶部提示插入使原录制入口失焦。改动：应用键组与自定义键组用稳定身份。验证：深浅 Tab/Enter/录制键，再按 Enter 继续原 new_command 录制；组内状态与尺寸不动。
+
+定向 **51 PASS / 0 FAIL**、包 vet 净。M1/M2 已实跑，焦点变异在第四批完成后统一回注稳定身份。

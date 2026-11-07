@@ -1,0 +1,109 @@
+=== RUN   TestSummonDiskFailureDoesNotRepeatOldSystemRefusal
+2026/11/07 17:23:43 floter: could not register Ctrl+Alt+K: occupied
+2026/11/07 17:23:43 floter: could not save Ctrl+Alt+L: rename /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal977003114/001/.floter-state-2787516394.tmp /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal977003114/001/settings.json: file exists
+--- PASS: TestSummonDiskFailureDoesNotRepeatOldSystemRefusal (0.00s)
+=== RUN   TestConfirmedSummonKeyClearsPreviousRefusal
+2026/11/07 17:23:43 floter: could not register Ctrl+Alt+K: occupied
+--- PASS: TestConfirmedSummonKeyClearsPreviousRefusal (0.00s)
+=== RUN   TestResetSystemRefusalKeepsConfirmedBindings
+--- PASS: TestResetSystemRefusalKeepsConfirmedBindings (0.00s)
+PASS
+ok  	floter/internal/shell	0.006s
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears/light
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears/dark
+--- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears (0.40s)
+    --- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears/light (0.22s)
+    --- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears/dark (0.18s)
+=== RUN   TestCustomDraftRetiresWithRemovedBinding
+=== RUN   TestCustomDraftRetiresWithRemovedBinding/light
+=== RUN   TestCustomDraftRetiresWithRemovedBinding/dark
+--- PASS: TestCustomDraftRetiresWithRemovedBinding (0.29s)
+    --- PASS: TestCustomDraftRetiresWithRemovedBinding/light (0.06s)
+    --- PASS: TestCustomDraftRetiresWithRemovedBinding/dark (0.23s)
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey/light
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey/dark
+--- PASS: TestCustomDraftSurvivesRecordingTheSameKey (0.26s)
+    --- PASS: TestCustomDraftSurvivesRecordingTheSameKey/light (0.05s)
+    --- PASS: TestCustomDraftSurvivesRecordingTheSameKey/dark (0.21s)
+=== RUN   TestCustomCommandConversionReturnsFocus
+=== RUN   TestCustomCommandConversionReturnsFocus/light
+=== RUN   TestCustomCommandConversionReturnsFocus/dark
+--- PASS: TestCustomCommandConversionReturnsFocus (0.06s)
+    --- PASS: TestCustomCommandConversionReturnsFocus/light (0.03s)
+    --- PASS: TestCustomCommandConversionReturnsFocus/dark (0.03s)
+=== RUN   TestCustomDraftCancelReturnsToAdd
+=== RUN   TestCustomDraftCancelReturnsToAdd/light
+=== RUN   TestCustomDraftCancelReturnsToAdd/dark
+--- PASS: TestCustomDraftCancelReturnsToAdd (0.04s)
+    --- PASS: TestCustomDraftCancelReturnsToAdd/light (0.02s)
+    --- PASS: TestCustomDraftCancelReturnsToAdd/dark (0.02s)
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder/light
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder/dark
+--- PASS: TestCustomDraftBindReturnsToSavedRecorder (0.04s)
+    --- PASS: TestCustomDraftBindReturnsToSavedRecorder/light (0.02s)
+    --- PASS: TestCustomDraftBindReturnsToSavedRecorder/dark (0.02s)
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/light
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/dark
+--- PASS: TestCustomRecorderRefreshFollowsItsBinding (0.18s)
+    --- PASS: TestCustomRecorderRefreshFollowsItsBinding/light (0.03s)
+    --- PASS: TestCustomRecorderRefreshFollowsItsBinding/dark (0.15s)
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/light
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/dark
+--- PASS: TestCustomRecorderRefreshRetiresMissingBinding (0.19s)
+    --- PASS: TestCustomRecorderRefreshRetiresMissingBinding/light (0.04s)
+    --- PASS: TestCustomRecorderRefreshRetiresMissingBinding/dark (0.15s)
+=== RUN   TestCustomRecorderFollowsRemainingBinding
+--- PASS: TestCustomRecorderFollowsRemainingBinding (0.05s)
+=== RUN   TestCustomRecorderStopsWhenItsBindingIsRemoved
+--- PASS: TestCustomRecorderStopsWhenItsBindingIsRemoved (0.04s)
+=== RUN   TestBuiltinRecorderCancelReturnsFocus
+=== RUN   TestBuiltinRecorderCancelReturnsFocus/light
+=== RUN   TestBuiltinRecorderCancelReturnsFocus/dark
+--- PASS: TestBuiltinRecorderCancelReturnsFocus (0.01s)
+    --- PASS: TestBuiltinRecorderCancelReturnsFocus/light (0.00s)
+    --- PASS: TestBuiltinRecorderCancelReturnsFocus/dark (0.00s)
+=== RUN   TestCustomRecorderCancelReturnsFocus
+=== RUN   TestCustomRecorderCancelReturnsFocus/light
+=== RUN   TestCustomRecorderCancelReturnsFocus/dark
+--- PASS: TestCustomRecorderCancelReturnsFocus (0.19s)
+    --- PASS: TestCustomRecorderCancelReturnsFocus/light (0.04s)
+    --- PASS: TestCustomRecorderCancelReturnsFocus/dark (0.15s)
+=== RUN   TestCustomRecorderAcceptedReturnsFocus
+=== RUN   TestCustomRecorderAcceptedReturnsFocus/light
+=== RUN   TestCustomRecorderAcceptedReturnsFocus/dark
+--- PASS: TestCustomRecorderAcceptedReturnsFocus (0.19s)
+    --- PASS: TestCustomRecorderAcceptedReturnsFocus/light (0.04s)
+    --- PASS: TestCustomRecorderAcceptedReturnsFocus/dark (0.15s)
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow/light
+=== RUN   TestBuiltinRecorderOnlyArmsItsOwnRow/dark
+--- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow (0.01s)
+    --- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow/light (0.00s)
+    --- PASS: TestBuiltinRecorderOnlyArmsItsOwnRow/dark (0.01s)
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/light
+=== RUN   TestBuiltinRefusalKeepsFullPageRecorderFocus/dark
+--- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus (0.17s)
+    --- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus/light (0.04s)
+    --- PASS: TestBuiltinRefusalKeepsFullPageRecorderFocus/dark (0.13s)
+=== RUN   TestResetSystemRefusalIsVisible
+=== RUN   TestResetSystemRefusalIsVisible/light
+=== RUN   TestResetSystemRefusalIsVisible/dark
+--- PASS: TestResetSystemRefusalIsVisible (0.11s)
+    --- PASS: TestResetSystemRefusalIsVisible/light (0.03s)
+    --- PASS: TestResetSystemRefusalIsVisible/dark (0.08s)
+=== RUN   TestSuccessfulResetClearsRefusal
+=== RUN   TestSuccessfulResetClearsRefusal/light
+=== RUN   TestSuccessfulResetClearsRefusal/dark
+--- PASS: TestSuccessfulResetClearsRefusal (0.11s)
+    --- PASS: TestSuccessfulResetClearsRefusal/light (0.03s)
+    --- PASS: TestSuccessfulResetClearsRefusal/dark (0.08s)
+=== RUN   TestCustomRecorderGivesUpAfterFocusMoves
+--- PASS: TestCustomRecorderGivesUpAfterFocusMoves (0.16s)
+PASS
+ok  	floter/internal/settingsui	2.494s

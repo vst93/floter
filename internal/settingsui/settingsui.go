@@ -4148,7 +4148,7 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 					a.shortcutRow(c, copy)
 				})
 			})
-		a.section(c, copy.ShortcutsApp, copy.ShortcutsAppHint, func() {
+		a.section(c.Key("shortcuts.app"), copy.ShortcutsApp, copy.ShortcutsAppHint, func() {
 			a.card(c, func() {
 				for _, action := range settings.ShortcutActions {
 					if action == settings.ShortcutToggleWindow {
@@ -4158,7 +4158,7 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 				}
 			})
 		})
-		a.customSection(c, copy)
+		a.customSection(c.Key("shortcuts.custom"), copy)
 	})
 }
 
