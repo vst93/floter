@@ -226,12 +226,24 @@ func (a *App) draft(integration Integration) *configDraft {
 		// field. Local edits and partial text keep their existing ownership.
 		// Replacing a selection ends the old Shift-click gesture too.
 		delete(draft.multiAnchor, field.Key)
+		hadProblem := a.configFieldProblem(integration, field) != ""
 		a.clearConfigFieldError(integration.ID, field.Key)
 		if exists {
 			draft.values[field.Key], draft.saved[field.Key] = value, value
 		} else {
 			delete(draft.values, field.Key)
 			delete(draft.saved, field.Key)
+		}
+		// A field already checked by Enter still describes the current host
+		// value. Replacing one invalid value with another cannot erase its hint.
+		if hadProblem && exists {
+			text, _ := value.(string)
+			if number, ok := value.(float64); ok {
+				text = formatFieldNumber(number)
+			}
+			if _, problem := ConfigValueProblem(field, text, a.copy()); problem != "" {
+				a.noteConfigFieldError(integration.ID, field.Key, problem)
+			}
 		}
 	}
 	draft.observed = incoming

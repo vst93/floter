@@ -1,0 +1,42 @@
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity/light
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity/dark
+--- PASS: TestExternalConfigNumberRetainsCurrentValidity (0.16s)
+    --- PASS: TestExternalConfigNumberRetainsCurrentValidity/light (0.14s)
+    --- PASS: TestExternalConfigNumberRetainsCurrentValidity/dark (0.01s)
+=== RUN   TestExternalConfigTextRetainsCurrentValidity
+=== RUN   TestExternalConfigTextRetainsCurrentValidity/light
+=== RUN   TestExternalConfigTextRetainsCurrentValidity/dark
+--- PASS: TestExternalConfigTextRetainsCurrentValidity (0.03s)
+    --- PASS: TestExternalConfigTextRetainsCurrentValidity/light (0.01s)
+    --- PASS: TestExternalConfigTextRetainsCurrentValidity/dark (0.01s)
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default
+--- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault (0.01s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default (0.00s)
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/light
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/dark
+--- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues (0.02s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/light (0.01s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/dark (0.01s)
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/light
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshNumberBoundsUpdateError (0.01s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/light (0.01s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/dark (0.01s)
+=== RUN   TestSchemaRefreshTextBoundsUpdateError
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/light
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshTextBoundsUpdateError (0.01s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/light (0.01s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.268s

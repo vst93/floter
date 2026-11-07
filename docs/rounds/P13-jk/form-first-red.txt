@@ -1,0 +1,35 @@
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure/light
+    configexternalresult_test.go:49: external acceptance left an obsolete save failure
+=== RUN   TestExternalConfigAcceptanceRetiresSaveFailure/dark
+    configexternalresult_test.go:49: external acceptance left an obsolete save failure
+--- FAIL: TestExternalConfigAcceptanceRetiresSaveFailure (0.23s)
+    --- FAIL: TestExternalConfigAcceptanceRetiresSaveFailure/light (0.18s)
+    --- FAIL: TestExternalConfigAcceptanceRetiresSaveFailure/dark (0.05s)
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity/light
+    configexternalresult_test.go:88: external invalid replacement erased the current field problem
+=== RUN   TestExternalConfigNumberRetainsCurrentValidity/dark
+    configexternalresult_test.go:88: external invalid replacement erased the current field problem
+--- FAIL: TestExternalConfigNumberRetainsCurrentValidity (0.04s)
+    --- FAIL: TestExternalConfigNumberRetainsCurrentValidity/light (0.02s)
+    --- FAIL: TestExternalConfigNumberRetainsCurrentValidity/dark (0.02s)
+=== RUN   TestExternalConfigTextRetainsCurrentValidity
+=== RUN   TestExternalConfigTextRetainsCurrentValidity/light
+    configexternalresult_test.go:88: external invalid replacement erased the current field problem
+=== RUN   TestExternalConfigTextRetainsCurrentValidity/dark
+    configexternalresult_test.go:88: external invalid replacement erased the current field problem
+--- FAIL: TestExternalConfigTextRetainsCurrentValidity (0.03s)
+    --- FAIL: TestExternalConfigTextRetainsCurrentValidity/light (0.02s)
+    --- FAIL: TestExternalConfigTextRetainsCurrentValidity/dark (0.02s)
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange/light
+    configexternalresult_test.go:128: accepted external selection retained old range: [alpha beta]
+=== RUN   TestExternalConfigAcceptedSelectionEndsRange/dark
+    configexternalresult_test.go:128: accepted external selection retained old range: [alpha beta]
+--- FAIL: TestExternalConfigAcceptedSelectionEndsRange (0.04s)
+    --- FAIL: TestExternalConfigAcceptedSelectionEndsRange/light (0.02s)
+    --- FAIL: TestExternalConfigAcceptedSelectionEndsRange/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.355s
+FAIL

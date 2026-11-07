@@ -34,3 +34,8 @@
 4. 现象：当前批准摘要与磁盘一致，旧摘要回调仍会重新显示“manifest has changed”告警。改动：同一状态缓存代际保护批准摘要。验证：真实仓库批准记录、实际 manifest digest 与整页渲染，深浅修前 `retired digest revived approval warning`，修后摘要保持当前值。
 
 第二批相关 **15 PASS / 0 FAIL**、shell vet 净；旧 V/B/S 断言 0/0/0。探测的旧结果用受控注入重现返回顺序，不声称实际卸载了系统运行时。亲眼复核深色旧图：Running 旁错误出现 Tool unavailable；批准卡底部多出过期告警。浅色导入对照明确看到 endpoint 从 before.example 改为 imported.example。
+
+第二批 **bb1e398a** 已提交推送。第三批按同一校验路径调整实现顺序，先一起处理数字与文字，保存错误和范围锚点留第四批。
+
+5. 现象：数字 15 超过上限 10，Enter 已出现错误；外部配置改为 20 后，错误反而消失。改动：已校验字段被外部值替换后，用当前值重算现有边界提示。验证：深浅实际 Enter 和配置刷新，修前 `external invalid replacement erased the current field problem`，修后 20 仍提示、更新为 5 后自然恢复。
+6. 现象：已校验的过长文字换成另一段过长外部值，长度提示消失。改动：沿同一替换路径重新检查当前长度。验证：深浅 Enter、长文替换及恢复为 ok；不强制校验从未编辑/提交的字段，不改保存验证时机。
