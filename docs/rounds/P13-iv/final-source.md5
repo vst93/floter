@@ -1,0 +1,7 @@
+1ae22495771fc92e2f11becfd740309c  internal/shell/shell.go
+3c9f84121b902e238c6e213f49181ccc  internal/settingsui/settingsui.go
+98cf7f3aab99f78fe9460469af94857f  internal/shell/shortcutattemptrecovery_test.go
+f22eae0d143534acb36496a190c3aff2  internal/shell/shortcutconfirmrecovery_test.go
+0c414862cb8fca1e840aa9d3c6e93704  internal/shell/shortcutresetrecovery_test.go
+7ccb1bfe1bb26f1f6ce2a573af1c4527  internal/settingsui/shortcutpagefocus_test.go
+aa88429e775389af5a3e26b46e6e5e37  internal/settingsui/shortcutresetrecovery_test.go
