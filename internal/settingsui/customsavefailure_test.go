@@ -3,6 +3,7 @@ package settingsui
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"floter/internal/settings"
@@ -90,6 +91,9 @@ func checkCustomSaveFailure(t *testing.T, scenario string) {
 			if !a.SaveFailedVisible() {
 				t.Error("shortcut disk failure has no visible save feedback")
 			}
+			if !slices.Equal(a.customShortcuts(), entries) {
+				t.Errorf("failed %s changed the stored bindings", scenario)
+			}
 			switch scenario {
 			case "add":
 				if !a.customDraftOpen || a.customCommand != "say unfinished" || a.customKey == "" {
@@ -131,6 +135,25 @@ func checkCustomSaveFailure(t *testing.T, scenario string) {
 				tt.Key(0, ui.KeyEnter)
 				if a.customShortcuts()[0].Action != "say unfinished" {
 					t.Error("failed command cannot retry its retained edit")
+				}
+			} else if scenario == "mode" {
+				tt.Key(0, ui.KeyDown)
+				tt.Key(0, ui.KeyEnd)
+				tt.Key(0, ui.KeyEnter)
+				if !a.customDraftOpen || len(a.customShortcuts()) != 0 {
+					t.Error("failed mode switch could not retry")
+				}
+			} else if scenario == "remove" {
+				tt.Key(0, ui.KeyEnter)
+				if len(a.customShortcuts()) != 0 || !tt.Focused(copy.ShortcutsAdd) {
+					t.Error("failed remove could not retry and return to Add")
+				}
+			} else if scenario == "record" {
+				tt.Key(0, ui.KeyEnter)
+				tt.Key(ui.Ctrl|ui.Shift, ui.KeyZ)
+				got := a.customShortcuts()
+				if len(got) != 1 || got[0].Key == "Ctrl+Shift+B" || got[0].Action != "say original" {
+					t.Error("failed recording could not retry its original action")
 				}
 			}
 		})

@@ -185,7 +185,7 @@ func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, inde
 // already holds is refused on the spot — the reference's `localRejection` — and
 // never reaches the system.
 func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
-	entries := a.customShortcuts()
+	entries := append([]settings.CustomShortcut{}, a.customShortcuts()...)
 	if a.customRecordKey != "" && a.customRecordRow >= 0 {
 		a.customRecordRow = customBindingIndex(entries, a.customRecordKey)
 		if a.customRecordRow < 0 {
@@ -218,17 +218,20 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 	// Recording the same chord is not a new binding. Preserve its unfinished
 	// command even if the recorder canonicalizes the chord's spelling.
 	oldKey := entries[a.customRecordRow].Key
+	entries[a.customRecordRow] = settings.CustomShortcut{
+		Key:    accelerator,
+		Action: entries[a.customRecordRow].Action,
+	}
+	if !a.commitCustomShortcuts(entries) {
+		a.customFocusKey = oldKey
+		return
+	}
 	if text, ok := a.customEdits[oldKey]; ok {
 		delete(a.customEdits, oldKey)
 		if shortcuts.Equal(oldKey, accelerator) {
 			a.customEdits[accelerator] = text
 		}
 	}
-	entries[a.customRecordRow] = settings.CustomShortcut{
-		Key:    accelerator,
-		Action: entries[a.customRecordRow].Action,
-	}
-	a.commitCustomShortcuts(entries)
 	a.customFocusKey = accelerator
 }
 

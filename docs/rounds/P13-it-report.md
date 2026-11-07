@@ -61,3 +61,11 @@
 10. 现象：删除有未提交命令的绑定时写失败，行仍在却丢掉编辑内容，焦点误回 Add。改动：接受删除后才清编辑/重排录制归属；确认原键已消失才交 Add。验证：真实 Tab/Enter，原 unfinished 文本与删除入口焦点保留。
 
 旧实现原串 `failed command-mode switch duplicated saved binding as draft`、`failed remove discarded command draft: map[]`、`failed remove lost original keyboard outlet`。相关实测计数见 batch5-test；包 vet 结果见 batch5-vet。旧 V/B/S 0/0/0。
+
+第五批 `8f3d8610` 已推送，相关 **52 PASS / 0 FAIL**，包 vet 净。
+
+## 第六批
+
+11. 现象：已有命令草稿的绑定重新录制键位，磁盘写入失败后草稿被清。改动：先复制绑定列表，写回接受后再迁移编辑状态；失败回原录制入口。验证：两主题真实 Tab/录制新键，原命令草稿和已存键位不变，恢复文件可重试原动作。原始红串 `failed record discarded command draft: map[]`。
+
+跨驻留输入/菜单、自定义快捷键新建/命令/录制/删除组件共 11 项；没有把参数两条原本为绿的探针凑进数量。第六批补强五个磁盘故障场景的原绑定零改与恢复后重试，完整数字按落盘结果收尾。
