@@ -1,0 +1,27 @@
+=== RUN   TestConfigExportWriteCause
+=== RUN   TestConfigExportWriteCause/light
+2026/11/07 23:41:21 floter: could not write /tmp/TestConfigExportWriteCauselight462630359/001: open /tmp/TestConfigExportWriteCauselight462630359/001: is a directory
+    transferwritecause_test.go:44: config-write hides actual filesystem failure: open /tmp/TestConfigExportWriteCauselight462630359/001: is a directory
+    transferwritecause_test.go:47: config-write wrongly reports an invalid import document
+=== RUN   TestConfigExportWriteCause/dark
+2026/11/07 23:41:21 floter: could not write /tmp/TestConfigExportWriteCausedark1230941921/001: open /tmp/TestConfigExportWriteCausedark1230941921/001: is a directory
+    transferwritecause_test.go:44: config-write hides actual filesystem failure: open /tmp/TestConfigExportWriteCausedark1230941921/001: is a directory
+    transferwritecause_test.go:47: config-write wrongly reports an invalid import document
+--- FAIL: TestConfigExportWriteCause (0.60s)
+    --- FAIL: TestConfigExportWriteCause/light (0.30s)
+    --- FAIL: TestConfigExportWriteCause/dark (0.31s)
+=== RUN   TestIntegrationsExportWriteCause
+=== RUN   TestIntegrationsExportWriteCause/light
+2026/11/07 23:41:22 floter: could not write /tmp/TestIntegrationsExportWriteCauselight3509896236/001: open /tmp/TestIntegrationsExportWriteCauselight3509896236/001: is a directory
+    transferwritecause_test.go:44: integrations-write hides actual filesystem failure: open /tmp/TestIntegrationsExportWriteCauselight3509896236/001: is a directory
+    transferwritecause_test.go:47: integrations-write wrongly reports an invalid import document
+=== RUN   TestIntegrationsExportWriteCause/dark
+2026/11/07 23:41:22 floter: could not write /tmp/TestIntegrationsExportWriteCausedark4266938951/001: open /tmp/TestIntegrationsExportWriteCausedark4266938951/001: is a directory
+    transferwritecause_test.go:44: integrations-write hides actual filesystem failure: open /tmp/TestIntegrationsExportWriteCausedark4266938951/001: is a directory
+    transferwritecause_test.go:47: integrations-write wrongly reports an invalid import document
+--- FAIL: TestIntegrationsExportWriteCause (0.68s)
+    --- FAIL: TestIntegrationsExportWriteCause/light (0.35s)
+    --- FAIL: TestIntegrationsExportWriteCause/dark (0.33s)
+FAIL
+FAIL	floter/internal/shell	1.294s
+FAIL

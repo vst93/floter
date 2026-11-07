@@ -88,7 +88,7 @@ func (a *App) exportIntegrations() {
 		}
 		if err := os.WriteFile(path, append(data, '\n'), 0o600); err != nil {
 			log.Printf("floter: could not write %s: %v", path, err)
-			a.transferFailed(copy.IntegrationsTransferBad)
+			a.transferFailed(err.Error())
 			return
 		}
 		// The reference reports a clean export as a success toast naming the
@@ -398,7 +398,7 @@ func (a *App) exportConfiguration(id string, values map[string]any, done func(er
 		}
 		if err := os.WriteFile(path, document, 0o600); err != nil {
 			log.Printf("floter: could not write %s: %v", path, err)
-			a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+			a.queueNotice(err.Error(), refusalNotice)
 			finish(err)
 			return
 		}

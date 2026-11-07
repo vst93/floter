@@ -49,6 +49,13 @@
 
 跨宿主配置传输/保存与设置页工具条两个组件。未新增系统/依赖/设置项，旧 V/B/S 断言修改 0/0/0，新 Skip 0。
 
+## 第五批（最终第 7/8 项）
+
+7. 配置导出写入失败：现象 → 选择器返回目录时，真实 os.WriteFile 返回 is a directory，界面却提示集成文件格式错误。改动 → 宿主 toast 展示原路径/系统原因。验证 → 旧事件 `config-write hides actual filesystem failure`、`config-write wrongly reports an invalid import document` 实红；修后错误可读，回调保留原错，换有效路径可重试写出文件。
+8. 集成导出写入失败：现象 → 同样真实文件系统失败被说成导入文档格式错误。改动 → 集成传输出口显示原写入原因。验证 → 旧事件 `integrations-write hides actual filesystem failure` 实红；修后错误可读，忙态释放、有效路径重试写出文件。
+
+最终八项跨配置工具条/保存表单与集成整体导出两个已有组件；行忙态工具条保持开盘行为，第四批两项不计修复。没有新增系统或依赖。
+
 第三批定向 **45 PASS / 0 FAIL**、第四批 **84 PASS / 0 FAIL**，各自包 vet 净；f9e52bef / 5cb111f3 已推送。每批完成两项就提交，没有把产品改动攒到轮末。
 
 ## Mutation
