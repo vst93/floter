@@ -1,0 +1,4 @@
+=== RUN   TestRunExitDuplicateOptionsRemainUsable
+--- PASS: TestRunExitDuplicateOptionsRemainUsable (0.15s)
+PASS
+ok  	floter/internal/settingsui	0.157s

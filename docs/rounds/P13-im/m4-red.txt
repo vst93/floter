@@ -1,0 +1,145 @@
+=== RUN   TestToolModeExitProgram
+=== RUN   TestToolModeExitProgram/input
+=== RUN   TestToolModeExitProgram/input/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/input/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/args
+=== RUN   TestToolModeExitProgram/args/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/args/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/version
+=== RUN   TestToolModeExitProgram/version/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/version/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/description
+=== RUN   TestToolModeExitProgram/description/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/description/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/choose
+=== RUN   TestToolModeExitProgram/choose/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/choose/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/copy
+=== RUN   TestToolModeExitProgram/copy/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/copy/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/plan
+=== RUN   TestToolModeExitProgram/plan/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitProgram/plan/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+--- FAIL: TestToolModeExitProgram (1.23s)
+    --- FAIL: TestToolModeExitProgram/input (0.36s)
+        --- FAIL: TestToolModeExitProgram/input/light (0.28s)
+        --- FAIL: TestToolModeExitProgram/input/dark (0.08s)
+    --- FAIL: TestToolModeExitProgram/args (0.17s)
+        --- FAIL: TestToolModeExitProgram/args/light (0.09s)
+        --- FAIL: TestToolModeExitProgram/args/dark (0.08s)
+    --- FAIL: TestToolModeExitProgram/version (0.15s)
+        --- FAIL: TestToolModeExitProgram/version/light (0.08s)
+        --- FAIL: TestToolModeExitProgram/version/dark (0.07s)
+    --- FAIL: TestToolModeExitProgram/description (0.15s)
+        --- FAIL: TestToolModeExitProgram/description/light (0.07s)
+        --- FAIL: TestToolModeExitProgram/description/dark (0.07s)
+    --- FAIL: TestToolModeExitProgram/choose (0.12s)
+        --- FAIL: TestToolModeExitProgram/choose/light (0.06s)
+        --- FAIL: TestToolModeExitProgram/choose/dark (0.06s)
+    --- FAIL: TestToolModeExitProgram/copy (0.14s)
+        --- FAIL: TestToolModeExitProgram/copy/light (0.07s)
+        --- FAIL: TestToolModeExitProgram/copy/dark (0.07s)
+    --- FAIL: TestToolModeExitProgram/plan (0.14s)
+        --- FAIL: TestToolModeExitProgram/plan/light (0.07s)
+        --- FAIL: TestToolModeExitProgram/plan/dark (0.07s)
+=== RUN   TestToolModeExitScript
+=== RUN   TestToolModeExitScript/editor
+=== RUN   TestToolModeExitScript/editor/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitScript/editor/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitScript/language
+=== RUN   TestToolModeExitScript/language/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitScript/language/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitScript/copy
+=== RUN   TestToolModeExitScript/copy/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitScript/copy/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitScript/export
+=== RUN   TestToolModeExitScript/export/light
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+=== RUN   TestToolModeExitScript/export/dark
+    toolmodeexit_test.go:58: retired mode content lost mode keyboard exit
+    toolmodeexit_test.go:65: mode exit cannot Tab into mode group
+    toolmodeexit_test.go:74: mode exit cannot switch back with keyboard
+--- FAIL: TestToolModeExitScript (0.70s)
+    --- FAIL: TestToolModeExitScript/editor (0.11s)
+        --- FAIL: TestToolModeExitScript/editor/light (0.05s)
+        --- FAIL: TestToolModeExitScript/editor/dark (0.05s)
+    --- FAIL: TestToolModeExitScript/language (0.12s)
+        --- FAIL: TestToolModeExitScript/language/light (0.06s)
+        --- FAIL: TestToolModeExitScript/language/dark (0.06s)
+    --- FAIL: TestToolModeExitScript/copy (0.24s)
+        --- FAIL: TestToolModeExitScript/copy/light (0.12s)
+        --- FAIL: TestToolModeExitScript/copy/dark (0.12s)
+    --- FAIL: TestToolModeExitScript/export (0.23s)
+        --- FAIL: TestToolModeExitScript/export/light (0.12s)
+        --- FAIL: TestToolModeExitScript/export/dark (0.12s)
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/program
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/script
+--- PASS: TestToolModeExitDoesNotStealFromSurvivingInput (0.05s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/program (0.02s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/script (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	1.986s
+FAIL

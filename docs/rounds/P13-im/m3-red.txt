@@ -1,0 +1,21 @@
+=== RUN   TestRunExitFormClosed
+=== RUN   TestRunExitFormClosed/light
+    runexitrefresh_test.go:121: closed form lost Run keyboard exit
+    runexitrefresh_test.go:136: closed form cannot reopen
+=== RUN   TestRunExitFormClosed/dark
+    runexitrefresh_test.go:121: closed form lost Run keyboard exit
+    runexitrefresh_test.go:136: closed form cannot reopen
+--- FAIL: TestRunExitFormClosed (0.09s)
+    --- FAIL: TestRunExitFormClosed/light (0.08s)
+    --- FAIL: TestRunExitFormClosed/dark (0.01s)
+=== RUN   TestRunExitActionWithdrawn
+=== RUN   TestRunExitActionWithdrawn/light
+    runexitrefresh_test.go:124: withdrawn Run action lost page keyboard exit
+=== RUN   TestRunExitActionWithdrawn/dark
+    runexitrefresh_test.go:124: withdrawn Run action lost page keyboard exit
+--- FAIL: TestRunExitActionWithdrawn (0.03s)
+    --- FAIL: TestRunExitActionWithdrawn/light (0.01s)
+    --- FAIL: TestRunExitActionWithdrawn/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.126s
+FAIL

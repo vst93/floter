@@ -1,0 +1,228 @@
+=== RUN   TestRunFormBooleanLocksBothEntrances
+=== RUN   TestRunFormBooleanLocksBothEntrances/light/switch
+=== RUN   TestRunFormBooleanLocksBothEntrances/light/label
+=== RUN   TestRunFormBooleanLocksBothEntrances/dark/switch
+=== RUN   TestRunFormBooleanLocksBothEntrances/dark/label
+--- PASS: TestRunFormBooleanLocksBothEntrances (0.29s)
+    --- PASS: TestRunFormBooleanLocksBothEntrances/light/switch (0.15s)
+    --- PASS: TestRunFormBooleanLocksBothEntrances/light/label (0.03s)
+    --- PASS: TestRunFormBooleanLocksBothEntrances/dark/switch (0.05s)
+    --- PASS: TestRunFormBooleanLocksBothEntrances/dark/label (0.06s)
+=== RUN   TestRunFormSelectHonorsRowLock
+=== RUN   TestRunFormSelectHonorsRowLock/light
+=== RUN   TestRunFormSelectHonorsRowLock/dark
+--- PASS: TestRunFormSelectHonorsRowLock (0.12s)
+    --- PASS: TestRunFormSelectHonorsRowLock/light (0.03s)
+    --- PASS: TestRunFormSelectHonorsRowLock/dark (0.08s)
+=== RUN   TestRunExitChoiceReordered
+=== RUN   TestRunExitChoiceReordered/light
+=== RUN   TestRunExitChoiceReordered/dark
+--- PASS: TestRunExitChoiceReordered (0.06s)
+    --- PASS: TestRunExitChoiceReordered/light (0.03s)
+    --- PASS: TestRunExitChoiceReordered/dark (0.03s)
+=== RUN   TestRunExitChoiceWithdrawn
+=== RUN   TestRunExitChoiceWithdrawn/light
+=== RUN   TestRunExitChoiceWithdrawn/dark
+--- PASS: TestRunExitChoiceWithdrawn (0.06s)
+    --- PASS: TestRunExitChoiceWithdrawn/light (0.03s)
+    --- PASS: TestRunExitChoiceWithdrawn/dark (0.03s)
+=== RUN   TestRunExitDuplicateOptionsRemainUsable
+--- PASS: TestRunExitDuplicateOptionsRemainUsable (0.02s)
+=== RUN   TestRunExitParameterWithdrawn
+=== RUN   TestRunExitParameterWithdrawn/light
+=== RUN   TestRunExitParameterWithdrawn/dark
+--- PASS: TestRunExitParameterWithdrawn (0.05s)
+    --- PASS: TestRunExitParameterWithdrawn/light (0.02s)
+    --- PASS: TestRunExitParameterWithdrawn/dark (0.03s)
+=== RUN   TestRunExitAllParametersWithdrawn
+=== RUN   TestRunExitAllParametersWithdrawn/light
+=== RUN   TestRunExitAllParametersWithdrawn/dark
+--- PASS: TestRunExitAllParametersWithdrawn (0.09s)
+    --- PASS: TestRunExitAllParametersWithdrawn/light (0.05s)
+    --- PASS: TestRunExitAllParametersWithdrawn/dark (0.04s)
+=== RUN   TestRunExitFormClosed
+=== RUN   TestRunExitFormClosed/light
+=== RUN   TestRunExitFormClosed/dark
+--- PASS: TestRunExitFormClosed (0.08s)
+    --- PASS: TestRunExitFormClosed/light (0.04s)
+    --- PASS: TestRunExitFormClosed/dark (0.04s)
+=== RUN   TestRunExitActionWithdrawn
+=== RUN   TestRunExitActionWithdrawn/light
+=== RUN   TestRunExitActionWithdrawn/dark
+--- PASS: TestRunExitActionWithdrawn (0.07s)
+    --- PASS: TestRunExitActionWithdrawn/light (0.03s)
+    --- PASS: TestRunExitActionWithdrawn/dark (0.04s)
+=== RUN   TestRunExitUnfocusedParameterDoesNotSteal
+--- PASS: TestRunExitUnfocusedParameterDoesNotSteal (0.03s)
+=== RUN   TestRunExitChoiceKindAlreadyHasKeyboardExit
+--- PASS: TestRunExitChoiceKindAlreadyHasKeyboardExit (0.03s)
+=== RUN   TestRunExitFormDoesNotSteal
+=== RUN   TestRunExitFormDoesNotSteal/closed
+=== RUN   TestRunExitFormDoesNotSteal/empty
+=== RUN   TestRunExitFormDoesNotSteal/unavailable
+--- PASS: TestRunExitFormDoesNotSteal (0.15s)
+    --- PASS: TestRunExitFormDoesNotSteal/closed (0.05s)
+    --- PASS: TestRunExitFormDoesNotSteal/empty (0.05s)
+    --- PASS: TestRunExitFormDoesNotSteal/unavailable (0.06s)
+=== RUN   TestRunFormDrawsTheReferenceFrame
+=== RUN   TestRunFormDrawsTheReferenceFrame/background
+=== RUN   TestRunFormDrawsTheReferenceFrame/terminal
+--- PASS: TestRunFormDrawsTheReferenceFrame (0.25s)
+    --- PASS: TestRunFormDrawsTheReferenceFrame/background (0.14s)
+    --- PASS: TestRunFormDrawsTheReferenceFrame/terminal (0.10s)
+=== RUN   TestRunKindFocusTextToNumber
+=== RUN   TestRunKindFocusTextToNumber/light
+=== RUN   TestRunKindFocusTextToNumber/dark
+--- PASS: TestRunKindFocusTextToNumber (0.09s)
+    --- PASS: TestRunKindFocusTextToNumber/light (0.05s)
+    --- PASS: TestRunKindFocusTextToNumber/dark (0.04s)
+=== RUN   TestRunKindFocusChoiceToBoolean
+=== RUN   TestRunKindFocusChoiceToBoolean/light
+=== RUN   TestRunKindFocusChoiceToBoolean/dark
+--- PASS: TestRunKindFocusChoiceToBoolean (0.08s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/light (0.04s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/dark (0.04s)
+=== RUN   TestRunKindFocusDuplicateIDsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIDsDoNotShareHandles (0.03s)
+=== RUN   TestRunKindFocusDoesNotStealFromCancel
+--- PASS: TestRunKindFocusDoesNotStealFromCancel (0.03s)
+=== RUN   TestRunKindFocusDuplicateIntegrationsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIntegrationsDoNotShareHandles (0.00s)
+=== RUN   TestRunFormErrorsBelongToTheirIntegration
+=== RUN   TestRunFormErrorsBelongToTheirIntegration/light
+=== RUN   TestRunFormErrorsBelongToTheirIntegration/dark
+--- PASS: TestRunFormErrorsBelongToTheirIntegration (0.25s)
+    --- PASS: TestRunFormErrorsBelongToTheirIntegration/light (0.11s)
+    --- PASS: TestRunFormErrorsBelongToTheirIntegration/dark (0.13s)
+=== RUN   TestRunFormInputFollowsParameterIdentity
+=== RUN   TestRunFormInputFollowsParameterIdentity/light
+=== RUN   TestRunFormInputFollowsParameterIdentity/dark
+--- PASS: TestRunFormInputFollowsParameterIdentity (0.12s)
+    --- PASS: TestRunFormInputFollowsParameterIdentity/light (0.04s)
+    --- PASS: TestRunFormInputFollowsParameterIdentity/dark (0.08s)
+=== RUN   TestRunFormSubmitHonorsAvailability
+=== RUN   TestRunFormSubmitHonorsAvailability/light/repair
+=== RUN   TestRunFormSubmitHonorsAvailability/light/disable
+=== RUN   TestRunFormSubmitHonorsAvailability/light/remove
+=== RUN   TestRunFormSubmitHonorsAvailability/light/uninstall
+=== RUN   TestRunFormSubmitHonorsAvailability/light/toggle
+=== RUN   TestRunFormSubmitHonorsAvailability/light/stopped
+=== RUN   TestRunFormSubmitHonorsAvailability/light/broken
+=== RUN   TestRunFormSubmitHonorsAvailability/light/orphan
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/repair
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/disable
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/remove
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/uninstall
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/toggle
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/stopped
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/broken
+=== RUN   TestRunFormSubmitHonorsAvailability/dark/orphan
+--- PASS: TestRunFormSubmitHonorsAvailability (0.89s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/repair (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/disable (0.05s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/remove (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/uninstall (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/toggle (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/stopped (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/broken (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/light/orphan (0.04s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/repair (0.07s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/disable (0.07s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/remove (0.07s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/uninstall (0.07s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/toggle (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/stopped (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/broken (0.06s)
+    --- PASS: TestRunFormSubmitHonorsAvailability/dark/orphan (0.07s)
+=== RUN   TestRunFormTextInputsHonorRowLock
+=== RUN   TestRunFormTextInputsHonorRowLock/light/text
+=== RUN   TestRunFormTextInputsHonorRowLock/light/number
+=== RUN   TestRunFormTextInputsHonorRowLock/light/path
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/text
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/number
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/path
+--- PASS: TestRunFormTextInputsHonorRowLock (0.38s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/text (0.03s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/number (0.03s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/path (0.02s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/text (0.10s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/number (0.11s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/path (0.09s)
+=== RUN   TestToolModeExitProgram
+=== RUN   TestToolModeExitProgram/input
+=== RUN   TestToolModeExitProgram/input/light
+=== RUN   TestToolModeExitProgram/input/dark
+=== RUN   TestToolModeExitProgram/args
+=== RUN   TestToolModeExitProgram/args/light
+=== RUN   TestToolModeExitProgram/args/dark
+=== RUN   TestToolModeExitProgram/version
+=== RUN   TestToolModeExitProgram/version/light
+=== RUN   TestToolModeExitProgram/version/dark
+=== RUN   TestToolModeExitProgram/description
+=== RUN   TestToolModeExitProgram/description/light
+=== RUN   TestToolModeExitProgram/description/dark
+=== RUN   TestToolModeExitProgram/choose
+=== RUN   TestToolModeExitProgram/choose/light
+=== RUN   TestToolModeExitProgram/choose/dark
+=== RUN   TestToolModeExitProgram/copy
+=== RUN   TestToolModeExitProgram/copy/light
+=== RUN   TestToolModeExitProgram/copy/dark
+=== RUN   TestToolModeExitProgram/plan
+=== RUN   TestToolModeExitProgram/plan/light
+=== RUN   TestToolModeExitProgram/plan/dark
+--- PASS: TestToolModeExitProgram (0.87s)
+    --- PASS: TestToolModeExitProgram/input (0.17s)
+        --- PASS: TestToolModeExitProgram/input/light (0.11s)
+        --- PASS: TestToolModeExitProgram/input/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/args (0.11s)
+        --- PASS: TestToolModeExitProgram/args/light (0.05s)
+        --- PASS: TestToolModeExitProgram/args/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/version (0.12s)
+        --- PASS: TestToolModeExitProgram/version/light (0.06s)
+        --- PASS: TestToolModeExitProgram/version/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/description (0.13s)
+        --- PASS: TestToolModeExitProgram/description/light (0.06s)
+        --- PASS: TestToolModeExitProgram/description/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/choose (0.10s)
+        --- PASS: TestToolModeExitProgram/choose/light (0.05s)
+        --- PASS: TestToolModeExitProgram/choose/dark (0.05s)
+    --- PASS: TestToolModeExitProgram/copy (0.13s)
+        --- PASS: TestToolModeExitProgram/copy/light (0.06s)
+        --- PASS: TestToolModeExitProgram/copy/dark (0.07s)
+    --- PASS: TestToolModeExitProgram/plan (0.12s)
+        --- PASS: TestToolModeExitProgram/plan/light (0.06s)
+        --- PASS: TestToolModeExitProgram/plan/dark (0.06s)
+=== RUN   TestToolModeExitScript
+=== RUN   TestToolModeExitScript/editor
+=== RUN   TestToolModeExitScript/editor/light
+=== RUN   TestToolModeExitScript/editor/dark
+=== RUN   TestToolModeExitScript/language
+=== RUN   TestToolModeExitScript/language/light
+=== RUN   TestToolModeExitScript/language/dark
+=== RUN   TestToolModeExitScript/copy
+=== RUN   TestToolModeExitScript/copy/light
+=== RUN   TestToolModeExitScript/copy/dark
+=== RUN   TestToolModeExitScript/export
+=== RUN   TestToolModeExitScript/export/light
+=== RUN   TestToolModeExitScript/export/dark
+--- PASS: TestToolModeExitScript (0.68s)
+    --- PASS: TestToolModeExitScript/editor (0.08s)
+        --- PASS: TestToolModeExitScript/editor/light (0.04s)
+        --- PASS: TestToolModeExitScript/editor/dark (0.04s)
+    --- PASS: TestToolModeExitScript/language (0.09s)
+        --- PASS: TestToolModeExitScript/language/light (0.05s)
+        --- PASS: TestToolModeExitScript/language/dark (0.04s)
+    --- PASS: TestToolModeExitScript/copy (0.25s)
+        --- PASS: TestToolModeExitScript/copy/light (0.12s)
+        --- PASS: TestToolModeExitScript/copy/dark (0.13s)
+    --- PASS: TestToolModeExitScript/export (0.26s)
+        --- PASS: TestToolModeExitScript/export/light (0.13s)
+        --- PASS: TestToolModeExitScript/export/dark (0.13s)
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/program
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/script
+--- PASS: TestToolModeExitDoesNotStealFromSurvivingInput (0.09s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/program (0.05s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/script (0.04s)
+PASS
+ok  	floter/internal/settingsui	4.805s

@@ -1,0 +1,14 @@
+=== RUN   TestRunExitParameterWithdrawn
+=== RUN   TestRunExitParameterWithdrawn/light
+=== RUN   TestRunExitParameterWithdrawn/dark
+--- PASS: TestRunExitParameterWithdrawn (0.07s)
+    --- PASS: TestRunExitParameterWithdrawn/light (0.06s)
+    --- PASS: TestRunExitParameterWithdrawn/dark (0.01s)
+=== RUN   TestRunExitAllParametersWithdrawn
+=== RUN   TestRunExitAllParametersWithdrawn/light
+=== RUN   TestRunExitAllParametersWithdrawn/dark
+--- PASS: TestRunExitAllParametersWithdrawn (0.04s)
+    --- PASS: TestRunExitAllParametersWithdrawn/light (0.02s)
+    --- PASS: TestRunExitAllParametersWithdrawn/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.115s

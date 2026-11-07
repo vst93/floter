@@ -1,0 +1,78 @@
+=== RUN   TestToolModeExitProgram
+=== RUN   TestToolModeExitProgram/input
+=== RUN   TestToolModeExitProgram/input/light
+=== RUN   TestToolModeExitProgram/input/dark
+=== RUN   TestToolModeExitProgram/args
+=== RUN   TestToolModeExitProgram/args/light
+=== RUN   TestToolModeExitProgram/args/dark
+=== RUN   TestToolModeExitProgram/version
+=== RUN   TestToolModeExitProgram/version/light
+=== RUN   TestToolModeExitProgram/version/dark
+=== RUN   TestToolModeExitProgram/description
+=== RUN   TestToolModeExitProgram/description/light
+=== RUN   TestToolModeExitProgram/description/dark
+=== RUN   TestToolModeExitProgram/choose
+=== RUN   TestToolModeExitProgram/choose/light
+=== RUN   TestToolModeExitProgram/choose/dark
+=== RUN   TestToolModeExitProgram/copy
+=== RUN   TestToolModeExitProgram/copy/light
+=== RUN   TestToolModeExitProgram/copy/dark
+=== RUN   TestToolModeExitProgram/plan
+=== RUN   TestToolModeExitProgram/plan/light
+=== RUN   TestToolModeExitProgram/plan/dark
+--- PASS: TestToolModeExitProgram (0.99s)
+    --- PASS: TestToolModeExitProgram/input (0.21s)
+        --- PASS: TestToolModeExitProgram/input/light (0.15s)
+        --- PASS: TestToolModeExitProgram/input/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/args (0.13s)
+        --- PASS: TestToolModeExitProgram/args/light (0.06s)
+        --- PASS: TestToolModeExitProgram/args/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/version (0.13s)
+        --- PASS: TestToolModeExitProgram/version/light (0.06s)
+        --- PASS: TestToolModeExitProgram/version/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/description (0.13s)
+        --- PASS: TestToolModeExitProgram/description/light (0.07s)
+        --- PASS: TestToolModeExitProgram/description/dark (0.07s)
+    --- PASS: TestToolModeExitProgram/choose (0.12s)
+        --- PASS: TestToolModeExitProgram/choose/light (0.06s)
+        --- PASS: TestToolModeExitProgram/choose/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/copy (0.14s)
+        --- PASS: TestToolModeExitProgram/copy/light (0.07s)
+        --- PASS: TestToolModeExitProgram/copy/dark (0.07s)
+    --- PASS: TestToolModeExitProgram/plan (0.14s)
+        --- PASS: TestToolModeExitProgram/plan/light (0.07s)
+        --- PASS: TestToolModeExitProgram/plan/dark (0.07s)
+=== RUN   TestToolModeExitScript
+=== RUN   TestToolModeExitScript/editor
+=== RUN   TestToolModeExitScript/editor/light
+=== RUN   TestToolModeExitScript/editor/dark
+=== RUN   TestToolModeExitScript/language
+=== RUN   TestToolModeExitScript/language/light
+=== RUN   TestToolModeExitScript/language/dark
+=== RUN   TestToolModeExitScript/copy
+=== RUN   TestToolModeExitScript/copy/light
+=== RUN   TestToolModeExitScript/copy/dark
+=== RUN   TestToolModeExitScript/export
+=== RUN   TestToolModeExitScript/export/light
+=== RUN   TestToolModeExitScript/export/dark
+--- PASS: TestToolModeExitScript (0.69s)
+    --- PASS: TestToolModeExitScript/editor (0.11s)
+        --- PASS: TestToolModeExitScript/editor/light (0.05s)
+        --- PASS: TestToolModeExitScript/editor/dark (0.05s)
+    --- PASS: TestToolModeExitScript/language (0.12s)
+        --- PASS: TestToolModeExitScript/language/light (0.06s)
+        --- PASS: TestToolModeExitScript/language/dark (0.06s)
+    --- PASS: TestToolModeExitScript/copy (0.23s)
+        --- PASS: TestToolModeExitScript/copy/light (0.12s)
+        --- PASS: TestToolModeExitScript/copy/dark (0.12s)
+    --- PASS: TestToolModeExitScript/export (0.23s)
+        --- PASS: TestToolModeExitScript/export/light (0.12s)
+        --- PASS: TestToolModeExitScript/export/dark (0.11s)
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/program
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/script
+--- PASS: TestToolModeExitDoesNotStealFromSurvivingInput (0.05s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/program (0.02s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/script (0.02s)
+PASS
+ok  	floter/internal/settingsui	1.737s

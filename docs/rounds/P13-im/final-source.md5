@@ -1,0 +1,5 @@
+26ed0aea550e084cb70eb4b69defec1a  internal/settingsui/settingsui.go
+82bd3135cd785cf9dc345e2347692123  internal/settingsui/rows.go
+079ed97d09885397068d80b6de15f78d  internal/settingsui/contentfocus.go
+0bfbb311bd48e776957c66b61d96e788  internal/settingsui/runexitrefresh_test.go
+7e2487c148dcebfd1ce4ea036e409e47  internal/settingsui/toolmodeexit_test.go

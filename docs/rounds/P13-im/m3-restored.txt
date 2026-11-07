@@ -1,0 +1,14 @@
+=== RUN   TestRunExitFormClosed
+=== RUN   TestRunExitFormClosed/light
+=== RUN   TestRunExitFormClosed/dark
+--- PASS: TestRunExitFormClosed (0.08s)
+    --- PASS: TestRunExitFormClosed/light (0.06s)
+    --- PASS: TestRunExitFormClosed/dark (0.02s)
+=== RUN   TestRunExitActionWithdrawn
+=== RUN   TestRunExitActionWithdrawn/light
+=== RUN   TestRunExitActionWithdrawn/dark
+--- PASS: TestRunExitActionWithdrawn (0.03s)
+    --- PASS: TestRunExitActionWithdrawn/light (0.01s)
+    --- PASS: TestRunExitActionWithdrawn/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.113s

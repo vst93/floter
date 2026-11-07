@@ -1,0 +1,126 @@
+=== RUN   TestRunExitChoiceReordered
+=== RUN   TestRunExitChoiceReordered/light
+=== RUN   TestRunExitChoiceReordered/dark
+--- PASS: TestRunExitChoiceReordered (0.18s)
+    --- PASS: TestRunExitChoiceReordered/light (0.16s)
+    --- PASS: TestRunExitChoiceReordered/dark (0.03s)
+=== RUN   TestRunExitChoiceWithdrawn
+=== RUN   TestRunExitChoiceWithdrawn/light
+=== RUN   TestRunExitChoiceWithdrawn/dark
+--- PASS: TestRunExitChoiceWithdrawn (0.06s)
+    --- PASS: TestRunExitChoiceWithdrawn/light (0.03s)
+    --- PASS: TestRunExitChoiceWithdrawn/dark (0.03s)
+=== RUN   TestRunExitParameterWithdrawn
+=== RUN   TestRunExitParameterWithdrawn/light
+=== RUN   TestRunExitParameterWithdrawn/dark
+--- PASS: TestRunExitParameterWithdrawn (0.06s)
+    --- PASS: TestRunExitParameterWithdrawn/light (0.03s)
+    --- PASS: TestRunExitParameterWithdrawn/dark (0.03s)
+=== RUN   TestRunExitAllParametersWithdrawn
+=== RUN   TestRunExitAllParametersWithdrawn/light
+=== RUN   TestRunExitAllParametersWithdrawn/dark
+--- PASS: TestRunExitAllParametersWithdrawn (0.09s)
+    --- PASS: TestRunExitAllParametersWithdrawn/light (0.05s)
+    --- PASS: TestRunExitAllParametersWithdrawn/dark (0.04s)
+=== RUN   TestRunExitFormClosed
+=== RUN   TestRunExitFormClosed/light
+=== RUN   TestRunExitFormClosed/dark
+--- PASS: TestRunExitFormClosed (0.09s)
+    --- PASS: TestRunExitFormClosed/light (0.04s)
+    --- PASS: TestRunExitFormClosed/dark (0.04s)
+=== RUN   TestRunExitActionWithdrawn
+=== RUN   TestRunExitActionWithdrawn/light
+=== RUN   TestRunExitActionWithdrawn/dark
+--- PASS: TestRunExitActionWithdrawn (0.07s)
+    --- PASS: TestRunExitActionWithdrawn/light (0.04s)
+    --- PASS: TestRunExitActionWithdrawn/dark (0.04s)
+=== RUN   TestRunExitUnfocusedParameterDoesNotSteal
+--- PASS: TestRunExitUnfocusedParameterDoesNotSteal (0.03s)
+=== RUN   TestRunExitChoiceKindAlreadyHasKeyboardExit
+--- PASS: TestRunExitChoiceKindAlreadyHasKeyboardExit (0.03s)
+=== RUN   TestRunExitFormDoesNotSteal
+=== RUN   TestRunExitFormDoesNotSteal/closed
+=== RUN   TestRunExitFormDoesNotSteal/empty
+=== RUN   TestRunExitFormDoesNotSteal/unavailable
+--- PASS: TestRunExitFormDoesNotSteal (0.16s)
+    --- PASS: TestRunExitFormDoesNotSteal/closed (0.05s)
+    --- PASS: TestRunExitFormDoesNotSteal/empty (0.05s)
+    --- PASS: TestRunExitFormDoesNotSteal/unavailable (0.05s)
+=== RUN   TestToolModeExitProgram
+=== RUN   TestToolModeExitProgram/input
+=== RUN   TestToolModeExitProgram/input/light
+=== RUN   TestToolModeExitProgram/input/dark
+=== RUN   TestToolModeExitProgram/args
+=== RUN   TestToolModeExitProgram/args/light
+=== RUN   TestToolModeExitProgram/args/dark
+=== RUN   TestToolModeExitProgram/version
+=== RUN   TestToolModeExitProgram/version/light
+=== RUN   TestToolModeExitProgram/version/dark
+=== RUN   TestToolModeExitProgram/description
+=== RUN   TestToolModeExitProgram/description/light
+=== RUN   TestToolModeExitProgram/description/dark
+=== RUN   TestToolModeExitProgram/choose
+=== RUN   TestToolModeExitProgram/choose/light
+=== RUN   TestToolModeExitProgram/choose/dark
+=== RUN   TestToolModeExitProgram/copy
+=== RUN   TestToolModeExitProgram/copy/light
+=== RUN   TestToolModeExitProgram/copy/dark
+=== RUN   TestToolModeExitProgram/plan
+=== RUN   TestToolModeExitProgram/plan/light
+=== RUN   TestToolModeExitProgram/plan/dark
+--- PASS: TestToolModeExitProgram (1.07s)
+    --- PASS: TestToolModeExitProgram/input (0.17s)
+        --- PASS: TestToolModeExitProgram/input/light (0.10s)
+        --- PASS: TestToolModeExitProgram/input/dark (0.07s)
+    --- PASS: TestToolModeExitProgram/args (0.12s)
+        --- PASS: TestToolModeExitProgram/args/light (0.06s)
+        --- PASS: TestToolModeExitProgram/args/dark (0.06s)
+    --- PASS: TestToolModeExitProgram/version (0.15s)
+        --- PASS: TestToolModeExitProgram/version/light (0.07s)
+        --- PASS: TestToolModeExitProgram/version/dark (0.08s)
+    --- PASS: TestToolModeExitProgram/description (0.15s)
+        --- PASS: TestToolModeExitProgram/description/light (0.07s)
+        --- PASS: TestToolModeExitProgram/description/dark (0.08s)
+    --- PASS: TestToolModeExitProgram/choose (0.13s)
+        --- PASS: TestToolModeExitProgram/choose/light (0.06s)
+        --- PASS: TestToolModeExitProgram/choose/dark (0.07s)
+    --- PASS: TestToolModeExitProgram/copy (0.16s)
+        --- PASS: TestToolModeExitProgram/copy/light (0.08s)
+        --- PASS: TestToolModeExitProgram/copy/dark (0.07s)
+    --- PASS: TestToolModeExitProgram/plan (0.19s)
+        --- PASS: TestToolModeExitProgram/plan/light (0.10s)
+        --- PASS: TestToolModeExitProgram/plan/dark (0.10s)
+=== RUN   TestToolModeExitScript
+=== RUN   TestToolModeExitScript/editor
+=== RUN   TestToolModeExitScript/editor/light
+=== RUN   TestToolModeExitScript/editor/dark
+=== RUN   TestToolModeExitScript/language
+=== RUN   TestToolModeExitScript/language/light
+=== RUN   TestToolModeExitScript/language/dark
+=== RUN   TestToolModeExitScript/copy
+=== RUN   TestToolModeExitScript/copy/light
+=== RUN   TestToolModeExitScript/copy/dark
+=== RUN   TestToolModeExitScript/export
+=== RUN   TestToolModeExitScript/export/light
+=== RUN   TestToolModeExitScript/export/dark
+--- PASS: TestToolModeExitScript (0.88s)
+    --- PASS: TestToolModeExitScript/editor (0.11s)
+        --- PASS: TestToolModeExitScript/editor/light (0.05s)
+        --- PASS: TestToolModeExitScript/editor/dark (0.06s)
+    --- PASS: TestToolModeExitScript/language (0.14s)
+        --- PASS: TestToolModeExitScript/language/light (0.07s)
+        --- PASS: TestToolModeExitScript/language/dark (0.06s)
+    --- PASS: TestToolModeExitScript/copy (0.32s)
+        --- PASS: TestToolModeExitScript/copy/light (0.16s)
+        --- PASS: TestToolModeExitScript/copy/dark (0.16s)
+    --- PASS: TestToolModeExitScript/export (0.31s)
+        --- PASS: TestToolModeExitScript/export/light (0.17s)
+        --- PASS: TestToolModeExitScript/export/dark (0.14s)
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/program
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/script
+--- PASS: TestToolModeExitDoesNotStealFromSurvivingInput (0.08s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/program (0.04s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/script (0.04s)
+PASS
+ok  	floter/internal/settingsui	2.820s

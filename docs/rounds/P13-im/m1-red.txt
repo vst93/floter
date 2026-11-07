@@ -1,0 +1,25 @@
+=== RUN   TestRunExitChoiceReordered
+=== RUN   TestRunExitChoiceReordered/light
+    runexitrefresh_test.go:57: reordered choice focus moved to another value
+    runexitrefresh_test.go:62: choice keyboard recovery failed: map[target:one]
+=== RUN   TestRunExitChoiceReordered/dark
+    runexitrefresh_test.go:57: reordered choice focus moved to another value
+    runexitrefresh_test.go:62: choice keyboard recovery failed: map[target:one]
+--- FAIL: TestRunExitChoiceReordered (0.17s)
+    --- FAIL: TestRunExitChoiceReordered/light (0.16s)
+    --- FAIL: TestRunExitChoiceReordered/dark (0.02s)
+=== RUN   TestRunExitChoiceWithdrawn
+=== RUN   TestRunExitChoiceWithdrawn/light
+    runexitrefresh_test.go:49: withdrawn choice activated its replacement
+    runexitrefresh_test.go:54: withdrawn choice lost group Tab origin
+    runexitrefresh_test.go:62: choice keyboard recovery failed: map[target:three]
+=== RUN   TestRunExitChoiceWithdrawn/dark
+    runexitrefresh_test.go:49: withdrawn choice activated its replacement
+    runexitrefresh_test.go:54: withdrawn choice lost group Tab origin
+    runexitrefresh_test.go:62: choice keyboard recovery failed: map[target:three]
+--- FAIL: TestRunExitChoiceWithdrawn (0.04s)
+    --- FAIL: TestRunExitChoiceWithdrawn/light (0.02s)
+    --- FAIL: TestRunExitChoiceWithdrawn/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.214s
+FAIL

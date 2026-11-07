@@ -1,0 +1,23 @@
+=== RUN   TestRunExitParameterWithdrawn
+=== RUN   TestRunExitParameterWithdrawn/light
+    runexitrefresh_test.go:82: withdrawn parameter lost Cancel keyboard exit
+    runexitrefresh_test.go:90: withdrawn parameter cannot cancel with keyboard
+=== RUN   TestRunExitParameterWithdrawn/dark
+    runexitrefresh_test.go:82: withdrawn parameter lost Cancel keyboard exit
+    runexitrefresh_test.go:90: withdrawn parameter cannot cancel with keyboard
+--- FAIL: TestRunExitParameterWithdrawn (0.14s)
+    --- FAIL: TestRunExitParameterWithdrawn/light (0.13s)
+    --- FAIL: TestRunExitParameterWithdrawn/dark (0.01s)
+=== RUN   TestRunExitAllParametersWithdrawn
+=== RUN   TestRunExitAllParametersWithdrawn/light
+    runexitrefresh_test.go:121: empty form lost Run keyboard exit
+    runexitrefresh_test.go:133: parameterless Run cannot activate
+=== RUN   TestRunExitAllParametersWithdrawn/dark
+    runexitrefresh_test.go:121: empty form lost Run keyboard exit
+    runexitrefresh_test.go:133: parameterless Run cannot activate
+--- FAIL: TestRunExitAllParametersWithdrawn (0.04s)
+    --- FAIL: TestRunExitAllParametersWithdrawn/light (0.02s)
+    --- FAIL: TestRunExitAllParametersWithdrawn/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.179s
+FAIL
