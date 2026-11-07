@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/settingsui"
 )
@@ -313,7 +314,7 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 		description.Configuration.Schema, values)
 	if err != nil {
 		log.Printf("floter: could not build the configuration copy for %s: %v", id, err)
-		a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+		a.queueNotice(err.Error(), refusalNotice)
 		finish(err)
 		return
 	}
@@ -321,10 +322,10 @@ func (a *App) copyConfiguration(id string, values map[string]any, done func(erro
 	// `navigator.clipboard.writeText`): the write is put on the clipboard and
 	// the handler is cleared when it lands, so the button's in-flight face is
 	// gone with it and a second press during the write cannot start another.
-	a.notifySuccess(a.SettingsCopy().ConfigCopied)
 	text := string(document)
 	go func() {
-		mygo.Clipboard.WriteText(text)
+		a.writeClipboard(ClipboardPayload{Kind: clipboard.KindText, Text: text})
+		a.notifySuccess(a.SettingsCopy().ConfigCopied)
 		finish(nil)
 	}()
 }
