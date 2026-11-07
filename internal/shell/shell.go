@@ -2052,9 +2052,9 @@ func (a *App) runIntegrationDiagnosis(integration extensions.Integration, epoch 
 		result.DiagnosisChecks = diagnosisChecks(diagnosis)
 		var problems []string
 		for _, check := range diagnosis.Checks {
-			if check.Status != "ok" {
+			if !strings.EqualFold(strings.TrimSpace(check.Status), "ok") {
 				message := check.Message
-				if message == "" {
+				if strings.TrimSpace(message) == "" {
 					message = check.ID
 				}
 				problems = append(problems, message)

@@ -48,12 +48,13 @@ func TestDiagnosisBoundaryRemovedProbes(t *testing.T) {
 			clearNotices(f.a)
 			f.request(t, 0, "error", []extensions.DiagnosisCheck{{ID: "old", Status: "error", Message: "过期检查仍被运行"}}, true)
 			diagnosisWait(t, f.start(t))
+			notices := noticeTitles(f.a)
 			diagnosisBoundaryFrame(t, f, "removed-probes", dark)
 			if _, err := os.Stat(filepath.Join(f.dir, "request-0.started")); err == nil {
 				t.Error("removed lifecycle declaration still launches the stale provider")
 			}
 			row := f.a.integrationList()[0]
-			if row.Diagnosis != "" || len(noticeTitles(f.a)) != 0 {
+			if row.Diagnosis != "" || len(notices) != 0 {
 				t.Errorf("removed probes published stale diagnosis/notice: %+v", row.Diagnosis)
 			}
 			current, _ := f.a.Integrations.Inventory().WithID(f.entry.ID)
@@ -78,9 +79,10 @@ func TestDiagnosisBoundaryDiskOwner(t *testing.T) {
 			f.write(t) // No lifecycle probes: completion must still reread disk.
 			f.release(t, 0)
 			diagnosisWait(t, done)
+			notices := noticeTitles(f.a)
 			tt := diagnosisBoundaryFrame(t, f, "disk-owner", dark)
 			row := f.a.integrationList()[0]
-			if row.Diagnosis != "" || tt.HasText("旧声明诊断失败") || len(noticeTitles(f.a)) != 0 {
+			if row.Diagnosis != "" || tt.HasText("旧声明诊断失败") || len(notices) != 0 {
 				t.Error("provider completed against stale disk owner and published old facts")
 			}
 			f.dir = f.manifest.Provider.ArgsPrefix[3]

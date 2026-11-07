@@ -1,0 +1,25 @@
+=== RUN   TestDiagnosisMessageSuccessSpelling
+=== RUN   TestDiagnosisMessageSuccessSpelling/_ok_/light
+    diagnosismessage_test.go:25: successful individual check turns overall diagnosis into a failure: status=" ok " summary="连接检查正常" notices=["检查工具 报告了问题"]
+=== RUN   TestDiagnosisMessageSuccessSpelling/_ok_/dark
+    diagnosismessage_test.go:25: successful individual check turns overall diagnosis into a failure: status=" ok " summary="连接检查正常" notices=["检查工具 报告了问题"]
+=== RUN   TestDiagnosisMessageSuccessSpelling/OK/light
+    diagnosismessage_test.go:25: successful individual check turns overall diagnosis into a failure: status="OK" summary="连接检查正常" notices=["检查工具 报告了问题"]
+=== RUN   TestDiagnosisMessageSuccessSpelling/OK/dark
+    diagnosismessage_test.go:25: successful individual check turns overall diagnosis into a failure: status="OK" summary="连接检查正常" notices=["检查工具 报告了问题"]
+--- FAIL: TestDiagnosisMessageSuccessSpelling (1.31s)
+    --- FAIL: TestDiagnosisMessageSuccessSpelling/_ok_/light (0.33s)
+    --- FAIL: TestDiagnosisMessageSuccessSpelling/_ok_/dark (0.33s)
+    --- FAIL: TestDiagnosisMessageSuccessSpelling/OK/light (0.32s)
+    --- FAIL: TestDiagnosisMessageSuccessSpelling/OK/dark (0.33s)
+=== RUN   TestDiagnosisMessageWhitespaceFailure
+=== RUN   TestDiagnosisMessageWhitespaceFailure/light
+    diagnosismessage_test.go:45: blank failure message leaves an OK summary instead of check identity: summary=" \t "
+=== RUN   TestDiagnosisMessageWhitespaceFailure/dark
+    diagnosismessage_test.go:45: blank failure message leaves an OK summary instead of check identity: summary=" \t "
+--- FAIL: TestDiagnosisMessageWhitespaceFailure (0.26s)
+    --- FAIL: TestDiagnosisMessageWhitespaceFailure/light (0.13s)
+    --- FAIL: TestDiagnosisMessageWhitespaceFailure/dark (0.13s)
+FAIL
+FAIL	floter/internal/shell	1.580s
+FAIL

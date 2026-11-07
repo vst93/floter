@@ -41,3 +41,12 @@
 6. 现象：顶层成功词为带空格的 ok 或大写 OK 时，状态墨能识别成功，失败标志和通知却按失败处理。改动：按既有 UI 分类方式 trim/equal-fold，仅归类、保留原值。验证：真实提供者四场景的 `successful provider status is painted/notified as failure` 实红；通知队列在首次帧移交 toastViewport，因此通知断言在首次 Tester 帧前读取，画面仍在帧后验。
 
 第三批两包相关 **81 PASS / 0 FAIL**、两包 vet 净，旧 V/B/S 断言 0/0/0。独立 provider 原 status 标题的旧 pin 全部保留。
+
+第三批 71e369e6 已推送。
+
+7. 现象：明细中带空格/大写的成功状态以成功墨显示，却把整个检查变成失败并发错误通知。改动：明细判定也按既有状态墨的 trim/equal-fold 规则归类，原 status/message 不变。验证：真实 provider 四场景的 `successful individual check turns overall diagnosis into a failure` 实红；恢复后成功汇总/通知与明细一致。
+8. 现象：失败项消息只有空格和 Tab，明细能回退 ID，摘要却显示带警告墨的 Ok。改动：摘要同样将空白消息回退 ID。验证：`blank failure message leaves an OK summary instead of check identity` 深浅实红；恢复后摘要 Network.connection、明细 network.connection，原消息保留。
+
+第一批通知队列断言也统一移到 Frame 前，防止队列交付后断言无意义；正式 mutation 重新验证，不修改旧 B 断言。
+
+第四批相关 **89 PASS / 0 FAIL**、两包 vet 净，八项均实红后绿。原 V/B/S 断言 0/0/0、新增 Skip 0。后续只做完整门槛、正式 mutation 与图像复核，不扩项。
