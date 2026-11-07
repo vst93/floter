@@ -171,7 +171,9 @@ func (a *App) customRecorder(c *ui.Context, copy i18n.Settings, key string, inde
 		a.customRecording = true
 		a.customRecordRow = index
 		a.customRecordKey = key
-		a.customDuplicate, a.customDuplicateRow = "", customDraftRow
+		if a.customDuplicateRow == index {
+			a.customDuplicate = ""
+		}
 	})
 	if key != "" && a.customFocusKey == key {
 		button.Focus()
@@ -382,7 +384,9 @@ func (a *App) beginCustomDraft() {
 	a.customDraftOpen = true
 	a.customRecording = true
 	a.customRecordRow = -1
-	a.customDuplicate = ""
+	if a.customDuplicateRow == customDraftRow {
+		a.customDuplicate = ""
+	}
 }
 
 // cancelCustomDraft drops the row being made without touching the stored list.
