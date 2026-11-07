@@ -1,0 +1,23 @@
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField/light
+    selectoverflow_test.go:28: trigger={X:356.8 Y:780.7 W:342.39996 H:35.200012} text={X:373.19998 Y:788.3 W:325.99997 H:20}
+    selectoverflow_test.go:30: long action consumes dropdown arrow space
+    selectoverflow_test.go:33: long action exceeds row content edge
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField/dark
+    selectoverflow_test.go:28: trigger={X:356.8 Y:780.7 W:342.39996 H:35.200012} text={X:373.19998 Y:788.3 W:325.99997 H:20}
+    selectoverflow_test.go:30: long action consumes dropdown arrow space
+    selectoverflow_test.go:33: long action exceeds row content edge
+--- FAIL: TestCustomUnknownActionKeepsArrowInsideField (0.65s)
+    --- FAIL: TestCustomUnknownActionKeepsArrowInsideField/light (0.32s)
+    --- FAIL: TestCustomUnknownActionKeepsArrowInsideField/dark (0.33s)
+=== RUN   TestPluginLongOptionStaysInsidePopup
+=== RUN   TestPluginLongOptionStaysInsidePopup/light
+    selectoverflow_test.go:54: option text={X:17.6 Y:119.9 W:692.8 H:16.999992}
+=== RUN   TestPluginLongOptionStaysInsidePopup/dark
+    selectoverflow_test.go:54: option text={X:17.6 Y:119.9 W:692.8 H:16.999992}
+--- PASS: TestPluginLongOptionStaysInsidePopup (0.12s)
+    --- PASS: TestPluginLongOptionStaysInsidePopup/light (0.09s)
+    --- PASS: TestPluginLongOptionStaysInsidePopup/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.799s
+FAIL

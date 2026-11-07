@@ -1,0 +1,24 @@
+=== RUN   TestShortcutDraftOccupiedRetainsRetry
+=== RUN   TestShortcutDraftOccupiedRetainsRetry/light
+2026/11/07 19:54:06 floter: custom shortcut Ctrl+Shift+Z: occupied
+=== RUN   TestShortcutDraftOccupiedRetainsRetry/dark
+2026/11/07 19:54:06 floter: custom shortcut Ctrl+Shift+Z: occupied
+--- PASS: TestShortcutDraftOccupiedRetainsRetry (1.02s)
+    --- PASS: TestShortcutDraftOccupiedRetainsRetry/light (0.42s)
+    --- PASS: TestShortcutDraftOccupiedRetainsRetry/dark (0.60s)
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal/light
+=== RUN   TestShortcutDraftDuplicateRetainsOriginal/dark
+--- PASS: TestShortcutDraftDuplicateRetainsOriginal (0.95s)
+    --- PASS: TestShortcutDraftDuplicateRetainsOriginal/light (0.35s)
+    --- PASS: TestShortcutDraftDuplicateRetainsOriginal/dark (0.60s)
+=== RUN   TestShortcutCanceledDraftDoesNotInheritSystemRefusal
+=== RUN   TestShortcutCanceledDraftDoesNotInheritSystemRefusal/light
+2026/11/07 19:54:08 floter: custom shortcut Ctrl+Shift+Z: occupied
+=== RUN   TestShortcutCanceledDraftDoesNotInheritSystemRefusal/dark
+2026/11/07 19:54:08 floter: custom shortcut Ctrl+Shift+Z: occupied
+--- PASS: TestShortcutCanceledDraftDoesNotInheritSystemRefusal (1.04s)
+    --- PASS: TestShortcutCanceledDraftDoesNotInheritSystemRefusal/light (0.31s)
+    --- PASS: TestShortcutCanceledDraftDoesNotInheritSystemRefusal/dark (0.73s)
+PASS
+ok  	floter/internal/shell	3.024s

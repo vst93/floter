@@ -1,0 +1,3 @@
+37eeae1a6ada60cd1171efd2a60953ec758ada17072dab25ecce84ee1c5de0b1  /tmp/floter-P13-iz/baseline.txt
+88037a33112d48268941ab7744bf2e9a14b17e7e1bbe1839eab546572792345c  /tmp/floter-P13-iz/ordinary.txt
+9fc6f540fe302b47e968df0b9dd2e33bd29085958a587c1d78344659242e9b7b  /tmp/floter-P13-iz/verbose.txt

@@ -1,0 +1,21 @@
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal/light
+    customdraftcapture_test.go:23: successful draft capture erased saved refusal
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal/dark
+    customdraftcapture_test.go:23: successful draft capture erased saved refusal
+--- FAIL: TestCustomDraftCaptureKeepsSavedRefusal (0.61s)
+    --- FAIL: TestCustomDraftCaptureKeepsSavedRefusal/light (0.40s)
+    --- FAIL: TestCustomDraftCaptureKeepsSavedRefusal/dark (0.21s)
+=== RUN   TestCustomRevertedCommandAcceptsRefresh
+=== RUN   TestCustomRevertedCommandAcceptsRefresh/light
+    customdraftcapture_test.go:47: reverted command masks confirmed refresh: "say original"
+    customdraftcapture_test.go:52: clean editor overwrote host update: "say original"
+=== RUN   TestCustomRevertedCommandAcceptsRefresh/dark
+    customdraftcapture_test.go:47: reverted command masks confirmed refresh: "say original"
+    customdraftcapture_test.go:52: clean editor overwrote host update: "say original"
+--- FAIL: TestCustomRevertedCommandAcceptsRefresh (0.51s)
+    --- FAIL: TestCustomRevertedCommandAcceptsRefresh/light (0.12s)
+    --- FAIL: TestCustomRevertedCommandAcceptsRefresh/dark (0.40s)
+FAIL
+FAIL	floter/internal/settingsui	1.131s
+FAIL

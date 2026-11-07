@@ -1,0 +1,19 @@
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal/light
+    customdraftcapture_test.go:24: successful draft capture erased saved refusal
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal/dark
+    customdraftcapture_test.go:24: successful draft capture erased saved refusal
+--- FAIL: TestCustomDraftCaptureKeepsSavedRefusal (0.20s)
+    --- FAIL: TestCustomDraftCaptureKeepsSavedRefusal/light (0.11s)
+    --- FAIL: TestCustomDraftCaptureKeepsSavedRefusal/dark (0.09s)
+=== RUN   TestCustomDraftCancelRetiresRefusal
+=== RUN   TestCustomDraftCancelRetiresRefusal/light
+    customdraftcapture_test.go:61: new draft inherited canceled draft refusal
+=== RUN   TestCustomDraftCancelRetiresRefusal/dark
+    customdraftcapture_test.go:61: new draft inherited canceled draft refusal
+--- FAIL: TestCustomDraftCancelRetiresRefusal (0.08s)
+    --- FAIL: TestCustomDraftCancelRetiresRefusal/light (0.04s)
+    --- FAIL: TestCustomDraftCancelRetiresRefusal/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.284s
+FAIL

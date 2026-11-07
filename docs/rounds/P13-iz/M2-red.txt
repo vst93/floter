@@ -1,0 +1,19 @@
+=== RUN   TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal
+=== RUN   TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal/light
+    customcaptureownership_test.go:38: successful neighbor capture erased unrelated refusal
+=== RUN   TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal/dark
+    customcaptureownership_test.go:38: successful neighbor capture erased unrelated refusal
+--- FAIL: TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal (0.46s)
+    --- FAIL: TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal/light (0.32s)
+    --- FAIL: TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal/dark (0.15s)
+=== RUN   TestCustomSuccessfulSavedCaptureKeepsDraftRefusal
+=== RUN   TestCustomSuccessfulSavedCaptureKeepsDraftRefusal/light
+    customcaptureownership_test.go:38: successful neighbor capture erased unrelated refusal
+=== RUN   TestCustomSuccessfulSavedCaptureKeepsDraftRefusal/dark
+    customcaptureownership_test.go:38: successful neighbor capture erased unrelated refusal
+--- FAIL: TestCustomSuccessfulSavedCaptureKeepsDraftRefusal (0.31s)
+    --- FAIL: TestCustomSuccessfulSavedCaptureKeepsDraftRefusal/light (0.11s)
+    --- FAIL: TestCustomSuccessfulSavedCaptureKeepsDraftRefusal/dark (0.20s)
+FAIL
+FAIL	floter/internal/settingsui	0.781s
+FAIL

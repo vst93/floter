@@ -1,0 +1,524 @@
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears/light
+=== RUN   TestCustomDraftRetiresWhenCommandEditorDisappears/dark
+--- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears (0.55s)
+    --- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears/light (0.23s)
+    --- PASS: TestCustomDraftRetiresWhenCommandEditorDisappears/dark (0.31s)
+=== RUN   TestCustomRekeyKeepsUnsubmittedCommand
+=== RUN   TestCustomRekeyKeepsUnsubmittedCommand/light
+=== RUN   TestCustomRekeyKeepsUnsubmittedCommand/dark
+--- PASS: TestCustomRekeyKeepsUnsubmittedCommand (0.32s)
+    --- PASS: TestCustomRekeyKeepsUnsubmittedCommand/light (0.12s)
+    --- PASS: TestCustomRekeyKeepsUnsubmittedCommand/dark (0.20s)
+=== RUN   TestCustomCommandRefreshUpdatesUntouchedEditor
+=== RUN   TestCustomCommandRefreshUpdatesUntouchedEditor/light
+=== RUN   TestCustomCommandRefreshUpdatesUntouchedEditor/dark
+--- PASS: TestCustomCommandRefreshUpdatesUntouchedEditor (0.18s)
+    --- PASS: TestCustomCommandRefreshUpdatesUntouchedEditor/light (0.05s)
+    --- PASS: TestCustomCommandRefreshUpdatesUntouchedEditor/dark (0.13s)
+=== RUN   TestCustomCommandRowsStayInsideSettings
+=== RUN   TestCustomCommandRowsStayInsideSettings/saved
+    customboundaries_test.go:92: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:92: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:92: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+=== RUN   TestCustomCommandRowsStayInsideSettings/draft
+    customboundaries_test.go:92: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:92: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:92: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+    customboundaries_test.go:92: Bind: {X:652.6 Y:720.19995 W:25 H:17}
+=== RUN   TestCustomCommandRowsStayInsideSettings/long-key
+    customboundaries_test.go:92: Action: {X:336.4 Y:666.7999 W:127.600006 H:29.799988}
+    customboundaries_test.go:92: Command line: {X:471.2 Y:669.0999 W:220 H:25.200012}
+    customboundaries_test.go:92: Remove shortcut: {X:300.4 Y:666.7999 W:25.200012 H:25.200012}
+=== RUN   TestCustomCommandRowsStayInsideSettings/long-action
+    customboundaries_test.go:92: Action: {X:506.60004 Y:666.7999 W:184.59998 H:29.799988}
+    customboundaries_test.go:92: Remove shortcut: {X:281.40002 Y:666.7999 W:25.200012 H:25.200012}
+--- PASS: TestCustomCommandRowsStayInsideSettings (0.16s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/saved (0.02s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/draft (0.10s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/long-key (0.02s)
+    --- PASS: TestCustomCommandRowsStayInsideSettings/long-action (0.02s)
+=== RUN   TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal
+=== RUN   TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal/light
+=== RUN   TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal/dark
+--- PASS: TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal (0.34s)
+    --- PASS: TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal/light (0.14s)
+    --- PASS: TestCustomSuccessfulNeighborCaptureKeepsSavedRefusal/dark (0.20s)
+=== RUN   TestCustomSuccessfulSavedCaptureKeepsDraftRefusal
+=== RUN   TestCustomSuccessfulSavedCaptureKeepsDraftRefusal/light
+=== RUN   TestCustomSuccessfulSavedCaptureKeepsDraftRefusal/dark
+--- PASS: TestCustomSuccessfulSavedCaptureKeepsDraftRefusal (0.36s)
+    --- PASS: TestCustomSuccessfulSavedCaptureKeepsDraftRefusal/light (0.14s)
+    --- PASS: TestCustomSuccessfulSavedCaptureKeepsDraftRefusal/dark (0.22s)
+=== RUN   TestCustomConflictRefreshFollowsItsBinding
+=== RUN   TestCustomConflictRefreshFollowsItsBinding/light
+=== RUN   TestCustomConflictRefreshFollowsItsBinding/dark
+--- PASS: TestCustomConflictRefreshFollowsItsBinding (0.43s)
+    --- PASS: TestCustomConflictRefreshFollowsItsBinding/light (0.09s)
+    --- PASS: TestCustomConflictRefreshFollowsItsBinding/dark (0.34s)
+=== RUN   TestCustomConflictRefreshRetiresMissingBinding
+=== RUN   TestCustomConflictRefreshRetiresMissingBinding/light
+=== RUN   TestCustomConflictRefreshRetiresMissingBinding/dark
+--- PASS: TestCustomConflictRefreshRetiresMissingBinding (0.41s)
+    --- PASS: TestCustomConflictRefreshRetiresMissingBinding/light (0.08s)
+    --- PASS: TestCustomConflictRefreshRetiresMissingBinding/dark (0.33s)
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/light
+=== RUN   TestCustomFailedConversionDoesNotStealDraftFocus/dark
+--- PASS: TestCustomFailedConversionDoesNotStealDraftFocus (0.31s)
+    --- PASS: TestCustomFailedConversionDoesNotStealDraftFocus/light (0.10s)
+    --- PASS: TestCustomFailedConversionDoesNotStealDraftFocus/dark (0.20s)
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal/light
+=== RUN   TestCustomDraftCaptureKeepsSavedRefusal/dark
+--- PASS: TestCustomDraftCaptureKeepsSavedRefusal (0.34s)
+    --- PASS: TestCustomDraftCaptureKeepsSavedRefusal/light (0.14s)
+    --- PASS: TestCustomDraftCaptureKeepsSavedRefusal/dark (0.20s)
+=== RUN   TestCustomDraftCancelRetiresRefusal
+=== RUN   TestCustomDraftCancelRetiresRefusal/light
+=== RUN   TestCustomDraftCancelRetiresRefusal/dark
+--- PASS: TestCustomDraftCancelRetiresRefusal (0.22s)
+    --- PASS: TestCustomDraftCancelRetiresRefusal/light (0.12s)
+    --- PASS: TestCustomDraftCancelRetiresRefusal/dark (0.10s)
+=== RUN   TestCustomDraftRetiresWithRemovedBinding
+=== RUN   TestCustomDraftRetiresWithRemovedBinding/light
+=== RUN   TestCustomDraftRetiresWithRemovedBinding/dark
+--- PASS: TestCustomDraftRetiresWithRemovedBinding (0.56s)
+    --- PASS: TestCustomDraftRetiresWithRemovedBinding/light (0.09s)
+    --- PASS: TestCustomDraftRetiresWithRemovedBinding/dark (0.47s)
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey/light
+=== RUN   TestCustomDraftSurvivesRecordingTheSameKey/dark
+--- PASS: TestCustomDraftSurvivesRecordingTheSameKey (0.54s)
+    --- PASS: TestCustomDraftSurvivesRecordingTheSameKey/light (0.10s)
+    --- PASS: TestCustomDraftSurvivesRecordingTheSameKey/dark (0.44s)
+=== RUN   TestCustomConflictFollowsRemainingBinding
+=== RUN   TestCustomConflictFollowsRemainingBinding/light
+=== RUN   TestCustomConflictFollowsRemainingBinding/dark
+--- PASS: TestCustomConflictFollowsRemainingBinding (0.12s)
+    --- PASS: TestCustomConflictFollowsRemainingBinding/light (0.05s)
+    --- PASS: TestCustomConflictFollowsRemainingBinding/dark (0.07s)
+=== RUN   TestCustomCommandFollowsRemainingBinding
+=== RUN   TestCustomCommandFollowsRemainingBinding/light
+=== RUN   TestCustomCommandFollowsRemainingBinding/dark
+--- PASS: TestCustomCommandFollowsRemainingBinding (0.16s)
+    --- PASS: TestCustomCommandFollowsRemainingBinding/light (0.03s)
+    --- PASS: TestCustomCommandFollowsRemainingBinding/dark (0.13s)
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/light
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/dark
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/light
+=== RUN   TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/dark
+--- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand (0.35s)
+    --- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/light (0.06s)
+    --- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand/plugin:removed-tool/dark (0.10s)
+    --- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/light (0.07s)
+    --- PASS: TestCustomUnknownActionDoesNotPretendToBeCommand/action:removed-action/dark (0.12s)
+=== RUN   TestCustomDraftBindKeepsSavedConflict
+=== RUN   TestCustomDraftBindKeepsSavedConflict/light
+=== RUN   TestCustomDraftBindKeepsSavedConflict/dark
+--- PASS: TestCustomDraftBindKeepsSavedConflict (0.37s)
+    --- PASS: TestCustomDraftBindKeepsSavedConflict/light (0.13s)
+    --- PASS: TestCustomDraftBindKeepsSavedConflict/dark (0.24s)
+=== RUN   TestCustomCommandConversionReturnsFocus
+=== RUN   TestCustomCommandConversionReturnsFocus/light
+=== RUN   TestCustomCommandConversionReturnsFocus/dark
+--- PASS: TestCustomCommandConversionReturnsFocus (0.13s)
+    --- PASS: TestCustomCommandConversionReturnsFocus/light (0.06s)
+    --- PASS: TestCustomCommandConversionReturnsFocus/dark (0.07s)
+=== RUN   TestCustomDraftCancelReturnsToAdd
+=== RUN   TestCustomDraftCancelReturnsToAdd/light
+=== RUN   TestCustomDraftCancelReturnsToAdd/dark
+--- PASS: TestCustomDraftCancelReturnsToAdd (0.07s)
+    --- PASS: TestCustomDraftCancelReturnsToAdd/light (0.03s)
+    --- PASS: TestCustomDraftCancelReturnsToAdd/dark (0.04s)
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder/light
+=== RUN   TestCustomDraftBindReturnsToSavedRecorder/dark
+--- PASS: TestCustomDraftBindReturnsToSavedRecorder (0.08s)
+    --- PASS: TestCustomDraftBindReturnsToSavedRecorder/light (0.04s)
+    --- PASS: TestCustomDraftBindReturnsToSavedRecorder/dark (0.04s)
+=== RUN   TestCustomSavedRemovalReturnsToAdd
+=== RUN   TestCustomSavedRemovalReturnsToAdd/light
+=== RUN   TestCustomSavedRemovalReturnsToAdd/dark
+--- PASS: TestCustomSavedRemovalReturnsToAdd (0.12s)
+    --- PASS: TestCustomSavedRemovalReturnsToAdd/light (0.04s)
+    --- PASS: TestCustomSavedRemovalReturnsToAdd/dark (0.08s)
+=== RUN   TestCustomCommandReselectKeepsSavedBinding
+=== RUN   TestCustomCommandReselectKeepsSavedBinding/light
+=== RUN   TestCustomCommandReselectKeepsSavedBinding/dark
+--- PASS: TestCustomCommandReselectKeepsSavedBinding (0.29s)
+    --- PASS: TestCustomCommandReselectKeepsSavedBinding/light (0.07s)
+    --- PASS: TestCustomCommandReselectKeepsSavedBinding/dark (0.22s)
+=== RUN   TestCustomDraftActionChangeKeepsRecorderFocus
+=== RUN   TestCustomDraftActionChangeKeepsRecorderFocus/light
+=== RUN   TestCustomDraftActionChangeKeepsRecorderFocus/dark
+--- PASS: TestCustomDraftActionChangeKeepsRecorderFocus (0.11s)
+    --- PASS: TestCustomDraftActionChangeKeepsRecorderFocus/light (0.06s)
+    --- PASS: TestCustomDraftActionChangeKeepsRecorderFocus/dark (0.04s)
+=== RUN   TestCustomLongActionKeepsRecorderReachable
+=== RUN   TestCustomLongActionKeepsRecorderReachable/compact
+=== RUN   TestCustomLongActionKeepsRecorderReachable/default
+=== RUN   TestCustomLongActionKeepsRecorderReachable/large
+--- PASS: TestCustomLongActionKeepsRecorderReachable (0.17s)
+    --- PASS: TestCustomLongActionKeepsRecorderReachable/compact (0.02s)
+    --- PASS: TestCustomLongActionKeepsRecorderReachable/default (0.07s)
+    --- PASS: TestCustomLongActionKeepsRecorderReachable/large (0.08s)
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode/light
+=== RUN   TestCustomCommandLiteralDoesNotBecomeMode/dark
+--- PASS: TestCustomCommandLiteralDoesNotBecomeMode (0.19s)
+    --- PASS: TestCustomCommandLiteralDoesNotBecomeMode/light (0.05s)
+    --- PASS: TestCustomCommandLiteralDoesNotBecomeMode/dark (0.14s)
+=== RUN   TestCustomDraftCommandModeKeepsBindFocus
+=== RUN   TestCustomDraftCommandModeKeepsBindFocus/light
+=== RUN   TestCustomDraftCommandModeKeepsBindFocus/dark
+--- PASS: TestCustomDraftCommandModeKeepsBindFocus (0.12s)
+    --- PASS: TestCustomDraftCommandModeKeepsBindFocus/light (0.06s)
+    --- PASS: TestCustomDraftCommandModeKeepsBindFocus/dark (0.06s)
+=== RUN   TestCustomDraftModeReturnKeepsText
+=== RUN   TestCustomDraftModeReturnKeepsText/light
+=== RUN   TestCustomDraftModeReturnKeepsText/dark
+--- PASS: TestCustomDraftModeReturnKeepsText (0.16s)
+    --- PASS: TestCustomDraftModeReturnKeepsText/light (0.08s)
+    --- PASS: TestCustomDraftModeReturnKeepsText/dark (0.08s)
+=== RUN   TestCustomRekeyKeepsRecorderFocus
+=== RUN   TestCustomRekeyKeepsRecorderFocus/light
+=== RUN   TestCustomRekeyKeepsRecorderFocus/dark
+--- PASS: TestCustomRekeyKeepsRecorderFocus (0.13s)
+    --- PASS: TestCustomRekeyKeepsRecorderFocus/light (0.06s)
+    --- PASS: TestCustomRekeyKeepsRecorderFocus/dark (0.08s)
+=== RUN   TestCustomSubmittedTextMatchesStoredCommand
+=== RUN   TestCustomSubmittedTextMatchesStoredCommand/__say_changed__
+=== RUN   TestCustomSubmittedTextMatchesStoredCommand/__say_original__
+=== RUN   TestCustomSubmittedTextMatchesStoredCommand/#00
+--- PASS: TestCustomSubmittedTextMatchesStoredCommand (0.12s)
+    --- PASS: TestCustomSubmittedTextMatchesStoredCommand/__say_changed__ (0.04s)
+    --- PASS: TestCustomSubmittedTextMatchesStoredCommand/__say_original__ (0.04s)
+    --- PASS: TestCustomSubmittedTextMatchesStoredCommand/#00 (0.04s)
+=== RUN   TestCustomDuplicateCaptureKeepsRetryFocus
+=== RUN   TestCustomDuplicateCaptureKeepsRetryFocus/saved
+=== RUN   TestCustomDuplicateCaptureKeepsRetryFocus/draft
+--- PASS: TestCustomDuplicateCaptureKeepsRetryFocus (0.09s)
+    --- PASS: TestCustomDuplicateCaptureKeepsRetryFocus/saved (0.05s)
+    --- PASS: TestCustomDuplicateCaptureKeepsRetryFocus/draft (0.05s)
+=== RUN   TestCustomDraftRecreateDoesNotUndoOldCommand
+=== RUN   TestCustomDraftRecreateDoesNotUndoOldCommand/light
+=== RUN   TestCustomDraftRecreateDoesNotUndoOldCommand/dark
+--- PASS: TestCustomDraftRecreateDoesNotUndoOldCommand (0.14s)
+    --- PASS: TestCustomDraftRecreateDoesNotUndoOldCommand/light (0.07s)
+    --- PASS: TestCustomDraftRecreateDoesNotUndoOldCommand/dark (0.07s)
+=== RUN   TestCustomSavedPickerSelectionKeepsFocus
+=== RUN   TestCustomSavedPickerSelectionKeepsFocus/light
+=== RUN   TestCustomSavedPickerSelectionKeepsFocus/dark
+--- PASS: TestCustomSavedPickerSelectionKeepsFocus (0.16s)
+    --- PASS: TestCustomSavedPickerSelectionKeepsFocus/light (0.04s)
+    --- PASS: TestCustomSavedPickerSelectionKeepsFocus/dark (0.11s)
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/light
+=== RUN   TestCustomRecorderRefreshFollowsItsBinding/dark
+--- PASS: TestCustomRecorderRefreshFollowsItsBinding (0.41s)
+    --- PASS: TestCustomRecorderRefreshFollowsItsBinding/light (0.09s)
+    --- PASS: TestCustomRecorderRefreshFollowsItsBinding/dark (0.32s)
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/light
+=== RUN   TestCustomRecorderRefreshRetiresMissingBinding/dark
+--- PASS: TestCustomRecorderRefreshRetiresMissingBinding (0.39s)
+    --- PASS: TestCustomRecorderRefreshRetiresMissingBinding/light (0.09s)
+    --- PASS: TestCustomRecorderRefreshRetiresMissingBinding/dark (0.30s)
+=== RUN   TestCustomRecorderFollowsRemainingBinding
+--- PASS: TestCustomRecorderFollowsRemainingBinding (0.09s)
+=== RUN   TestCustomRecorderStopsWhenItsBindingIsRemoved
+--- PASS: TestCustomRecorderStopsWhenItsBindingIsRemoved (0.08s)
+=== RUN   TestCustomActionRefreshReturnsToPicker
+=== RUN   TestCustomActionRefreshReturnsToPicker/light/command
+=== RUN   TestCustomActionRefreshReturnsToPicker/light/elsewhere
+=== RUN   TestCustomActionRefreshReturnsToPicker/dark/command
+=== RUN   TestCustomActionRefreshReturnsToPicker/dark/elsewhere
+--- PASS: TestCustomActionRefreshReturnsToPicker (0.37s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/light/command (0.05s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/light/elsewhere (0.04s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/dark/command (0.14s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/dark/elsewhere (0.14s)
+=== RUN   TestCustomMissingRowReturnsToAdd
+=== RUN   TestCustomMissingRowReturnsToAdd/light/command
+=== RUN   TestCustomMissingRowReturnsToAdd/light/elsewhere
+=== RUN   TestCustomMissingRowReturnsToAdd/light/recording
+=== RUN   TestCustomMissingRowReturnsToAdd/light/picker
+=== RUN   TestCustomMissingRowReturnsToAdd/light/remove
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/command
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/elsewhere
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/recording
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/picker
+=== RUN   TestCustomMissingRowReturnsToAdd/dark/remove
+--- PASS: TestCustomMissingRowReturnsToAdd (1.03s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/command (0.06s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/elsewhere (0.04s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/recording (0.04s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/picker (0.05s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/light/remove (0.05s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/command (0.11s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/elsewhere (0.15s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/recording (0.16s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/picker (0.19s)
+    --- PASS: TestCustomMissingRowReturnsToAdd/dark/remove (0.17s)
+=== RUN   TestCustomAddKeepsSavedRefusal
+=== RUN   TestCustomAddKeepsSavedRefusal/light
+=== RUN   TestCustomAddKeepsSavedRefusal/dark
+--- PASS: TestCustomAddKeepsSavedRefusal (0.35s)
+    --- PASS: TestCustomAddKeepsSavedRefusal/light (0.15s)
+    --- PASS: TestCustomAddKeepsSavedRefusal/dark (0.19s)
+=== RUN   TestCustomNeighborRecorderKeepsSavedRefusal
+=== RUN   TestCustomNeighborRecorderKeepsSavedRefusal/light
+=== RUN   TestCustomNeighborRecorderKeepsSavedRefusal/dark
+--- PASS: TestCustomNeighborRecorderKeepsSavedRefusal (0.34s)
+    --- PASS: TestCustomNeighborRecorderKeepsSavedRefusal/light (0.13s)
+    --- PASS: TestCustomNeighborRecorderKeepsSavedRefusal/dark (0.21s)
+=== RUN   TestCustomSaveFailureMode
+=== RUN   TestCustomSaveFailureMode/light
+=== RUN   TestCustomSaveFailureMode/dark
+--- PASS: TestCustomSaveFailureMode (0.11s)
+    --- PASS: TestCustomSaveFailureMode/light (0.07s)
+    --- PASS: TestCustomSaveFailureMode/dark (0.05s)
+=== RUN   TestCustomSaveFailureRemove
+=== RUN   TestCustomSaveFailureRemove/light
+=== RUN   TestCustomSaveFailureRemove/dark
+--- PASS: TestCustomSaveFailureRemove (0.09s)
+    --- PASS: TestCustomSaveFailureRemove/light (0.05s)
+    --- PASS: TestCustomSaveFailureRemove/dark (0.05s)
+=== RUN   TestCustomSaveFailureAdd
+=== RUN   TestCustomSaveFailureAdd/light
+=== RUN   TestCustomSaveFailureAdd/dark
+--- PASS: TestCustomSaveFailureAdd (0.10s)
+    --- PASS: TestCustomSaveFailureAdd/light (0.04s)
+    --- PASS: TestCustomSaveFailureAdd/dark (0.06s)
+=== RUN   TestCustomSaveFailureCommand
+=== RUN   TestCustomSaveFailureCommand/light
+=== RUN   TestCustomSaveFailureCommand/dark
+--- PASS: TestCustomSaveFailureCommand (0.07s)
+    --- PASS: TestCustomSaveFailureCommand/light (0.04s)
+    --- PASS: TestCustomSaveFailureCommand/dark (0.04s)
+=== RUN   TestCustomSaveFailureRecord
+=== RUN   TestCustomSaveFailureRecord/light
+=== RUN   TestCustomSaveFailureRecord/dark
+--- PASS: TestCustomSaveFailureRecord (0.08s)
+    --- PASS: TestCustomSaveFailureRecord/light (0.04s)
+    --- PASS: TestCustomSaveFailureRecord/dark (0.04s)
+=== RUN   TestCustomMenuExternalSelection
+=== RUN   TestCustomMenuExternalSelection/light
+=== RUN   TestCustomMenuExternalSelection/dark
+--- PASS: TestCustomMenuExternalSelection (0.02s)
+    --- PASS: TestCustomMenuExternalSelection/light (0.01s)
+    --- PASS: TestCustomMenuExternalSelection/dark (0.01s)
+=== RUN   TestCustomMenuReorder
+=== RUN   TestCustomMenuReorder/light
+=== RUN   TestCustomMenuReorder/dark
+--- PASS: TestCustomMenuReorder (0.01s)
+    --- PASS: TestCustomMenuReorder/light (0.01s)
+    --- PASS: TestCustomMenuReorder/dark (0.01s)
+=== RUN   TestCustomMenuDuplicateLabels
+=== RUN   TestCustomMenuDuplicateLabels/light
+=== RUN   TestCustomMenuDuplicateLabels/dark
+--- PASS: TestCustomMenuDuplicateLabels (0.01s)
+    --- PASS: TestCustomMenuDuplicateLabels/light (0.01s)
+    --- PASS: TestCustomMenuDuplicateLabels/dark (0.01s)
+=== RUN   TestThePickerFloorHasACeiling
+--- PASS: TestThePickerFloorHasACeiling (0.10s)
+=== RUN   TestThePickerNeverPaintsPastTheRowColumn
+--- PASS: TestThePickerNeverPaintsPastTheRowColumn (1.03s)
+=== RUN   TestTheLabelColumnYieldsFirstAndThePickerHasNoCeilingOfItsOwn
+--- PASS: TestTheLabelColumnYieldsFirstAndThePickerHasNoCeilingOfItsOwn (0.78s)
+=== RUN   TestChooseSelectHasNoShrinkOfItsOwn
+--- PASS: TestChooseSelectHasNoShrinkOfItsOwn (0.00s)
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.04s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.03s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.01s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.03s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.01s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.02s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.03s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginTextInputSubmitsToItsExistingCallback
+--- PASS: TestPluginTextInputSubmitsToItsExistingCallback (0.02s)
+=== RUN   TestPluginTextRefusedWriteKeepsTheEditForRetry
+--- PASS: TestPluginTextRefusedWriteKeepsTheEditForRetry (0.02s)
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf
+--- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues (0.17s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN (0.08s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf (0.04s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf (0.04s)
+=== RUN   TestPluginNumberDraftDoesNotBleedAcrossPlugins
+--- PASS: TestPluginNumberDraftDoesNotBleedAcrossPlugins (0.01s)
+=== RUN   TestPluginSheetRendersAndReportsChanges
+--- PASS: TestPluginSheetRendersAndReportsChanges (0.03s)
+=== RUN   TestPluginSheetActionArmsThenRuns
+--- PASS: TestPluginSheetActionArmsThenRuns (0.06s)
+=== RUN   TestPluginSheetReportsARefusedWrite
+--- PASS: TestPluginSheetReportsARefusedWrite (0.01s)
+=== RUN   TestPluginSheetSliderShowsItsUnit
+--- PASS: TestPluginSheetSliderShowsItsUnit (0.02s)
+=== RUN   TestPluginSheetWithoutASchemaDrawsNothing
+--- PASS: TestPluginSheetWithoutASchemaDrawsNothing (0.00s)
+=== RUN   TestPluginSheetActionFailureHasItsOwnLine
+--- PASS: TestPluginSheetActionFailureHasItsOwnLine (0.01s)
+=== RUN   TestCustomRecorderCancelReturnsFocus
+=== RUN   TestCustomRecorderCancelReturnsFocus/light
+=== RUN   TestCustomRecorderCancelReturnsFocus/dark
+--- PASS: TestCustomRecorderCancelReturnsFocus (0.41s)
+    --- PASS: TestCustomRecorderCancelReturnsFocus/light (0.09s)
+    --- PASS: TestCustomRecorderCancelReturnsFocus/dark (0.32s)
+=== RUN   TestCustomRecorderAcceptedReturnsFocus
+=== RUN   TestCustomRecorderAcceptedReturnsFocus/light
+=== RUN   TestCustomRecorderAcceptedReturnsFocus/dark
+--- PASS: TestCustomRecorderAcceptedReturnsFocus (0.43s)
+    --- PASS: TestCustomRecorderAcceptedReturnsFocus/light (0.09s)
+    --- PASS: TestCustomRecorderAcceptedReturnsFocus/dark (0.35s)
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape/light
+=== RUN   TestSelectAvailabilityLongMenuKeyboardAndEscape/dark
+--- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape (0.05s)
+    --- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape/light (0.03s)
+    --- PASS: TestSelectAvailabilityLongMenuKeyboardAndEscape/dark (0.02s)
+=== RUN   TestSelectAvailabilityEmptyOptions
+=== RUN   TestSelectAvailabilityEmptyOptions/light
+=== RUN   TestSelectAvailabilityEmptyOptions/dark
+--- PASS: TestSelectAvailabilityEmptyOptions (0.03s)
+    --- PASS: TestSelectAvailabilityEmptyOptions/light (0.01s)
+    --- PASS: TestSelectAvailabilityEmptyOptions/dark (0.01s)
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu/light
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu/dark
+--- PASS: TestSelectAvailabilityLockClosesOpenMenu (0.03s)
+    --- PASS: TestSelectAvailabilityLockClosesOpenMenu/light (0.02s)
+    --- PASS: TestSelectAvailabilityLockClosesOpenMenu/dark (0.02s)
+=== RUN   TestSelectClearReservedDisplayName
+=== RUN   TestSelectClearReservedDisplayName/light
+=== RUN   TestSelectClearReservedDisplayName/dark
+--- PASS: TestSelectClearReservedDisplayName (0.03s)
+    --- PASS: TestSelectClearReservedDisplayName/light (0.02s)
+    --- PASS: TestSelectClearReservedDisplayName/dark (0.01s)
+=== RUN   TestSelectClearEmptySchemaOption
+=== RUN   TestSelectClearEmptySchemaOption/light
+=== RUN   TestSelectClearEmptySchemaOption/dark
+--- PASS: TestSelectClearEmptySchemaOption (0.02s)
+    --- PASS: TestSelectClearEmptySchemaOption/light (0.01s)
+    --- PASS: TestSelectClearEmptySchemaOption/dark (0.01s)
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue/light
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue/dark
+--- PASS: TestSelectDynamicReorderKeepsHighlightedValue (0.03s)
+    --- PASS: TestSelectDynamicReorderKeepsHighlightedValue/light (0.01s)
+    --- PASS: TestSelectDynamicReorderKeepsHighlightedValue/dark (0.01s)
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/light
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/dark
+--- PASS: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour (0.04s)
+    --- PASS: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/light (0.02s)
+    --- PASS: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/dark (0.02s)
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField/light
+    selectoverflow_test.go:28: trigger={X:356.8 Y:780.7 W:327.99994 H:35.200012} text={X:373.19998 Y:788.3 W:277.59995 H:20}
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField/dark
+    selectoverflow_test.go:28: trigger={X:356.8 Y:780.7 W:327.99994 H:35.200012} text={X:373.19998 Y:788.3 W:277.59995 H:20}
+--- PASS: TestCustomUnknownActionKeepsArrowInsideField (0.47s)
+    --- PASS: TestCustomUnknownActionKeepsArrowInsideField/light (0.12s)
+    --- PASS: TestCustomUnknownActionKeepsArrowInsideField/dark (0.35s)
+=== RUN   TestPluginLongOptionStaysInsidePopup
+=== RUN   TestPluginLongOptionStaysInsidePopup/light
+    selectoverflow_test.go:54: option text={X:17.6 Y:119.9 W:685.60004 H:16.999992}
+=== RUN   TestPluginLongOptionStaysInsidePopup/dark
+    selectoverflow_test.go:54: option text={X:17.6 Y:119.9 W:685.60004 H:16.999992}
+--- PASS: TestPluginLongOptionStaysInsidePopup (0.08s)
+    --- PASS: TestPluginLongOptionStaysInsidePopup/light (0.04s)
+    --- PASS: TestPluginLongOptionStaysInsidePopup/dark (0.04s)
+=== RUN   TestSelectValueDuplicateNames
+=== RUN   TestSelectValueDuplicateNames/light
+=== RUN   TestSelectValueDuplicateNames/dark
+--- PASS: TestSelectValueDuplicateNames (0.02s)
+    --- PASS: TestSelectValueDuplicateNames/light (0.01s)
+    --- PASS: TestSelectValueDuplicateNames/dark (0.01s)
+=== RUN   TestSelectValueUnknownIDMatchingALabel
+=== RUN   TestSelectValueUnknownIDMatchingALabel/light
+=== RUN   TestSelectValueUnknownIDMatchingALabel/dark
+--- PASS: TestSelectValueUnknownIDMatchingALabel (0.02s)
+    --- PASS: TestSelectValueUnknownIDMatchingALabel/light (0.01s)
+    --- PASS: TestSelectValueUnknownIDMatchingALabel/dark (0.01s)
+=== RUN   TestShortcutLayoutEdges
+=== RUN   TestShortcutLayoutEdges/saved-large/light
+=== RUN   TestShortcutLayoutEdges/saved-large/dark
+=== RUN   TestShortcutLayoutEdges/draft-large/light
+=== RUN   TestShortcutLayoutEdges/draft-large/dark
+=== RUN   TestShortcutLayoutEdges/warning/light
+=== RUN   TestShortcutLayoutEdges/warning/dark
+=== RUN   TestShortcutLayoutEdges/draft-warning/light
+=== RUN   TestShortcutLayoutEdges/draft-warning/dark
+=== RUN   TestShortcutLayoutEdges/recording-large/light
+=== RUN   TestShortcutLayoutEdges/recording-large/dark
+--- PASS: TestShortcutLayoutEdges (1.42s)
+    --- PASS: TestShortcutLayoutEdges/saved-large/light (0.03s)
+    --- PASS: TestShortcutLayoutEdges/saved-large/dark (0.09s)
+    --- PASS: TestShortcutLayoutEdges/draft-large/light (0.15s)
+    --- PASS: TestShortcutLayoutEdges/draft-large/dark (0.45s)
+    --- PASS: TestShortcutLayoutEdges/warning/light (0.04s)
+    --- PASS: TestShortcutLayoutEdges/warning/dark (0.12s)
+    --- PASS: TestShortcutLayoutEdges/draft-warning/light (0.10s)
+    --- PASS: TestShortcutLayoutEdges/draft-warning/dark (0.21s)
+    --- PASS: TestShortcutLayoutEdges/recording-large/light (0.07s)
+    --- PASS: TestShortcutLayoutEdges/recording-large/dark (0.16s)
+=== RUN   TestCustomRecorderGivesUpAfterFocusMoves
+--- PASS: TestCustomRecorderGivesUpAfterFocusMoves (0.34s)
+=== RUN   TestCustomCommandNoOpEnterDropsTheDraft
+--- PASS: TestCustomCommandNoOpEnterDropsTheDraft (0.05s)
+=== RUN   TestShortcutsPage
+--- PASS: TestShortcutsPage (0.06s)
+=== RUN   TestShortcutRecorder
+--- PASS: TestShortcutRecorder (0.36s)
+=== RUN   TestCustomShortcutRecorderTreatsModifiedEscapeAsAChord
+--- PASS: TestCustomShortcutRecorderTreatsModifiedEscapeAsAChord (0.35s)
+=== RUN   TestCustomShortcutsPage
+--- PASS: TestCustomShortcutsPage (0.61s)
+=== RUN   TestCustomShortcutCommandOptionStartsADraft
+--- PASS: TestCustomShortcutCommandOptionStartsADraft (0.21s)
+=== RUN   TestCustomShortcutsEmptyState
+--- PASS: TestCustomShortcutsEmptyState (0.16s)
+=== RUN   TestShortcutRecordingStateWearsTheRaisedQuietFace
+--- PASS: TestShortcutRecordingStateWearsTheRaisedQuietFace (0.11s)
+=== RUN   TestCustomShortcutDraftRowMuting
+=== RUN   TestCustomShortcutDraftRowMuting/no_key
+=== RUN   TestCustomShortcutDraftRowMuting/key_but_no_action
+=== RUN   TestCustomShortcutDraftRowMuting/key_and_command_text
+=== RUN   TestCustomShortcutDraftRowMuting/key_and_action
+--- PASS: TestCustomShortcutDraftRowMuting (0.00s)
+    --- PASS: TestCustomShortcutDraftRowMuting/no_key (0.00s)
+    --- PASS: TestCustomShortcutDraftRowMuting/key_but_no_action (0.00s)
+    --- PASS: TestCustomShortcutDraftRowMuting/key_and_command_text (0.00s)
+    --- PASS: TestCustomShortcutDraftRowMuting/key_and_action (0.00s)
+=== RUN   TestCustomShortcutRejectionWording
+=== RUN   TestCustomShortcutRejectionWording/conflict
+=== RUN   TestCustomShortcutRejectionWording/occupied
+--- PASS: TestCustomShortcutRejectionWording (0.47s)
+    --- PASS: TestCustomShortcutRejectionWording/conflict (0.22s)
+    --- PASS: TestCustomShortcutRejectionWording/occupied (0.25s)
+=== RUN   TestShortcutRecorderRefusesAChordAnotherActionHolds
+--- PASS: TestShortcutRecorderRefusesAChordAnotherActionHolds (0.32s)
+PASS
+ok  	floter/internal/settingsui	19.887s

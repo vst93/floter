@@ -1,0 +1,19 @@
+=== RUN   TestCustomAddKeepsSavedRefusal
+=== RUN   TestCustomAddKeepsSavedRefusal/light
+    customrefusalownership_test.go:49: unrelated recorder erased saved refusal
+=== RUN   TestCustomAddKeepsSavedRefusal/dark
+    customrefusalownership_test.go:49: unrelated recorder erased saved refusal
+--- FAIL: TestCustomAddKeepsSavedRefusal (0.31s)
+    --- FAIL: TestCustomAddKeepsSavedRefusal/light (0.19s)
+    --- FAIL: TestCustomAddKeepsSavedRefusal/dark (0.12s)
+=== RUN   TestCustomNeighborRecorderKeepsSavedRefusal
+=== RUN   TestCustomNeighborRecorderKeepsSavedRefusal/light
+    customrefusalownership_test.go:49: unrelated recorder erased saved refusal
+=== RUN   TestCustomNeighborRecorderKeepsSavedRefusal/dark
+    customrefusalownership_test.go:49: unrelated recorder erased saved refusal
+--- FAIL: TestCustomNeighborRecorderKeepsSavedRefusal (0.18s)
+    --- FAIL: TestCustomNeighborRecorderKeepsSavedRefusal/light (0.07s)
+    --- FAIL: TestCustomNeighborRecorderKeepsSavedRefusal/dark (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	0.498s
+FAIL

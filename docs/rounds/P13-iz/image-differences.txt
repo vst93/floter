@@ -1,0 +1,16 @@
+refusal-add light: 36874 changed pixels; 720x440
+refusal-add dark: 36875 changed pixels; 720x440
+refusal-record light: 34654 changed pixels; 720x440
+refusal-record dark: 34672 changed pixels; 720x440
+capture-saved-refusal light: 34652 changed pixels; 720x440
+capture-saved-refusal dark: 34671 changed pixels; 720x440
+capture-draft-refusal light: 18072 changed pixels; 720x440
+capture-draft-refusal dark: 18079 changed pixels; 720x440
+draft-capture-saved-refusal light: 37319 changed pixels; 720x440
+draft-capture-saved-refusal dark: 37320 changed pixels; 720x440
+draft-cancel-refusal light: 17942 changed pixels; 720x440
+draft-cancel-refusal dark: 17949 changed pixels; 720x440
+unknown-action-arrow light: 983 changed pixels; 720x1000
+unknown-action-arrow dark: 989 changed pixels; 720x1000
+long-option-popup light: 1574 changed pixels; 720x400
+long-option-popup dark: 1176 changed pixels; 720x400

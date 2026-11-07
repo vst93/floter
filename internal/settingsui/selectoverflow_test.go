@@ -53,7 +53,7 @@ func TestPluginLongOptionStaysInsidePopup(t *testing.T) {
 			text := mustFind(t, tt, long)
 			t.Logf("option text=%+v", text)
 			// The option's highlight must finish its right corner inside the
-			// viewport. The old popup was window-wide plus its left margin;
+			// viewport. The old popup used the window width before positioning;
 			// its blue fill ran through the last drawable column (the root
 			// clips the final raster column itself).
 			img := tt.Image()

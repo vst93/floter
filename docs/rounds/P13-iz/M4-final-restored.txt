@@ -1,0 +1,18 @@
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField/light
+    selectoverflow_test.go:28: trigger={X:356.8 Y:780.7 W:327.99994 H:35.200012} text={X:373.19998 Y:788.3 W:277.59995 H:20}
+=== RUN   TestCustomUnknownActionKeepsArrowInsideField/dark
+    selectoverflow_test.go:28: trigger={X:356.8 Y:780.7 W:327.99994 H:35.200012} text={X:373.19998 Y:788.3 W:277.59995 H:20}
+--- PASS: TestCustomUnknownActionKeepsArrowInsideField (0.39s)
+    --- PASS: TestCustomUnknownActionKeepsArrowInsideField/light (0.20s)
+    --- PASS: TestCustomUnknownActionKeepsArrowInsideField/dark (0.19s)
+=== RUN   TestPluginLongOptionStaysInsidePopup
+=== RUN   TestPluginLongOptionStaysInsidePopup/light
+    selectoverflow_test.go:54: option text={X:17.6 Y:119.9 W:685.60004 H:16.999992}
+=== RUN   TestPluginLongOptionStaysInsidePopup/dark
+    selectoverflow_test.go:54: option text={X:17.6 Y:119.9 W:685.60004 H:16.999992}
+--- PASS: TestPluginLongOptionStaysInsidePopup (0.09s)
+    --- PASS: TestPluginLongOptionStaysInsidePopup/light (0.07s)
+    --- PASS: TestPluginLongOptionStaysInsidePopup/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.502s

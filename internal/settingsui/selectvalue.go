@@ -116,9 +116,9 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 			panel.Margin(t.Space(1), 0, 0, 0).Padding(t.Space(1)).Radius(t.Radius+2).
 				Background(t.Background).Border(1, t.Border).Shadow(0, 6, 20, 0, tokens.ShadowAmbient)
 			anchor, frame := b.Bounds(), c.Root().Bounds()
-			// Leave the same one-space gutter on both sides. A window-wide
-			// natural popup plus its margin would clip the right border and
-			// the highlighted option's corner at the viewport edge.
+			// Leave the same one-space gutter on both sides. A naturally
+			// window-wide popup loses its right border and the highlighted
+			// option's corner when positioned at the viewport edge.
 			width := max(0, frame.W-2*t.Space(1))
 			panel.MinWidth(min(anchor.W, width)).MaxWidth(width)
 			room := max(anchor.Y-frame.Y, frame.Y+frame.H-anchor.Y-anchor.H)
