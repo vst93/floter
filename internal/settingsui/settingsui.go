@@ -847,6 +847,7 @@ type App struct {
 	// stored custom duration opens the field it came from — the reference's
 	// `useState` initializers in `SurfaceResidencyControl`.
 	residencyInit       bool
+	residencyEditing    bool // an explicitly opened or edited custom draft owns its value
 	residencyCustomOpen bool
 	residencyDraft      string
 
@@ -5368,7 +5369,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 		a.residencyCustomOpen = selectValue == residencyCustom
 		a.residencyDraft = strconv.FormatUint(uint64(residencyCustomSeedSeconds(value)), 10)
 	}
-	if !a.residencyCustomOpen {
+	if !a.residencyCustomOpen || !a.residencyEditing {
 		a.residencyDraft = strconv.FormatUint(uint64(residencyCustomSeedSeconds(value)), 10)
 		a.residencyCustomOpen = selectValue == residencyCustom
 	}
@@ -5401,6 +5402,9 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 		}
 		input := a.textInput(c, &a.residencyDraft).Label(copy.SurfaceResidencyCustomLabel).
 			Placeholder(copy.SurfaceResidencyCustomUnit).Width(90)
+		if input.Changed() {
+			a.residencyEditing = true
+		}
 		ui.Text(c, copy.SurfaceResidencyCustomUnit).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
 		if input.Submitted() || a.pageButton(c, copy.SurfaceResidencyCustomApply).Clicked() {
 			a.commitResidencyDraft()
@@ -5419,11 +5423,13 @@ func (a *App) residencyChoice(choice string, stored uint32) {
 	if !ok {
 		a.residencyDraft = strconv.FormatUint(uint64(residencyCustomSeedSeconds(stored)), 10)
 		a.residencyCustomOpen = true
+		a.residencyEditing = true
 		return
 	}
 	a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = next })
 	if a.settings().SurfaceResidencySeconds == next {
 		a.residencyCustomOpen = false
+		a.residencyEditing = false
 	}
 }
 
