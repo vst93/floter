@@ -765,6 +765,8 @@ type App struct {
 	// healthBusy is the Health block's own refresh, separate from repair so
 	// the re-check/reconnect pill does not pretend to own that operation.
 	healthBusy map[string]bool
+	// diagnosisBusy covers both lifecycle probes and the provider check.
+	diagnosisBusy map[string]bool
 	// toggleBusy marks the integrations whose enable write is in flight, so
 	// the row's switch swaps its thumb for the reference's turning LoaderCircle
 	// and holds its `disabled` face until the shell reports back
@@ -4101,7 +4103,7 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
 // `src/extensions/ExtensionRow.tsx:131,301-419,447`); here the in-flight marks
 // live on the row's own maps, so the union is what the whole-row lock reads.
 func (a *App) rowBusy(id string) bool {
-	return a.healthBusy[id] || a.repairBusy[id] || a.disableBusy[id] || a.removeBusy[id] ||
+	return a.diagnosisBusy[id] || a.healthBusy[id] || a.repairBusy[id] || a.disableBusy[id] || a.removeBusy[id] ||
 		a.uninstallBusy[id] || a.toggleBusy[id]
 }
 
@@ -4110,8 +4112,31 @@ func (a *App) rowBusy(id string) bool {
 // busy pill instead of a plain disabled face, so it asks only about the row's
 // *other* operations.
 func (a *App) rowBusyExceptRepair(id string) bool {
-	return a.healthBusy[id] || a.disableBusy[id] || a.removeBusy[id] || a.uninstallBusy[id] ||
+	return a.diagnosisBusy[id] || a.healthBusy[id] || a.disableBusy[id] || a.removeBusy[id] || a.uninstallBusy[id] ||
 		a.toggleBusy[id]
+}
+
+// BeginDiagnosis and FinishDiagnosis share the existing row operation lock.
+// The shell settles it on the UI thread even when an obsolete check exits.
+func (a *App) BeginDiagnosis(id string) bool {
+	if a.rowBusy(id) {
+		return false
+	}
+	if a.diagnosisBusy == nil {
+		a.diagnosisBusy = map[string]bool{}
+	}
+	a.diagnosisBusy[id] = true
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
+	return true
+}
+
+func (a *App) FinishDiagnosis(id string) {
+	delete(a.diagnosisBusy, id)
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 // BeginHealthReprobe and FinishHealthReprobe use the existing row operation

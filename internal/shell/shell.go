@@ -1962,11 +1962,14 @@ func (a *App) runHealthReprobe(integration extensions.Integration) {
 // and remembers what it said for the list.
 func (a *App) diagnoseIntegration(id string) {
 	integration, ok := a.Integrations.Inventory().WithID(id)
-	if !ok {
+	if !ok || !a.Settings.BeginDiagnosis(id) {
 		return
 	}
 	epoch := a.beginDiagnosis(id)
-	go a.runIntegrationDiagnosis(integration, epoch)
+	go func() {
+		defer a.onMain(func() { a.Settings.FinishDiagnosis(id) })
+		a.runIntegrationDiagnosis(integration, epoch)
+	}()
 }
 
 // A diagnosis belongs to the declaration and executable it actually checked.
