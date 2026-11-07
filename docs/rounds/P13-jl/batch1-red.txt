@@ -1,0 +1,23 @@
+=== RUN   TestConfigSyncFirstReadCannotUndoImport
+=== RUN   TestConfigSyncFirstReadCannotUndoImport/light
+    configsyncrefresh_test.go:99: cold-import: synchronous read returned retired value https://before.example, want https://imported.example
+    configsyncrefresh_test.go:109: cold-import: visible editor reverted to "https://before.example", want "https://imported.example"
+=== RUN   TestConfigSyncFirstReadCannotUndoImport/dark
+    configsyncrefresh_test.go:99: cold-import: synchronous read returned retired value https://before.example, want https://imported.example
+    configsyncrefresh_test.go:109: cold-import: visible editor reverted to "https://before.example", want "https://imported.example"
+--- FAIL: TestConfigSyncFirstReadCannotUndoImport (1.27s)
+    --- FAIL: TestConfigSyncFirstReadCannotUndoImport/light (0.70s)
+    --- FAIL: TestConfigSyncFirstReadCannotUndoImport/dark (0.57s)
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm/light
+    configsyncrefresh_test.go:99: cold-save-read-error: synchronous read returned retired value <nil>, want https://saved.example
+    configsyncrefresh_test.go:109: cold-save-read-error: visible editor reverted to "", want "https://saved.example"
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm/dark
+    configsyncrefresh_test.go:99: cold-save-read-error: synchronous read returned retired value <nil>, want https://saved.example
+    configsyncrefresh_test.go:109: cold-save-read-error: visible editor reverted to "", want "https://saved.example"
+--- FAIL: TestConfigSyncFirstFailureCannotBlankSavedForm (1.05s)
+    --- FAIL: TestConfigSyncFirstFailureCannotBlankSavedForm/light (0.52s)
+    --- FAIL: TestConfigSyncFirstFailureCannotBlankSavedForm/dark (0.53s)
+FAIL
+FAIL	floter/internal/shell	2.329s
+FAIL

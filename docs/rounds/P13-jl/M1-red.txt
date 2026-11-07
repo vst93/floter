@@ -1,0 +1,43 @@
+=== RUN   TestConfigSyncFirstReadCannotUndoImport
+=== RUN   TestConfigSyncFirstReadCannotUndoImport/light
+    configsyncrefresh_test.go:163: cold-import: synchronous read returned retired value https://before.example, want https://imported.example
+    configsyncrefresh_test.go:173: cold-import: visible editor reverted to "https://before.example", want "https://imported.example"
+=== RUN   TestConfigSyncFirstReadCannotUndoImport/dark
+    configsyncrefresh_test.go:163: cold-import: synchronous read returned retired value https://before.example, want https://imported.example
+    configsyncrefresh_test.go:173: cold-import: visible editor reverted to "https://before.example", want "https://imported.example"
+--- FAIL: TestConfigSyncFirstReadCannotUndoImport (1.18s)
+    --- FAIL: TestConfigSyncFirstReadCannotUndoImport/light (0.64s)
+    --- FAIL: TestConfigSyncFirstReadCannotUndoImport/dark (0.54s)
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm/light
+    configsyncrefresh_test.go:163: cold-save-read-error: synchronous read returned retired value <nil>, want https://saved.example
+    configsyncrefresh_test.go:173: cold-save-read-error: visible editor reverted to "", want "https://saved.example"
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm/dark
+    configsyncrefresh_test.go:163: cold-save-read-error: synchronous read returned retired value <nil>, want https://saved.example
+    configsyncrefresh_test.go:173: cold-save-read-error: visible editor reverted to "", want "https://saved.example"
+--- FAIL: TestConfigSyncFirstFailureCannotBlankSavedForm (1.16s)
+    --- FAIL: TestConfigSyncFirstFailureCannotBlankSavedForm/light (0.55s)
+    --- FAIL: TestConfigSyncFirstFailureCannotBlankSavedForm/dark (0.62s)
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave/light
+    configsyncrefresh_test.go:163: added-neighbour-save: synchronous read returned retired value https://before.example, want https://saved.example
+    configsyncrefresh_test.go:173: added-neighbour-save: visible editor reverted to "https://before.example", want "https://saved.example"
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave/dark
+    configsyncrefresh_test.go:163: added-neighbour-save: synchronous read returned retired value https://before.example, want https://saved.example
+    configsyncrefresh_test.go:173: added-neighbour-save: visible editor reverted to "https://before.example", want "https://saved.example"
+--- FAIL: TestConfigSyncAddedRowCannotUndoNeighbourSave (1.41s)
+    --- FAIL: TestConfigSyncAddedRowCannotUndoNeighbourSave/light (0.73s)
+    --- FAIL: TestConfigSyncAddedRowCannotUndoNeighbourSave/dark (0.68s)
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport/light
+    configsyncrefresh_test.go:163: added-own-import: synchronous read returned retired value https://before.example, want https://imported.example
+    configsyncrefresh_test.go:173: added-own-import: visible editor reverted to "https://before.example", want "https://imported.example"
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport/dark
+    configsyncrefresh_test.go:163: added-own-import: synchronous read returned retired value https://before.example, want https://imported.example
+    configsyncrefresh_test.go:173: added-own-import: visible editor reverted to "https://before.example", want "https://imported.example"
+--- FAIL: TestConfigSyncAddedRowCannotUndoOwnImport (1.54s)
+    --- FAIL: TestConfigSyncAddedRowCannotUndoOwnImport/light (0.69s)
+    --- FAIL: TestConfigSyncAddedRowCannotUndoOwnImport/dark (0.85s)
+FAIL
+FAIL	floter/internal/shell	5.302s
+FAIL

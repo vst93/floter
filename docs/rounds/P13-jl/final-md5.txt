@@ -1,0 +1,4 @@
+internal/shell/configmemo.go: 成功
+internal/shell/integrationfacts.go: 成功
+internal/shell/configsyncrefresh_test.go: 成功
+internal/shell/factssyncrefresh_test.go: 成功

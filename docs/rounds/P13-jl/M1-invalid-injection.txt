@@ -1,0 +1,4 @@
+# floter/internal/shell [floter/internal/shell.test]
+internal/shell/configmemo.go:159:22: declared and not used: revision
+FAIL	floter/internal/shell [build failed]
+FAIL

@@ -1,0 +1,26 @@
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair/light
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair/dark
+--- PASS: TestFactsSyncFirstProbeCannotUndoRepair (0.53s)
+    --- PASS: TestFactsSyncFirstProbeCannotUndoRepair/light (0.32s)
+    --- PASS: TestFactsSyncFirstProbeCannotUndoRepair/dark (0.22s)
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval/light
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval/dark
+--- PASS: TestFactsSyncFirstDigestCannotUndoApproval (0.46s)
+    --- PASS: TestFactsSyncFirstDigestCannotUndoApproval/light (0.22s)
+    --- PASS: TestFactsSyncFirstDigestCannotUndoApproval/dark (0.24s)
+=== RUN   TestFactsSyncAddedProbeCannotUndoNeighbourRepair
+=== RUN   TestFactsSyncAddedProbeCannotUndoNeighbourRepair/light
+=== RUN   TestFactsSyncAddedProbeCannotUndoNeighbourRepair/dark
+--- PASS: TestFactsSyncAddedProbeCannotUndoNeighbourRepair (0.79s)
+    --- PASS: TestFactsSyncAddedProbeCannotUndoNeighbourRepair/light (0.41s)
+    --- PASS: TestFactsSyncAddedProbeCannotUndoNeighbourRepair/dark (0.38s)
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval/light
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval/dark
+--- PASS: TestFactsSyncAddedDigestCannotUndoOwnApproval (0.65s)
+    --- PASS: TestFactsSyncAddedDigestCannotUndoOwnApproval/light (0.33s)
+    --- PASS: TestFactsSyncAddedDigestCannotUndoOwnApproval/dark (0.31s)
+PASS
+ok  	floter/internal/shell	2.436s

@@ -1,0 +1,4 @@
+internal/shell/configmemo.go: OK
+internal/shell/integrationfacts.go: OK
+internal/shell/configsyncrefresh_test.go: OK
+internal/shell/factssyncrefresh_test.go: OK

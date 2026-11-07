@@ -1,0 +1,4 @@
+e7cdee566a380f67cc394e2201d13290  internal/shell/configmemo.go
+51f388dee5266b2138ed618d11d9c48f  internal/shell/integrationfacts.go
+9abbb25d4e6fc3521348dabcf700de3a  internal/shell/configsyncrefresh_test.go
+09cab68268467d7c424d5af656e6db2e  internal/shell/factssyncrefresh_test.go

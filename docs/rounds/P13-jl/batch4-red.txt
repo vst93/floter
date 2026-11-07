@@ -1,0 +1,23 @@
+=== RUN   TestFactsSyncAddedProbeCannotUndoNeighbourRepair
+=== RUN   TestFactsSyncAddedProbeCannotUndoNeighbourRepair/light
+    factssyncrefresh_test.go:103: added-neighbour-runtime: synchronous probe returned retired unavailable state
+    factssyncrefresh_test.go:106: added-neighbour-runtime: synchronous probe disabled a repaired tool
+=== RUN   TestFactsSyncAddedProbeCannotUndoNeighbourRepair/dark
+    factssyncrefresh_test.go:103: added-neighbour-runtime: synchronous probe returned retired unavailable state
+    factssyncrefresh_test.go:106: added-neighbour-runtime: synchronous probe disabled a repaired tool
+--- FAIL: TestFactsSyncAddedProbeCannotUndoNeighbourRepair (0.41s)
+    --- FAIL: TestFactsSyncAddedProbeCannotUndoNeighbourRepair/light (0.25s)
+    --- FAIL: TestFactsSyncAddedProbeCannotUndoNeighbourRepair/dark (0.17s)
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval/light
+    factssyncrefresh_test.go:96: added-own-approval: synchronous probe returned retired approval digest
+    factssyncrefresh_test.go:99: added-own-approval: synchronous probe revived approval warning: &{At:1 ApprovedDigest:sha256-b64e746a6f5c6ef897497624ea643f6cd2b3c15952fdd3fe87dd374782607801 CurrentDigest:retired-manifest-digest Enforced:[] Disclosure:[]}
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval/dark
+    factssyncrefresh_test.go:96: added-own-approval: synchronous probe returned retired approval digest
+    factssyncrefresh_test.go:99: added-own-approval: synchronous probe revived approval warning: &{At:1 ApprovedDigest:sha256-b64e746a6f5c6ef897497624ea643f6cd2b3c15952fdd3fe87dd374782607801 CurrentDigest:retired-manifest-digest Enforced:[] Disclosure:[]}
+--- FAIL: TestFactsSyncAddedDigestCannotUndoOwnApproval (0.37s)
+    --- FAIL: TestFactsSyncAddedDigestCannotUndoOwnApproval/light (0.19s)
+    --- FAIL: TestFactsSyncAddedDigestCannotUndoOwnApproval/dark (0.18s)
+FAIL
+FAIL	floter/internal/shell	0.793s
+FAIL

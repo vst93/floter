@@ -1,0 +1,23 @@
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair/light
+    factssyncrefresh_test.go:103: cold-runtime: synchronous probe returned retired unavailable state
+    factssyncrefresh_test.go:106: cold-runtime: synchronous probe disabled a repaired tool
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair/dark
+    factssyncrefresh_test.go:103: cold-runtime: synchronous probe returned retired unavailable state
+    factssyncrefresh_test.go:106: cold-runtime: synchronous probe disabled a repaired tool
+--- FAIL: TestFactsSyncFirstProbeCannotUndoRepair (0.28s)
+    --- FAIL: TestFactsSyncFirstProbeCannotUndoRepair/light (0.17s)
+    --- FAIL: TestFactsSyncFirstProbeCannotUndoRepair/dark (0.10s)
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval/light
+    factssyncrefresh_test.go:96: cold-approval: synchronous probe returned retired approval digest
+    factssyncrefresh_test.go:99: cold-approval: synchronous probe revived approval warning: &{At:1 ApprovedDigest:sha256-b64e746a6f5c6ef897497624ea643f6cd2b3c15952fdd3fe87dd374782607801 CurrentDigest:retired-manifest-digest Enforced:[] Disclosure:[]}
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval/dark
+    factssyncrefresh_test.go:96: cold-approval: synchronous probe returned retired approval digest
+    factssyncrefresh_test.go:99: cold-approval: synchronous probe revived approval warning: &{At:1 ApprovedDigest:sha256-b64e746a6f5c6ef897497624ea643f6cd2b3c15952fdd3fe87dd374782607801 CurrentDigest:retired-manifest-digest Enforced:[] Disclosure:[]}
+--- FAIL: TestFactsSyncFirstDigestCannotUndoApproval (0.23s)
+    --- FAIL: TestFactsSyncFirstDigestCannotUndoApproval/light (0.12s)
+    --- FAIL: TestFactsSyncFirstDigestCannotUndoApproval/dark (0.12s)
+FAIL
+FAIL	floter/internal/shell	0.514s
+FAIL

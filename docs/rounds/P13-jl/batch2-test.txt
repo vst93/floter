@@ -1,0 +1,42 @@
+=== RUN   TestTheStoredConfigurationIsReadOncePerBand
+--- PASS: TestTheStoredConfigurationIsReadOncePerBand (0.00s)
+=== RUN   TestANewRowIsAnsweredOnItsFirstFrame
+--- PASS: TestANewRowIsAnsweredOnItsFirstFrame (0.00s)
+=== RUN   TestConfigRefreshOldReadCannotUndoImport
+=== RUN   TestConfigRefreshOldReadCannotUndoImport/light
+=== RUN   TestConfigRefreshOldReadCannotUndoImport/dark
+--- PASS: TestConfigRefreshOldReadCannotUndoImport (0.41s)
+    --- PASS: TestConfigRefreshOldReadCannotUndoImport/light (0.26s)
+    --- PASS: TestConfigRefreshOldReadCannotUndoImport/dark (0.16s)
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm/light
+=== RUN   TestConfigRefreshOldReadFailureCannotBlankSavedForm/dark
+--- PASS: TestConfigRefreshOldReadFailureCannotBlankSavedForm (0.52s)
+    --- PASS: TestConfigRefreshOldReadFailureCannotBlankSavedForm/light (0.25s)
+    --- PASS: TestConfigRefreshOldReadFailureCannotBlankSavedForm/dark (0.26s)
+=== RUN   TestConfigSyncFirstReadCannotUndoImport
+=== RUN   TestConfigSyncFirstReadCannotUndoImport/light
+=== RUN   TestConfigSyncFirstReadCannotUndoImport/dark
+--- PASS: TestConfigSyncFirstReadCannotUndoImport (0.50s)
+    --- PASS: TestConfigSyncFirstReadCannotUndoImport/light (0.25s)
+    --- PASS: TestConfigSyncFirstReadCannotUndoImport/dark (0.25s)
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm/light
+=== RUN   TestConfigSyncFirstFailureCannotBlankSavedForm/dark
+--- PASS: TestConfigSyncFirstFailureCannotBlankSavedForm (0.50s)
+    --- PASS: TestConfigSyncFirstFailureCannotBlankSavedForm/light (0.25s)
+    --- PASS: TestConfigSyncFirstFailureCannotBlankSavedForm/dark (0.25s)
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave/light
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave/dark
+--- PASS: TestConfigSyncAddedRowCannotUndoNeighbourSave (0.62s)
+    --- PASS: TestConfigSyncAddedRowCannotUndoNeighbourSave/light (0.31s)
+    --- PASS: TestConfigSyncAddedRowCannotUndoNeighbourSave/dark (0.31s)
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport/light
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport/dark
+--- PASS: TestConfigSyncAddedRowCannotUndoOwnImport (0.62s)
+    --- PASS: TestConfigSyncAddedRowCannotUndoOwnImport/light (0.31s)
+    --- PASS: TestConfigSyncAddedRowCannotUndoOwnImport/dark (0.30s)
+PASS
+ok  	floter/internal/shell	3.188s

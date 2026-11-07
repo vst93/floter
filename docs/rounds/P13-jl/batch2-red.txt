@@ -1,0 +1,21 @@
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave/light
+    configsyncrefresh_test.go:151: added-neighbour-save: synchronous read returned retired value https://before.example, want https://saved.example
+=== RUN   TestConfigSyncAddedRowCannotUndoNeighbourSave/dark
+    configsyncrefresh_test.go:151: added-neighbour-save: synchronous read returned retired value https://before.example, want https://saved.example
+--- FAIL: TestConfigSyncAddedRowCannotUndoNeighbourSave (1.38s)
+    --- FAIL: TestConfigSyncAddedRowCannotUndoNeighbourSave/light (0.76s)
+    --- FAIL: TestConfigSyncAddedRowCannotUndoNeighbourSave/dark (0.63s)
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport/light
+    configsyncrefresh_test.go:151: added-own-import: synchronous read returned retired value https://before.example, want https://imported.example
+    configsyncrefresh_test.go:161: added-own-import: visible editor reverted to "https://before.example", want "https://imported.example"
+=== RUN   TestConfigSyncAddedRowCannotUndoOwnImport/dark
+    configsyncrefresh_test.go:151: added-own-import: synchronous read returned retired value https://before.example, want https://imported.example
+    configsyncrefresh_test.go:161: added-own-import: visible editor reverted to "https://before.example", want "https://imported.example"
+--- FAIL: TestConfigSyncAddedRowCannotUndoOwnImport (1.28s)
+    --- FAIL: TestConfigSyncAddedRowCannotUndoOwnImport/light (0.64s)
+    --- FAIL: TestConfigSyncAddedRowCannotUndoOwnImport/dark (0.63s)
+FAIL
+FAIL	floter/internal/shell	2.673s
+FAIL

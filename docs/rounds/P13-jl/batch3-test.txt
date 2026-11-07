@@ -1,0 +1,38 @@
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair/light
+=== RUN   TestFactsRefreshOldRuntimeCannotUndoRepair/dark
+--- PASS: TestFactsRefreshOldRuntimeCannotUndoRepair (0.20s)
+    --- PASS: TestFactsRefreshOldRuntimeCannotUndoRepair/light (0.12s)
+    --- PASS: TestFactsRefreshOldRuntimeCannotUndoRepair/dark (0.07s)
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval/light
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval/dark
+--- PASS: TestFactsRefreshOldDigestCannotUndoApproval (0.15s)
+    --- PASS: TestFactsRefreshOldDigestCannotUndoApproval/light (0.08s)
+    --- PASS: TestFactsRefreshOldDigestCannotUndoApproval/dark (0.08s)
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair/light
+=== RUN   TestFactsSyncFirstProbeCannotUndoRepair/dark
+--- PASS: TestFactsSyncFirstProbeCannotUndoRepair (0.21s)
+    --- PASS: TestFactsSyncFirstProbeCannotUndoRepair/light (0.11s)
+    --- PASS: TestFactsSyncFirstProbeCannotUndoRepair/dark (0.10s)
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval/light
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval/dark
+--- PASS: TestFactsSyncFirstDigestCannotUndoApproval (0.21s)
+    --- PASS: TestFactsSyncFirstDigestCannotUndoApproval/light (0.10s)
+    --- PASS: TestFactsSyncFirstDigestCannotUndoApproval/dark (0.10s)
+=== RUN   TestAStaleMemoIsRefreshedBehindTheFrame
+--- PASS: TestAStaleMemoIsRefreshedBehindTheFrame (0.00s)
+=== RUN   TestAnInvalidatedMemoIsRecomputedInPlace
+--- PASS: TestAnInvalidatedMemoIsRecomputedInPlace (0.00s)
+=== RUN   TestTheIntegrationListReadsTheFactsMemo
+--- PASS: TestTheIntegrationListReadsTheFactsMemo (0.01s)
+=== RUN   TestARefreshDropsTheFactsMemo
+--- PASS: TestARefreshDropsTheFactsMemo (0.03s)
+=== RUN   TestTheFreshnessRowReadsTheFactsMemo
+--- PASS: TestTheFreshnessRowReadsTheFactsMemo (0.01s)
+=== RUN   TestAPartialFactIsRefilledByTheList
+--- PASS: TestAPartialFactIsRefilledByTheList (0.01s)
+PASS
+ok  	floter/internal/shell	0.854s

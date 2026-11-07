@@ -1,0 +1,16 @@
+cold-import light: changed_pixels=539
+cold-import dark: changed_pixels=537
+cold-save-read-error light: changed_pixels=997
+cold-save-read-error dark: changed_pixels=997
+added-neighbour-save light: changed_pixels=483
+added-neighbour-save dark: changed_pixels=482
+added-own-import light: changed_pixels=539
+added-own-import dark: changed_pixels=537
+cold-runtime light: changed_pixels=1727
+cold-runtime dark: changed_pixels=1727
+cold-approval light: changed_pixels=51427
+cold-approval dark: changed_pixels=51427
+added-neighbour-runtime light: changed_pixels=1727
+added-neighbour-runtime dark: changed_pixels=1727
+added-own-approval light: changed_pixels=85523
+added-own-approval dark: changed_pixels=85532
