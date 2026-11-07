@@ -1,0 +1,27 @@
+# P13-jf：文件传输失败的原因与恢复
+
+开盘 2c61b589，pull 已同步、工作树干净。基线于 2026-11-07 16:10:22 UTC 开始；Codex 独立执行。done.log 开盘不存在。仅实测完成项计入交付。
+
+## Stash 清点
+
+八条均与已归档轮次相同，无新增 stale-kill。逐条导出 patch、reverse-check 全为 1；不是 HEAD 已覆盖，但为已审核早期独立 WIP，继续保留，不把旧主题或 Tauri 链盖回当前 Go 产品。
+
+| ref | SHA | 判断 | 处置 |
+| --- | --- | --- | --- |
+| stash@{0} | 422483b4 | 旧 keycap，reverse=1 | 保留 |
+| stash@{1} | 8af94a07 | 旧 rows/slider，reverse=1 | 保留 |
+| stash@{2} | 7e4aa710 | 旧卸载布局/探针，reverse=1 | 保留 |
+| stash@{3} | 1e3aec94 | 旧数字字段，reverse=1 | 保留 |
+| stash@{4} | 363f5a42 | 旧插件字段，reverse=1 | 保留 |
+| stash@{5} | 9b8ce23c | 旧快捷键，reverse=1 | 保留 |
+| stash@{6} | 90d314b2 | 旧启动器动作栏，reverse=1 | 保留 |
+| stash@{7} | 7a9f6e13 | 旧 main/Tauri，reverse=1 | 保留 |
+
+## 实施记录
+
+旧 V/B/S 断言修改 0/0/0；无新增 Skip。
+
+1. 现象：选择已被移走的集成文件，只提示无效文档。改动：接回 os.ReadFile 的路径与错误。验证：深浅两主题经已接线的 ImportIntegrations 动作与真实临时文件事件，原产品报 `file read failure hides its cause`；修后全文可见、busy 释放，补回文件后同入口成功产生报告。
+2. 现象：导出遇到损坏仓库，也提示无效导入文件。改动：展示 ExportSync 返回的仓库读取原因。验证：原产品报 `repository export failure hides its cause`；修后保存选择器 0 次、无目的文件、busy 释放，修复仓库再导出 1 个集成。
+
+第一批相关 **17 PASS / 0 FAIL**，shell vet 净；原产品真实红证据 before12.txt。初始指针夹具受整页高度影响，改用产品已接线 Actions + 真实文件事件，不声称系统原生选择器真机验收。正式 mutation 后续独立注入并 MD5 还原。

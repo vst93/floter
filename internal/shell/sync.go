@@ -69,7 +69,7 @@ func (a *App) exportIntegrations() {
 		document, err := extensions.ExportSync(a.Paths)
 		if err != nil {
 			log.Printf("floter: could not export the integrations: %v", err)
-			a.transferFailed(copy.IntegrationsTransferBad)
+			a.transferFailed(err.Error())
 			return
 		}
 		path, err := a.saveFile("floter-integrations-" + time.Now().Format("2006-01-02") + ".json")
@@ -116,7 +116,7 @@ func (a *App) importIntegrations() {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			log.Printf("floter: could not read %s: %v", path, err)
-			a.transferFailed(copy.IntegrationsTransferBad)
+			a.transferFailed(err.Error())
 			return
 		}
 		document, err := extensions.ReadSync(data)
