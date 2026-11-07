@@ -1,0 +1,9 @@
+=== RUN   TestQueuedCustomSuspensionCannotDispatch
+    shortcutqueued_test.go:82: suspended native callback dispatched: [say original]
+--- FAIL: TestQueuedCustomSuspensionCannotDispatch (0.00s)
+=== RUN   TestQueuedCustomFailedRegistrationCannotDispatch
+2026/11/07 20:25:17 floter: custom shortcut Ctrl+Shift+Z: occupied
+--- PASS: TestQueuedCustomFailedRegistrationCannotDispatch (0.37s)
+FAIL
+FAIL	floter/internal/shell	0.383s
+FAIL

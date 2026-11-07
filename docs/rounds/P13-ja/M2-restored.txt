@@ -1,0 +1,10 @@
+=== RUN   TestQueuedCustomSuspensionCannotDispatch
+--- PASS: TestQueuedCustomSuspensionCannotDispatch (0.00s)
+=== RUN   TestQueuedSummonCannotInterruptRecording
+=== RUN   TestQueuedSummonCannotInterruptRecording/light
+=== RUN   TestQueuedSummonCannotInterruptRecording/dark
+--- PASS: TestQueuedSummonCannotInterruptRecording (0.49s)
+    --- PASS: TestQueuedSummonCannotInterruptRecording/light (0.21s)
+    --- PASS: TestQueuedSummonCannotInterruptRecording/dark (0.28s)
+PASS
+ok  	floter/internal/shell	0.503s

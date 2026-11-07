@@ -17,7 +17,7 @@
 
 红线：键盘模型、确认 3000ms/5000ms、180ms/Flush、保存时机、只保留注册成功项、会话语义、i18n 与高度链不改。没有新系统/依赖。跨自定义快捷键与内置召回录制两个组件，修同一族迟到事件。
 
-门槛：中文 locale，gofmt 空、三平台 vet/build、普通/verbose 全量、测试函数不减；当前基线运行中，实际结果随报告补入。初次误用继承 C locale 的日志保留。每批两项定向测试/vet 后立即 commit/push，完整门槛集中一次。
+门槛：中文 locale，gofmt 空、三平台 vet/build、普通/verbose 全量、测试函数不减；实测中文基线 5301 PASS / 0 FAIL。初次误用继承 C locale 的日志保留。每批两项定向测试/vet 后立即 commit/push，完整门槛集中一次。
 
 Mutation：M1 回注 custom 原闭包，删除与改动作 pin 必须红；M2 撤暂停退役/录制保护，迟到事件 pin 必须红；M3/M4 回注召回各注册路径，换键/恢复/默认 pin 必须红。每组 MD5 还原、touch、-count=1 重跑。
 

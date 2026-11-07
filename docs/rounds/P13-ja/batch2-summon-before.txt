@@ -1,0 +1,11 @@
+=== RUN   TestQueuedSummonCannotInterruptRecording
+=== RUN   TestQueuedSummonCannotInterruptRecording/light
+    shortcutqueued_test.go:137: queued summon reached Toggle = 1, want dispatch false
+=== RUN   TestQueuedSummonCannotInterruptRecording/dark
+    shortcutqueued_test.go:137: queued summon reached Toggle = 1, want dispatch false
+--- FAIL: TestQueuedSummonCannotInterruptRecording (0.53s)
+    --- FAIL: TestQueuedSummonCannotInterruptRecording/light (0.23s)
+    --- FAIL: TestQueuedSummonCannotInterruptRecording/dark (0.29s)
+FAIL
+FAIL	floter/internal/shell	0.541s
+FAIL

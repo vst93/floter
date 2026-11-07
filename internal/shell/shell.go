@@ -1485,7 +1485,7 @@ func (a *App) setShortcut(id, accelerator string) {
 	// A new attempt owns its own failure; an earlier OS refusal must not
 	// mislabel a later disk error.
 	a.ShortcutErr, a.shortcutRefusal = nil, ""
-	if err := a.registerShortcut(normalized, a.Toggle); err != nil {
+	if err := a.registerShortcut(normalized, a.summonCallback()); err != nil {
 		// The system holds the chord (another app took it): the old key stays
 		// registered and nothing is written, so the page owes the user a word
 		// about the new one not taking. ShortcutRefused carries this back to
@@ -2227,7 +2227,7 @@ func (a *App) resetShortcuts() {
 	// both the working key and its confirmed settings available for retry.
 	replacing := a.summonKey != settings.DefaultSummonShortcut || a.summonNeedsRestore
 	if replacing {
-		if err := a.registerShortcut(settings.DefaultSummonShortcut, a.Toggle); err != nil {
+		if err := a.registerShortcut(settings.DefaultSummonShortcut, a.summonCallback()); err != nil {
 			a.ShortcutErr, a.shortcutRefusal = err, settings.ShortcutToggleWindow
 			return
 		}
@@ -2272,7 +2272,7 @@ func (a *App) ApplySummonShortcut() {
 	if accelerator == a.summonKey && !a.summonNeedsRestore {
 		return
 	}
-	if err := a.registerShortcut(accelerator, a.Toggle); err != nil {
+	if err := a.registerShortcut(accelerator, a.summonCallback()); err != nil {
 		// Same refusal as setShortcut's: the chord the settings name is not
 		// the one the system holds now, and the page has to be able to say so.
 		log.Printf("floter: could not register %s: %v", accelerator, err)
@@ -2306,6 +2306,7 @@ func (a *App) shortcutWasRefused(id string) bool {
 // that currently summons floter must be recorded, not acted on.
 func (a *App) setShortcutsSuspended(suspended bool) {
 	if suspended {
+		a.customGeneration++
 		if a.summonKey != "" {
 			a.unregisterShortcut(a.summonKey)
 		}
@@ -2322,7 +2323,7 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 	if a.summonNeedsRestore {
 		accelerator := shortcuts.NormalizeOr(SummonShortcut(a.Store.Snapshot()))
 		wasUnavailable := a.Settings.SummonUnavailable
-		err := a.registerShortcut(accelerator, a.Toggle)
+		err := a.registerShortcut(accelerator, a.summonCallback())
 		a.Settings.SummonUnavailable = err != nil
 		a.summonNeedsRestore = err != nil
 		if err != nil {
