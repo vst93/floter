@@ -1,0 +1,21 @@
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/light
+    copylifecycle_test.go:300: unavailable link copy still accepts focus
+    copylifecycle_test.go:329: withdrawn clipboard kept link success
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/dark
+    copylifecycle_test.go:300: unavailable link copy still accepts focus
+    copylifecycle_test.go:329: withdrawn clipboard kept link success
+--- FAIL: TestCopyLifecycleAboutUnavailableIsInert (0.82s)
+    --- FAIL: TestCopyLifecycleAboutUnavailableIsInert/light (0.60s)
+    --- FAIL: TestCopyLifecycleAboutUnavailableIsInert/dark (0.22s)
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/light
+    copylifecycle_test.go:372: About page revived old copy success
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/dark
+    copylifecycle_test.go:372: About page revived old copy success
+--- FAIL: TestCopyLifecycleAboutPageRetiresSuccess (0.89s)
+    --- FAIL: TestCopyLifecycleAboutPageRetiresSuccess/light (0.45s)
+    --- FAIL: TestCopyLifecycleAboutPageRetiresSuccess/dark (0.44s)
+FAIL
+FAIL	floter/internal/settingsui	1.735s
+FAIL

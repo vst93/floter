@@ -283,3 +283,107 @@ func checkCopyDeparture(t *testing.T, page bool) {
 
 func TestCopyLifecycleFoldRetiresSuccess(t *testing.T) { checkCopyDeparture(t, false) }
 func TestCopyLifecyclePageRetiresSuccess(t *testing.T) { checkCopyDeparture(t, true) }
+
+func TestCopyLifecycleAboutUnavailableIsInert(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := copyLifecycleApp(t, dark)
+			a.Page = PageAbout
+			tt := copyPageFrame(t, a, dark)
+			copy := a.copy()
+			if err := tt.Click(copy.DeepLinkCopy); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			copyLifecycleDump(t, tt, "about-unavailable", dark)
+			if tt.Focused(copy.DeepLinkCopy) {
+				t.Error("unavailable link copy still accepts focus")
+			}
+			if tt.HasText(copy.DeepLinkCopied) {
+				t.Error("unavailable link copy confirmed")
+			}
+			calls, notices := 0, 0
+			a.Actions.CopyText = func(text string) {
+				calls++
+				if text != deepLinkConnectExample {
+					t.Errorf("copied %q", text)
+				}
+			}
+			a.Actions.NotifySuccess = func(text string) {
+				notices++
+				if text != copy.DeepLinkCopied {
+					t.Errorf("notice %q", text)
+				}
+			}
+			tt.Frame()
+			if err := tt.Click(copy.DeepLinkCopy); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if calls != 1 || notices != 1 || !tt.HasText(copy.DeepLinkCopied) {
+				t.Error("restored link copy did not confirm exactly once")
+			}
+			a.Actions.CopyText = nil
+			tt.Frame()
+			if a.copiedLink != "" || tt.HasText(copy.DeepLinkCopied) {
+				t.Error("withdrawn clipboard kept link success")
+			}
+		})
+	}
+}
+
+func TestCopyLifecycleAboutPageRetiresSuccess(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := copyLifecycleApp(t, dark)
+			a.Page = PageAbout
+			calls, notices := 0, 0
+			a.Actions.CopyText = func(string) { calls++ }
+			a.Actions.NotifySuccess = func(string) { notices++ }
+			tt := copyPageFrame(t, a, dark)
+			copy := a.copy()
+			if err := tt.Click(copy.DeepLinkCopy); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(copy.DeepLinkCopied) {
+				t.Fatal("initial link copy failed")
+			}
+			if err := tt.Click(copy.PageAbout); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(copy.DeepLinkCopied) {
+				t.Error("reselecting About retired live success")
+			}
+			if err := tt.Click(copy.PageGeneral); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if a.Page != PageGeneral {
+				t.Fatal("did not leave About")
+			}
+			if err := tt.Click(copy.PageAbout); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			copyLifecycleDump(t, tt, "about-page", dark)
+			if tt.HasText(copy.DeepLinkCopied) || a.copiedLink != "" {
+				t.Error("About page revived old copy success")
+			}
+			if calls != 1 || notices != 1 {
+				t.Error("page change repeated copy or notice")
+			}
+			if err := tt.Click(copy.DeepLinkCopy); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if calls != 2 || notices != 2 || !tt.HasText(copy.DeepLinkCopied) {
+				t.Error("returned About cannot copy")
+			}
+			if linkCopiedDuration != 1600*time.Millisecond {
+				t.Error("link copy window changed")
+			}
+		})
+	}
+}

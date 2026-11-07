@@ -47,3 +47,12 @@
 6. 现象：复制后点击常规页再回集成页，已离场的成功文案复活。改动：实际离开集成页时清理该页复制反馈。验证：完整设置页深浅侧栏点击往返不再显示旧成功；重选当前页保持尚有效反馈，草稿与后续复制均正常。
 
 原串：`copy-fold revived old copy success`、`copy-page revived old copy success`。相关 71 PASS / 0 FAIL、包 vet 净；M3 撤回后 6 FAIL，MD5 还原 touch 后 6 PASS / 0 FAIL。旧 V/B/S 0/0/0，无新增 Skip。
+
+## 第四批（7–8）
+
+第三批 d09bdf78 已推送。
+
+7. 现象：关于页无复制回调，两个链接的复制入口仍可聚焦；能力撤回后旧成功还在。改动：既有文字动作支持禁用态，深链按当前能力传入；撤回时清确认。验证：深浅真实点击不取得焦点，不冒报成功；能力恢复后复制和成功通知各一次，随后撤回清理成功。没有添加一层胶囊或新提示。
+8. 现象：关于页复制链接后切常规再返回，“链接已复制”重新出现。改动：实际离开关于页退役该页复制确认。验证：深浅完整侧栏事件无旧成功、无额外复制或通知；重选当前页保留反馈，返回后明确再复制正常，1600ms 保持。
+
+原串：`unavailable link copy still accepts focus`、`withdrawn clipboard kept link success`、`About page revived old copy success`。相关 95 PASS / 0 FAIL、包 vet 净；M4 撤回后 6 FAIL，两个源码文件 MD5 还原 touch 后 6 PASS / 0 FAIL。旧 V/B/S 0/0/0，无新增 Skip。已目视浅色关于页：两个无能力入口显示灰色 Copy 墨，链接文本仍可读，原有行与空白节奏保留。

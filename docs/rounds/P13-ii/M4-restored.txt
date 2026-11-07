@@ -1,0 +1,14 @@
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/light
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/dark
+--- PASS: TestCopyLifecycleAboutUnavailableIsInert (0.14s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/light (0.11s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/dark (0.03s)
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/light
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/dark
+--- PASS: TestCopyLifecycleAboutPageRetiresSuccess (0.31s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/light (0.16s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/dark (0.15s)
+PASS
+ok  	floter/internal/settingsui	0.459s

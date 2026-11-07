@@ -1833,11 +1833,15 @@ func (a *App) action(c *ui.Context, label string, clicked func()) ui.Element {
 // 不是「哪个被选中 / 哪个是开的」——accent 在那里回答的是「这条重要/能点」，
 // 正是 §5 禁止的那一类。静息 `TextSecondary`、hover `t.Text`：只抬**墨的明度**，
 // 不抬色相，与 P8-b 录制器静息 hover 的处理同构（`shortcutRecorder`）。
-func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked func()) ui.Element {
+func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked func(), unavailable ...bool) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
+	disabled := len(unavailable) > 0 && unavailable[0]
 	row := ui.Row(c).Focusable().AlignItems(ui.Center).MinHeight(t.Space(6)).
 		Padding(0, t.Space(0.5)).Radius(tokens.RadiusXS)
+	if disabled {
+		row.Disabled(true).Cursor(ui.CursorDefault)
+	}
 	if glyphName != "" {
 		row.Gap(t.Space(1.25))
 	}
@@ -1853,6 +1857,8 @@ func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked fu
 	// 与启动器结果行（`launcher.go:2511`）同一句话。布局盒不动，命中框不动。
 	ink := tokens.TextSecondary
 	switch {
+	case disabled:
+		ink = tokens.Disabled
 	case row.Pressed():
 		ink = t.Text
 		row.Scale(0.986, 0.986)
@@ -1867,7 +1873,7 @@ func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked fu
 		}
 		ui.Text(c, label).FontSize(t.FontSize).TextColor(ink)
 	})
-	if row.Clicked() {
+	if !disabled && row.Clicked() {
 		clicked()
 	}
 	return row

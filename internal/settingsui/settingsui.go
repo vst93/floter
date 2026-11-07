@@ -1575,6 +1575,9 @@ func (a *App) selectPage(page int) {
 			a.copiedContent, a.copiedContentValue = "", ""
 			a.copiedContentUntil = time.Time{}
 		}
+		if a.Page == PageAbout {
+			a.copiedLink, a.copiedLinkUntil = "", time.Time{}
+		}
 	}
 	a.Page = page
 	if a.Actions.SetPage != nil {
@@ -4438,6 +4441,9 @@ func formatBytes(bytes int64) string {
 
 // about shows the build's identity and where its files live.
 func (a *App) about(c *ui.Context, copy i18n.Settings) {
+	if a.Actions.CopyText == nil {
+		a.copiedLink, a.copiedLinkUntil = "", time.Time{}
+	}
 	tokens := a.tokens(c)
 	about := a.About
 	a.pageColumn(c, func() {
@@ -4508,7 +4514,7 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 									a.Actions.NotifySuccess(copy.DeepLinkCopied)
 								}
 							}
-						})
+						}, a.Actions.CopyText == nil)
 					})
 				}
 			})
