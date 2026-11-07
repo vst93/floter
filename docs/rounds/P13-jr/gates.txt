@@ -1,0 +1,11 @@
+gofmt lines=0
+vet-linux exit=0
+vet-windows exit=0
+vet-darwin exit=0
+build-linux exit=0
+build-windows exit=0
+build-darwin exit=0
+full-test exit=1
+verbose-test exit=0
+PASS=5872 FAIL=0 functions=3361
+final-full-test exit=0

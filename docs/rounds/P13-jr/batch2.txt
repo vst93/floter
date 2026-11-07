@@ -1,0 +1,44 @@
+=== RUN   TestTheHealthBlockRerunsItsOwnChecks
+--- PASS: TestTheHealthBlockRerunsItsOwnChecks (0.44s)
+=== RUN   TestHealthRefreshRejectsRepeatedPress
+=== RUN   TestHealthRefreshRejectsRepeatedPress/light
+=== RUN   TestHealthRefreshRejectsRepeatedPress/dark
+--- PASS: TestHealthRefreshRejectsRepeatedPress (0.87s)
+    --- PASS: TestHealthRefreshRejectsRepeatedPress/light (0.41s)
+    --- PASS: TestHealthRefreshRejectsRepeatedPress/dark (0.46s)
+=== RUN   TestHealthRefreshLocksCompetingActions
+=== RUN   TestHealthRefreshLocksCompetingActions/light
+=== RUN   TestHealthRefreshLocksCompetingActions/dark
+--- PASS: TestHealthRefreshLocksCompetingActions (1.10s)
+    --- PASS: TestHealthRefreshLocksCompetingActions/light (0.52s)
+    --- PASS: TestHealthRefreshLocksCompetingActions/dark (0.58s)
+=== RUN   TestARepairHoldsItsInFlightFaceUntilTheShellAnswers
+=== RUN   TestARepairHoldsItsInFlightFaceUntilTheShellAnswers/re-check
+=== RUN   TestARepairHoldsItsInFlightFaceUntilTheShellAnswers/reconnect
+--- PASS: TestARepairHoldsItsInFlightFaceUntilTheShellAnswers (0.53s)
+    --- PASS: TestARepairHoldsItsInFlightFaceUntilTheShellAnswers/re-check (0.25s)
+    --- PASS: TestARepairHoldsItsInFlightFaceUntilTheShellAnswers/reconnect (0.27s)
+PASS
+ok  	floter/internal/settingsui	2.995s
+=== RUN   TestHealthRefreshRemovedDeclaration
+=== RUN   TestHealthRefreshRemovedDeclaration/light
+=== RUN   TestHealthRefreshRemovedDeclaration/dark
+--- PASS: TestHealthRefreshRemovedDeclaration (2.63s)
+    --- PASS: TestHealthRefreshRemovedDeclaration/light (1.44s)
+    --- PASS: TestHealthRefreshRemovedDeclaration/dark (1.19s)
+=== RUN   TestHealthRefreshInvalidDeclaration
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/light
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/dark
+=== RUN   TestHealthRefreshInvalidDeclaration/identity
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/light
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/dark
+--- PASS: TestHealthRefreshInvalidDeclaration (3.92s)
+    --- PASS: TestHealthRefreshInvalidDeclaration/invalid (1.98s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/invalid/light (1.07s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/invalid/dark (0.91s)
+    --- PASS: TestHealthRefreshInvalidDeclaration/identity (1.94s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/identity/light (0.98s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/identity/dark (0.96s)
+PASS
+ok  	floter/internal/shell	6.583s

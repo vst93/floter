@@ -1,0 +1,92 @@
+=== RUN   TestDiagnosisBoundaryRemovedProbes
+=== RUN   TestDiagnosisBoundaryRemovedProbes/light
+=== RUN   TestDiagnosisBoundaryRemovedProbes/dark
+--- PASS: TestDiagnosisBoundaryRemovedProbes (2.29s)
+    --- PASS: TestDiagnosisBoundaryRemovedProbes/light (1.41s)
+    --- PASS: TestDiagnosisBoundaryRemovedProbes/dark (0.88s)
+=== RUN   TestDiagnosisBoundaryDiskOwner
+=== RUN   TestDiagnosisBoundaryDiskOwner/light
+=== RUN   TestDiagnosisBoundaryDiskOwner/dark
+--- PASS: TestDiagnosisBoundaryDiskOwner (2.07s)
+    --- PASS: TestDiagnosisBoundaryDiskOwner/light (0.93s)
+    --- PASS: TestDiagnosisBoundaryDiskOwner/dark (1.14s)
+=== RUN   TestHealthCompletionProvider
+--- PASS: TestHealthCompletionProvider (0.00s)
+=== RUN   TestHealthCompletionOwnership
+=== RUN   TestHealthCompletionOwnership/package
+=== RUN   TestHealthCompletionOwnership/package/light
+=== RUN   TestHealthCompletionOwnership/package/dark
+=== RUN   TestHealthCompletionOwnership/manifest
+=== RUN   TestHealthCompletionOwnership/manifest/light
+=== RUN   TestHealthCompletionOwnership/manifest/dark
+=== RUN   TestHealthCompletionOwnership/executable
+=== RUN   TestHealthCompletionOwnership/executable/light
+=== RUN   TestHealthCompletionOwnership/executable/dark
+=== RUN   TestHealthCompletionOwnership/new-report
+=== RUN   TestHealthCompletionOwnership/new-report/light
+=== RUN   TestHealthCompletionOwnership/new-report/dark
+=== RUN   TestHealthCompletionOwnership/removed
+=== RUN   TestHealthCompletionOwnership/removed/light
+=== RUN   TestHealthCompletionOwnership/removed/dark
+--- PASS: TestHealthCompletionOwnership (4.49s)
+    --- PASS: TestHealthCompletionOwnership/package (1.70s)
+        --- PASS: TestHealthCompletionOwnership/package/light (0.74s)
+        --- PASS: TestHealthCompletionOwnership/package/dark (0.96s)
+    --- PASS: TestHealthCompletionOwnership/manifest (1.13s)
+        --- PASS: TestHealthCompletionOwnership/manifest/light (0.86s)
+        --- PASS: TestHealthCompletionOwnership/manifest/dark (0.27s)
+    --- PASS: TestHealthCompletionOwnership/executable (0.67s)
+        --- PASS: TestHealthCompletionOwnership/executable/light (0.35s)
+        --- PASS: TestHealthCompletionOwnership/executable/dark (0.32s)
+    --- PASS: TestHealthCompletionOwnership/new-report (0.55s)
+        --- PASS: TestHealthCompletionOwnership/new-report/light (0.29s)
+        --- PASS: TestHealthCompletionOwnership/new-report/dark (0.26s)
+    --- PASS: TestHealthCompletionOwnership/removed (0.44s)
+        --- PASS: TestHealthCompletionOwnership/removed/light (0.22s)
+        --- PASS: TestHealthCompletionOwnership/removed/dark (0.22s)
+=== RUN   TestHealthCompletionRecovery
+=== RUN   TestHealthCompletionRecovery/enabled
+=== RUN   TestHealthCompletionRecovery/enabled/light
+=== RUN   TestHealthCompletionRecovery/enabled/dark
+=== RUN   TestHealthCompletionRecovery/disabled
+=== RUN   TestHealthCompletionRecovery/disabled/light
+=== RUN   TestHealthCompletionRecovery/disabled/dark
+=== RUN   TestHealthCompletionRecovery/other-failure
+=== RUN   TestHealthCompletionRecovery/other-failure/light
+=== RUN   TestHealthCompletionRecovery/other-failure/dark
+--- PASS: TestHealthCompletionRecovery (2.86s)
+    --- PASS: TestHealthCompletionRecovery/enabled (0.94s)
+        --- PASS: TestHealthCompletionRecovery/enabled/light (0.45s)
+        --- PASS: TestHealthCompletionRecovery/enabled/dark (0.49s)
+    --- PASS: TestHealthCompletionRecovery/disabled (1.12s)
+        --- PASS: TestHealthCompletionRecovery/disabled/light (0.54s)
+        --- PASS: TestHealthCompletionRecovery/disabled/dark (0.58s)
+    --- PASS: TestHealthCompletionRecovery/other-failure (0.81s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/light (0.40s)
+        --- PASS: TestHealthCompletionRecovery/other-failure/dark (0.41s)
+=== RUN   TestHealthRefreshRemovedDeclaration
+=== RUN   TestHealthRefreshRemovedDeclaration/light
+=== RUN   TestHealthRefreshRemovedDeclaration/dark
+--- PASS: TestHealthRefreshRemovedDeclaration (2.26s)
+    --- PASS: TestHealthRefreshRemovedDeclaration/light (1.20s)
+    --- PASS: TestHealthRefreshRemovedDeclaration/dark (1.06s)
+=== RUN   TestHealthRefreshInvalidDeclaration
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/light
+=== RUN   TestHealthRefreshInvalidDeclaration/invalid/dark
+=== RUN   TestHealthRefreshInvalidDeclaration/identity
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/light
+=== RUN   TestHealthRefreshInvalidDeclaration/identity/dark
+--- PASS: TestHealthRefreshInvalidDeclaration (4.56s)
+    --- PASS: TestHealthRefreshInvalidDeclaration/invalid (2.08s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/invalid/light (1.05s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/invalid/dark (1.03s)
+    --- PASS: TestHealthRefreshInvalidDeclaration/identity (2.48s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/identity/light (1.16s)
+        --- PASS: TestHealthRefreshInvalidDeclaration/identity/dark (1.31s)
+PASS
+ok  	floter/internal/shell	18.622s
+=== RUN   TestTheHealthBlockRerunsItsOwnChecks
+--- PASS: TestTheHealthBlockRerunsItsOwnChecks (0.56s)
+PASS
+ok  	floter/internal/settingsui	0.617s

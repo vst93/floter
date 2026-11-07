@@ -57,6 +57,8 @@
 
 修正后M4实红：`health refresh leaves launcher commands stale: got=1 want=0` 与 `got=0 want=1`；两外观的搜索结果同时红。MD5全OK、touch后 **10 PASS / 0 FAIL**，disabled反例始终保持不可用。
 
+第四批最终相关 **60 PASS / 0 FAIL**、两包vet净，**159aa4f3** 已提交推送。四批均每两项提交；三平台vet/build、gofmt随后已完成且全绿，普通/verbose完整测试与异步入口race待退出后记数。
+
 ## 正式 mutation
 
 | 组 | 回注缺陷 | 运行时原始报错 | 还原复验 |
@@ -112,8 +114,45 @@ M1时夹具尚未补命令开关，M2是第二批源码；各日志只证明其�
 | D2-3 混排 | 产品文案零改 |
 | D2-4 标点与对比 | 原墨/标点保留，不宣称次要墨全过7:1 |
 
-## 仍待
+## 两轮图像复核
+
+第一轮四视角：艺术总监看到无效刷新占据报告行尾；工程师看到刷新期间仍能启动另一写操作；使用者点击失败时没有结束反馈；读者看到报告已恢复而搜索仍空。四处分别以当前声明门槛、行级锁、已有错误通知、目录同步修复。
+
+第二轮看原像素及深浅对照：最初总览把整张绑定失败页缩得过小、窄裁剪的BEFORE/AFTER标签重叠；将该项聚焦到通知区域、对照列最小宽300px，重生成并看图。只改证据排版，产品截图未改绘。
+
+| 项 | 浅色 | 深色 | 图上看到的变化 |
+| --- | --- | --- | --- |
+| 1 移除声明 | [图](P13-jr/removed-light-compare.png) | [图](P13-jr/removed-dark-compare.png) | 报告仍在，行尾刷新消失 |
+| 2 无效声明 | [图](P13-jr/invalid-light-compare.png) | [图](P13-jr/invalid-dark-compare.png) | unexpected EOF保留，失效刷新撤下；ID替换另有原图 |
+| 3 重复请求 | [图](P13-jr/repeat-light-compare.png) | [图](P13-jr/repeat-dark-compare.png) | 原位置的刷新图标变暗，位置和尺寸不动 |
+| 4 同行竞争 | [图](P13-jr/competing-light-compare.png) | [图](P13-jr/competing-dark-compare.png) | 原来误启动的Re-check转圈不再出现，仍是禁用的刷新图标 |
+| 5 绑定失败 | [图](P13-jr/binding-light-compare.png) | [图](P13-jr/binding-dark-compare.png) | 顶部出现当前错误通知 |
+| 6 仓库失败 | [图](P13-jr/repository-light-compare.png) | [图](P13-jr/repository-dark-compare.png) | 空库存页也能看到本次失败 |
+| 7 失败撤回 | [图](P13-jr/command-failure-light-compare.png) | [图](P13-jr/command-failure-dark-compare.png) | Health Ping旧行和运行栏撤下 |
+| 8 恢复命令 | [图](P13-jr/command-recovery-light-compare.png) | [图](P13-jr/command-recovery-dark-compare.png) | 空搜索恢复Health Ping结果与运行栏 |
+
+18对深浅原图共36张，18张局部并排图与2张总览；全部有可见变化，最小59像素。绑定失败的原始临时路径和进程时长可能不同，因此局部证据聚焦通知，断言验证错误类型和原报告时间，不靠路径差异算成果。[浅色总览](P13-jr/overview-light.png)、[深色总览](P13-jr/overview-dark.png)。
+
+## 仍待（下一轮）
 
 1. 下一轮先检查普通“检查”按钮的异步忙态与健康刷新互斥；此轮只补健康刷新发起的一侧，普通诊断自己的入口尚无完成回调。先复现，不改确认时限、保存或会话语义。
 2. 历史健康报告在schema变更后仍保留的语义不变；字号/行盒、accent禁用填充、未知选项、保存期草稿归属、终端S1b/S1c/S2尾继续待拍板。
 3. Linux ui.Tester与真实Go子进程有证据；Windows/macOS只做编译门槛，无真机操作证据。
+
+## 完整门槛第一次结果
+
+verbose全量 **5872 PASS / 0 FAIL / 3361函数**（基线5840/3353，+32 PASS、+8函数），退出0；三平台vet/build、gofmt全部通过。普通全量退出1，唯一失败是旧 `TestARescanAsksForAFreshDetectedList`：`the frame after a rescan started no pass`。它在本轮新健康测试之前失败，同批verbose中通过；原测试与产品扫描实现均未改。已保存首次失败原始日志，检查该测试的异步调度断言后单独重跑普通全量；不放宽、不加sleep、不修改旧B断言。
+
+异步健康入口race **6 PASS / 0 FAIL**，文档契约检查通过。达到40调用预算后没有扩项，仅等待已启动门槛、处理这次门槛失败和收尾归档；这一预算偏差保留，不把失败日志抹掉。
+
+扫描测试原断言在 `detectedtools_test.go:131-136` 启动goroutine后立即要求 `pending=true`；若扫描先结束，这个瞬时断言可失败，并不等于没启动。此处是可定位的调度竞争，不凭一次日志宣称已经修复。原测试单独 `-count=20` 全通过（退出0），原普通全量正在独立重跑。没有改产品扫描逻辑或旧B断言，没有用延时掩盖竞争；后续验收风险记入.pending-bugs。
+
+## 最终门槛与交接
+
+最终产品 **159aa4f3**。完整verbose **5872 PASS / 0 FAIL**，测试函数 **3361**（基线5840/3353，+32/+8）；普通全量独立重跑退出 **0**，verbose退出 **0**。gofmt空，linux/windows/darwin vet/build全过；相关60 PASS，异步入口race6 PASS，文档契约检查通过。原测试函数未减少，旧V/B/S断言修改 **0/0/0**，新增Skip **0**。最终四文件MD5全部一致。
+
+四批产品每两项提交并推送：9ea9f128、e88bebd4、cd38337c、159aa4f3。第一至四批定向分别44/20/50/60 PASS；全部通过相关vet后提交。最终门槛保留首次普通失败exit1与最终普通exit0两条记录，不用后者抹掉前者。
+
+证据：[门槛](P13-jr/gates.txt)、[最终普通全量](P13-jr/full-test.txt)、[完整verbose](P13-jr/verbose-test.txt)、[首次普通失败](P13-jr/full-test-first-failure.txt)、[扫描20次复验](P13-jr/rescan-recheck.txt)、[race](P13-jr/race.txt)、[最终MD5](P13-jr/final-source.md5)。四组mutation的原始红/恢复日志同目录；声明改前实帧、其余缺陷回注实帧和最终对照均保留。
+
+22:31 UTC开盘，22:59 UTC普通重跑结束，约28分钟，低于45–75分钟目标。工具调用超过40的部分用于既定完整门槛等待、首次失败核查及交接；未扩充产品选题。下一轮从普通诊断发起的一侧查异步忙态和与健康刷新的互斥；终端、保存时机及历史拍板项不获得额外授权。
