@@ -116,7 +116,13 @@ func (a *App) applyCustomShortcuts(entries []settings.CustomShortcut) ([]setting
 			continue
 		}
 		action := entry.Action
-		if err := a.registerShortcut(accelerator, func() { a.runCustomShortcut(action) }); err != nil {
+		if err := a.registerShortcut(accelerator, func() {
+			// A native event can arrive while an explicit edit validates its
+			// claims, before the still-active recorder releases them again.
+			if !a.Settings.RecordingShortcut() {
+				a.runCustomShortcut(action)
+			}
+		}); err != nil {
 			rejections = append(rejections, CustomShortcutRejection{Key: entry.Key, Reason: settingsui.CustomShortcutReasonOccupied})
 			continue
 		}

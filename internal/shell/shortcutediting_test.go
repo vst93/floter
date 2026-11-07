@@ -47,6 +47,11 @@ func checkShortcutEditing(t *testing.T, scenario string) {
 				{Key: "Ctrl+Shift+A", Action: "plugin:clipboard"},
 				{Key: "Ctrl+Shift+B", Action: "say original"},
 			}
+			if scenario == "convert" {
+				// Keep the command option unique so Click targets the popup
+				// item rather than another saved row's command picker.
+				entries[1].Action = "plugin:browser"
+			}
 			if err := h.app.Store.Update(func(s *settings.Settings) { s.SetCustomShortcuts(entries) }); err != nil {
 				t.Fatal(err)
 			}

@@ -520,6 +520,12 @@ func (a *App) addCustomShortcut() {
 	}
 	a.customDuplicate = ""
 	entries = append(entries, settings.CustomShortcut{Key: a.customKey, Action: action})
+	// Bind submits the chord already shown by this draft. End its own
+	// capture before the host accepts the key so resume does not release
+	// and reacquire a binding that was just successfully claimed.
+	if a.customRecordRow == customDraftRow {
+		a.customRecording = false
+	}
 	if !a.commitCustomShortcuts(entries) {
 		return
 	}
