@@ -51,3 +51,15 @@ func TestLeadReflowConfigActions(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) { checkCatalogReflow(t, scenario, "", "local", "recommended", "detected") })
 	}
 }
+
+func TestLeadReflowConfigTransfers(t *testing.T) {
+	for _, kind := range []string{"copy", "export"} {
+		t.Run(kind, func(t *testing.T) { checkCatalogReflow(t, "config-toolbar", kind, "local", "recommended", "detected") })
+	}
+}
+
+func TestLeadReflowConfigOpen(t *testing.T) {
+	for _, scenario := range []string{"config-open", "tool-open"} {
+		t.Run(scenario, func(t *testing.T) { checkCatalogReflow(t, scenario, "", "local", "recommended", "detected") })
+	}
+}
