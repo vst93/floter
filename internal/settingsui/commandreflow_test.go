@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"errors"
 	"fmt"
 	"image/png"
 	"os"
@@ -36,7 +37,7 @@ func checkCommandReflow(t *testing.T, control, source string) {
 				in.Description = strings.Repeat("查询城市天气并返回温度与降雨信息。\n", 8)
 			}
 			a.Actions.Freshness = func(string) (extensions.Freshness, bool) { return freshness, hasFreshness }
-			if source == "config-schema" {
+			if source == "config-schema" || source == "config-error" {
 				in.Config = []ConfigField{{Key: "city", Label: "城市", Type: "text"}}
 				a.configOpen = map[string]bool{in.ID: true}
 			}
@@ -60,7 +61,7 @@ func checkCommandReflow(t *testing.T, control, source string) {
 			tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) { c.Resolve(a.Body.Handle).Label("feedback-viewport") })
 			a.Now = tt.Now
 			optionExitFocus(t, tt, label)
-			if source == "freshness-source" && control == "switch" {
+			if source == "freshness-source" && control == "switch" || strings.HasPrefix(source, "transfer-") || source == "highlight" {
 				// A manually scrolled, still visible switch can sit at the lower
 				// safe edge before an asynchronous freshness update arrives.
 				r, viewport := mustFind(t, tt, label), mustFind(t, tt, "feedback-viewport")
@@ -106,6 +107,23 @@ func checkCommandReflow(t *testing.T, control, source string) {
 					if step%2 == 0 {
 						in.Error = "无法连接天气服务，请检查网络后重试"
 					}
+				case "description":
+					in.Description = ""
+					if step%2 == 0 {
+						in.Description = strings.Repeat("查询城市天气并返回温度与降雨信息。\n", 10)
+					}
+				case "config-error":
+					a.configError[in.ID] = ""
+					if step%2 == 0 {
+						a.finishConfigSave(in.ID, errors.New(strings.Repeat("无法保存配置，请检查目录权限后重试。\n", 8)), a.copy())
+					}
+				case "highlight":
+					in.Highlighted = step%2 == 0
+				case "transfer-report":
+					a.TransferReport = nil
+					if step%2 == 0 {
+						a.TransferReport = &ImportReport{Path: "/tmp/weather.json", Failed: []TransferFailure{{ID: in.ID, Reason: strings.Repeat("导入失败，请检查网络后重试。\n", 8)}}}
+					}
 				case "freshness":
 					hasFreshness = step%2 == 0
 				case "freshness-source":
@@ -150,6 +168,20 @@ func checkCommandReflow(t *testing.T, control, source string) {
 					}
 				}
 				tt.Frame()
+				if step == 0 && source == "description" && control == "alias" {
+					if tag := os.Getenv("FLOTER_P13KZ_DUMP"); tag != "" {
+						f, err := os.Create("/tmp/floter-P13-kz-command-" + appearanceName(dark) + "-" + tag + ".png")
+						if err != nil {
+							t.Fatal(err)
+						}
+						if err := png.Encode(f, tt.Image()); err != nil {
+							t.Fatal(err)
+						}
+						if err := f.Close(); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
 				if step == 0 && source == "freshness" && control == "alias" {
 					if tag := os.Getenv("FLOTER_P13KY_DUMP"); tag != "" {
 						f, err := os.Create("/tmp/floter-P13-ky-command-" + appearanceName(dark) + "-" + tag + ".png")
@@ -207,6 +239,7 @@ func checkCommandReflow(t *testing.T, control, source string) {
 			tt.Frame()
 			before := a.Body.Y
 			freshness.AtSeconds++
+			in.Name = strings.Repeat("更新后的天气查询工具名称", 20)
 			count := 2
 			freshness.CommandCount = &count
 			in.Config = append([]ConfigField(nil), in.Config...)
@@ -270,3 +303,6 @@ func TestCommandSwitchHealthReflow(t *testing.T) { checkCommandReflow(t, "switch
 
 func TestCommandAliasDiagnosisReflow(t *testing.T)  { checkCommandReflow(t, "alias", "diagnosis") }
 func TestCommandSwitchDiagnosisReflow(t *testing.T) { checkCommandReflow(t, "switch", "diagnosis") }
+
+func TestCommandAliasDescriptionReflow(t *testing.T)  { checkCommandReflow(t, "alias", "description") }
+func TestCommandSwitchDescriptionReflow(t *testing.T) { checkCommandReflow(t, "switch", "description") }
