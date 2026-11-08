@@ -1,0 +1,27 @@
+=== RUN   TestConfigFieldEdgeText
+=== RUN   TestConfigFieldEdgeText/light
+    configfieldedge_test.go:83: text target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: text top active edge missing: blue-red=30
+    configfieldedge_test.go:91: text active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestConfigFieldEdgeText/dark
+    configfieldedge_test.go:83: text target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: text top active edge missing: blue-red=21
+    configfieldedge_test.go:91: text active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestConfigFieldEdgeText (0.26s)
+    --- FAIL: TestConfigFieldEdgeText/light (0.19s)
+    --- FAIL: TestConfigFieldEdgeText/dark (0.07s)
+=== RUN   TestConfigFieldEdgePassword
+=== RUN   TestConfigFieldEdgePassword/light
+    configfieldedge_test.go:83: password target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: password top active edge missing: blue-red=30
+    configfieldedge_test.go:91: password active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestConfigFieldEdgePassword/dark
+    configfieldedge_test.go:83: password target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: password top active edge missing: blue-red=21
+    configfieldedge_test.go:91: password active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestConfigFieldEdgePassword (0.13s)
+    --- FAIL: TestConfigFieldEdgePassword/light (0.06s)
+    --- FAIL: TestConfigFieldEdgePassword/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.393s
+FAIL

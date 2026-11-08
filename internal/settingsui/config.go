@@ -718,7 +718,13 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 		})
 		// Grid percentages resolve against the whole grid in mygo. Give the
 		// control a cell-sized parent so FillWidth excludes the label and gap.
-		ui.Column(c).ColumnStart(2).MinWidth(0).Children(func() { control() })
+		ui.Column(c).ColumnStart(2).MinWidth(0).Children(func() {
+			if field.Type == "text" || field.Type == "password" {
+				outputFocusOutlet(c.Key("config-control-outlet"), func() { control() })
+			} else {
+				control()
+			}
+		})
 		if field.Description != "" {
 			ui.Text(c, field.Description).FontSize(tokens.Caption).FontWeight(500).
 				TextColor(tokens.TextTertiary).ColumnStart(2)
