@@ -767,6 +767,9 @@ type App struct {
 	healthBusy map[string]bool
 	// diagnosisBusy covers both lifecycle probes and the provider check.
 	diagnosisBusy map[string]bool
+	// orphanOperation holds the same row lock while adoption asks for
+	// permissions or a package directory is being deleted.
+	orphanOperation map[string]string
 	// toggleBusy marks the integrations whose enable write is in flight, so
 	// the row's switch swaps its thumb for the reference's turning LoaderCircle
 	// and holds its `disabled` face until the shell reports back
@@ -3086,13 +3089,29 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			var adoptOpener ui.Element
 			a.row(c, copy.IntegrationsOrphan, copy.IntegrationsAdoptHint, func() {
 				if a.Actions.AdoptIntegration != nil {
-					adoptOpener = a.actionButton(c, copy.IntegrationsAdopt)
+					if a.orphanOperation[integration.ID] == "adopt" {
+						adoptOpener = a.busyActionButton(c, copy.IntegrationsAdopt, "orphan.adopt")
+					} else {
+						adoptOpener = a.actionButton(c, copy.IntegrationsAdopt)
+						if a.rowBusy(integration.ID) {
+							adoptOpener = lockedControl(adoptOpener)
+						}
+					}
 					if adoptOpener.Clicked() {
 						a.Actions.AdoptIntegration(integration.ID)
 					}
 				}
 				if a.Actions.DeleteOrphan != nil {
-					if a.actionButton(c, copy.IntegrationsDeleteOrphan).Clicked() {
+					var remove ui.Element
+					if a.orphanOperation[integration.ID] == "delete" {
+						remove = a.busyActionButton(c, copy.IntegrationsDeleteOrphan, "orphan.delete")
+					} else {
+						remove = a.actionButton(c, copy.IntegrationsDeleteOrphan)
+						if a.rowBusy(integration.ID) {
+							remove = lockedControl(remove)
+						}
+					}
+					if remove.Clicked() {
 						a.Actions.DeleteOrphan(integration.ID)
 					}
 				}
@@ -4103,7 +4122,7 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
 // `src/extensions/ExtensionRow.tsx:131,301-419,447`); here the in-flight marks
 // live on the row's own maps, so the union is what the whole-row lock reads.
 func (a *App) rowBusy(id string) bool {
-	return a.diagnosisBusy[id] || a.healthBusy[id] || a.repairBusy[id] || a.disableBusy[id] || a.removeBusy[id] ||
+	return a.orphanOperation[id] != "" || a.diagnosisBusy[id] || a.healthBusy[id] || a.repairBusy[id] || a.disableBusy[id] || a.removeBusy[id] ||
 		a.uninstallBusy[id] || a.toggleBusy[id]
 }
 
@@ -4112,8 +4131,31 @@ func (a *App) rowBusy(id string) bool {
 // busy pill instead of a plain disabled face, so it asks only about the row's
 // *other* operations.
 func (a *App) rowBusyExceptRepair(id string) bool {
-	return a.diagnosisBusy[id] || a.healthBusy[id] || a.disableBusy[id] || a.removeBusy[id] || a.uninstallBusy[id] ||
+	return a.orphanOperation[id] != "" || a.diagnosisBusy[id] || a.healthBusy[id] || a.disableBusy[id] || a.removeBusy[id] || a.uninstallBusy[id] ||
 		a.toggleBusy[id]
+}
+
+// BeginOrphanOperation and FinishOrphanOperation keep the package row locked
+// through permission review and refresh, including failure and cancellation.
+func (a *App) BeginOrphanOperation(id, operation string) bool {
+	if a.rowBusy(id) {
+		return false
+	}
+	if a.orphanOperation == nil {
+		a.orphanOperation = map[string]string{}
+	}
+	a.orphanOperation[id] = operation
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
+	return true
+}
+
+func (a *App) FinishOrphanOperation(id string) {
+	delete(a.orphanOperation, id)
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 // BeginDiagnosis and FinishDiagnosis share the existing row operation lock.

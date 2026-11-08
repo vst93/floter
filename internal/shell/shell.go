@@ -986,9 +986,13 @@ func New(opts Options) *App {
 		ImportIntegrations:    a.importIntegrations,
 		ExportScript:          a.exportScript,
 		AdoptIntegration: func(id string) {
+			if !a.Settings.BeginOrphanOperation(id, "adopt") {
+				return
+			}
 			// The approval dialog blocks, so the whole adoption runs off the
 			// main thread and refreshes from there.
 			go func() {
+				defer a.onMain(func() { a.Settings.FinishOrphanOperation(id) })
 				prepared, err := extensions.PrepareAdopt(a.Paths, id)
 				if err != nil {
 					log.Printf("floter: could not adopt %s: %v", id, err)
@@ -1010,10 +1014,14 @@ func New(opts Options) *App {
 			}()
 		},
 		DeleteOrphan: func(id string) {
+			if !a.Settings.BeginOrphanOperation(id, "delete") {
+				return
+			}
 			// The settings page has already asked inline; arriving here is
 			// the answer.
 			a.Runs.Kill(id)
 			go func() {
+				defer a.onMain(func() { a.Settings.FinishOrphanOperation(id) })
 				if err := extensions.DeleteOrphan(a.Paths, id); err != nil {
 					log.Printf("floter: could not delete %s: %v", id, err)
 				}
