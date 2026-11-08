@@ -1,0 +1,154 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.006s
+ok  	floter/internal/apps	0.215s
+ok  	floter/internal/browser	0.020s
+ok  	floter/internal/calc	0.011s
+ok  	floter/internal/calculator	0.020s
+ok  	floter/internal/ci	4.482s
+ok  	floter/internal/clipboard	0.045s
+ok  	floter/internal/control	0.145s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.009s
+ok  	floter/internal/drops	0.014s
+ok  	floter/internal/extensions	25.918s
+ok  	floter/internal/extensions/recommended	0.067s
+ok  	floter/internal/frameaudit	0.049s
+ok  	floter/internal/glassmap	0.008s
+ok  	floter/internal/homepath	0.002s
+ok  	floter/internal/i18n	0.888s
+ok  	floter/internal/inputtext	0.018s
+ok  	floter/internal/inventory	0.121s
+--- FAIL: TestTheEmptySentencesBandEndsAtThePanelsOwnTail (0.18s)
+    emptydensity_test.go:150: miss/light/: the sentence sits 21.1px below the band's top edge, not the 19.6px of a centred statement (box {X:332 Y:75.1 W:56 H:15}, band top 54.0)
+    emptydensity_test.go:155: miss/light/: the sentence ends 21.1px above the card's bottom inset, not the 19.6px of a centred statement — the band's bottom is not the panel's own tail (box {X:332 Y:75.1 W:56 H:15}, charged 113, inset 1.8)
+    emptydensity_test.go:150: miss+band/light/: the sentence sits 21.1px below the band's top edge, not the 19.6px of a centred statement (box {X:332 Y:75.1 W:56 H:15}, band top 54.0)
+    emptydensity_test.go:155: miss+band/light/: the sentence ends 21.1px above the card's bottom inset, not the 19.6px of a centred statement — the band's bottom is not the panel's own tail (box {X:332 Y:75.1 W:56 H:15}, charged 140, inset 28.8)
+    emptydensity_test.go:150: clipboard-empty/light/: the sentence sits 21.1px below the band's top edge, not the 19.6px of a centred statement (box {X:307.5 Y:93.1 W:105 H:15}, band top 72.0)
+    emptydensity_test.go:155: clipboard-empty/light/: the sentence ends 21.1px above the card's bottom inset, not the 19.6px of a centred statement — the band's bottom is not the panel's own tail (box {X:307.5 Y:93.1 W:105 H:15}, charged 131, inset 1.8)
+    emptydensity_test.go:150: miss/dark/: the sentence sits 21.1px below the band's top edge, not the 19.6px of a centred statement (box {X:332 Y:75.1 W:56 H:15}, band top 54.0)
+    emptydensity_test.go:155: miss/dark/: the sentence ends 21.1px above the card's bottom inset, not the 19.6px of a centred statement — the band's bottom is not the panel's own tail (box {X:332 Y:75.1 W:56 H:15}, charged 113, inset 1.8)
+    emptydensity_test.go:150: miss+band/dark/: the sentence sits 21.1px below the band's top edge, not the 19.6px of a centred statement (box {X:332 Y:75.1 W:56 H:15}, band top 54.0)
+    emptydensity_test.go:155: miss+band/dark/: the sentence ends 21.1px above the card's bottom inset, not the 19.6px of a centred statement — the band's bottom is not the panel's own tail (box {X:332 Y:75.1 W:56 H:15}, charged 140, inset 28.8)
+    emptydensity_test.go:150: clipboard-empty/dark/: the sentence sits 21.1px below the band's top edge, not the 19.6px of a centred statement (box {X:307.5 Y:93.1 W:105 H:15}, band top 72.0)
+    emptydensity_test.go:155: clipboard-empty/dark/: the sentence ends 21.1px above the card's bottom inset, not the 19.6px of a centred statement — the band's bottom is not the panel's own tail (box {X:307.5 Y:93.1 W:105 H:15}, charged 131, inset 1.8)
+--- FAIL: TestTheArmedDeletesConfirmIsACaption (0.01s)
+    fontladder_test.go:83: the tiny step draws caption and body-1 in the same 12 line box over "Press again to delete": this pin cannot see the register it pins
+--- FAIL: TestTheFilterRowsHintIsACaption (0.00s)
+    fontladder_test.go:121: the tiny step draws caption and body-1 in the same 12 line box over "Tab to switch": this pin cannot see the register it pins
+--- FAIL: TestTheTwoRulersAreNamedAndMeasured (0.00s)
+    frameruler_test.go:34: the shipped line boxes are title 17.00 / subtitle 14.00, want 19 / 17 (measured `Ag` at 12.6 and 10.8 — §6.76's 22.0 → 17.0 at the body size)
+--- FAIL: TestTheSectionHeadingStartsAtTheShippedTextColumn (0.01s)
+    headingcolumn_test.go:200: the first row's title starts at y=865, want 885: the row above it is the shipped 17px line, not the stock 22px one
+    headingcolumn_test.go:220: the stock ruler's heading line box is 180, want 22
+--- FAIL: TestTheLessOfTheLauncherHeadingTheFurtherItRecedes (1.25s)
+    --- FAIL: TestTheLessOfTheLauncherHeadingTheFurtherItRecedes/light (0.62s)
+        headingfold_test.go:200: the launcher's section title never landed on the fold at height 295
+    --- FAIL: TestTheLessOfTheLauncherHeadingTheFurtherItRecedes/dark (0.63s)
+        headingfold_test.go:200: the launcher's section title never landed on the fold at height 295
+--- FAIL: TestTheOutputGroupHeadingAtTheFoldRecedes (0.07s)
+    --- FAIL: TestTheOutputGroupHeadingAtTheFoldRecedes/light (0.03s)
+        headingfold_test.go:223: whole={ink:116 fold:1 label:whole} cut={ink:79 fold:0.6782611349354619 label:height 350}
+        headingfold_test.go:225: the output group heading keeps its full ink at the fold: height 350 contrast 79 against 116 whole in view (fold 0.678) — this page's fold must call the same pure function the launcher's does
+    --- FAIL: TestTheOutputGroupHeadingAtTheFoldRecedes/dark (0.03s)
+        headingfold_test.go:223: whole={ink:120 fold:1 label:whole} cut={ink:82 fold:0.6782611349354619 label:height 350}
+        headingfold_test.go:225: the output group heading keeps its full ink at the fold: height 350 contrast 82 against 120 whole in view (fold 0.678) — this page's fold must call the same pure function the launcher's does
+--- FAIL: TestTheOutputStatusStripIsACaption (0.09s)
+    ladderrung_test.go:81: the tiny step draws caption and body-1 in the same 12 line box over "Finished": this pin cannot see the register it pins
+--- FAIL: TestTheChosenRowStandsOnOneLitEdge (0.01s)
+    --- FAIL: TestTheChosenRowStandsOnOneLitEdge/light (0.01s)
+        litedge_test.go:107: the chosen row's top edge {232 232 233 255} is not brighter than its own face {232 232 233 255}: the lit edge is missing (E1 = face + one 1px LensRim, liquid-glass.md §2)
+    --- FAIL: TestTheChosenRowStandsOnOneLitEdge/dark (0.00s)
+        litedge_test.go:107: the chosen row's top edge {36 36 37 255} is not brighter than its own face {36 36 37 255}: the lit edge is missing (E1 = face + one 1px LensRim, liquid-glass.md §2)
+--- FAIL: TestTheOutputListNeverScrollsIntoTheHeaderBand (0.02s)
+    outputedges_test.go:95: dark=false: strip's last ink y=77, clip top y=95, band y=81..94 ink 0
+    outputedges_test.go:98: dark=false: the premise failed — no row is cut after scrolling: map[2:{7.2 23.400002 705.6 36} 3:{7.2 59.4 705.6 36} 4:{7.2 95.4 705.6 36} 5:{7.2 131.4 705.6 36} 6:{7.2 167.4 705.6 36} 7:{7.2 203.4 705.6 36} 8:{7.2 239.4 705.6 36} 9:{7.2 275.4 705.6 36} 10:{7.2 311.4 705.6 36} 11:{7.2 347.4 705.6 36} 12:{7.2 383.4 705.6 36} 13:{7.2 419.4 705.6 36} 14:{7.2 455.4 705.6 36}]
+--- FAIL: TestTheFurtherTheOutputRowIsCutTheMoreItRecedes (0.02s)
+    outputfold_test.go:146: height 439: row 9 box={X:7.2 Y:419.4 W:705.6 H:36} share=0.544
+    outputfold_test.go:146: height 459: row 10 box={X:7.2 Y:455.4 W:705.6 H:36} share=0.100
+    outputfold_test.go:162: the premise failed: the fold did not open (0.544 → 0.100)
+--- FAIL: TestTheOutputStatusLineSeparatesItsVerdictFromItsLegend (0.05s)
+    outputstatus_test.go:246: dark=false finished: the strip's line collapsed (height 13.0)
+    outputstatus_test.go:246: dark=false failed: the strip's line collapsed (height 13.0)
+    outputstatus_test.go:246: dark=false timedout: the strip's line collapsed (height 13.0)
+    outputstatus_test.go:246: dark=true finished: the strip's line collapsed (height 13.0)
+    outputstatus_test.go:246: dark=true failed: the strip's line collapsed (height 13.0)
+    outputstatus_test.go:246: dark=true timedout: the strip's line collapsed (height 13.0)
+--- FAIL: TestTheChosenRowsSubtitleSitsOneRungBelowItsTitle (0.04s)
+    --- FAIL: TestTheChosenRowsSubtitleSitsOneRungBelowItsTitle/light (0.02s)
+        outputsubtitle_test.go:55: light · chosen   title far 205 / subtitle far 125 (gap 80)
+        outputsubtitle_test.go:57: light · selected title far 205 / subtitle far 125 (gap 80)
+        outputsubtitle_test.go:59: light · plain    out subtitle far 115, list subtitle far 118
+        outputsubtitle_test.go:76: the plain rows' subtitles read 115 vs 118 levels from their own faces: the resting subtitle rung drifted between the two lists
+        outputsubtitle_test.go:106: the plain row's subtitle reads 115 levels from its face, but its own ink sits at 118
+    --- FAIL: TestTheChosenRowsSubtitleSitsOneRungBelowItsTitle/dark (0.02s)
+        outputsubtitle_test.go:55: dark · chosen   title far 201 / subtitle far 118 (gap 83)
+        outputsubtitle_test.go:57: dark · selected title far 201 / subtitle far 118 (gap 83)
+        outputsubtitle_test.go:59: dark · plain    out subtitle far 115, list subtitle far 118
+        outputsubtitle_test.go:76: the plain rows' subtitles read 115 vs 118 levels from their own faces: the resting subtitle rung drifted between the two lists
+        outputsubtitle_test.go:106: the plain row's subtitle reads 115 levels from its face, but its own ink sits at 118
+--- FAIL: TestTheLauncherHeightsStayOnTheLadder (0.04s)
+    --- FAIL: TestTheLauncherHeightsStayOnTheLadder/en_light (0.01s)
+        textheight_test.go:79: light en empty page: height 14.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:79: light en empty page: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:79: light en empty page: no run of height 17.0 was painted (heights [14 22 25.2])
+        textheight_test.go:79: light en empty page: no run of height 25.0 was painted (heights [14 22 25.2])
+        textheight_test.go:87: light en match: height 13.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: light en match: height 14.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: light en match: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: light en match: no run of height 15.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:87: light en match: no run of height 19.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:87: light en match: no run of height 25.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:94: light en no results: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:94: light en no results: no run of height 18.0 was painted (heights [15 22 25.2])
+        textheight_test.go:94: light en no results: no run of height 25.0 was painted (heights [15 22 25.2])
+    --- FAIL: TestTheLauncherHeightsStayOnTheLadder/en_dark (0.01s)
+        textheight_test.go:79: dark en empty page: height 14.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:79: dark en empty page: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:79: dark en empty page: no run of height 17.0 was painted (heights [14 22 25.2])
+        textheight_test.go:79: dark en empty page: no run of height 25.0 was painted (heights [14 22 25.2])
+        textheight_test.go:87: dark en match: height 13.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: dark en match: height 14.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: dark en match: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: dark en match: no run of height 15.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:87: dark en match: no run of height 19.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:87: dark en match: no run of height 25.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:94: dark en no results: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:94: dark en no results: no run of height 18.0 was painted (heights [15 22 25.2])
+        textheight_test.go:94: dark en no results: no run of height 25.0 was painted (heights [15 22 25.2])
+    --- FAIL: TestTheLauncherHeightsStayOnTheLadder/zh_light (0.01s)
+        textheight_test.go:79: light zh empty page: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:79: light zh empty page: no run of height 25.0 was painted (heights [17 22 25.2])
+        textheight_test.go:87: light zh match: height 13.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: light zh match: height 14.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: light zh match: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: light zh match: no run of height 15.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:87: light zh match: no run of height 19.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:87: light zh match: no run of height 25.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:94: light zh no results: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:94: light zh no results: no run of height 25.0 was painted (heights [18 22 25.2])
+    --- FAIL: TestTheLauncherHeightsStayOnTheLadder/zh_dark (0.01s)
+        textheight_test.go:79: dark zh empty page: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:79: dark zh empty page: no run of height 25.0 was painted (heights [17 22 25.2])
+        textheight_test.go:87: dark zh match: height 13.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: dark zh match: height 14.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: dark zh match: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:87: dark zh match: no run of height 15.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:87: dark zh match: no run of height 19.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:87: dark zh match: no run of height 25.0 was painted (heights [13 14 17 22 25.2])
+        textheight_test.go:94: dark zh no results: height 22.0 is not on the ladder [15 17 18 19 25 25.2] (±0.00)
+        textheight_test.go:94: dark zh no results: no run of height 25.0 was painted (heights [18 22 25.2])
+--- FAIL: TestTheLauncherIconBoxIsSevenUnitsTall (0.00s)
+    textheight_test.go:147: the frame did not paint the 25 rung (heights [14 22 25.2])
+FAIL
+FAIL	floter/internal/launcher	24.667s
+ok  	floter/internal/motion	0.036s
+ok  	floter/internal/pathid	0.003s
+ok  	floter/internal/pathlist	0.023s
+ok  	floter/internal/pinyin	0.005s
+ok  	floter/internal/plist	0.006s
+ok  	floter/internal/plugincfg	0.008s
+ok  	floter/internal/progname	0.003s
+ok  	floter/internal/progtype	0.003s
+ok  	floter/internal/scriptlang	0.005s
+ok  	floter/internal/semver	0.005s
+ok  	floter/internal/settings	1.346s

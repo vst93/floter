@@ -1,0 +1,137 @@
+=== RUN   TestFormPrefixRunSubmit
+=== RUN   TestFormPrefixRunSubmit/light
+    formprefix_test.go:131: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:639.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:639.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunSubmit/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:639.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:639.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormPrefixRunSubmit (0.44s)
+    --- FAIL: TestFormPrefixRunSubmit/light (0.30s)
+    --- FAIL: TestFormPrefixRunSubmit/dark (0.14s)
+=== RUN   TestFormPrefixToolOpen
+=== RUN   TestFormPrefixToolOpen/light
+    formprefix_test.go:131: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:488.19998 W:104 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formprefix_test.go:131: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:488.19998 W:104 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formprefix_test.go:188: action dispatched 0 times
+=== RUN   TestFormPrefixToolOpen/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:488.19998 W:104 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formprefix_test.go:131: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:488.19998 W:104 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formprefix_test.go:188: action dispatched 0 times
+--- FAIL: TestFormPrefixToolOpen (0.10s)
+    --- FAIL: TestFormPrefixToolOpen/light (0.06s)
+    --- FAIL: TestFormPrefixToolOpen/dark (0.04s)
+=== RUN   TestFormPrefixConfigFields
+=== RUN   TestFormPrefixConfigFields/light
+    formprefix_test.go:131: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:536.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:536.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixConfigFields/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:536.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:536.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormPrefixConfigFields (0.16s)
+    --- FAIL: TestFormPrefixConfigFields/light (0.08s)
+    --- FAIL: TestFormPrefixConfigFields/dark (0.08s)
+=== RUN   TestFormPrefixConfigDefaults
+=== RUN   TestFormPrefixConfigDefaults/light
+    formprefix_test.go:131: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:535.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:535.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixConfigDefaults/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:535.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:535.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormPrefixConfigDefaults (0.20s)
+    --- FAIL: TestFormPrefixConfigDefaults/light (0.10s)
+    --- FAIL: TestFormPrefixConfigDefaults/dark (0.10s)
+=== RUN   TestFormPrefixConfigSave
+=== RUN   TestFormPrefixConfigSave/light
+    formprefix_test.go:131: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:535.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:535.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixConfigSave/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:535.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:535.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormPrefixConfigSave (0.20s)
+    --- FAIL: TestFormPrefixConfigSave/light (0.10s)
+    --- FAIL: TestFormPrefixConfigSave/dark (0.10s)
+=== RUN   TestFormPrefixConfigCopy
+=== RUN   TestFormPrefixConfigCopy/light
+    formprefix_test.go:131: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:625.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:625.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixConfigCopy/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:625.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:625.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormPrefixConfigCopy (0.10s)
+    --- FAIL: TestFormPrefixConfigCopy/light (0.05s)
+    --- FAIL: TestFormPrefixConfigCopy/dark (0.05s)
+=== RUN   TestFormPrefixConfigExport
+=== RUN   TestFormPrefixConfigExport/light
+    formprefix_test.go:131: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:625.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:625.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixConfigExport/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:625.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:625.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormPrefixConfigExport (0.10s)
+    --- FAIL: TestFormPrefixConfigExport/light (0.05s)
+    --- FAIL: TestFormPrefixConfigExport/dark (0.05s)
+=== RUN   TestFormPrefixRunControls
+=== RUN   TestFormPrefixRunControls/text
+=== RUN   TestFormPrefixRunControls/text/light
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/text/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/number
+=== RUN   TestFormPrefixRunControls/number/light
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/number/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/path
+=== RUN   TestFormPrefixRunControls/path/light
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/path/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:526.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/boolean
+=== RUN   TestFormPrefixRunControls/boolean/light
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:531.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:531.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/boolean/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:531.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:531.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/select
+=== RUN   TestFormPrefixRunControls/select/light
+    formprefix_test.go:131: feedback reflow hides active outlet "北方": target={X:597.8 Y:525.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "北方": target={X:597.8 Y:525.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/select/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "北方": target={X:597.8 Y:525.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "北方": target={X:597.8 Y:525.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/cancel
+=== RUN   TestFormPrefixRunControls/cancel/light
+    formprefix_test.go:131: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:535.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:535.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunControls/cancel/dark
+    formprefix_test.go:131: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:535.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:131: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:535.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormPrefixRunControls (0.94s)
+    --- FAIL: TestFormPrefixRunControls/text (0.14s)
+        --- FAIL: TestFormPrefixRunControls/text/light (0.07s)
+        --- FAIL: TestFormPrefixRunControls/text/dark (0.07s)
+    --- FAIL: TestFormPrefixRunControls/number (0.14s)
+        --- FAIL: TestFormPrefixRunControls/number/light (0.07s)
+        --- FAIL: TestFormPrefixRunControls/number/dark (0.07s)
+    --- FAIL: TestFormPrefixRunControls/path (0.14s)
+        --- FAIL: TestFormPrefixRunControls/path/light (0.07s)
+        --- FAIL: TestFormPrefixRunControls/path/dark (0.07s)
+    --- FAIL: TestFormPrefixRunControls/boolean (0.14s)
+        --- FAIL: TestFormPrefixRunControls/boolean/light (0.07s)
+        --- FAIL: TestFormPrefixRunControls/boolean/dark (0.07s)
+    --- FAIL: TestFormPrefixRunControls/select (0.15s)
+        --- FAIL: TestFormPrefixRunControls/select/light (0.07s)
+        --- FAIL: TestFormPrefixRunControls/select/dark (0.08s)
+    --- FAIL: TestFormPrefixRunControls/cancel (0.23s)
+        --- FAIL: TestFormPrefixRunControls/cancel/light (0.12s)
+        --- FAIL: TestFormPrefixRunControls/cancel/dark (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	2.253s
+FAIL

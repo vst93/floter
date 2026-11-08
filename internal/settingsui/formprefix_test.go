@@ -61,7 +61,18 @@ func checkFormPrefix(t *testing.T, scenario, kind string) {
 					}
 					done(nil)
 				}
-				a.Actions.CopyConfiguration, a.Actions.ExportConfiguration = transfer, transfer
+				a.Actions.CopyConfiguration = func(id string, values map[string]any, done func(error)) {
+					if scenario == "config-toolbar" && kind != "copy" {
+						t.Error("export invoked copy callback")
+					}
+					transfer(id, values, done)
+				}
+				a.Actions.ExportConfiguration = func(id string, values map[string]any, done func(error)) {
+					if scenario == "config-toolbar" && kind != "export" {
+						t.Error("copy invoked export callback")
+					}
+					transfer(id, values, done)
+				}
 				switch scenario {
 				case "config-open":
 					label = a.copy().ConfigOpen
@@ -176,6 +187,9 @@ func checkFormPrefix(t *testing.T, scenario, kind string) {
 				if calls != 1 {
 					t.Errorf("action dispatched %d times", calls)
 				}
+			}
+			if (scenario == "run-controls" || scenario == "config-fields" || scenario == "config-defaults") && calls != 0 {
+				t.Errorf("editing or defaults dispatched %d unrelated operations", calls)
 			}
 			runVisibilityWheel(t, a, tt)
 			manual := a.Body.Y

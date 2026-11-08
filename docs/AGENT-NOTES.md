@@ -76,6 +76,12 @@ Tauri + Rust + React 实现（见 `docs/archive/` 与 git 历史），那套代�
 本轮同一 HEAD 实测：C locale 3271 PASS 且多项失败，中文 locale 3487 PASS / 0 FAIL。
 不要设置 `CI` 规避这些断言；截图与 mutation 也要使用同一 locale。
 
+**P13-ks 统一入口**：`bash tools/verify.sh <轮号>` 固定上述locale，日志写入
+`docs/rounds/<轮号>/logs/`，终端只输出各门槛结论与证据路径。外层中断后可用
+`bash tools/verify.sh <轮号> --resume` 跳过已有exit0的门槛；产品代码变化后不要复用
+旧exit文件，须使用新的轮号/证据目录。完整测试可能超过单条终端命令寿命，允许
+通过独立进程运行同一个入口并轮询摘要，不把exit143当作测试通过。
+
 ```sh
 gofmt -l cmd internal     # 必须为空
 go vet ./...
