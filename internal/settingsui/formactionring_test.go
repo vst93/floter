@@ -3,6 +3,7 @@ package settingsui
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"math"
 	"testing"
 )
 
@@ -58,7 +59,7 @@ func checkFormActionRing(t *testing.T, name string) {
 				r.Y -= (30 - r.H) / 2
 				r.H = 30
 			}
-			for side, p := range map[string][2]int{"top": {int(r.X + r.W/2), int(r.Y - 2)}, "bottom": {int(r.X + r.W/2), int(r.Y + r.H + 1)}} {
+			for side, p := range map[string][2]int{"top": {int(r.X + r.W/2), int(r.Y - 2)}, "bottom": {int(r.X + r.W/2), int(math.Round(float64(r.Y + r.H + 1)))}} {
 				red, _, blue := rgbAt(tt.Image(), p[0], p[1])
 				if blue-red < 20 {
 					t.Errorf("%s %s ring missing: rect=%+v blue-red=%d", name, side, r, blue-red)
