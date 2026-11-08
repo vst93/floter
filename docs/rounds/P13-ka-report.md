@@ -29,3 +29,12 @@
 4. **命令拒绝后键盘落空**：现象 → 非法命令“bad command”被拒绝后无法直接修正；改动 → 返回既有命令字段；验证 → 四组直接改成 forecast，再提交恰一次，不改验证规则。
 
 定向 **10 PASS / exit0**，settingsui vet exit0。M1 撤回两个目标后实红 `name refusal lost editable keyboard exit` / `command refusal lost editable keyboard exit`，以及 `refused direct keyboard correction: submissions=0`；MD5 还原成功，touch 后 **10 PASS / exit0**。V/B/S 旧断言修改 0/0/0，无新 Skip。
+
+第一批 d2b4dcea 已推送。对照图肉眼看到名称输入获得蓝色焦点环，其余字段和面层保持不动。
+
+### 第二批：版本与程序
+
+5. **版本拒绝后键盘落空**：现象 → “version one”拒绝后直接键入无法修正；改动 → 返回当前版本输入；验证 → 连接/编辑 × 深/浅四组直接改为 2.3.4，再提交一次。
+6. **空程序拒绝没有出口**：现象 → 空程序提交静默返回，输入仍落在按钮；改动 → 返回已有程序字段，不增加文案或改空值规则；验证 → 四组直接输入 /usr/bin/weather，再提交一次。
+
+M2 撤回两个目标，实红 `version refusal lost editable keyboard exit` / `program refusal lost editable keyboard exit`；还原 MD5、touch 后累计 **20 PASS / exit0**，settingsui vet exit0，旧 V/B/S 0/0/0。

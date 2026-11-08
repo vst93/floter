@@ -94,5 +94,9 @@ func checkToolRefusalExit(t *testing.T, field string) {
 	}
 }
 
-func TestToolRefusalExitName(t *testing.T)    { checkToolRefusalExit(t, "name") }
-func TestToolRefusalExitCommand(t *testing.T) { checkToolRefusalExit(t, "command") }
+func TestToolRefusalExitName(t *testing.T)     { checkToolRefusalExit(t, "name") }
+func TestToolRefusalExitCommand(t *testing.T)  { checkToolRefusalExit(t, "command") }
+func TestToolRefusalExitVersion(t *testing.T)  { checkToolRefusalExit(t, "version") }
+func TestToolRefusalExitProgram(t *testing.T)  { checkToolRefusalExit(t, "program") }
+func TestToolRefusalExitScript(t *testing.T)   { checkToolRefusalExit(t, "script") }
+func TestToolRefusalExitPlatform(t *testing.T) { checkToolRefusalExit(t, "platform") }

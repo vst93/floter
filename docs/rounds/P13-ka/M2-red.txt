@@ -1,0 +1,39 @@
+=== RUN   TestToolRefusalExitVersion
+=== RUN   TestToolRefusalExitVersion/light/connect
+    toolrefusalexit_test.go:75: version refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: version refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitVersion/light/edit
+    toolrefusalexit_test.go:75: version refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: version refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitVersion/dark/connect
+    toolrefusalexit_test.go:75: version refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: version refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitVersion/dark/edit
+    toolrefusalexit_test.go:75: version refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: version refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitVersion (1.32s)
+    --- FAIL: TestToolRefusalExitVersion/light/connect (0.53s)
+    --- FAIL: TestToolRefusalExitVersion/light/edit (0.28s)
+    --- FAIL: TestToolRefusalExitVersion/dark/connect (0.23s)
+    --- FAIL: TestToolRefusalExitVersion/dark/edit (0.28s)
+=== RUN   TestToolRefusalExitProgram
+=== RUN   TestToolRefusalExitProgram/light/connect
+    toolrefusalexit_test.go:75: program refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: program refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitProgram/light/edit
+    toolrefusalexit_test.go:75: program refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: program refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitProgram/dark/connect
+    toolrefusalexit_test.go:75: program refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: program refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitProgram/dark/edit
+    toolrefusalexit_test.go:75: program refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: program refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitProgram (0.99s)
+    --- FAIL: TestToolRefusalExitProgram/light/connect (0.24s)
+    --- FAIL: TestToolRefusalExitProgram/light/edit (0.24s)
+    --- FAIL: TestToolRefusalExitProgram/dark/connect (0.25s)
+    --- FAIL: TestToolRefusalExitProgram/dark/edit (0.27s)
+FAIL
+FAIL	floter/internal/settingsui	2.331s
+FAIL

@@ -78,5 +78,85 @@
       686,
       180
     ]
+  },
+  {
+    "name": "refusal-program-connect-dark",
+    "changed_pixels": 617,
+    "bbox": [
+      446,
+      212,
+      686,
+      242
+    ]
+  },
+  {
+    "name": "refusal-program-connect-light",
+    "changed_pixels": 617,
+    "bbox": [
+      446,
+      212,
+      686,
+      242
+    ]
+  },
+  {
+    "name": "refusal-program-edit-dark",
+    "changed_pixels": 617,
+    "bbox": [
+      446,
+      257,
+      686,
+      287
+    ]
+  },
+  {
+    "name": "refusal-program-edit-light",
+    "changed_pixels": 617,
+    "bbox": [
+      446,
+      257,
+      686,
+      287
+    ]
+  },
+  {
+    "name": "refusal-version-connect-dark",
+    "changed_pixels": 377,
+    "bbox": [
+      566,
+      432,
+      686,
+      462
+    ]
+  },
+  {
+    "name": "refusal-version-connect-light",
+    "changed_pixels": 377,
+    "bbox": [
+      566,
+      432,
+      686,
+      462
+    ]
+  },
+  {
+    "name": "refusal-version-edit-dark",
+    "changed_pixels": 377,
+    "bbox": [
+      566,
+      477,
+      686,
+      507
+    ]
+  },
+  {
+    "name": "refusal-version-edit-light",
+    "changed_pixels": 377,
+    "bbox": [
+      566,
+      477,
+      686,
+      507
+    ]
   }
 ]

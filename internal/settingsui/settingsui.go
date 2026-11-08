@@ -5875,7 +5875,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				})
 			}
 			a.row(c.Key("local-version"), copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
-				a.extensionField(c, &version, customFieldMetrics).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
+				a.extensionField(c, &version, customFieldMetrics).Bind(&a.contentFocus(c, "version").source).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldVersion)
 			})
@@ -5925,7 +5925,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					for i, platform := range customPlatforms {
 						i, platform := i, platform
 						checked := ticked[i]
-						if ui.Checkbox(c, &checked, platform.Label).Changed() {
+						choice := ui.Checkbox(c, &checked, platform.Label)
+						if i == 0 {
+							choice.Bind(&a.contentFocus(c, "platforms").source)
+						}
+						if choice.Changed() {
 							if checked {
 								a.toolPlatforms[platform.ID] = true
 							} else {
@@ -5997,12 +6001,19 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					c.Resolve(a.contentFocus(c, "name").source).Focus()
 				case extensions.CustomFieldCommand:
 					c.Resolve(a.contentFocus(c, "command").source).Focus()
+				case extensions.CustomFieldVersion:
+					c.Resolve(a.contentFocus(c, "version").source).Focus()
+				case extensions.CustomFieldScript:
+				case extensions.CustomFieldPlatforms:
+				case extensions.CustomFieldMode, extensions.CustomFieldLanguage:
+					c.Resolve(a.contentFocus(c, "mode-program").source).Focus()
 				}
 				return
 			}
 			// The program row has no localization key of its own: it refuses
 			// silently, the same way the old form disabled its submit button.
 			if tool.Mode != routeScript && tool.Program == "" {
+				c.Resolve(a.contentFocus(c, "plan").source).Focus()
 				return
 			}
 			// A missing toolchain does not block the save — the user may install

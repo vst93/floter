@@ -1,0 +1,42 @@
+=== RUN   TestToolRefusalExitName
+=== RUN   TestToolRefusalExitName/light/connect
+=== RUN   TestToolRefusalExitName/light/edit
+=== RUN   TestToolRefusalExitName/dark/connect
+=== RUN   TestToolRefusalExitName/dark/edit
+--- PASS: TestToolRefusalExitName (1.28s)
+    --- PASS: TestToolRefusalExitName/light/connect (0.51s)
+    --- PASS: TestToolRefusalExitName/light/edit (0.23s)
+    --- PASS: TestToolRefusalExitName/dark/connect (0.27s)
+    --- PASS: TestToolRefusalExitName/dark/edit (0.26s)
+=== RUN   TestToolRefusalExitCommand
+=== RUN   TestToolRefusalExitCommand/light/connect
+=== RUN   TestToolRefusalExitCommand/light/edit
+=== RUN   TestToolRefusalExitCommand/dark/connect
+=== RUN   TestToolRefusalExitCommand/dark/edit
+--- PASS: TestToolRefusalExitCommand (1.05s)
+    --- PASS: TestToolRefusalExitCommand/light/connect (0.34s)
+    --- PASS: TestToolRefusalExitCommand/light/edit (0.22s)
+    --- PASS: TestToolRefusalExitCommand/dark/connect (0.25s)
+    --- PASS: TestToolRefusalExitCommand/dark/edit (0.23s)
+=== RUN   TestToolRefusalExitVersion
+=== RUN   TestToolRefusalExitVersion/light/connect
+=== RUN   TestToolRefusalExitVersion/light/edit
+=== RUN   TestToolRefusalExitVersion/dark/connect
+=== RUN   TestToolRefusalExitVersion/dark/edit
+--- PASS: TestToolRefusalExitVersion (0.96s)
+    --- PASS: TestToolRefusalExitVersion/light/connect (0.25s)
+    --- PASS: TestToolRefusalExitVersion/light/edit (0.25s)
+    --- PASS: TestToolRefusalExitVersion/dark/connect (0.24s)
+    --- PASS: TestToolRefusalExitVersion/dark/edit (0.21s)
+=== RUN   TestToolRefusalExitProgram
+=== RUN   TestToolRefusalExitProgram/light/connect
+=== RUN   TestToolRefusalExitProgram/light/edit
+=== RUN   TestToolRefusalExitProgram/dark/connect
+=== RUN   TestToolRefusalExitProgram/dark/edit
+--- PASS: TestToolRefusalExitProgram (0.92s)
+    --- PASS: TestToolRefusalExitProgram/light/connect (0.22s)
+    --- PASS: TestToolRefusalExitProgram/light/edit (0.24s)
+    --- PASS: TestToolRefusalExitProgram/dark/connect (0.24s)
+    --- PASS: TestToolRefusalExitProgram/dark/edit (0.22s)
+PASS
+ok  	floter/internal/settingsui	4.217s
