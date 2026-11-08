@@ -1,0 +1,230 @@
+=== RUN   TestTheConfigFormSitsOnTheCardsTextColumn
+--- PASS: TestTheConfigFormSitsOnTheCardsTextColumn (0.10s)
+=== RUN   TestRegistryFieldEdgeName
+=== RUN   TestRegistryFieldEdgeName/light
+    configfieldedge_test.go:172: registry-name target={X:186.8 Y:70.4 W:292 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=118.6
+=== RUN   TestRegistryFieldEdgeName/dark
+    configfieldedge_test.go:172: registry-name target={X:186.8 Y:70.4 W:292 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=118.6
+--- PASS: TestRegistryFieldEdgeName (0.10s)
+    --- PASS: TestRegistryFieldEdgeName/light (0.05s)
+    --- PASS: TestRegistryFieldEdgeName/dark (0.04s)
+=== RUN   TestRegistryFieldEdgeVersion
+=== RUN   TestRegistryFieldEdgeVersion/light
+    configfieldedge_test.go:172: registry-version target={X:482.40002 Y:70.4 W:160 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=118.6
+=== RUN   TestRegistryFieldEdgeVersion/dark
+    configfieldedge_test.go:172: registry-version target={X:482.40002 Y:70.4 W:160 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=118.6
+--- PASS: TestRegistryFieldEdgeVersion (0.09s)
+    --- PASS: TestRegistryFieldEdgeVersion/light (0.05s)
+    --- PASS: TestRegistryFieldEdgeVersion/dark (0.05s)
+=== RUN   TestConfigFieldEdgeText
+=== RUN   TestConfigFieldEdgeText/light
+    configfieldedge_test.go:83: text target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeText/dark
+    configfieldedge_test.go:83: text target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgeText (0.16s)
+    --- PASS: TestConfigFieldEdgeText/light (0.08s)
+    --- PASS: TestConfigFieldEdgeText/dark (0.08s)
+=== RUN   TestConfigFieldEdgePassword
+=== RUN   TestConfigFieldEdgePassword/light
+    configfieldedge_test.go:83: password target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgePassword/dark
+    configfieldedge_test.go:83: password target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgePassword (0.16s)
+    --- PASS: TestConfigFieldEdgePassword/light (0.08s)
+    --- PASS: TestConfigFieldEdgePassword/dark (0.08s)
+=== RUN   TestConfigFieldEdgePath
+=== RUN   TestConfigFieldEdgePath/light
+    configfieldedge_test.go:83: path target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgePath/dark
+    configfieldedge_test.go:83: path target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgePath (0.16s)
+    --- PASS: TestConfigFieldEdgePath/light (0.08s)
+    --- PASS: TestConfigFieldEdgePath/dark (0.08s)
+=== RUN   TestConfigFieldEdgeNumber
+=== RUN   TestConfigFieldEdgeNumber/light
+    configfieldedge_test.go:83: number target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeNumber/dark
+    configfieldedge_test.go:83: number target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgeNumber (0.16s)
+    --- PASS: TestConfigFieldEdgeNumber/light (0.08s)
+    --- PASS: TestConfigFieldEdgeNumber/dark (0.08s)
+=== RUN   TestTheConfigFormWearsTheToolbarAndItsDirtyWord
+--- PASS: TestTheConfigFormWearsTheToolbarAndItsDirtyWord (0.04s)
+=== RUN   TestTheConfigFormActionsAreDefaultsAndTheDirtyGatedSave
+--- PASS: TestTheConfigFormActionsAreDefaultsAndTheDirtyGatedSave (0.07s)
+=== RUN   TestTheConfigCopyButtonCopiesTheExportDocument
+--- PASS: TestTheConfigCopyButtonCopiesTheExportDocument (0.05s)
+=== RUN   TestTheConfigSelectCarriesTheNoneOptionOnlyWhenNotRequired
+--- PASS: TestTheConfigSelectCarriesTheNoneOptionOnlyWhenNotRequired (0.05s)
+=== RUN   TestTheConfigMultiselectIsOneListBox
+--- PASS: TestTheConfigMultiselectIsOneListBox (0.07s)
+=== RUN   TestTheConfigFieldCarriesItsOwnBoundsHint
+--- PASS: TestTheConfigFieldCarriesItsOwnBoundsHint (0.03s)
+=== RUN   TestFoldingADirtyConfigFormAsksFirst
+--- PASS: TestFoldingADirtyConfigFormAsksFirst (0.12s)
+=== RUN   TestFoldingACleanConfigFormDoesNotAsk
+--- PASS: TestFoldingACleanConfigFormDoesNotAsk (0.05s)
+=== RUN   TestTheConfigToolbarHoldsOneOperationAtATime
+--- PASS: TestTheConfigToolbarHoldsOneOperationAtATime (0.10s)
+=== RUN   TestTheConfigSaveWearsItsSavingWordWhileInFlight
+--- PASS: TestTheConfigSaveWearsItsSavingWordWhileInFlight (0.08s)
+=== RUN   TestTheConfigMultiselectScrollsInsideItsViewport
+--- PASS: TestTheConfigMultiselectScrollsInsideItsViewport (0.04s)
+=== RUN   TestAToolOwnedConfigurationOffersTheOpenButton
+--- PASS: TestAToolOwnedConfigurationOffersTheOpenButton (0.07s)
+=== RUN   TestTheConfigFieldValidatesAsTheUserTypes
+--- PASS: TestTheConfigFieldValidatesAsTheUserTypes (0.08s)
+=== RUN   TestARowOperationLocksTheConfigFields
+--- PASS: TestARowOperationLocksTheConfigFields (0.08s)
+=== RUN   TestTheConfigMultiselectExtendsARangeOnShift
+--- PASS: TestTheConfigMultiselectExtendsARangeOnShift (0.06s)
+=== RUN   TestAToolOwnedConfigurationDoesNotWearTheForm
+--- PASS: TestAToolOwnedConfigurationDoesNotWearTheForm (0.04s)
+=== RUN   TestTheConfigGridStaysQuietAroundItsControls
+    configgridquiet_test.go:99: light/en/idle/text: label={33 80.5 48 17} gap(157,89)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/idle/password: label={33 120.5 65 17} gap(157,129)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/idle/path: label={33 160.5 92 17} gap(157,169)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/idle/number: label={33 200.5 57 17} gap(157,209)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/idle/boolean: label={33 235.5 65 17} gap(157,244)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/idle/select: label={33 270.5 29 17} gap(157,279)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/idle/multiselect: label={33 329.5 79 17} gap(157,338)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/saving/text: label={33 80.5 48 17} gap(157,89)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/saving/password: label={33 120.5 65 17} gap(157,129)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/saving/path: label={33 160.5 92 17} gap(157,169)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/saving/number: label={33 200.5 57 17} gap(157,209)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/saving/boolean: label={33 235.5 65 17} gap(157,244)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/saving/select: label={33 270.5 29 17} gap(157,279)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/saving/multiselect: label={33 329.5 79 17} gap(157,338)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/locked/text: label={33 80.5 48 17} gap(157,89)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/locked/password: label={33 120.5 65 17} gap(157,129)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/locked/path: label={33 160.5 92 17} gap(157,169)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/locked/number: label={33 200.5 57 17} gap(157,209)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/locked/boolean: label={33 235.5 65 17} gap(157,244)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/locked/select: label={33 270.5 29 17} gap(157,279)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/en/locked/multiselect: label={33 329.5 79 17} gap(157,338)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/idle/text: label={33 80.5 44 17} gap(157,89)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/idle/password: label={33 120.5 44 17} gap(157,129)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/idle/path: label={33 160.5 44 17} gap(157,169)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/idle/number: label={33 200.5 44 17} gap(157,209)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/idle/boolean: label={33 235.5 22 17} gap(157,244)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/idle/select: label={33 270.5 22 17} gap(157,279)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/idle/multiselect: label={33 329.5 44 17} gap(157,338)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/saving/text: label={33 80.5 44 17} gap(157,89)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/saving/password: label={33 120.5 44 17} gap(157,129)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/saving/path: label={33 160.5 44 17} gap(157,169)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/saving/number: label={33 200.5 44 17} gap(157,209)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/saving/boolean: label={33 235.5 22 17} gap(157,244)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/saving/select: label={33 270.5 22 17} gap(157,279)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/saving/multiselect: label={33 329.5 44 17} gap(157,338)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/locked/text: label={33 80.5 44 17} gap(157,89)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/locked/password: label={33 120.5 44 17} gap(157,129)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/locked/path: label={33 160.5 44 17} gap(157,169)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/locked/number: label={33 200.5 44 17} gap(157,209)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/locked/boolean: label={33 235.5 22 17} gap(157,244)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/locked/select: label={33 270.5 22 17} gap(157,279)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: light/zh/locked/multiselect: label={33 329.5 44 17} gap(157,338)={230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}/{230 230 230 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/idle/text: label={33 80.5 48 17} gap(157,89)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/idle/password: label={33 120.5 65 17} gap(157,129)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/idle/path: label={33 160.5 92 17} gap(157,169)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/idle/number: label={33 200.5 57 17} gap(157,209)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/idle/boolean: label={33 235.5 65 17} gap(157,244)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/idle/select: label={33 270.5 29 17} gap(157,279)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/idle/multiselect: label={33 329.5 79 17} gap(157,338)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/saving/text: label={33 80.5 48 17} gap(157,89)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/saving/password: label={33 120.5 65 17} gap(157,129)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/saving/path: label={33 160.5 92 17} gap(157,169)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/saving/number: label={33 200.5 57 17} gap(157,209)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/saving/boolean: label={33 235.5 65 17} gap(157,244)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/saving/select: label={33 270.5 29 17} gap(157,279)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/saving/multiselect: label={33 329.5 79 17} gap(157,338)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/locked/text: label={33 80.5 48 17} gap(157,89)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/locked/password: label={33 120.5 65 17} gap(157,129)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/locked/path: label={33 160.5 92 17} gap(157,169)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/locked/number: label={33 200.5 57 17} gap(157,209)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/locked/boolean: label={33 235.5 65 17} gap(157,244)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/locked/select: label={33 270.5 29 17} gap(157,279)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/en/locked/multiselect: label={33 329.5 79 17} gap(157,338)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/idle/text: label={33 80.5 44 17} gap(157,89)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/idle/password: label={33 120.5 44 17} gap(157,129)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/idle/path: label={33 160.5 44 17} gap(157,169)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/idle/number: label={33 200.5 44 17} gap(157,209)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/idle/boolean: label={33 235.5 22 17} gap(157,244)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/idle/select: label={33 270.5 22 17} gap(157,279)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/idle/multiselect: label={33 329.5 44 17} gap(157,338)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/saving/text: label={33 80.5 44 17} gap(157,89)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/saving/password: label={33 120.5 44 17} gap(157,129)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/saving/path: label={33 160.5 44 17} gap(157,169)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/saving/number: label={33 200.5 44 17} gap(157,209)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/saving/boolean: label={33 235.5 22 17} gap(157,244)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/saving/select: label={33 270.5 22 17} gap(157,279)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/saving/multiselect: label={33 329.5 44 17} gap(157,338)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/locked/text: label={33 80.5 44 17} gap(157,89)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/locked/password: label={33 120.5 44 17} gap(157,129)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/locked/path: label={33 160.5 44 17} gap(157,169)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/locked/number: label={33 200.5 44 17} gap(157,209)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/locked/boolean: label={33 235.5 22 17} gap(157,244)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/locked/select: label={33 270.5 22 17} gap(157,279)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+    configgridquiet_test.go:99: dark/zh/locked/multiselect: label={33 329.5 44 17} gap(157,338)={39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}/{39 39 40 255 [0 0 0]}
+--- PASS: TestTheConfigGridStaysQuietAroundItsControls (0.57s)
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/light
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/dark
+--- PASS: TestConfigIdentityReorderingKeepsTheActiveField (0.01s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/light (0.00s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/dark (0.00s)
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/light
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/dark
+--- PASS: TestConfigIdentityErrorUsesCurrentLanguage (0.01s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/light (0.00s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/dark (0.00s)
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/light
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/dark
+--- PASS: TestConfigIdentityHistoryBelongsToTheIntegration (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/light (0.00s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/dark (0.00s)
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/light
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/dark
+--- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/light (0.00s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/dark (0.00s)
+=== RUN   TestTheConfigurationEntryOnlyLiftsWhenItCanOpen
+    configinert_test.go:81: light/en/no command: face {230 230 230 255 [0 0 0]} -> {230 230 230 255 [0 0 0]} -> {230 230 230 255 [0 0 0]}; label={33.6 29.099998 501.9 18} button={573.39996 34.5 104 17}
+    configinert_test.go:81: light/en/no handler: face {230 230 230 255 [0 0 0]} -> {230 230 230 255 [0 0 0]} -> {230 230 230 255 [0 0 0]}; label={33.6 29.099998 501.9 18} button={573.39996 34.5 104 17}
+    configinert_test.go:81: light/en/available: face {230 230 230 255 [0 0 0]} -> {206 206 206 255 [0 0 0]} -> {223 223 223 255 [0 0 0]}; label={33.6 29.099998 501.9 18} button={573.39996 34.5 104 17}
+    configinert_test.go:81: light/zh/no command: face {230 230 230 255 [0 0 0]} -> {230 230 230 255 [0 0 0]} -> {230 230 230 255 [0 0 0]}; label={33.6 29.099998 561.9 18} button={633.39996 34.5 44 17}
+    configinert_test.go:81: light/zh/no handler: face {230 230 230 255 [0 0 0]} -> {230 230 230 255 [0 0 0]} -> {230 230 230 255 [0 0 0]}; label={33.6 29.099998 561.9 18} button={633.39996 34.5 44 17}
+    configinert_test.go:81: light/zh/available: face {230 230 230 255 [0 0 0]} -> {206 206 206 255 [0 0 0]} -> {223 223 223 255 [0 0 0]}; label={33.6 29.099998 561.9 18} button={633.39996 34.5 44 17}
+    configinert_test.go:81: dark/en/no command: face {39 39 40 255 [0 0 0]} -> {39 39 40 255 [0 0 0]} -> {39 39 40 255 [0 0 0]}; label={33.6 29.099998 501.9 18} button={573.39996 34.5 104 17}
+    configinert_test.go:81: dark/en/no handler: face {39 39 40 255 [0 0 0]} -> {39 39 40 255 [0 0 0]} -> {39 39 40 255 [0 0 0]}; label={33.6 29.099998 501.9 18} button={573.39996 34.5 104 17}
+    configinert_test.go:81: dark/en/available: face {39 39 40 255 [0 0 0]} -> {69 69 70 255 [0 0 0]} -> {50 50 51 255 [0 0 0]}; label={33.6 29.099998 501.9 18} button={573.39996 34.5 104 17}
+    configinert_test.go:81: dark/zh/no command: face {39 39 40 255 [0 0 0]} -> {39 39 40 255 [0 0 0]} -> {39 39 40 255 [0 0 0]}; label={33.6 29.099998 561.9 18} button={633.39996 34.5 44 17}
+    configinert_test.go:81: dark/zh/no handler: face {39 39 40 255 [0 0 0]} -> {39 39 40 255 [0 0 0]} -> {39 39 40 255 [0 0 0]}; label={33.6 29.099998 561.9 18} button={633.39996 34.5 44 17}
+    configinert_test.go:81: dark/zh/available: face {39 39 40 255 [0 0 0]} -> {69 69 70 255 [0 0 0]} -> {50 50 51 255 [0 0 0]}; label={33.6 29.099998 561.9 18} button={633.39996 34.5 44 17}
+--- PASS: TestTheConfigurationEntryOnlyLiftsWhenItCanOpen (0.14s)
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default
+--- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault (0.01s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default (0.00s)
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/light
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/dark
+--- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues (0.01s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/light (0.00s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/dark (0.01s)
+=== RUN   TestTheConfigToolbarStopsAccusingWhileTheWriteIsOut
+--- PASS: TestTheConfigToolbarStopsAccusingWhileTheWriteIsOut (0.20s)
+=== RUN   TestTheConfigFieldsWearTheTwoColumnGrid
+--- PASS: TestTheConfigFieldsWearTheTwoColumnGrid (0.00s)
+=== RUN   TestTheConfigFormFieldGoesUnlitWhenTheRowIsBusy
+--- PASS: TestTheConfigFormFieldGoesUnlitWhenTheRowIsBusy (0.04s)
+PASS
+ok  	floter/internal/settingsui	2.965s

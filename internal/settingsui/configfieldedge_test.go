@@ -199,3 +199,6 @@ func TestRegistryFieldEdgeVersion(t *testing.T) { checkRegistryFieldEdge(t, true
 
 func TestConfigFieldEdgeText(t *testing.T)     { checkConfigFieldEdge(t, "text") }
 func TestConfigFieldEdgePassword(t *testing.T) { checkConfigFieldEdge(t, "password") }
+
+func TestConfigFieldEdgePath(t *testing.T)   { checkConfigFieldEdge(t, "path") }
+func TestConfigFieldEdgeNumber(t *testing.T) { checkConfigFieldEdge(t, "number") }

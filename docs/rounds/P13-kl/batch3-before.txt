@@ -1,0 +1,27 @@
+=== RUN   TestConfigFieldEdgePath
+=== RUN   TestConfigFieldEdgePath/light
+    configfieldedge_test.go:83: path target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: path top active edge missing: blue-red=30
+    configfieldedge_test.go:91: path active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestConfigFieldEdgePath/dark
+    configfieldedge_test.go:83: path target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: path top active edge missing: blue-red=21
+    configfieldedge_test.go:91: path active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestConfigFieldEdgePath (0.29s)
+    --- FAIL: TestConfigFieldEdgePath/light (0.22s)
+    --- FAIL: TestConfigFieldEdgePath/dark (0.06s)
+=== RUN   TestConfigFieldEdgeNumber
+=== RUN   TestConfigFieldEdgeNumber/light
+    configfieldedge_test.go:83: number target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: number top active edge missing: blue-red=30
+    configfieldedge_test.go:91: number active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestConfigFieldEdgeNumber/dark
+    configfieldedge_test.go:83: number target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: number top active edge missing: blue-red=21
+    configfieldedge_test.go:91: number active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestConfigFieldEdgeNumber (0.13s)
+    --- FAIL: TestConfigFieldEdgeNumber/light (0.07s)
+    --- FAIL: TestConfigFieldEdgeNumber/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.425s
+FAIL
