@@ -44,9 +44,16 @@ func checkRunFeedback(t *testing.T, kind string) {
 				in.Params[4].Default = "false"
 			}
 			label := "参数 5"
+			if kind == "select" {
+				in.Params[4].Default, in.Params[4].Options = "北方", []string{"北方", "南方"}
+				label = "北方"
+			}
+			if kind == "cancel" {
+				in.Params[4].Kind, label = "text", a.copy().RunCancel
+			}
 			tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) { c.Resolve(a.Body.Handle).Label("feedback-viewport") })
 			optionExitFocus(t, tt, label)
-			editable := kind != "boolean"
+			editable := kind == "text" || kind == "number" || kind == "path"
 			want := "continued"
 			if kind == "number" {
 				want = "1e"
@@ -82,11 +89,23 @@ func checkRunFeedback(t *testing.T, kind string) {
 				if a.runValues[in.ID]["p4"] != "24" {
 					t.Fatal("input lost original ownership")
 				}
-			} else {
+			} else if kind == "boolean" {
 				tt.Key(0, ui.KeySpace)
 				tt.Frame()
 				if a.runValues[in.ID]["p4"] != "true" {
 					t.Fatal("toggle lost original ownership")
+				}
+			} else if kind == "select" {
+				tt.Key(0, ui.KeyRight)
+				tt.Frame()
+				if a.runValues[in.ID]["p4"] != "南方" {
+					t.Fatal("selection lost original ownership")
+				}
+			} else {
+				tt.Key(0, ui.KeyEnter)
+				tt.Frame()
+				if a.runOpen[in.ID] || a.runValues[in.ID]["p4"] != "12" {
+					t.Fatal("cancel did not preserve original answers")
 				}
 			}
 		})
@@ -99,3 +118,5 @@ func TestFormFeedbackRunEditors(t *testing.T) {
 	}
 }
 func TestFormFeedbackRunToggle(t *testing.T) { checkRunFeedback(t, "boolean") }
+func TestFormFeedbackRunSelect(t *testing.T) { checkRunFeedback(t, "select") }
+func TestFormFeedbackRunCancel(t *testing.T) { checkRunFeedback(t, "cancel") }

@@ -25,7 +25,7 @@
 
 高度链、控件尺寸/命中区、键盘模型、会话、设置写回、i18n与命令接线零改；不改3秒窗口、保存期间草稿归属或任何拍板项。错误行高度仍由原布局测量。
 
-中文locale LC_ALL=zh_CN.UTF-8。开盘全量正在实跑，测试函数实测3578，PASS数待日志退出后填入。最终：gofmt -l cmd internal空；三平台go vet/build ./...净；普通与verbose独立go test -count=1 ./...全绿、PASS/函数不减少。
+中文locale LC_ALL=zh_CN.UTF-8。开盘全量实测6671 PASS/0 FAIL/exit0，测试函数3578。最终：gofmt -l cmd internal空；三平台go vet/build ./...净；普通与verbose独立go test -count=1 ./...全绿、PASS/函数不减少。
 
 M1：撤回运行编辑/开关的排版显现接线，真实必填刷新测试必须越界变红。M2：撤回配置动作排版显现，保存失败和默认入口测试必须变红。保存源码MD5、实红、逐字节还原、touch后count=1复验。深浅ui.Tester PNG输出/tmp/floter-P13-kr-*，前后图入仓库。
 
