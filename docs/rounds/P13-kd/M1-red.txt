@@ -1,0 +1,19 @@
+=== RUN   TestContentVisibilityPickerError
+=== RUN   TestContentVisibilityPickerError/light
+    contentvisibility_test.go:73: editing outlet outside viewport: rect={X:386.8 Y:-1152.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestContentVisibilityPickerError/dark
+    contentvisibility_test.go:73: editing outlet outside viewport: rect={X:386.8 Y:-1152.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+--- FAIL: TestContentVisibilityPickerError (0.30s)
+    --- FAIL: TestContentVisibilityPickerError/light (0.26s)
+    --- FAIL: TestContentVisibilityPickerError/dark (0.05s)
+=== RUN   TestContentVisibilityPickerCancel
+=== RUN   TestContentVisibilityPickerCancel/light
+    contentvisibility_test.go:73: editing outlet outside viewport: rect={X:386.8 Y:-1152.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestContentVisibilityPickerCancel/dark
+    contentvisibility_test.go:73: editing outlet outside viewport: rect={X:386.8 Y:-1152.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+--- FAIL: TestContentVisibilityPickerCancel (0.08s)
+    --- FAIL: TestContentVisibilityPickerCancel/light (0.04s)
+    --- FAIL: TestContentVisibilityPickerCancel/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.401s
+FAIL

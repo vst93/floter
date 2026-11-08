@@ -5860,12 +5860,12 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 								if a.Actions.NotifyWarning != nil {
 									a.Actions.NotifyWarning(copy.LocalToolFailed)
 								}
-								pickerFocus.restore(c)
+								pickerFocus.restoreVisible(c)
 							} else if picked != "" {
 								program = picked
 								pickerFocus.restore(c)
 							} else {
-								pickerFocus.restore(c)
+								pickerFocus.restoreVisible(c)
 							}
 						}
 					} else {

@@ -1,0 +1,14 @@
+=== RUN   TestContentVisibilityPickerError
+=== RUN   TestContentVisibilityPickerError/light
+=== RUN   TestContentVisibilityPickerError/dark
+--- PASS: TestContentVisibilityPickerError (0.58s)
+    --- PASS: TestContentVisibilityPickerError/light (0.47s)
+    --- PASS: TestContentVisibilityPickerError/dark (0.12s)
+=== RUN   TestContentVisibilityPickerCancel
+=== RUN   TestContentVisibilityPickerCancel/light
+=== RUN   TestContentVisibilityPickerCancel/dark
+--- PASS: TestContentVisibilityPickerCancel (0.24s)
+    --- PASS: TestContentVisibilityPickerCancel/light (0.13s)
+    --- PASS: TestContentVisibilityPickerCancel/dark (0.11s)
+PASS
+ok  	floter/internal/settingsui	0.856s

@@ -27,6 +27,14 @@ func (s *contentFocusState) restore(c *ui.Context) bool {
 	return false
 }
 
+// Revealing is part of returning to an input, not a continuous focus follower.
+// Once the button gives up focus, subsequent scrolling stays with the user.
+func (s *contentFocusState) restoreVisible(c *ui.Context) {
+	if s.restore(c) {
+		c.Resolve(s.source).ScrollIntoView()
+	}
+}
+
 // Only the focused member of a mode owns its exit. The mode picker is a
 // neutral return point when those inputs and actions are withdrawn together.
 func (a *App) rememberModeContent(c *ui.Context, script bool, entry ui.Element) ui.Element {
