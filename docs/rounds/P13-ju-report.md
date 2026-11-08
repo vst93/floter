@@ -34,3 +34,10 @@
 4. 现象：同ID已指向另一包目录，旧选择仍绑定到新包。改动：同样复核 manifestPath。验证：两主题包路径及记录字节保持，原选择不产生成功通知且释放忙态。
 
 夹具初次编译误引用不存在的 Managed 常量，已改为字段实际字符串值；编译失败不计变异。行为红串与完整验收收尾归档。
+
+第二批 75450f68 已推送。原始红串 `obsolete manifest choice rewrote current repository` / `obsolete package choice rewrote current repository`，旧答案还导致“重新连接”入口消失。第三批把通知采样移到绘制前，避免已消费队列造成漏检；不改旧断言。
+
+## 第三批：选择期间运行时刷新
+
+5. 现象：选择窗口等待时工具已绑回当前程序，旧答案仍覆盖该路径。改动：复核当前 ExecutablePath。验证：深浅实际选择事件，仓库逐字节不变、当前绑定保留、无“已重新连接”假通知；改前红 `obsolete binding choice rewrote current repository`。
+6. 现象：运行目录已更新，旧候选仍写入新运行时。改动：复核 RuntimeRoot 以及包/运行版本，选择归属随运行时变化退役。验证：深浅目录与仓库保留，原行解锁可再次重连；改前红 `obsolete root choice rewrote current repository`，并错误显示“检查工具 已重新连接”。

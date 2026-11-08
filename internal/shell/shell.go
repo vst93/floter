@@ -2238,6 +2238,8 @@ func (a *App) reconnectIntegration(id string, done func(error)) {
 // A runtime choice belongs to the package and declaration that offered it.
 func reconnectChoiceSource(integration extensions.Integration) string {
 	data, _ := json.Marshal([]any{integration.Entry.ManifestPath,
+		integration.Entry.ExecutablePath, integration.Entry.RuntimeRoot,
+		integration.Entry.PackageVersion, integration.Entry.CurrentVersion,
 		integration.Manifest, integration.ManifestErr != nil})
 	return string(data)
 }

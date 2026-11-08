@@ -76,14 +76,15 @@ func checkReconnectChoiceCurrent(t *testing.T, change string) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			titles := noticeTitles(f.a)
 			tt.Frame()
 			tt.Frame()
 			repairSearchDump(t, tt, "choice-"+change, dark)
 			if !bytes.Equal(before, after) {
 				t.Errorf("obsolete %s choice rewrote current repository", change)
 			}
-			if result != nil || len(noticeTitles(f.a)) != 0 {
-				t.Errorf("obsolete %s choice published a result: err=%v notices=%q", change, result, noticeTitles(f.a))
+			if result != nil || len(titles) != 0 {
+				t.Errorf("obsolete %s choice published a result: err=%v notices=%q", change, result, titles)
 			}
 			// The callback must release the original busy row. A current
 			// action is reachable again when the same tool is still listed.
@@ -104,3 +105,5 @@ func checkReconnectChoiceCurrent(t *testing.T, change string) {
 
 func TestReconnectChoiceCurrentManifest(t *testing.T) { checkReconnectChoiceCurrent(t, "manifest") }
 func TestReconnectChoiceCurrentPackage(t *testing.T)  { checkReconnectChoiceCurrent(t, "package") }
+func TestReconnectChoiceCurrentBinding(t *testing.T)  { checkReconnectChoiceCurrent(t, "binding") }
+func TestReconnectChoiceCurrentRoot(t *testing.T)     { checkReconnectChoiceCurrent(t, "root") }
