@@ -24,6 +24,7 @@
 ## 门槛
 
 开盘 HEAD 7ab8b039。中文 locale、GOMAXPROCS=4 全量 verbose 基线运行中；上轮记录5950 PASS/3385函数仅作对照，实测结束后追加。
+开盘实测已完成：5950 PASS / 0 FAIL / 3385函数，exit0，原始baseline.log归档。
 每批定向 test/vet 通过后 commit && push；完整验收统一执行 gofmt -l cmd internal、三平台 go vet、普通全量 go test -count=1 ./...、verbose全量计数、三平台 go build。全量分开启动，避免一次外层执行超过时限。
 
 ## mutation

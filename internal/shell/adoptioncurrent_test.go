@@ -134,6 +134,7 @@ func checkAdoptionCurrent(t *testing.T, change string) {
 			}
 			titles := noticeTitles(f.a)
 			tt.Frame()
+			tt.Advance(200 * time.Millisecond)
 			tt.Frame()
 			adoptionDump(t, tt, change, dark)
 			if !bytes.Equal(before, after) {
@@ -190,6 +191,7 @@ func TestAdoptionDeleteFailure(t *testing.T) {
 			adoptionWait(t, settled)
 			titles := noticeTitles(f.a)
 			tt.Frame()
+			tt.Advance(200 * time.Millisecond)
 			tt.Frame()
 			adoptionDump(t, tt, "delete-failure", dark)
 			want := i18n.NotificationsFor("zh").IntegrationRemoveFailed(f.entry.ID)
