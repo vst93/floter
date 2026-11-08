@@ -1,0 +1,8 @@
+=== RUN   TestPluginWrappedOptionEdgeAndPointer
+=== RUN   TestPluginWrappedOptionEdgeAndPointer/light
+=== RUN   TestPluginWrappedOptionEdgeAndPointer/dark
+--- PASS: TestPluginWrappedOptionEdgeAndPointer (0.13s)
+    --- PASS: TestPluginWrappedOptionEdgeAndPointer/light (0.11s)
+    --- PASS: TestPluginWrappedOptionEdgeAndPointer/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.151s

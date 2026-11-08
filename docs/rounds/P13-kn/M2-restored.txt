@@ -1,0 +1,98 @@
+=== RUN   TestPluginFieldEdgeRadio
+=== RUN   TestPluginFieldEdgeRadio/light
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:16.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:213.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=198.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+=== RUN   TestPluginFieldEdgeRadio/dark
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:16.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:213.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=198.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+--- PASS: TestPluginFieldEdgeRadio (0.13s)
+    --- PASS: TestPluginFieldEdgeRadio/light (0.08s)
+    --- PASS: TestPluginFieldEdgeRadio/dark (0.05s)
+=== RUN   TestPluginFieldEdgeCheckboxes
+=== RUN   TestPluginFieldEdgeCheckboxes/light
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:16.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:227.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=184.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+=== RUN   TestPluginFieldEdgeCheckboxes/dark
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:16.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:227.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=184.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+--- PASS: TestPluginFieldEdgeCheckboxes (0.07s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/light (0.04s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/dark (0.04s)
+=== RUN   TestPluginFieldEdgeText
+=== RUN   TestPluginFieldEdgeText/light
+    pluginfieldedge_test.go:129: text top target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: text bottom target={X:36.2 Y:219.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=192.09999
+    pluginfieldedge_test.go:187: range=609.79987 calls=1
+=== RUN   TestPluginFieldEdgeText/dark
+    pluginfieldedge_test.go:129: text top target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: text bottom target={X:36.2 Y:219.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=192.09999
+    pluginfieldedge_test.go:187: range=609.79987 calls=1
+--- PASS: TestPluginFieldEdgeText (0.08s)
+    --- PASS: TestPluginFieldEdgeText/light (0.04s)
+    --- PASS: TestPluginFieldEdgeText/dark (0.04s)
+=== RUN   TestPluginFieldEdgeNumber
+=== RUN   TestPluginFieldEdgeNumber/light
+    pluginfieldedge_test.go:129: number top target={X:478 Y:15.000007 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=373
+    pluginfieldedge_test.go:129: number bottom target={X:478 Y:219.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=168.2
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeNumber/dark
+    pluginfieldedge_test.go:129: number top target={X:478 Y:15.000007 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=373
+    pluginfieldedge_test.go:129: number bottom target={X:478 Y:219.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=168.2
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- PASS: TestPluginFieldEdgeNumber (0.08s)
+    --- PASS: TestPluginFieldEdgeNumber/light (0.04s)
+    --- PASS: TestPluginFieldEdgeNumber/dark (0.04s)
+=== RUN   TestPluginFieldEdgeToggle
+=== RUN   TestPluginFieldEdgeToggle/light
+    pluginfieldedge_test.go:129: toggle top target={X:500.6 Y:16 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=375.6
+    pluginfieldedge_test.go:129: toggle bottom target={X:500.6 Y:226 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=165.6
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeToggle/dark
+    pluginfieldedge_test.go:129: toggle top target={X:500.6 Y:16 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=375.6
+    pluginfieldedge_test.go:129: toggle bottom target={X:500.6 Y:226 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=165.6
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- PASS: TestPluginFieldEdgeToggle (0.07s)
+    --- PASS: TestPluginFieldEdgeToggle/light (0.04s)
+    --- PASS: TestPluginFieldEdgeToggle/dark (0.04s)
+=== RUN   TestPluginFieldEdgeSelect
+=== RUN   TestPluginFieldEdgeSelect/light
+    pluginfieldedge_test.go:129: select top target={X:313 Y:14.999994 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=371.7
+    pluginfieldedge_test.go:129: select bottom target={X:313 Y:215.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=171.50002
+    pluginfieldedge_test.go:187: range=589.1999 calls=1
+=== RUN   TestPluginFieldEdgeSelect/dark
+    pluginfieldedge_test.go:129: select top target={X:313 Y:14.999994 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=371.7
+    pluginfieldedge_test.go:129: select bottom target={X:313 Y:215.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=171.50002
+    pluginfieldedge_test.go:187: range=589.1999 calls=1
+--- PASS: TestPluginFieldEdgeSelect (0.09s)
+    --- PASS: TestPluginFieldEdgeSelect/light (0.04s)
+    --- PASS: TestPluginFieldEdgeSelect/dark (0.04s)
+=== RUN   TestPluginFieldEdgeSlider
+=== RUN   TestPluginFieldEdgeSlider/light
+    pluginfieldedge_test.go:129: slider top target={X:28 Y:16.000011 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: slider bottom target={X:28 Y:226.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=185.9
+    pluginfieldedge_test.go:187: range=602.59985 calls=1
+=== RUN   TestPluginFieldEdgeSlider/dark
+    pluginfieldedge_test.go:129: slider top target={X:28 Y:16.000011 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: slider bottom target={X:28 Y:226.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=185.9
+    pluginfieldedge_test.go:187: range=602.59985 calls=1
+--- PASS: TestPluginFieldEdgeSlider (0.08s)
+    --- PASS: TestPluginFieldEdgeSlider/light (0.04s)
+    --- PASS: TestPluginFieldEdgeSlider/dark (0.04s)
+=== RUN   TestPluginFieldEdgeAction
+=== RUN   TestPluginFieldEdgeAction/light
+    pluginfieldedge_test.go:129: action top target={X:473 Y:15.000007 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=373
+    pluginfieldedge_test.go:129: action bottom target={X:473 Y:219.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=168.2
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeAction/dark
+    pluginfieldedge_test.go:129: action top target={X:473 Y:15.000007 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=373
+    pluginfieldedge_test.go:129: action bottom target={X:473 Y:219.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=168.2
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- PASS: TestPluginFieldEdgeAction (0.07s)
+    --- PASS: TestPluginFieldEdgeAction/light (0.04s)
+    --- PASS: TestPluginFieldEdgeAction/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.682s

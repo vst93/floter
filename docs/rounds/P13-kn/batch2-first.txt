@@ -1,0 +1,110 @@
+=== RUN   TestConflictRecoveryPluginTextReopenRetiresUndo
+=== RUN   TestConflictRecoveryPluginTextReopenRetiresUndo/light
+=== RUN   TestConflictRecoveryPluginTextReopenRetiresUndo/dark
+--- PASS: TestConflictRecoveryPluginTextReopenRetiresUndo (0.22s)
+    --- PASS: TestConflictRecoveryPluginTextReopenRetiresUndo/light (0.21s)
+    --- PASS: TestConflictRecoveryPluginTextReopenRetiresUndo/dark (0.01s)
+=== RUN   TestConflictRecoveryPluginNumberReopenRetiresUndo
+=== RUN   TestConflictRecoveryPluginNumberReopenRetiresUndo/light
+=== RUN   TestConflictRecoveryPluginNumberReopenRetiresUndo/dark
+--- PASS: TestConflictRecoveryPluginNumberReopenRetiresUndo (0.02s)
+    --- PASS: TestConflictRecoveryPluginNumberReopenRetiresUndo/light (0.01s)
+    --- PASS: TestConflictRecoveryPluginNumberReopenRetiresUndo/dark (0.01s)
+=== RUN   TestThePluginNumberControlIsTheReferenceGlassSlot
+--- PASS: TestThePluginNumberControlIsTheReferenceGlassSlot (0.50s)
+=== RUN   TestThePluginNumberControlAppliesAndClampsTyping
+--- PASS: TestThePluginNumberControlAppliesAndClampsTyping (0.06s)
+=== RUN   TestPluginFieldEdgeRadio
+=== RUN   TestPluginFieldEdgeRadio/light
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:15.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:214.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=197.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+=== RUN   TestPluginFieldEdgeRadio/dark
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:15.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:214.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=197.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+--- PASS: TestPluginFieldEdgeRadio (0.30s)
+    --- PASS: TestPluginFieldEdgeRadio/light (0.16s)
+    --- PASS: TestPluginFieldEdgeRadio/dark (0.14s)
+=== RUN   TestPluginFieldEdgeCheckboxes
+=== RUN   TestPluginFieldEdgeCheckboxes/light
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:15.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:228.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=183.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+=== RUN   TestPluginFieldEdgeCheckboxes/dark
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:15.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:228.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=183.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+--- PASS: TestPluginFieldEdgeCheckboxes (0.21s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/light (0.12s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/dark (0.09s)
+=== RUN   TestPluginFieldEdgeText
+=== RUN   TestPluginFieldEdgeText/light
+    pluginfieldedge_test.go:129: text top target={X:36.2 Y:14.0000105 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=397.9
+    pluginfieldedge_test.go:129: text bottom target={X:36.2 Y:220.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=191.09999
+    pluginfieldedge_test.go:131: text bottom active ink intersects sheet fade: {X:36.2 Y:220.80002 W:487.6 H:25.199999}
+    pluginfieldedge_test.go:187: range=609.79987 calls=1
+=== RUN   TestPluginFieldEdgeText/dark
+    pluginfieldedge_test.go:129: text top target={X:36.2 Y:14.0000105 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=397.9
+    pluginfieldedge_test.go:129: text bottom target={X:36.2 Y:220.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=191.09999
+    pluginfieldedge_test.go:131: text bottom active ink intersects sheet fade: {X:36.2 Y:220.80002 W:487.6 H:25.199999}
+    pluginfieldedge_test.go:187: range=609.79987 calls=1
+--- FAIL: TestPluginFieldEdgeText (0.25s)
+    --- FAIL: TestPluginFieldEdgeText/light (0.12s)
+    --- FAIL: TestPluginFieldEdgeText/dark (0.12s)
+=== RUN   TestPluginFieldEdgeNumber
+=== RUN   TestPluginFieldEdgeNumber/light
+    pluginfieldedge_test.go:129: number top target={X:478 Y:14.000007 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=374
+    pluginfieldedge_test.go:129: number bottom target={X:478 Y:220.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=167.2
+    pluginfieldedge_test.go:131: number bottom active ink intersects sheet fade: {X:478 Y:220.80002 W:46.8 H:25.199999}
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeNumber/dark
+    pluginfieldedge_test.go:129: number top target={X:478 Y:14.000007 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=374
+    pluginfieldedge_test.go:129: number bottom target={X:478 Y:220.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=167.2
+    pluginfieldedge_test.go:131: number bottom active ink intersects sheet fade: {X:478 Y:220.80002 W:46.8 H:25.199999}
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- FAIL: TestPluginFieldEdgeNumber (0.20s)
+    --- FAIL: TestPluginFieldEdgeNumber/light (0.11s)
+    --- FAIL: TestPluginFieldEdgeNumber/dark (0.09s)
+=== RUN   TestPluginTextInputSubmitsToItsExistingCallback
+--- PASS: TestPluginTextInputSubmitsToItsExistingCallback (0.04s)
+=== RUN   TestPluginTextRefusedWriteKeepsTheEditForRetry
+--- PASS: TestPluginTextRefusedWriteKeepsTheEditForRetry (0.04s)
+=== RUN   TestDumpP13GqPluginText
+    plugininput_test.go:114: opt-in screenshot dump: FLOTER_P13GQ_DUMP=before or after
+--- SKIP: TestDumpP13GqPluginText (0.00s)
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf
+--- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues (0.19s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN (0.07s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf (0.06s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf (0.06s)
+=== RUN   TestPluginNumberDraftDoesNotBleedAcrossPlugins
+--- PASS: TestPluginNumberDraftDoesNotBleedAcrossPlugins (0.01s)
+=== RUN   TestThePluginTextFieldIsTheReferenceGlassSlot
+--- PASS: TestThePluginTextFieldIsTheReferenceGlassSlot (0.30s)
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange (0.02s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/light (0.01s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/dark (0.01s)
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange (0.03s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/light (0.01s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark (0.01s)
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/light
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/dark
+--- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft (0.03s)
+    --- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft/light (0.02s)
+    --- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft/dark (0.02s)
+=== RUN   TestP13HKPluginNumberDraftAcrossClose
+--- PASS: TestP13HKPluginNumberDraftAcrossClose (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	2.516s
+FAIL

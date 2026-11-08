@@ -1,0 +1,35 @@
+=== RUN   TestPluginFieldEdgeRadio
+=== RUN   TestPluginFieldEdgeRadio/light
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:-1.8000069 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=413.7
+    pluginfieldedge_test.go:131: radio top active ink intersects sheet fade: {X:28 Y:-1.8000069 W:504 H:30.6}
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:231.2 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=180.70001
+    pluginfieldedge_test.go:131: radio bottom active ink intersects sheet fade: {X:28 Y:231.2 W:504 H:30.6}
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+=== RUN   TestPluginFieldEdgeRadio/dark
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:-1.8000069 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=413.7
+    pluginfieldedge_test.go:131: radio top active ink intersects sheet fade: {X:28 Y:-1.8000069 W:504 H:30.6}
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:231.2 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=180.70001
+    pluginfieldedge_test.go:131: radio bottom active ink intersects sheet fade: {X:28 Y:231.2 W:504 H:30.6}
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+--- FAIL: TestPluginFieldEdgeRadio (0.28s)
+    --- FAIL: TestPluginFieldEdgeRadio/light (0.20s)
+    --- FAIL: TestPluginFieldEdgeRadio/dark (0.08s)
+=== RUN   TestPluginFieldEdgeCheckboxes
+=== RUN   TestPluginFieldEdgeCheckboxes/light
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:1.1444092e-05 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=411.9
+    pluginfieldedge_test.go:131: checkboxes top active ink intersects sheet fade: {X:28 Y:1.1444092e-05 W:43.600006 H:17}
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:243.00002 W:43.600006 H:16.999985} viewport={X:0 Y:0 W:560 H:260} scroll=168.9
+    pluginfieldedge_test.go:131: checkboxes bottom active ink intersects sheet fade: {X:28 Y:243.00002 W:43.600006 H:16.999985}
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+=== RUN   TestPluginFieldEdgeCheckboxes/dark
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:1.1444092e-05 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=411.9
+    pluginfieldedge_test.go:131: checkboxes top active ink intersects sheet fade: {X:28 Y:1.1444092e-05 W:43.600006 H:17}
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:243.00002 W:43.600006 H:16.999985} viewport={X:0 Y:0 W:560 H:260} scroll=168.9
+    pluginfieldedge_test.go:131: checkboxes bottom active ink intersects sheet fade: {X:28 Y:243.00002 W:43.600006 H:16.999985}
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+--- FAIL: TestPluginFieldEdgeCheckboxes (0.14s)
+    --- FAIL: TestPluginFieldEdgeCheckboxes/light (0.08s)
+    --- FAIL: TestPluginFieldEdgeCheckboxes/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.429s
+FAIL

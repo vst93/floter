@@ -202,3 +202,57 @@ func TestPluginFieldEdgeSelect(t *testing.T) { checkPluginFieldEdge(t, plugincfg
 
 func TestPluginFieldEdgeSlider(t *testing.T) { checkPluginFieldEdge(t, plugincfg.Slider, "slider") }
 func TestPluginFieldEdgeAction(t *testing.T) { checkPluginFieldEdge(t, plugincfg.Action, "action") }
+
+func TestPluginWrappedOptionEdgeAndPointer(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := noticeApp(t, dark)
+			field := plugincfg.Field{Key: "formats", Label: "导出格式", Kind: plugincfg.Checkboxes}
+			for i := 0; i < 9; i++ {
+				field.Options = append(field.Options, plugincfg.Option{Value: fmt.Sprint(i), Label: fmt.Sprintf("保留完整时间戳及来源的导出格式 %d", i+1)})
+			}
+			sheet := PluginSheet{Schema: &plugincfg.Schema{Plugin: "wrapped", Title: "导出配置", Fields: []plugincfg.Field{field}}, Values: plugincfg.Values{}}
+			calls := 0
+			sheet.Change = func(key string, value any) { calls++; sheet.Values[key] = value }
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(a.tokens(c).Theme)
+				c.Root().Background(c.Theme().Background)
+				a.PluginSheet(c, sheet)
+			}, 320, 180)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			tt.Frame()
+			maxY := a.PluginScroll.MaxY
+			for i, option := range field.Options {
+				tt.Key(0, ui.KeyTab)
+				tt.Frame()
+				if !tt.Focused(option.Label) {
+					t.Fatalf("cannot reach wrapped option %d", i)
+				}
+				r := mustFind(t, tt, option.Label)
+				if r.Y-3 < 11 || r.Y+r.H+3 > 169 {
+					t.Errorf("wrapped option %d intersects fade: %+v", i, r)
+				}
+				if r.X < 0 || r.X+r.W > 320 {
+					t.Errorf("wrapped option overflows: %+v", r)
+				}
+				tt.Key(0, ui.KeySpace)
+				tt.Frame()
+				if !reflect.DeepEqual(sheet.Values[field.Key], []string{option.Value}) {
+					t.Fatalf("Space changed wrong option: %v", sheet.Values)
+				}
+				r = mustFind(t, tt, option.Label)
+				tt.Click(option.Label)
+				tt.Frame()
+				if len(stringsOf(sheet.Values[field.Key])) != 0 || calls != (i+1)*2 {
+					t.Fatalf("envelope blocked pointer: %v calls=%d", sheet.Values, calls)
+				}
+			}
+			pluginFieldEdgeDump(t, tt, "wrapped", dark)
+			if a.PluginScroll.MaxY != maxY {
+				t.Fatal("options changed layout")
+			}
+		})
+	}
+}

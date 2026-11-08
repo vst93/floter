@@ -50,3 +50,100 @@
 第四批33 PASS / 0 FAIL、包vet净。M2单独撤销文本/数字外槽接线，四个深浅场景实红，MD5恢复OK、touch后八项24 PASS / exit0。首轮M1已独立覆盖Radio/Checkboxes；原错误与还原日志一并保留。
 
 16组深浅静息PNG逐像素一致；32组上下边缘前后均有像素变化，原始96张及32张对照已生成。数字与文本前后是同一schema/状态，只有当前视口位置不同，未拼造UI。
+
+第四批bc5ffa75已推送。窄浮层320×180补验9个长标签换行选项：每个Tab后完整显现，Space与真实Click交替验证当前选项，18次回调均归属正确、MaxY不变，深浅3 PASS / exit0。首次夹具使用不存在的tt.Click坐标重载导致编译失败，已改为真实标签Click；这是测试夹具错误，不计产品修复或mutation。
+
+## 偷了什么
+
+- 从craft-loop.md工艺密度菜单第3项（品牌focus环）取已有环的3px外扩范围；继续用本仓蓝色focus墨，原控件没有环的文本槽不另造新环。
+- 第4项（签名交互）取一次滚动显现：默认净空最终16px，显现0ms，后续滚轮自由；不是持续焦点追随，不追加动画。
+- 第12项（材质细节）取克制：新玻璃面0层、新阴影0层；16组静息图差异均0像素，原受光边/发丝边/外槽完整保留。
+- 供体Linear DESIGN中的面#0f1011/#191a1b、发丝边0.05–0.08、accent只标交互三条映射既有theme token。没有照搬紫色、Inter或营销布局。用户明确修既有功能优先，不为菜单五项配额添加无关装饰。
+
+**为什么更轻、更有空间感**：把当前控件移回淡边内侧，让原有轮廓与周围留白完整出现；保持原底/面/浮层数量与静息像素。
+
+## 两轮看图
+
+第一轮四视角：艺术总监看到Radio蓝环被顶边截断；工程师看到文本内编辑器可见而外槽越界；任务用户无法完整辨认正在操作的开关；读者看到动作胶囊贴边且上半圈淡掉。第二轮按相同深浅帧检查这四类，原轮廓完整出现，未加面、线或字号。
+
+| 项 | 图上可见变化 | 深色 | 浅色 |
+| --- | --- | --- | --- |
+| Radio | 顶部蓝环完整出现 | [图](P13-kn/radio-top-dark-comparison.png) | [图](P13-kn/radio-top-light-comparison.png) |
+| Checkboxes | 当前勾选框的外圈离开顶边 | [图](P13-kn/checkboxes-top-dark-comparison.png) | [图](P13-kn/checkboxes-top-light-comparison.png) |
+| Text | 输入槽上沿与选中文字完整出现 | [图](P13-kn/text-top-dark-comparison.png) | [图](P13-kn/text-top-light-comparison.png) |
+| Number | 数字所在槽的顶部圆角不再被裁 | [图](P13-kn/number-top-dark-comparison.png) | [图](P13-kn/number-top-light-comparison.png) |
+| Toggle | 开关上半圈完整，周边恢复留白 | [图](P13-kn/toggle-top-dark-comparison.png) | [图](P13-kn/toggle-top-light-comparison.png) |
+| Select | 下拉触发器顶部蓝环完整 | [图](P13-kn/select-top-dark-comparison.png) | [图](P13-kn/select-top-light-comparison.png) |
+| Slider | 原滑块和轨道脱离软边遮罩 | [图](P13-kn/slider-top-dark-comparison.png) | [图](P13-kn/slider-top-light-comparison.png) |
+| Action | 危险动作胶囊上半圈不再淡掉 | [图](P13-kn/action-top-dark-comparison.png) | [图](P13-kn/action-top-light-comparison.png) |
+
+[深色总览](P13-kn/overview-dark.png)、[浅色总览](P13-kn/overview-light.png)、[像素差](P13-kn/image-differences.txt)。96原始PNG、32对照、16张4×最近邻局部、2总览。4×仅检查放大，不冒充高DPI；Linux ui.Tester 560×260及窄面320×180，不声称Windows/macOS原生真机证据。
+
+## Preflight A / B / C / D2
+
+| 项 | 结论 |
+| --- | --- |
+| A1 渐变/纯黑/霓虹 | 无新增；沿用近黑与浅色主题 |
+| A2 字体 | 中文系统字体优先，未采用网页换字体通则 |
+| A3 斜体 | 无新增 |
+| A4 Hero | 不适用，原生配置浮层 |
+| A5 三等分/卡片 | 沿用原分组，无新增卡片 |
+| A6 假数据 | 产品无新增数据；测试schema只用于隔离验收 |
+| A7 文案 | i18n零改，无空词或感叹号 |
+| A8 眉批 | 无新增 |
+| A9 标题换行 | 原标题与高度保持；当前项显现后标题可随内容滚离，这是原滚动契约 |
+| A10 Bento | 不适用 |
+| A11 装饰竖线 | 无新增 |
+| B1 读取/拨盘 | 3/2/7，原生紧凑配置面一致 |
+| B2 明暗 | 每个Tester固定单一主题 |
+| B3 记忆点 | 正在编辑的原控件完整离开淡边 |
+| B4 动效气质 | 高频键盘显现即时，不加新运动 |
+| C1 目的/频率 | 只在进入焦点时显现，后续滚轮自由 |
+| C2 all/ease-in/scale(0)/fade | 无新增 |
+| C3 时长/按压 | 显现0ms，原按钮颜色120ms和按压0.97保留 |
+| C4 origin | 未增加浮层或改变出现位置 |
+| C5 reduced-motion | 确定帧启用ReduceMotion；显现本身即时 |
+| C6 hover媒体查询 | Go自绘无CSS查询，保留原指针路由 |
+| C7 布局动画 | 无新增，未动画宽高/间距 |
+| C8 keyframes | 无新增 |
+| C9 手势 | 未涉及拖拽或sheet手势 |
+| C10 Framer | 不适用Go自绘 |
+| C11 慢放 | 无新轨迹，验确定帧，不冒充真机慢放 |
+| D2-1 系统字体 | 保留系统中文字体，无webfont |
+| D2-2 字号/行高/字重 | 既有Caption9.9/正文10.8未满足通用14px/1.5；仍需拍板，不擅改 |
+| D2-3 混排空格 | 产品文案零改，测试中文选项数字间有空格 |
+| D2-4 标点/对比 | 产品文案与颜色零改；不声称所有次要墨达到7:1 |
+
+自发现缺陷写入项目合约与事件pin；未将本轮局部事实发布为skill全局偏好。原生自绘条件与用户既定方向优先于网页四方向预览、桌面1280px和五项新装饰要求。
+
+## 仍待
+
+1. 下一轮先事件复现插件配置浮层在宿主插入错误行、刷新分组/选项后的当前控件可见性；不是已确认bug，不重复本轮普通Tab进入。仍按八项跨组件标准推进。
+2. 字号/行盒、accent禁用、未知多选、保存期草稿、输出首尾键/选区与终端S1b/S1c/S2尾均保留拍板状态；不改变3秒窗口、保存或会话管理语义。
+3. 八条早期独立WIP保留原件，无新stale-kill；原生Windows/macOS交互未验。最终普通/verbose与三平台检查已通过，见下表。
+
+## 最终门槛（增量）
+
+第一轮完整普通、verbose与static外层均143，无完整exit文件，不算通过；进程已确认退出，原输出归档first-*，没有覆盖失败证据。原因未确认；改用独立进程原命令重跑，产品和测试源码不变。文档CI已exit0；最终源码MD5已保存。
+
+M1原始红串：`radio top active ink intersects sheet fade: {X:28 Y:-1.8000069 W:504 H:30.6}`；M2原始红串：`text top active ink intersects sheet fade: {X:36.2 Y:-4.0999947 W:487.6 H:25.199999}`。两次均实跑exit1、逐字节MD5恢复OK、touch后分别6/24 PASS。旧V/B/S断言修改0/0/0，新增Skip0；3553函数，开盘3544，新增9函数、旧函数删除0。
+
+最终完整普通与verbose均exit0，**6570 PASS / 0 FAIL / 3553函数**，相对开盘6543/3544为+27 PASS/+9函数。最终源码MD5两文件再次核对OK。
+
+| 门槛 | 最终实测 |
+| --- | --- |
+| gofmt -l cmd internal | 空、exit0 |
+| go vet ./... | Linux / Windows / Darwin全部exit0、空日志 |
+| go build ./... | Linux / Windows / Darwin全部exit0、空日志 |
+| go test -count=1 ./... | 完整exit0 |
+| go test -count=1 -v ./... | 6570 PASS / 0 FAIL / exit0 |
+| 文档契约 | internal/ci exit0 |
+| 定向四批 | 48 / 38 / 18 / 33 PASS，全部exit0 |
+| 窄面长选项 | 3 PASS / exit0，9项×Space与Click，共18次正确回调/主题 |
+| mutation | M1、M2实红，MD5还原、touch后6 / 24 PASS |
+| V/B/S与Skip | 旧断言0/0/0，新Skip0，旧函数删除0 |
+| 图像 | 96原始、32对照、16局部4×、2总览，另2张窄面；16组静息差异0像素 |
+
+四批产品提交已推送：ec0db0cf / 25fbe5f2 / b603d87f / bc5ffa75。完整门槛针对最后产品与新增窄面测试完成，无后续产品改动。
+
+执行偏差：调用超过40；超预算后只完成既有门槛、进程核对与收尾归档。首个明确时钟16:04:29 UTC，完整门槛于16:30前后结束，本次用时低于45–75分钟目标，不加无关工作凑时长。任务量八项达标，跨八类组件。外层143、初次14/15px严格pin失败与测试Click重载编译错误均如实保留，最终未放宽任何旧断言。

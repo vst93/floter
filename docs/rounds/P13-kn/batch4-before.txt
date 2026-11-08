@@ -1,0 +1,35 @@
+=== RUN   TestPluginFieldEdgeSlider
+=== RUN   TestPluginFieldEdgeSlider/light
+    pluginfieldedge_test.go:129: slider top target={X:28 Y:1.1444092e-05 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=411.9
+    pluginfieldedge_test.go:131: slider top active ink intersects sheet fade: {X:28 Y:1.1444092e-05 W:451.8 H:18}
+    pluginfieldedge_test.go:129: slider bottom target={X:28 Y:242.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=169.9
+    pluginfieldedge_test.go:131: slider bottom active ink intersects sheet fade: {X:28 Y:242.00002 W:451.8 H:18}
+    pluginfieldedge_test.go:187: range=602.59985 calls=1
+=== RUN   TestPluginFieldEdgeSlider/dark
+    pluginfieldedge_test.go:129: slider top target={X:28 Y:1.1444092e-05 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=411.9
+    pluginfieldedge_test.go:131: slider top active ink intersects sheet fade: {X:28 Y:1.1444092e-05 W:451.8 H:18}
+    pluginfieldedge_test.go:129: slider bottom target={X:28 Y:242.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=169.9
+    pluginfieldedge_test.go:131: slider bottom active ink intersects sheet fade: {X:28 Y:242.00002 W:451.8 H:18}
+    pluginfieldedge_test.go:187: range=602.59985 calls=1
+--- FAIL: TestPluginFieldEdgeSlider (0.22s)
+    --- FAIL: TestPluginFieldEdgeSlider/light (0.17s)
+    --- FAIL: TestPluginFieldEdgeSlider/dark (0.06s)
+=== RUN   TestPluginFieldEdgeAction
+=== RUN   TestPluginFieldEdgeAction/light
+    pluginfieldedge_test.go:129: action top target={X:473 Y:6.67572e-06 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=388
+    pluginfieldedge_test.go:131: action top active ink intersects sheet fade: {X:473 Y:6.67572e-06 W:60 H:25.199999}
+    pluginfieldedge_test.go:129: action bottom target={X:473 Y:234.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=153.2
+    pluginfieldedge_test.go:131: action bottom active ink intersects sheet fade: {X:473 Y:234.80002 W:60 H:25.199999}
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeAction/dark
+    pluginfieldedge_test.go:129: action top target={X:473 Y:6.67572e-06 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=388
+    pluginfieldedge_test.go:131: action top active ink intersects sheet fade: {X:473 Y:6.67572e-06 W:60 H:25.199999}
+    pluginfieldedge_test.go:129: action bottom target={X:473 Y:234.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=153.2
+    pluginfieldedge_test.go:131: action bottom active ink intersects sheet fade: {X:473 Y:234.80002 W:60 H:25.199999}
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- FAIL: TestPluginFieldEdgeAction (0.11s)
+    --- FAIL: TestPluginFieldEdgeAction/light (0.06s)
+    --- FAIL: TestPluginFieldEdgeAction/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.348s
+FAIL

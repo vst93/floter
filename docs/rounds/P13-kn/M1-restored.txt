@@ -1,0 +1,26 @@
+=== RUN   TestPluginFieldEdgeRadio
+=== RUN   TestPluginFieldEdgeRadio/light
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:15.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:214.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=197.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+=== RUN   TestPluginFieldEdgeRadio/dark
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:15.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:214.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=197.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+--- PASS: TestPluginFieldEdgeRadio (0.21s)
+    --- PASS: TestPluginFieldEdgeRadio/light (0.12s)
+    --- PASS: TestPluginFieldEdgeRadio/dark (0.09s)
+=== RUN   TestPluginFieldEdgeCheckboxes
+=== RUN   TestPluginFieldEdgeCheckboxes/light
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:15.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:228.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=183.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+=== RUN   TestPluginFieldEdgeCheckboxes/dark
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:15.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:228.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=183.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+--- PASS: TestPluginFieldEdgeCheckboxes (0.12s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/light (0.06s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	0.343s

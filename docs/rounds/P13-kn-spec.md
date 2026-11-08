@@ -17,14 +17,14 @@
 | 7 Slider | 538 | 轨道焦点显现忽略淡边 → 完整当前轨道 |
 | 8 Action | 800–823 | 胶囊及确认/取消按钮贴淡边 → 当前按钮完整显现 |
 
-淡区来自PluginSheet的Space(3)=10.8px，采用向上取整11px加外扩环3px的14px净空。显现矩形绝对定位且PassThrough，不增加布局或命中面积；只在焦点进入时显现，之后滚轮自由。行为红线：高度链、Tab/方向键含义、字段写回、i18n、3秒窗口、命令派发与终端会话语义零改。
+淡区来自PluginSheet的Space(3)=10.8px；初拟14px，严格栅格验证后最终为ceil(3u)+5，默认16px：11px淡边、3px环、1px分数栅格和1px边框内容偏移。显现矩形绝对定位且PassThrough，不增加布局或命中面积；只在焦点进入时显现，之后滚轮自由。行为红线：高度链、Tab/方向键含义、字段写回、i18n、3秒窗口、命令派发与终端会话语义零改。
 
 ## 验证计划
 
-开盘3544测试函数；完整verbose基线正在实跑，完成后补实数。深浅ui.Tester实键事件，顶部Shift+Tab和底部Tab；断言活动墨范围、几何、继续编辑归属、鼠标命中与滚轮自由，PNG写/tmp/floter-P13-kn-*。每两项相关门槛通过立即commit/push。轮末gofmt空，三平台vet/build净，普通/verbose全量通过且PASS/函数不减少。
+开盘实测6543 PASS / 0 FAIL / exit0、3544测试函数。深浅ui.Tester实键事件，顶部Shift+Tab和底部Tab；断言活动墨范围、几何、继续编辑归属、鼠标命中与滚轮自由，PNG写/tmp/floter-P13-kn-*。每两项相关门槛通过立即commit/push。轮末gofmt空，三平台vet/build净，普通/verbose全量通过且PASS/函数不减少。
 
 M1撤回Radio/Checkboxes显现；M2撤回编辑器/其余控件显现。两条各实红→原件恢复→md5sum -c→touch→重跑。旧V/B/S断言不动。
 
 ## skill取用
 
-已读qiaomu-design、user-preferences、craft-loop、preflight、chinese-typography。Linear DESIGN的面#0f1011/#191a1b、0.05–0.08发丝边、单一交互accent映射本仓既有token，不复制字体或紫色。craft-loop #3现有焦点环外扩3px、#4一次显现14px/0ms、#12新增玻璃面与阴影0层。用户已选轻便液态玻璃，优先修复已有功能，不为五项工艺配额加装饰。
+已读qiaomu-design、user-preferences、craft-loop、preflight、chinese-typography。Linear DESIGN的面#0f1011/#191a1b、0.05–0.08发丝边、单一交互accent映射本仓既有token，不复制字体或紫色。craft-loop #3现有焦点环外扩3px、#4一次显现最终16px/0ms、#12新增玻璃面与阴影0层。用户已选轻便液态玻璃，优先修复已有功能，不为五项工艺配额加装饰。
