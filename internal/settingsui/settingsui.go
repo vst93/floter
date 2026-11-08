@@ -3188,26 +3188,30 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			var adoptOpener ui.Element
 			a.row(c, copy.IntegrationsOrphan, copy.IntegrationsAdoptHint, func() {
 				if a.Actions.AdoptIntegration != nil {
-					if a.orphanOperation[integration.ID] == "adopt" {
-						adoptOpener = a.busyActionButton(c, copy.IntegrationsAdopt, "orphan.adopt")
-					} else if a.orphanOperation[integration.ID] != "" {
-						adoptOpener = a.disabledActionButton(c, copy.IntegrationsAdopt)
-					} else {
-						adoptOpener = a.actionButton(c, copy.IntegrationsAdopt)
-					}
+					a.formFeedbackOutlet(c.Key("orphan-adopt-outlet"), a.integrationLead, func() {
+						if a.orphanOperation[integration.ID] == "adopt" {
+							adoptOpener = a.busyActionButton(c, copy.IntegrationsAdopt, "orphan.adopt")
+						} else if a.orphanOperation[integration.ID] != "" {
+							adoptOpener = a.disabledActionButton(c, copy.IntegrationsAdopt)
+						} else {
+							adoptOpener = a.actionButton(c, copy.IntegrationsAdopt)
+						}
+					}, func() bool { return adoptOpener.FocusVisible() })
 					if adoptOpener.Clicked() {
 						a.Actions.AdoptIntegration(integration.ID)
 					}
 				}
 				if a.Actions.DeleteOrphan != nil {
 					var remove ui.Element
-					if a.orphanOperation[integration.ID] == "delete" {
-						remove = a.busyActionButton(c, copy.IntegrationsDeleteOrphan, "orphan.delete")
-					} else if a.orphanOperation[integration.ID] != "" {
-						remove = a.disabledActionButton(c, copy.IntegrationsDeleteOrphan)
-					} else {
-						remove = a.actionButton(c, copy.IntegrationsDeleteOrphan)
-					}
+					a.formFeedbackOutlet(c.Key("orphan-delete-outlet"), a.integrationLead, func() {
+						if a.orphanOperation[integration.ID] == "delete" {
+							remove = a.busyActionButton(c, copy.IntegrationsDeleteOrphan, "orphan.delete")
+						} else if a.orphanOperation[integration.ID] != "" {
+							remove = a.disabledActionButton(c, copy.IntegrationsDeleteOrphan)
+						} else {
+							remove = a.actionButton(c, copy.IntegrationsDeleteOrphan)
+						}
+					}, func() bool { return remove.FocusVisible() })
 					if remove.Clicked() {
 						a.Actions.DeleteOrphan(integration.ID)
 					}
