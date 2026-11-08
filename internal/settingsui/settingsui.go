@@ -7976,7 +7976,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					on := truthyValue(values[param.ID])
 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var sw ui.Element
-						outputFocusOutlet(c.Key("run-switch-outlet"), func() {
+						a.formViewportOutlet(c.Key("run-switch-outlet"), func() {
 							sw = a.switchControl(c, &on).Label(label)
 							bindFocus(sw)
 						})
@@ -8027,7 +8027,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 								lockedControl(input.TextColor(a.tokens(c).Disabled))
 							}
 						}
-						outputFocusOutlet(c.Key("run-input-outlet"), draw)
+						a.formViewportOutlet(c.Key("run-input-outlet"), draw)
 					}, below...)
 					if !locked {
 						values[param.ID] = value
