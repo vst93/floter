@@ -1,0 +1,8 @@
+=== RUN   TestConfigMultiPageEdge
+=== RUN   TestConfigMultiPageEdge/light
+=== RUN   TestConfigMultiPageEdge/dark
+--- PASS: TestConfigMultiPageEdge (0.32s)
+    --- PASS: TestConfigMultiPageEdge/light (0.21s)
+    --- PASS: TestConfigMultiPageEdge/dark (0.11s)
+PASS
+ok  	floter/internal/settingsui	0.330s

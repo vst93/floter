@@ -1,0 +1,101 @@
+=== RUN   TestConfigControlsStayInsideTheirGridColumn
+=== RUN   TestConfigControlsStayInsideTheirGridColumn/text
+=== RUN   TestConfigControlsStayInsideTheirGridColumn/select
+=== RUN   TestConfigControlsStayInsideTheirGridColumn/multiselect
+--- PASS: TestConfigControlsStayInsideTheirGridColumn (0.07s)
+    --- PASS: TestConfigControlsStayInsideTheirGridColumn/text (0.06s)
+    --- PASS: TestConfigControlsStayInsideTheirGridColumn/select (0.00s)
+    --- PASS: TestConfigControlsStayInsideTheirGridColumn/multiselect (0.00s)
+=== RUN   TestConfigLongOptionKeepsItsCheckboxClickable
+--- PASS: TestConfigLongOptionKeepsItsCheckboxClickable (0.00s)
+=== RUN   TestConfigCheckboxRemainsVisibleCheckedAndLocked
+--- PASS: TestConfigCheckboxRemainsVisibleCheckedAndLocked (0.13s)
+=== RUN   TestTheConfigMultiselectIsOneListBox
+--- PASS: TestTheConfigMultiselectIsOneListBox (0.21s)
+=== RUN   TestTheListBoxEdgePaintsItsOwnFace
+=== RUN   TestTheListBoxEdgePaintsItsOwnFace/light
+    listboxedge_test.go:265: edge 213 vs the box's own face 213
+=== RUN   TestTheListBoxEdgePaintsItsOwnFace/dark
+    listboxedge_test.go:265: edge 60 vs the box's own face 61
+--- PASS: TestTheListBoxEdgePaintsItsOwnFace (0.01s)
+    --- PASS: TestTheListBoxEdgePaintsItsOwnFace/light (0.01s)
+    --- PASS: TestTheListBoxEdgePaintsItsOwnFace/dark (0.00s)
+=== RUN   TestDumpP13AVListBoxPNGs
+    listboxedge_test.go:281: opt-in: FLOTER_PNG=1 writes /tmp/floter-P13-av-listbox-<tag>-<appearance>.png
+--- SKIP: TestDumpP13AVListBoxPNGs (0.00s)
+=== RUN   TestTheLockedListBoxFadesOnce
+--- PASS: TestTheLockedListBoxFadesOnce (0.17s)
+=== RUN   TestMultiOptionEdgeEntry
+=== RUN   TestMultiOptionEdgeEntry/light
+    multioptionedge_test.go:61: row={X:29 Y:46 W:302 H:20} inner={X:29 Y:25 W:302 H:56} scroll=89 max=162
+=== RUN   TestMultiOptionEdgeEntry/dark
+    multioptionedge_test.go:61: row={X:29 Y:46 W:302 H:20} inner={X:29 Y:25 W:302 H:56} scroll=89 max=162
+--- PASS: TestMultiOptionEdgeEntry (0.03s)
+    --- PASS: TestMultiOptionEdgeEntry/light (0.01s)
+    --- PASS: TestMultiOptionEdgeEntry/dark (0.01s)
+=== RUN   TestMultiOptionEdgeReorder
+=== RUN   TestMultiOptionEdgeReorder/light
+    multioptionedge_test.go:61: row={X:29 Y:40 W:302 H:20} inner={X:29 Y:25 W:302 H:56} scroll=7 max=162
+=== RUN   TestMultiOptionEdgeReorder/dark
+    multioptionedge_test.go:61: row={X:29 Y:40 W:302 H:20} inner={X:29 Y:25 W:302 H:56} scroll=7 max=162
+--- PASS: TestMultiOptionEdgeReorder (0.03s)
+    --- PASS: TestMultiOptionEdgeReorder/light (0.01s)
+    --- PASS: TestMultiOptionEdgeReorder/dark (0.01s)
+=== RUN   TestRunFieldEdgeText
+=== RUN   TestRunFieldEdgeText/light
+    runfieldedge_test.go:99: text top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: text bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestRunFieldEdgeText/dark
+    runfieldedge_test.go:99: text top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: text bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- PASS: TestRunFieldEdgeText (0.44s)
+    --- PASS: TestRunFieldEdgeText/light (0.25s)
+    --- PASS: TestRunFieldEdgeText/dark (0.19s)
+=== RUN   TestRunFieldEdgeNumber
+=== RUN   TestRunFieldEdgeNumber/light
+    runfieldedge_test.go:99: number top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: number bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestRunFieldEdgeNumber/dark
+    runfieldedge_test.go:99: number top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: number bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- PASS: TestRunFieldEdgeNumber (0.38s)
+    --- PASS: TestRunFieldEdgeNumber/light (0.19s)
+    --- PASS: TestRunFieldEdgeNumber/dark (0.19s)
+=== RUN   TestRunFieldEdgePath
+=== RUN   TestRunFieldEdgePath/light
+    runfieldedge_test.go:99: path top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: path bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestRunFieldEdgePath/dark
+    runfieldedge_test.go:99: path top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: path bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- PASS: TestRunFieldEdgePath (0.38s)
+    --- PASS: TestRunFieldEdgePath/light (0.18s)
+    --- PASS: TestRunFieldEdgePath/dark (0.20s)
+=== RUN   TestRunFieldEdgeBoolean
+=== RUN   TestRunFieldEdgeBoolean/light
+    runfieldedge_test.go:99: boolean top target={X:654.4 Y:70.399994 W:32.399998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: boolean bottom target={X:654.4 Y:482.99994 W:32.399998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestRunFieldEdgeBoolean/dark
+    runfieldedge_test.go:99: boolean top target={X:654.4 Y:70.399994 W:32.399998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: boolean bottom target={X:654.4 Y:482.99994 W:32.399998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- PASS: TestRunFieldEdgeBoolean (0.44s)
+    --- PASS: TestRunFieldEdgeBoolean/light (0.19s)
+    --- PASS: TestRunFieldEdgeBoolean/dark (0.25s)
+=== RUN   TestRunFieldEdgeSelect
+=== RUN   TestRunFieldEdgeSelect/light
+    runfieldedge_test.go:99: select top target={X:577.8 Y:73.399994 W:52 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: select bottom target={X:577.8 Y:467.99994 W:52 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestRunFieldEdgeSelect/dark
+    runfieldedge_test.go:99: select top target={X:577.8 Y:73.399994 W:52 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:99: select bottom target={X:577.8 Y:467.99994 W:52 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- PASS: TestRunFieldEdgeSelect (0.36s)
+    --- PASS: TestRunFieldEdgeSelect/light (0.19s)
+    --- PASS: TestRunFieldEdgeSelect/dark (0.18s)
+=== RUN   TestConfigMultiPageEdge
+=== RUN   TestConfigMultiPageEdge/light
+=== RUN   TestConfigMultiPageEdge/dark
+--- PASS: TestConfigMultiPageEdge (0.35s)
+    --- PASS: TestConfigMultiPageEdge/light (0.18s)
+    --- PASS: TestConfigMultiPageEdge/dark (0.17s)
+PASS
+ok  	floter/internal/settingsui	3.017s

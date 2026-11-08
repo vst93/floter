@@ -1,0 +1,23 @@
+=== RUN   TestMultiOptionEdgeEntry
+=== RUN   TestMultiOptionEdgeEntry/light
+    multioptionedge_test.go:61: row={X:29 Y:63.799995 W:302 H:20} inner={X:29 Y:25 W:302 H:56} scroll=71.200005 max=162
+    multioptionedge_test.go:63: option active ring enters inner fade: row={X:29 Y:63.799995 W:302 H:20} viewport={X:29 Y:25 W:302 H:56} scroll=71.200005
+=== RUN   TestMultiOptionEdgeEntry/dark
+    multioptionedge_test.go:61: row={X:29 Y:63.799995 W:302 H:20} inner={X:29 Y:25 W:302 H:56} scroll=71.200005 max=162
+    multioptionedge_test.go:63: option active ring enters inner fade: row={X:29 Y:63.799995 W:302 H:20} viewport={X:29 Y:25 W:302 H:56} scroll=71.200005
+--- FAIL: TestMultiOptionEdgeEntry (0.04s)
+    --- FAIL: TestMultiOptionEdgeEntry/light (0.04s)
+    --- FAIL: TestMultiOptionEdgeEntry/dark (0.00s)
+=== RUN   TestMultiOptionEdgeReorder
+=== RUN   TestMultiOptionEdgeReorder/light
+    multioptionedge_test.go:61: row={X:29 Y:25 W:302 H:20} inner={X:29 Y:25 W:302 H:56} scroll=22 max=162
+    multioptionedge_test.go:63: option active ring enters inner fade: row={X:29 Y:25 W:302 H:20} viewport={X:29 Y:25 W:302 H:56} scroll=22
+=== RUN   TestMultiOptionEdgeReorder/dark
+    multioptionedge_test.go:61: row={X:29 Y:25 W:302 H:20} inner={X:29 Y:25 W:302 H:56} scroll=22 max=162
+    multioptionedge_test.go:63: option active ring enters inner fade: row={X:29 Y:25 W:302 H:20} viewport={X:29 Y:25 W:302 H:56} scroll=22
+--- FAIL: TestMultiOptionEdgeReorder (0.01s)
+    --- FAIL: TestMultiOptionEdgeReorder/light (0.00s)
+    --- FAIL: TestMultiOptionEdgeReorder/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.057s
+FAIL
