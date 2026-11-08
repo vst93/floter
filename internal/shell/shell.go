@@ -3170,28 +3170,41 @@ func (a *App) chooseProgram() (string, error) {
 // it. The work happens off the main thread, since writing the package runs
 // the tool's own help for its command list.
 func (a *App) connectLocalTool(tool settingsui.CustomTool) {
-	go func() {
-		paths := a.Paths
-		request := customRequest(tool)
-		prepared, err := extensions.PrepareCustom(context.Background(), paths, request)
-		if err != nil {
-			log.Printf("floter: could not prepare the local tool %s: %v", tool.Name, err)
-			a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
+	recoverDraft := a.Settings.LocalToolRecovery()
+	go a.runLocalToolConnection(tool, recoverDraft)
+}
+
+func (a *App) runLocalToolConnection(tool settingsui.CustomTool, recoverDraft func()) {
+	defer a.onMain(func() {
+		if a.Settings.Actions.Invalidate != nil {
+			a.Settings.Actions.Invalidate()
+		}
+	})
+	paths := a.Paths
+	request := customRequest(tool)
+	prepared, err := extensions.PrepareCustom(context.Background(), paths, request)
+	if err != nil {
+		a.onMain(recoverDraft)
+		log.Printf("floter: could not prepare the local tool %s: %v", tool.Name, err)
+		a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
+		return
+	}
+	approved := true
+	if prepared.Approval.NeedsApproval() {
+		approved = a.confirmInstallPermissions(prepared.Approval)
+		if !approved {
+			a.onMain(recoverDraft)
 			return
 		}
-		approved := true
-		if prepared.Approval.NeedsApproval() {
-			approved = a.confirmInstallPermissions(prepared.Approval)
-		}
-		entry, err := prepared.Commit(approved)
-		if err != nil {
-			log.Printf("floter: could not connect %s: %v", tool.Name, err)
-			a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
-			return
-		}
-		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
-		a.RefreshIntegrations(context.Background())
-	}()
+	}
+	entry, err := prepared.Commit(approved)
+	if err != nil {
+		log.Printf("floter: could not connect %s: %v", tool.Name, err)
+		a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
+		return
+	}
+	a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
+	a.RefreshIntegrations(context.Background())
 }
 
 // reprobeCommands re-runs a generated custom integration's help derivation

@@ -1,0 +1,37 @@
+=== RUN   TestToolRecoveryRestoresCompleteDraft
+=== RUN   TestToolRecoveryRestoresCompleteDraft/light
+    toolrecovery_test.go:68: failed connection lost complete draft: open=false name="" program="" script="" params=[]
+=== RUN   TestToolRecoveryRestoresCompleteDraft/dark
+    toolrecovery_test.go:68: failed connection lost complete draft: open=false name="" program="" script="" params=[]
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptlight
+    toolrecovery_test.go:68: failed connection lost complete draft: open=false name="" program="" script="" params=[]
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptdark
+    toolrecovery_test.go:68: failed connection lost complete draft: open=false name="" program="" script="" params=[]
+--- FAIL: TestToolRecoveryRestoresCompleteDraft (0.63s)
+    --- FAIL: TestToolRecoveryRestoresCompleteDraft/light (0.35s)
+    --- FAIL: TestToolRecoveryRestoresCompleteDraft/dark (0.09s)
+    --- FAIL: TestToolRecoveryRestoresCompleteDraft/scriptlight (0.10s)
+    --- FAIL: TestToolRecoveryRestoresCompleteDraft/scriptdark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	0.679s
+=== RUN   TestToolConnectionPrepareRecovery
+=== RUN   TestToolConnectionPrepareRecovery/light
+2026/11/08 12:12:17 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverylight1868319201/003/missing-program cannot be run
+    toolrecovery_test.go:32: prepare recovery=0 settled=1, want one each
+=== RUN   TestToolConnectionPrepareRecovery/dark
+2026/11/08 12:12:17 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverydark3926698128/003/missing-program cannot be run
+    toolrecovery_test.go:32: prepare recovery=0 settled=1, want one each
+--- FAIL: TestToolConnectionPrepareRecovery (0.01s)
+    --- FAIL: TestToolConnectionPrepareRecovery/light (0.00s)
+    --- FAIL: TestToolConnectionPrepareRecovery/dark (0.00s)
+=== RUN   TestToolConnectionCancelRecovery
+=== RUN   TestToolConnectionCancelRecovery/light
+    toolrecovery_test.go:32: cancel recovery=0 settled=1, want one each
+=== RUN   TestToolConnectionCancelRecovery/dark
+    toolrecovery_test.go:32: cancel recovery=0 settled=1, want one each
+--- FAIL: TestToolConnectionCancelRecovery (0.14s)
+    --- FAIL: TestToolConnectionCancelRecovery/light (0.08s)
+    --- FAIL: TestToolConnectionCancelRecovery/dark (0.06s)
+FAIL
+FAIL	floter/internal/shell	0.189s
+FAIL

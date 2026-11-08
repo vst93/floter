@@ -1,0 +1,2 @@
+internal/settingsui/toolrecovery.go: OK
+internal/shell/shell.go: OK

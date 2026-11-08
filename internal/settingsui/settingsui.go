@@ -792,7 +792,9 @@ type App struct {
 	// survives the rebuild, and it is cleared once the tool is connected.
 	toolOpen bool
 	// Each editing session owns the toolkit's field histories and selections.
-	toolFormKey *int
+	toolFormKey    *int
+	toolRecover    func()
+	toolDisclosure uint64
 	// toolAdvanced is whether the form's declaration/audit switches are
 	// unfolded: they sit behind a default-closed Advanced disclosure (R161),
 	// so a brand-new integration does not open on a list of permission rows.
@@ -5732,6 +5734,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 	a.section(c, copy.LocalToolTitle, copy.LocalToolHint, func() {
 		if a.actionButton(c, copy.LocalToolAdd).Clicked() {
 			a.toolOpen = !a.toolOpen
+			a.toolDisclosure++
 			// Opening a fresh form clears the previous refusal, so the new one
 			// starts quiet; closing keeps nothing either. It also drops the
 			// cached toolchain verdicts: the user may have installed the
@@ -5964,10 +5967,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					a.Actions.NotifyWarning(copy.LocalToolRuntimeSaveWarning(scriptlang.Lookup(tool.ScriptLanguage).Label))
 				}
 			}
+			var retired *int
 			if a.toolEditing != "" {
 				a.Actions.EditCustomTool(a.toolEditing, tool)
 			} else {
+				a.toolRecover, retired = a.localToolRecovery()
 				a.Actions.ConnectLocalTool(tool)
+				a.toolRecover = nil
 			}
 			// The completed submission may have opened the next editor. Only
 			// retire the form that actually dispatched this submission.
@@ -5977,6 +5983,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			a.toolOpen = false
 			a.toolIssue = false
 			a.endEdit()
+			if retired != nil {
+				a.toolFormKey = retired
+			}
 		}
 	})
 }
