@@ -1,0 +1,136 @@
+=== RUN   TestInstallFormRegistryBusy
+=== RUN   TestInstallFormRegistryBusy/light
+=== RUN   TestInstallFormRegistryBusy/dark
+--- PASS: TestInstallFormRegistryBusy (0.25s)
+    --- PASS: TestInstallFormRegistryBusy/light (0.21s)
+    --- PASS: TestInstallFormRegistryBusy/dark (0.04s)
+=== RUN   TestInstallFormBlankPackage
+=== RUN   TestInstallFormBlankPackage/light
+=== RUN   TestInstallFormBlankPackage/dark
+--- PASS: TestInstallFormBlankPackage (0.10s)
+    --- PASS: TestInstallFormBlankPackage/light (0.05s)
+    --- PASS: TestInstallFormBlankPackage/dark (0.05s)
+=== RUN   TestInstallFormRegistryKeyboard
+=== RUN   TestInstallFormRegistryKeyboard/light
+=== RUN   TestInstallFormRegistryKeyboard/dark
+--- PASS: TestInstallFormRegistryKeyboard (0.07s)
+    --- PASS: TestInstallFormRegistryKeyboard/light (0.04s)
+    --- PASS: TestInstallFormRegistryKeyboard/dark (0.03s)
+=== RUN   TestInstallFormRecoveryKeepsNewDraft
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/name
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/version
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/cleared
+--- PASS: TestInstallFormRecoveryKeepsNewDraft (0.23s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/name (0.07s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/version (0.08s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/cleared (0.08s)
+=== RUN   TestInstallFormFolderKeyboard
+=== RUN   TestInstallFormFolderKeyboard/light
+=== RUN   TestInstallFormFolderKeyboard/dark
+--- PASS: TestInstallFormFolderKeyboard (0.05s)
+    --- PASS: TestInstallFormFolderKeyboard/light (0.03s)
+    --- PASS: TestInstallFormFolderKeyboard/dark (0.02s)
+=== RUN   TestInstallFormFolderError
+=== RUN   TestInstallFormFolderError/light
+=== RUN   TestInstallFormFolderError/dark
+--- PASS: TestInstallFormFolderError (0.02s)
+    --- PASS: TestInstallFormFolderError/light (0.01s)
+    --- PASS: TestInstallFormFolderError/dark (0.01s)
+=== RUN   TestRunFieldEdgeText
+=== RUN   TestRunFieldEdgeText/light
+    runfieldedge_test.go:98: text top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:98: text bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestRunFieldEdgeText/dark
+    runfieldedge_test.go:98: text top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:98: text bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- PASS: TestRunFieldEdgeText (0.40s)
+    --- PASS: TestRunFieldEdgeText/light (0.22s)
+    --- PASS: TestRunFieldEdgeText/dark (0.18s)
+=== RUN   TestRunFieldEdgeNumber
+=== RUN   TestRunFieldEdgeNumber/light
+    runfieldedge_test.go:98: number top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:98: number bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestRunFieldEdgeNumber/dark
+    runfieldedge_test.go:98: number top target={X:466.8 Y:70.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:98: number bottom target={X:466.8 Y:472.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- PASS: TestRunFieldEdgeNumber (0.35s)
+    --- PASS: TestRunFieldEdgeNumber/light (0.17s)
+    --- PASS: TestRunFieldEdgeNumber/dark (0.17s)
+=== RUN   TestRunKindFocusTextToNumber
+=== RUN   TestRunKindFocusTextToNumber/light
+=== RUN   TestRunKindFocusTextToNumber/dark
+--- PASS: TestRunKindFocusTextToNumber (0.08s)
+    --- PASS: TestRunKindFocusTextToNumber/light (0.05s)
+    --- PASS: TestRunKindFocusTextToNumber/dark (0.03s)
+=== RUN   TestRunKindFocusChoiceToBoolean
+=== RUN   TestRunKindFocusChoiceToBoolean/light
+=== RUN   TestRunKindFocusChoiceToBoolean/dark
+--- PASS: TestRunKindFocusChoiceToBoolean (0.06s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/light (0.03s)
+    --- PASS: TestRunKindFocusChoiceToBoolean/dark (0.03s)
+=== RUN   TestRunKindFocusDuplicateIDsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIDsDoNotShareHandles (0.02s)
+=== RUN   TestRunKindFocusDoesNotStealFromCancel
+--- PASS: TestRunKindFocusDoesNotStealFromCancel (0.02s)
+=== RUN   TestRunKindFocusDuplicateIntegrationsDoNotShareHandles
+--- PASS: TestRunKindFocusDuplicateIntegrationsDoNotShareHandles (0.01s)
+=== RUN   TestRunVisibilityRemovedField
+=== RUN   TestRunVisibilityRemovedField/light
+=== RUN   TestRunVisibilityRemovedField/dark
+--- PASS: TestRunVisibilityRemovedField (0.10s)
+    --- PASS: TestRunVisibilityRemovedField/light (0.05s)
+    --- PASS: TestRunVisibilityRemovedField/dark (0.05s)
+=== RUN   TestRunVisibilityChangedKind
+=== RUN   TestRunVisibilityChangedKind/light
+=== RUN   TestRunVisibilityChangedKind/dark
+--- PASS: TestRunVisibilityChangedKind (0.09s)
+    --- PASS: TestRunVisibilityChangedKind/light (0.05s)
+    --- PASS: TestRunVisibilityChangedKind/dark (0.05s)
+=== RUN   TestRunVisibilitySubmitUnavailable
+=== RUN   TestRunVisibilitySubmitUnavailable/light
+=== RUN   TestRunVisibilitySubmitUnavailable/dark
+--- PASS: TestRunVisibilitySubmitUnavailable (0.26s)
+    --- PASS: TestRunVisibilitySubmitUnavailable/light (0.13s)
+    --- PASS: TestRunVisibilitySubmitUnavailable/dark (0.13s)
+=== RUN   TestRunVisibilityCancel
+=== RUN   TestRunVisibilityCancel/light
+=== RUN   TestRunVisibilityCancel/dark
+--- PASS: TestRunVisibilityCancel (0.25s)
+    --- PASS: TestRunVisibilityCancel/light (0.12s)
+    --- PASS: TestRunVisibilityCancel/dark (0.13s)
+=== RUN   TestRunVisibilityFormClosed
+=== RUN   TestRunVisibilityFormClosed/light
+=== RUN   TestRunVisibilityFormClosed/dark
+--- PASS: TestRunVisibilityFormClosed (0.09s)
+    --- PASS: TestRunVisibilityFormClosed/light (0.04s)
+    --- PASS: TestRunVisibilityFormClosed/dark (0.04s)
+=== RUN   TestRunVisibilityAllParametersRemoved
+=== RUN   TestRunVisibilityAllParametersRemoved/light
+=== RUN   TestRunVisibilityAllParametersRemoved/dark
+--- PASS: TestRunVisibilityAllParametersRemoved (0.07s)
+    --- PASS: TestRunVisibilityAllParametersRemoved/light (0.04s)
+    --- PASS: TestRunVisibilityAllParametersRemoved/dark (0.04s)
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/dark
+--- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm (0.23s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/light (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/dark (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/light (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/dark (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/light (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/dark (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/light (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/dark (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/light (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	2.752s

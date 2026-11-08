@@ -1,0 +1,29 @@
+# P13-km · 参数运行与多选列表的活动边
+
+2026-11-08 15:17 UTC开盘；pull已同步，工作树空，最新P13-kl。安装恢复P13-jx不重复。本轮Codex独立执行，已读指定设计skill及三个参考，采用既有方向打磨路径。
+
+## stash清点
+
+八条均与交接SHA相同，原始patch与reverse输出暂存/tmp/floter-P13-km，归档时入仓。不是未接续stale-kill，不将旧主题/Tauri链覆盖当前实现。
+
+| ref | SHA | 判断 | 处置 |
+| --- | --- | --- | --- |
+| stash@{0} | 422483b4 | reverse1，早期keycap/主题WIP | 保留原件 |
+| stash@{1} | 8af94a07 | reverse1，早期rows/slider WIP | 保留原件 |
+| stash@{2} | 7e4aa710 | reverse1，旧卸载尺寸/探针 | 保留原件 |
+| stash@{3} | 1e3aec94 | reverse1，旧数字字段 | 保留原件 |
+| stash@{4} | 363f5a42 | reverse1，旧禁用bar/表单 | 保留原件 |
+| stash@{5} | 9b8ce23c | reverse1，旧快捷键/i18n | 保留原件 |
+| stash@{6} | 90d314b2 | reverse1，旧动作栏 | 保留原件 |
+| stash@{7} | 7a9f6e13 | reverse1，旧main/Tauri发布链 | 保留原件 |
+
+## 进度
+
+已读取真实实现并写八候选，先用真实Tab/Shift+Tab事件复现。不把代码线索或正常项记作修复。全量基线运行中。
+
+## 第一批
+
+1. 运行文本：现象→返回时输入框顶边进入页面16px淡区；改动→接入19px一次显现净空，仍宽220px；验证→真实上下方向Tab、活动边像素、继续输入仅改p4且p5保持12，后续滚轮自由。
+2. 运行数字：现象→同一缺口使数字输入活动边淡出；改动→相同净空，数字规则不动；验证→输入24只归当前参数，上下边活动墨均可见。
+
+本批63 PASS、包vet exit0；M1撤销接线真实exit1，MD5还原后touch复验6 PASS。旧V/B/S断言0/0/0，新Skip0。初版夹具误读同名标签且一次空句柄探针panic，均修正后再做正式M1；未将其计作产品缺陷。正式证据在P13-km/M1-*与batch1-test.txt。

@@ -1,0 +1,26 @@
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index b06a1867..660ae80d 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -8014,10 +8014,17 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 				default:
+ 					value := values[param.ID]
+ 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
+-						input := a.extensionFieldLit(c, &value, configFieldMetrics, !locked).Label(label).Width(220).Placeholder(param.Placeholder)
+-						bindFocus(input)
+-						if locked {
+-							lockedControl(input.TextColor(a.tokens(c).Disabled))
++						draw := func() {
++							input := a.extensionFieldLit(c, &value, configFieldMetrics, !locked).Label(label).Width(220).Placeholder(param.Placeholder)
++							bindFocus(input)
++							if locked {
++								lockedControl(input.TextColor(a.tokens(c).Disabled))
++							}
++						}
++						if param.Kind == extensions.ParamPath {
++							draw()
++						} else {
++							outputFocusOutlet(c.Key("run-input-outlet"), draw)
+ 						}
+ 					}, below...)
+ 					if !locked {

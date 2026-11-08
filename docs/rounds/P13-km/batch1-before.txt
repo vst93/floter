@@ -1,0 +1,38 @@
+=== RUN   TestRunFieldEdgeText
+=== RUN   TestRunFieldEdgeText/light
+--- FAIL: TestRunFieldEdgeText (0.00s)
+    --- FAIL: TestRunFieldEdgeText/light (0.00s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0xca5187]
+
+goroutine 18 [running]:
+testing.tRunner.func1.2({0x166bfb0, 0x1713fb0})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x166bfb0?, 0x1713fb0?})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+floter/internal/settingsui.checkRunFieldEdge.func1.1(0x4bccc52e080)
+	/home/tar/workspace/floter/internal/settingsui/runfieldedge_test.go:47 +0xc7
+floter/internal/settingsui.toolVisibilityFrame.func1(0x4bccc52e080)
+	/home/tar/workspace/floter/internal/settingsui/toolvisibility_test.go:43 +0xa2
+github.com/egoist/mygo/ui.NewTester.func1(0x4bccc566138?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0x4bccc566008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0x67a
+github.com/egoist/mygo/ui.(*Tester).settle(0x4bccc53c070)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.coreNewTester(0x4bccc52e060, 0x2d0, 0x208)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:252 +0x1df
+github.com/egoist/mygo/ui.NewTester(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399
+floter/internal/settingsui.toolVisibilityFrame(0x28?, 0x4bccc540008, 0x0, {0x4bccc502010, 0x1, 0x1})
+	/home/tar/workspace/floter/internal/settingsui/toolvisibility_test.go:39 +0x105
+floter/internal/settingsui.checkRunFieldEdge.func1(0x4bccc534008)
+	/home/tar/workspace/floter/internal/settingsui/runfieldedge_test.go:43 +0x345
+testing.tRunner(0x4bccc534008, 0x4bccc522000)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 8
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	floter/internal/settingsui	0.011s
+FAIL
