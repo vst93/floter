@@ -3146,7 +3146,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				a.sectionHint(c, copy.IntegrationsCommandsHint)
 				a.commandList(c, copy, integration.ID, commands, approvalFeedback(integration), a.permissionFeedback(integration),
 					strconv.Quote(integration.Error), failureReason(copy, integration.FailureCode, integration.FailureDetail),
-					strconv.Quote(integration.Health)+fmt.Sprintf("%#v", integration.HealthReport))
+					strconv.Quote(integration.Health)+fmt.Sprintf("%#v", integration.HealthReport),
+					strconv.Quote(integration.Diagnosis)+strconv.Quote(integration.DiagnosisStatus)+fmt.Sprintf("%#v", integration.DiagnosisChecks))
 			})
 		}
 

@@ -104,9 +104,13 @@ func checkCommandReflow(t *testing.T, control, source string) {
 						in.Health, in.HealthReport = "", nil
 					}
 				case "diagnosis":
-					in.Diagnosis = ""
-					if step%2 == 0 {
+					switch step {
+					case 0, 3:
 						in.Diagnosis = "天气服务不可用，请检查网络后重试"
+					case 1:
+						in.DiagnosisChecks = []DiagnosisCheck{{ID: "network", Status: "error", Message: strings.Repeat("连接失败，请检查服务。\n", 12)}}
+					case 2:
+						in.Diagnosis, in.DiagnosisChecks = "", nil
 					}
 				}
 				tt.Frame()
@@ -182,3 +186,6 @@ func TestCommandSwitchFailureReflow(t *testing.T) { checkCommandReflow(t, "switc
 
 func TestCommandAliasHealthReflow(t *testing.T)  { checkCommandReflow(t, "alias", "health") }
 func TestCommandSwitchHealthReflow(t *testing.T) { checkCommandReflow(t, "switch", "health") }
+
+func TestCommandAliasDiagnosisReflow(t *testing.T)  { checkCommandReflow(t, "alias", "diagnosis") }
+func TestCommandSwitchDiagnosisReflow(t *testing.T) { checkCommandReflow(t, "switch", "diagnosis") }

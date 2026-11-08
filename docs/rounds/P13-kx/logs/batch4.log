@@ -1,0 +1,50 @@
+=== RUN   TestCommandAliasErrorReflow
+=== RUN   TestCommandAliasErrorReflow/light
+=== RUN   TestCommandAliasErrorReflow/dark
+--- PASS: TestCommandAliasErrorReflow (0.17s)
+    --- PASS: TestCommandAliasErrorReflow/light (0.14s)
+    --- PASS: TestCommandAliasErrorReflow/dark (0.03s)
+=== RUN   TestCommandSwitchErrorReflow
+=== RUN   TestCommandSwitchErrorReflow/light
+=== RUN   TestCommandSwitchErrorReflow/dark
+--- PASS: TestCommandSwitchErrorReflow (0.06s)
+    --- PASS: TestCommandSwitchErrorReflow/light (0.03s)
+    --- PASS: TestCommandSwitchErrorReflow/dark (0.03s)
+=== RUN   TestCommandAliasFailureReflow
+=== RUN   TestCommandAliasFailureReflow/light
+=== RUN   TestCommandAliasFailureReflow/dark
+--- PASS: TestCommandAliasFailureReflow (0.07s)
+    --- PASS: TestCommandAliasFailureReflow/light (0.03s)
+    --- PASS: TestCommandAliasFailureReflow/dark (0.03s)
+=== RUN   TestCommandSwitchFailureReflow
+=== RUN   TestCommandSwitchFailureReflow/light
+=== RUN   TestCommandSwitchFailureReflow/dark
+--- PASS: TestCommandSwitchFailureReflow (0.06s)
+    --- PASS: TestCommandSwitchFailureReflow/light (0.03s)
+    --- PASS: TestCommandSwitchFailureReflow/dark (0.03s)
+=== RUN   TestCommandAliasHealthReflow
+=== RUN   TestCommandAliasHealthReflow/light
+=== RUN   TestCommandAliasHealthReflow/dark
+--- PASS: TestCommandAliasHealthReflow (0.07s)
+    --- PASS: TestCommandAliasHealthReflow/light (0.04s)
+    --- PASS: TestCommandAliasHealthReflow/dark (0.03s)
+=== RUN   TestCommandSwitchHealthReflow
+=== RUN   TestCommandSwitchHealthReflow/light
+=== RUN   TestCommandSwitchHealthReflow/dark
+--- PASS: TestCommandSwitchHealthReflow (0.06s)
+    --- PASS: TestCommandSwitchHealthReflow/light (0.03s)
+    --- PASS: TestCommandSwitchHealthReflow/dark (0.03s)
+=== RUN   TestCommandAliasDiagnosisReflow
+=== RUN   TestCommandAliasDiagnosisReflow/light
+=== RUN   TestCommandAliasDiagnosisReflow/dark
+--- PASS: TestCommandAliasDiagnosisReflow (0.07s)
+    --- PASS: TestCommandAliasDiagnosisReflow/light (0.03s)
+    --- PASS: TestCommandAliasDiagnosisReflow/dark (0.03s)
+=== RUN   TestCommandSwitchDiagnosisReflow
+=== RUN   TestCommandSwitchDiagnosisReflow/light
+=== RUN   TestCommandSwitchDiagnosisReflow/dark
+--- PASS: TestCommandSwitchDiagnosisReflow (0.05s)
+    --- PASS: TestCommandSwitchDiagnosisReflow/light (0.03s)
+    --- PASS: TestCommandSwitchDiagnosisReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.609s
