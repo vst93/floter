@@ -1,0 +1,16 @@
+=== RUN   TestAdoptionCancel
+=== RUN   TestAdoptionCancel/light
+=== RUN   TestAdoptionCancel/dark
+--- PASS: TestAdoptionCancel (2.65s)
+    --- PASS: TestAdoptionCancel/light (1.50s)
+    --- PASS: TestAdoptionCancel/dark (1.15s)
+=== RUN   TestAdoptionDeleteFailure
+=== RUN   TestAdoptionDeleteFailure/light
+2026/11/08 10:31:26 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailurelight20080730/001/extension-repository.json: unexpected end of JSON input
+=== RUN   TestAdoptionDeleteFailure/dark
+2026/11/08 10:31:27 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailuredark1763449158/001/extension-repository.json: unexpected end of JSON input
+--- PASS: TestAdoptionDeleteFailure (2.13s)
+    --- PASS: TestAdoptionDeleteFailure/light (1.06s)
+    --- PASS: TestAdoptionDeleteFailure/dark (1.08s)
+PASS
+ok  	floter/internal/shell	4.803s

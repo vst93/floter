@@ -1,0 +1,23 @@
+=== RUN   TestOrphanBusyRepeatedAdoption
+=== RUN   TestOrphanBusyRepeatedAdoption/light
+    orphanbusy_test.go:50: pending orphan permits repeat: adopts=2 deletes=0
+    orphanbusy_test.go:59: settled orphan lost repeat retry: adopts=3 deletes=0
+=== RUN   TestOrphanBusyRepeatedAdoption/dark
+    orphanbusy_test.go:50: pending orphan permits repeat: adopts=2 deletes=0
+    orphanbusy_test.go:59: settled orphan lost repeat retry: adopts=3 deletes=0
+--- FAIL: TestOrphanBusyRepeatedAdoption (0.45s)
+    --- FAIL: TestOrphanBusyRepeatedAdoption/light (0.28s)
+    --- FAIL: TestOrphanBusyRepeatedAdoption/dark (0.18s)
+=== RUN   TestOrphanBusyCompetingDelete
+=== RUN   TestOrphanBusyCompetingDelete/light
+    orphanbusy_test.go:50: pending orphan permits delete: adopts=1 deletes=1
+    orphanbusy_test.go:59: settled orphan lost delete retry: adopts=1 deletes=2
+=== RUN   TestOrphanBusyCompetingDelete/dark
+    orphanbusy_test.go:50: pending orphan permits delete: adopts=1 deletes=1
+    orphanbusy_test.go:59: settled orphan lost delete retry: adopts=1 deletes=2
+--- FAIL: TestOrphanBusyCompetingDelete (0.33s)
+    --- FAIL: TestOrphanBusyCompetingDelete/light (0.14s)
+    --- FAIL: TestOrphanBusyCompetingDelete/dark (0.18s)
+FAIL
+FAIL	floter/internal/settingsui	0.790s
+FAIL

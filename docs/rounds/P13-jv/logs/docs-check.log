@@ -1,0 +1,5 @@
+=== RUN   TestTheLiquidGlassContractSupersedesTheRaycastOne
+    liquidglass_contract_test.go:101: the gap table has 1232 rows, 1232 of them carry a status
+--- PASS: TestTheLiquidGlassContractSupersedesTheRaycastOne (0.01s)
+PASS
+ok  	floter/internal/ci	0.015s

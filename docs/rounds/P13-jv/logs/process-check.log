@@ -1,0 +1,10 @@
+1882378       04:51 bash docs/rounds/P13-jv-checks.sh normal
+1882379       04:51 bash docs/rounds/P13-jv-checks.sh verbose
+1882383       04:51 go test -count=1 -v ./...
+1882384       04:51 go test -count=1 ./...
+1885234       04:04 /tmp/go-build658016320/b415/settingsui.test -test.paniconexit0 -test.timeout=10m0s -test.count=1 -test.v=true
+1885372       04:03 /tmp/go-build2937443176/b415/settingsui.test -test.paniconexit0 -test.timeout=10m0s -test.count=1
+1885471       03:58 /tmp/go-build658016320/b417/shell.test -test.paniconexit0 -test.timeout=10m0s -test.count=1 -test.v=true
+1885489       03:57 /tmp/go-build2937443176/b417/shell.test -test.paniconexit0 -test.timeout=10m0s -test.count=1
+1895777       00:00 /usr/sbin/bash -c ps -eo pid,etime,args | rg 'go test|shell.test|settingsui.test|P13-jv' > /tmp/floter-P13-jv/process-check.log; for mode in normal verbose race; do if test -f "/tmp/floter-P13-jv/final-$mode.status"; then cat "/tmp/floter-P13-jv/final-$mode.status"; fi; done; if test -f /tmp/floter-P13-jv/race.status; then cat /tmp/floter-P13-jv/race.status; fi; rg -- '--- FAIL|WARNING: DATA RACE|panic:' /tmp/floter-P13-jv/final-normal.log /tmp/floter-P13-jv/final-verbose.log /tmp/floter-P13-jv/race.log; git diff --check
+1895786       00:00 rg go test|shell.test|settingsui.test|P13-jv

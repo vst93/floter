@@ -1,0 +1,23 @@
+=== RUN   TestAdoptionCancel
+=== RUN   TestAdoptionCancel/light
+2026/11/08 10:31:16 floter: could not adopt dev.floter.check: extensions: the package needs its permissions approved: 检查工具 declares environment
+    adoptioncurrent_test.go:144: obsolete cancel adoption published a result: ["dev.floter.check 安装失败"]
+=== RUN   TestAdoptionCancel/dark
+2026/11/08 10:31:17 floter: could not adopt dev.floter.check: extensions: the package needs its permissions approved: 检查工具 declares environment
+    adoptioncurrent_test.go:144: obsolete cancel adoption published a result: ["dev.floter.check 安装失败"]
+--- FAIL: TestAdoptionCancel (3.04s)
+    --- FAIL: TestAdoptionCancel/light (1.69s)
+    --- FAIL: TestAdoptionCancel/dark (1.35s)
+=== RUN   TestAdoptionDeleteFailure
+=== RUN   TestAdoptionDeleteFailure/light
+2026/11/08 10:31:18 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailurelight2311511296/001/extension-repository.json: unexpected end of JSON input
+    adoptioncurrent_test.go:199: orphan deletion failure lost result: got=[] want="dev.floter.check 移除失败"
+=== RUN   TestAdoptionDeleteFailure/dark
+2026/11/08 10:31:20 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailuredark3994051367/001/extension-repository.json: unexpected end of JSON input
+    adoptioncurrent_test.go:199: orphan deletion failure lost result: got=[] want="dev.floter.check 移除失败"
+--- FAIL: TestAdoptionDeleteFailure (2.21s)
+    --- FAIL: TestAdoptionDeleteFailure/light (1.10s)
+    --- FAIL: TestAdoptionDeleteFailure/dark (1.11s)
+FAIL
+FAIL	floter/internal/shell	5.269s
+FAIL

@@ -1,0 +1,14 @@
+=== RUN   TestOrphanBusyRepeatedAdoption
+=== RUN   TestOrphanBusyRepeatedAdoption/light
+=== RUN   TestOrphanBusyRepeatedAdoption/dark
+--- PASS: TestOrphanBusyRepeatedAdoption (0.37s)
+    --- PASS: TestOrphanBusyRepeatedAdoption/light (0.26s)
+    --- PASS: TestOrphanBusyRepeatedAdoption/dark (0.11s)
+=== RUN   TestOrphanBusyCompetingDelete
+=== RUN   TestOrphanBusyCompetingDelete/light
+=== RUN   TestOrphanBusyCompetingDelete/dark
+--- PASS: TestOrphanBusyCompetingDelete (0.22s)
+    --- PASS: TestOrphanBusyCompetingDelete/light (0.10s)
+    --- PASS: TestOrphanBusyCompetingDelete/dark (0.12s)
+PASS
+ok  	floter/internal/settingsui	0.602s

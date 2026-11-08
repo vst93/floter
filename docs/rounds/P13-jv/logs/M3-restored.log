@@ -1,0 +1,14 @@
+=== RUN   TestAdoptionCurrentRecord
+=== RUN   TestAdoptionCurrentRecord/light
+=== RUN   TestAdoptionCurrentRecord/dark
+--- PASS: TestAdoptionCurrentRecord (2.48s)
+    --- PASS: TestAdoptionCurrentRecord/light (1.46s)
+    --- PASS: TestAdoptionCurrentRecord/dark (1.02s)
+=== RUN   TestAdoptionCurrentRemoved
+=== RUN   TestAdoptionCurrentRemoved/light
+=== RUN   TestAdoptionCurrentRemoved/dark
+--- PASS: TestAdoptionCurrentRemoved (1.72s)
+    --- PASS: TestAdoptionCurrentRemoved/light (0.85s)
+    --- PASS: TestAdoptionCurrentRemoved/dark (0.87s)
+PASS
+ok  	floter/internal/shell	4.221s

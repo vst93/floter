@@ -1,0 +1,31 @@
+=== RUN   TestAdoptionCurrentPermissions
+=== RUN   TestAdoptionCurrentPermissions/light
+    adoptioncurrent_test.go:141: obsolete permissions adoption rewrote current repository
+    adoptioncurrent_test.go:144: obsolete permissions adoption published a result: ["检查工具 已安装"]
+    adoptioncurrent_test.go:162: ui: no element shows "接管"
+    adoptioncurrent_test.go:166: current permissions orphan lost retry outlet: calls=0
+=== RUN   TestAdoptionCurrentPermissions/dark
+    adoptioncurrent_test.go:141: obsolete permissions adoption rewrote current repository
+    adoptioncurrent_test.go:144: obsolete permissions adoption published a result: ["检查工具 已安装"]
+    adoptioncurrent_test.go:162: ui: no element shows "接管"
+    adoptioncurrent_test.go:166: current permissions orphan lost retry outlet: calls=0
+--- FAIL: TestAdoptionCurrentPermissions (2.97s)
+    --- FAIL: TestAdoptionCurrentPermissions/light (1.69s)
+    --- FAIL: TestAdoptionCurrentPermissions/dark (1.29s)
+=== RUN   TestAdoptionCurrentPackage
+=== RUN   TestAdoptionCurrentPackage/light
+    adoptioncurrent_test.go:141: obsolete package adoption rewrote current repository
+    adoptioncurrent_test.go:144: obsolete package adoption published a result: ["检查工具 已安装"]
+    adoptioncurrent_test.go:162: ui: no element shows "接管"
+    adoptioncurrent_test.go:166: current package orphan lost retry outlet: calls=0
+=== RUN   TestAdoptionCurrentPackage/dark
+    adoptioncurrent_test.go:141: obsolete package adoption rewrote current repository
+    adoptioncurrent_test.go:144: obsolete package adoption published a result: ["检查工具 已安装"]
+    adoptioncurrent_test.go:162: ui: no element shows "接管"
+    adoptioncurrent_test.go:166: current package orphan lost retry outlet: calls=0
+--- FAIL: TestAdoptionCurrentPackage (2.86s)
+    --- FAIL: TestAdoptionCurrentPackage/light (1.43s)
+    --- FAIL: TestAdoptionCurrentPackage/dark (1.43s)
+FAIL
+FAIL	floter/internal/shell	5.858s
+FAIL

@@ -1,0 +1,54 @@
+=== RUN   TestOrphanBusyRepeatedAdoption
+=== RUN   TestOrphanBusyRepeatedAdoption/light
+=== RUN   TestOrphanBusyRepeatedAdoption/dark
+--- PASS: TestOrphanBusyRepeatedAdoption (18.12s)
+    --- PASS: TestOrphanBusyRepeatedAdoption/light (7.20s)
+    --- PASS: TestOrphanBusyRepeatedAdoption/dark (10.92s)
+=== RUN   TestOrphanBusyCompetingDelete
+=== RUN   TestOrphanBusyCompetingDelete/light
+=== RUN   TestOrphanBusyCompetingDelete/dark
+--- PASS: TestOrphanBusyCompetingDelete (17.83s)
+    --- PASS: TestOrphanBusyCompetingDelete/light (8.21s)
+    --- PASS: TestOrphanBusyCompetingDelete/dark (9.61s)
+PASS
+ok  	floter/internal/settingsui	37.091s
+=== RUN   TestAdoptionCurrentPermissions
+=== RUN   TestAdoptionCurrentPermissions/light
+=== RUN   TestAdoptionCurrentPermissions/dark
+--- PASS: TestAdoptionCurrentPermissions (33.50s)
+    --- PASS: TestAdoptionCurrentPermissions/light (17.11s)
+    --- PASS: TestAdoptionCurrentPermissions/dark (16.38s)
+=== RUN   TestAdoptionCurrentPackage
+=== RUN   TestAdoptionCurrentPackage/light
+=== RUN   TestAdoptionCurrentPackage/dark
+--- PASS: TestAdoptionCurrentPackage (21.67s)
+    --- PASS: TestAdoptionCurrentPackage/light (10.96s)
+    --- PASS: TestAdoptionCurrentPackage/dark (10.70s)
+=== RUN   TestAdoptionCurrentRecord
+=== RUN   TestAdoptionCurrentRecord/light
+=== RUN   TestAdoptionCurrentRecord/dark
+--- PASS: TestAdoptionCurrentRecord (15.37s)
+    --- PASS: TestAdoptionCurrentRecord/light (8.04s)
+    --- PASS: TestAdoptionCurrentRecord/dark (7.33s)
+=== RUN   TestAdoptionCurrentRemoved
+=== RUN   TestAdoptionCurrentRemoved/light
+=== RUN   TestAdoptionCurrentRemoved/dark
+--- PASS: TestAdoptionCurrentRemoved (12.77s)
+    --- PASS: TestAdoptionCurrentRemoved/light (5.78s)
+    --- PASS: TestAdoptionCurrentRemoved/dark (7.00s)
+=== RUN   TestAdoptionCancel
+=== RUN   TestAdoptionCancel/light
+=== RUN   TestAdoptionCancel/dark
+--- PASS: TestAdoptionCancel (27.03s)
+    --- PASS: TestAdoptionCancel/light (12.57s)
+    --- PASS: TestAdoptionCancel/dark (14.45s)
+=== RUN   TestAdoptionDeleteFailure
+=== RUN   TestAdoptionDeleteFailure/light
+2026/11/08 10:30:44 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailurelight3596557500/001/extension-repository.json: unexpected end of JSON input
+=== RUN   TestAdoptionDeleteFailure/dark
+2026/11/08 10:30:58 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailuredark527107188/001/extension-repository.json: unexpected end of JSON input
+--- PASS: TestAdoptionDeleteFailure (26.72s)
+    --- PASS: TestAdoptionDeleteFailure/light (14.63s)
+    --- PASS: TestAdoptionDeleteFailure/dark (12.09s)
+PASS
+ok  	floter/internal/shell	138.357s

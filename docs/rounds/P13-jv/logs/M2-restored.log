@@ -1,0 +1,14 @@
+=== RUN   TestAdoptionCurrentPermissions
+=== RUN   TestAdoptionCurrentPermissions/light
+=== RUN   TestAdoptionCurrentPermissions/dark
+--- PASS: TestAdoptionCurrentPermissions (3.03s)
+    --- PASS: TestAdoptionCurrentPermissions/light (1.70s)
+    --- PASS: TestAdoptionCurrentPermissions/dark (1.33s)
+=== RUN   TestAdoptionCurrentPackage
+=== RUN   TestAdoptionCurrentPackage/light
+=== RUN   TestAdoptionCurrentPackage/dark
+--- PASS: TestAdoptionCurrentPackage (2.80s)
+    --- PASS: TestAdoptionCurrentPackage/light (1.32s)
+    --- PASS: TestAdoptionCurrentPackage/dark (1.48s)
+PASS
+ok  	floter/internal/shell	5.850s

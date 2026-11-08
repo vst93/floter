@@ -1,0 +1,19 @@
+=== RUN   TestAdoptionCurrentPermissions
+=== RUN   TestAdoptionCurrentPermissions/light
+    adoptioncurrent_test.go:101: orphan click dispatched to ""
+=== RUN   TestAdoptionCurrentPermissions/dark
+    adoptioncurrent_test.go:101: orphan click dispatched to ""
+--- FAIL: TestAdoptionCurrentPermissions (0.34s)
+    --- FAIL: TestAdoptionCurrentPermissions/light (0.22s)
+    --- FAIL: TestAdoptionCurrentPermissions/dark (0.12s)
+=== RUN   TestAdoptionCurrentPackage
+=== RUN   TestAdoptionCurrentPackage/light
+    adoptioncurrent_test.go:101: orphan click dispatched to ""
+=== RUN   TestAdoptionCurrentPackage/dark
+    adoptioncurrent_test.go:101: orphan click dispatched to ""
+--- FAIL: TestAdoptionCurrentPackage (0.24s)
+    --- FAIL: TestAdoptionCurrentPackage/light (0.12s)
+    --- FAIL: TestAdoptionCurrentPackage/dark (0.12s)
+FAIL
+FAIL	floter/internal/shell	0.583s
+FAIL

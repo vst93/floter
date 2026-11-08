@@ -1,0 +1,27 @@
+=== RUN   TestAdoptionCurrentRecord
+=== RUN   TestAdoptionCurrentRecord/light
+2026/11/08 10:21:32 floter: could not adopt dev.floter.check: extensions: runtime-unavailable: runtime-unavailable:{"names":["floter-diagnosis-fixture"]}
+    adoptioncurrent_test.go:144: obsolete record adoption published a result: ["dev.floter.check 安装失败"]
+    adoptioncurrent_test.go:156: current installed row was not refreshed: [{ID:dev.floter.check Name:dev.floter.check Description: Publisher: Version: ToolVersion: Enabled:false Running:false Broken:false Error: FailureCode: FailureDetail: Orphan:true Permissions:[] Enforced:map[] Diagnosis: DiagnosisFailed:false DiagnosisLifecycleFailed:false DiagnosisChecks:[] DiagnosisStatus: Health: HealthStatus: HealthReport:<nil> HealthReprobeUnavailable:false Approval:<nil> Commands:[] Config:[] ConfigValues:map[] ConfigOwner: ConfigOpenCommand:[] ConfigVersion:0 Generated:false DistributionSource: RuntimeOwnership: RuntimeSource: Highlighted:false RuntimeAvailable:false Homepage: Params:[] OutputMode:}]
+=== RUN   TestAdoptionCurrentRecord/dark
+2026/11/08 10:21:33 floter: could not adopt dev.floter.check: extensions: runtime-unavailable: runtime-unavailable:{"names":["floter-diagnosis-fixture"]}
+    adoptioncurrent_test.go:144: obsolete record adoption published a result: ["dev.floter.check 安装失败"]
+    adoptioncurrent_test.go:156: current installed row was not refreshed: [{ID:dev.floter.check Name:dev.floter.check Description: Publisher: Version: ToolVersion: Enabled:false Running:false Broken:false Error: FailureCode: FailureDetail: Orphan:true Permissions:[] Enforced:map[] Diagnosis: DiagnosisFailed:false DiagnosisLifecycleFailed:false DiagnosisChecks:[] DiagnosisStatus: Health: HealthStatus: HealthReport:<nil> HealthReprobeUnavailable:false Approval:<nil> Commands:[] Config:[] ConfigValues:map[] ConfigOwner: ConfigOpenCommand:[] ConfigVersion:0 Generated:false DistributionSource: RuntimeOwnership: RuntimeSource: Highlighted:false RuntimeAvailable:false Homepage: Params:[] OutputMode:}]
+--- FAIL: TestAdoptionCurrentRecord (1.62s)
+    --- FAIL: TestAdoptionCurrentRecord/light (1.05s)
+    --- FAIL: TestAdoptionCurrentRecord/dark (0.57s)
+=== RUN   TestAdoptionCurrentRemoved
+=== RUN   TestAdoptionCurrentRemoved/light
+2026/11/08 10:21:33 floter: could not adopt dev.floter.check: extensions: no manifest
+    adoptioncurrent_test.go:144: obsolete removed adoption published a result: ["dev.floter.check 安装失败"]
+    adoptioncurrent_test.go:152: removed package remains on screen: [{ID:dev.floter.check Name:dev.floter.check Description: Publisher: Version: ToolVersion: Enabled:false Running:false Broken:false Error: FailureCode: FailureDetail: Orphan:true Permissions:[] Enforced:map[] Diagnosis: DiagnosisFailed:false DiagnosisLifecycleFailed:false DiagnosisChecks:[] DiagnosisStatus: Health: HealthStatus: HealthReport:<nil> HealthReprobeUnavailable:false Approval:<nil> Commands:[] Config:[] ConfigValues:map[] ConfigOwner: ConfigOpenCommand:[] ConfigVersion:0 Generated:false DistributionSource: RuntimeOwnership: RuntimeSource: Highlighted:false RuntimeAvailable:false Homepage: Params:[] OutputMode:}]
+=== RUN   TestAdoptionCurrentRemoved/dark
+2026/11/08 10:21:34 floter: could not adopt dev.floter.check: extensions: no manifest
+    adoptioncurrent_test.go:144: obsolete removed adoption published a result: ["dev.floter.check 安装失败"]
+    adoptioncurrent_test.go:152: removed package remains on screen: [{ID:dev.floter.check Name:dev.floter.check Description: Publisher: Version: ToolVersion: Enabled:false Running:false Broken:false Error: FailureCode: FailureDetail: Orphan:true Permissions:[] Enforced:map[] Diagnosis: DiagnosisFailed:false DiagnosisLifecycleFailed:false DiagnosisChecks:[] DiagnosisStatus: Health: HealthStatus: HealthReport:<nil> HealthReprobeUnavailable:false Approval:<nil> Commands:[] Config:[] ConfigValues:map[] ConfigOwner: ConfigOpenCommand:[] ConfigVersion:0 Generated:false DistributionSource: RuntimeOwnership: RuntimeSource: Highlighted:false RuntimeAvailable:false Homepage: Params:[] OutputMode:}]
+--- FAIL: TestAdoptionCurrentRemoved (0.94s)
+    --- FAIL: TestAdoptionCurrentRemoved/light (0.44s)
+    --- FAIL: TestAdoptionCurrentRemoved/dark (0.51s)
+FAIL
+FAIL	floter/internal/shell	2.573s
+FAIL

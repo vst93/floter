@@ -1,0 +1,116 @@
+=== RUN   TestNoticeConditionRemoveOrphan
+=== RUN   TestNoticeConditionRemoveOrphan/light/return
+=== RUN   TestNoticeConditionRemoveOrphan/light/escape
+=== RUN   TestNoticeConditionRemoveOrphan/dark/return
+=== RUN   TestNoticeConditionRemoveOrphan/dark/escape
+--- PASS: TestNoticeConditionRemoveOrphan (0.47s)
+    --- PASS: TestNoticeConditionRemoveOrphan/light/return (0.26s)
+    --- PASS: TestNoticeConditionRemoveOrphan/light/escape (0.06s)
+    --- PASS: TestNoticeConditionRemoveOrphan/dark/return (0.08s)
+    --- PASS: TestNoticeConditionRemoveOrphan/dark/escape (0.06s)
+=== RUN   TestNoticeConditionUninstallOrphan
+=== RUN   TestNoticeConditionUninstallOrphan/light/return
+=== RUN   TestNoticeConditionUninstallOrphan/light/escape
+=== RUN   TestNoticeConditionUninstallOrphan/dark/return
+=== RUN   TestNoticeConditionUninstallOrphan/dark/escape
+--- PASS: TestNoticeConditionUninstallOrphan (0.78s)
+    --- PASS: TestNoticeConditionUninstallOrphan/light/return (0.23s)
+    --- PASS: TestNoticeConditionUninstallOrphan/light/escape (0.19s)
+    --- PASS: TestNoticeConditionUninstallOrphan/dark/return (0.18s)
+    --- PASS: TestNoticeConditionUninstallOrphan/dark/escape (0.18s)
+=== RUN   TestNoticeOutletDiscardOrphan
+=== RUN   TestNoticeOutletDiscardOrphan/light/answer
+=== RUN   TestNoticeOutletDiscardOrphan/light/elsewhere
+=== RUN   TestNoticeOutletDiscardOrphan/dark/answer
+=== RUN   TestNoticeOutletDiscardOrphan/dark/elsewhere
+--- PASS: TestNoticeOutletDiscardOrphan (1.29s)
+    --- PASS: TestNoticeOutletDiscardOrphan/light/answer (0.22s)
+    --- PASS: TestNoticeOutletDiscardOrphan/light/elsewhere (0.50s)
+    --- PASS: TestNoticeOutletDiscardOrphan/dark/answer (0.16s)
+    --- PASS: TestNoticeOutletDiscardOrphan/dark/elsewhere (0.41s)
+=== RUN   TestOrphanBusyRepeatedAdoption
+=== RUN   TestOrphanBusyRepeatedAdoption/light
+=== RUN   TestOrphanBusyRepeatedAdoption/dark
+--- PASS: TestOrphanBusyRepeatedAdoption (0.20s)
+    --- PASS: TestOrphanBusyRepeatedAdoption/light (0.10s)
+    --- PASS: TestOrphanBusyRepeatedAdoption/dark (0.10s)
+=== RUN   TestOrphanBusyCompetingDelete
+=== RUN   TestOrphanBusyCompetingDelete/light
+=== RUN   TestOrphanBusyCompetingDelete/dark
+--- PASS: TestOrphanBusyCompetingDelete (0.18s)
+    --- PASS: TestOrphanBusyCompetingDelete/light (0.08s)
+    --- PASS: TestOrphanBusyCompetingDelete/dark (0.10s)
+=== RUN   TestPendingOutletSaveOrphan
+=== RUN   TestPendingOutletSaveOrphan/light/entry
+=== RUN   TestPendingOutletSaveOrphan/light/elsewhere
+=== RUN   TestPendingOutletSaveOrphan/dark/entry
+=== RUN   TestPendingOutletSaveOrphan/dark/elsewhere
+--- PASS: TestPendingOutletSaveOrphan (0.97s)
+    --- PASS: TestPendingOutletSaveOrphan/light/entry (0.15s)
+    --- PASS: TestPendingOutletSaveOrphan/light/elsewhere (0.32s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/entry (0.15s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/elsewhere (0.33s)
+=== RUN   TestPendingOutletRepairOrphan
+=== RUN   TestPendingOutletRepairOrphan/light/entry
+=== RUN   TestPendingOutletRepairOrphan/light/elsewhere
+=== RUN   TestPendingOutletRepairOrphan/dark/entry
+=== RUN   TestPendingOutletRepairOrphan/dark/elsewhere
+--- PASS: TestPendingOutletRepairOrphan (0.11s)
+    --- PASS: TestPendingOutletRepairOrphan/light/entry (0.03s)
+    --- PASS: TestPendingOutletRepairOrphan/light/elsewhere (0.03s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/entry (0.02s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/elsewhere (0.03s)
+=== RUN   TestPendingOutletToggleOrphan
+=== RUN   TestPendingOutletToggleOrphan/light/entry
+=== RUN   TestPendingOutletToggleOrphan/light/elsewhere
+=== RUN   TestPendingOutletToggleOrphan/dark/entry
+=== RUN   TestPendingOutletToggleOrphan/dark/elsewhere
+--- PASS: TestPendingOutletToggleOrphan (0.09s)
+    --- PASS: TestPendingOutletToggleOrphan/light/entry (0.02s)
+    --- PASS: TestPendingOutletToggleOrphan/light/elsewhere (0.02s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/entry (0.02s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/elsewhere (0.02s)
+=== RUN   TestRefreshDestinationRunOrphan
+=== RUN   TestRefreshDestinationRunOrphan/light
+=== RUN   TestRefreshDestinationRunOrphan/dark
+--- PASS: TestRefreshDestinationRunOrphan (0.04s)
+    --- PASS: TestRefreshDestinationRunOrphan/light (0.02s)
+    --- PASS: TestRefreshDestinationRunOrphan/dark (0.02s)
+=== RUN   TestRefreshDestinationCommandOrphan
+=== RUN   TestRefreshDestinationCommandOrphan/light
+=== RUN   TestRefreshDestinationCommandOrphan/dark
+--- PASS: TestRefreshDestinationCommandOrphan (0.06s)
+    --- PASS: TestRefreshDestinationCommandOrphan/light (0.03s)
+    --- PASS: TestRefreshDestinationCommandOrphan/dark (0.03s)
+=== RUN   TestResultRefreshDisableOrphan
+=== RUN   TestResultRefreshDisableOrphan/light
+=== RUN   TestResultRefreshDisableOrphan/dark
+--- PASS: TestResultRefreshDisableOrphan (0.04s)
+    --- PASS: TestResultRefreshDisableOrphan/light (0.02s)
+    --- PASS: TestResultRefreshDisableOrphan/dark (0.02s)
+=== RUN   TestResultRefreshRemoveOrphan
+=== RUN   TestResultRefreshRemoveOrphan/light
+=== RUN   TestResultRefreshRemoveOrphan/dark
+--- PASS: TestResultRefreshRemoveOrphan (0.16s)
+    --- PASS: TestResultRefreshRemoveOrphan/light (0.08s)
+    --- PASS: TestResultRefreshRemoveOrphan/dark (0.08s)
+=== RUN   TestResultRefreshUninstallOrphan
+=== RUN   TestResultRefreshUninstallOrphan/light
+=== RUN   TestResultRefreshUninstallOrphan/dark
+--- PASS: TestResultRefreshUninstallOrphan (0.32s)
+    --- PASS: TestResultRefreshUninstallOrphan/light (0.16s)
+    --- PASS: TestResultRefreshUninstallOrphan/dark (0.16s)
+=== RUN   TestEveryRowActionLocksWhileAnOperationIsInFlight
+=== RUN   TestEveryRowActionLocksWhileAnOperationIsInFlight/disableBusy
+=== RUN   TestEveryRowActionLocksWhileAnOperationIsInFlight/removeBusy
+=== RUN   TestEveryRowActionLocksWhileAnOperationIsInFlight/uninstallBusy
+=== RUN   TestEveryRowActionLocksWhileAnOperationIsInFlight/toggleBusy
+--- PASS: TestEveryRowActionLocksWhileAnOperationIsInFlight (0.82s)
+    --- PASS: TestEveryRowActionLocksWhileAnOperationIsInFlight/disableBusy (0.13s)
+    --- PASS: TestEveryRowActionLocksWhileAnOperationIsInFlight/removeBusy (0.15s)
+    --- PASS: TestEveryRowActionLocksWhileAnOperationIsInFlight/uninstallBusy (0.14s)
+    --- PASS: TestEveryRowActionLocksWhileAnOperationIsInFlight/toggleBusy (0.14s)
+=== RUN   TestOrphanRowsOfferAdoptAndDelete
+--- PASS: TestOrphanRowsOfferAdoptAndDelete (0.09s)
+PASS
+ok  	floter/internal/settingsui	5.625s
