@@ -15,6 +15,8 @@ func TestLeadActionsAlias(t *testing.T)    { checkLeadAction(t, "alias") }
 func TestLeadActionsCommand(t *testing.T)  { checkLeadAction(t, "command") }
 func TestLeadActionsRun(t *testing.T)      { checkLeadAction(t, "run") }
 func TestLeadActionsDiagnose(t *testing.T) { checkLeadAction(t, "diagnose") }
+func TestLeadActionsRemove(t *testing.T)   { checkLeadAction(t, "remove") }
+func TestLeadActionsToggle(t *testing.T)   { checkLeadAction(t, "toggle") }
 
 func checkLeadAction(t *testing.T, action string) {
 	t.Helper()

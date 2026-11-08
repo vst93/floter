@@ -3374,7 +3374,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// some kinds skipped the bar, which handed npm and custom rows one
 			// question fewer than the reference asked.
 			if (a.Actions.UninstallIntegration != nil || a.Actions.UninstallComponents != nil) && !integration.Orphan {
-				a.formFeedbackOutlet(c.Key("row-remove-output-outlet"), outputFeedback, func() {
+				a.formFeedbackOutlet(c.Key("row-remove-output-outlet"), a.integrationLead+outputFeedback, func() {
 					removeOpener = rowAction(integration.removalLabel(copy))
 				})
 				if removeOpener.Clicked() {
@@ -3391,7 +3391,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// stops whatever is running; turning one on is no question at all.
 			if a.Actions.SetIntegrationEnabled != nil {
 				on := enabled
-				a.formFeedbackOutlet(c.Key("row-toggle-output-outlet"), outputFeedback, func() {
+				a.formFeedbackOutlet(c.Key("row-toggle-output-outlet"), a.integrationLead+outputFeedback, func() {
 					switch {
 					case a.toggleBusy[integration.ID] || a.disableBusy[integration.ID]:
 						// The write is in flight: the reference swapped the switch's
