@@ -1,0 +1,69 @@
+=== RUN   TestToolRefusalExitParameter
+=== RUN   TestToolRefusalExitParameter/id/light
+    paramrefusalexit_test.go:57: id declaration refusal lost its field
+    paramrefusalexit_test.go:67: id declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/id/dark
+    paramrefusalexit_test.go:57: id declaration refusal lost its field
+    paramrefusalexit_test.go:67: id declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/duplicate/light
+    paramrefusalexit_test.go:57: duplicate declaration refusal lost its field
+    paramrefusalexit_test.go:67: duplicate declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/duplicate/dark
+    paramrefusalexit_test.go:57: duplicate declaration refusal lost its field
+    paramrefusalexit_test.go:67: duplicate declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/options/light
+    paramrefusalexit_test.go:57: options declaration refusal lost its field
+    paramrefusalexit_test.go:67: options declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/options/dark
+    paramrefusalexit_test.go:57: options declaration refusal lost its field
+    paramrefusalexit_test.go:67: options declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/flag/light
+    paramrefusalexit_test.go:57: flag declaration refusal lost its field
+    paramrefusalexit_test.go:67: flag declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/flag/dark
+    paramrefusalexit_test.go:57: flag declaration refusal lost its field
+    paramrefusalexit_test.go:67: flag declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/badflag/light
+    paramrefusalexit_test.go:57: badflag declaration refusal lost its field
+    paramrefusalexit_test.go:67: badflag declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/badflag/dark
+    paramrefusalexit_test.go:57: badflag declaration refusal lost its field
+    paramrefusalexit_test.go:67: badflag declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/number/light
+    paramrefusalexit_test.go:57: number declaration refusal lost its field
+    paramrefusalexit_test.go:67: number declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/number/dark
+    paramrefusalexit_test.go:57: number declaration refusal lost its field
+    paramrefusalexit_test.go:67: number declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/boolean/light
+    paramrefusalexit_test.go:57: boolean declaration refusal lost its field
+    paramrefusalexit_test.go:67: boolean declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/boolean/dark
+    paramrefusalexit_test.go:57: boolean declaration refusal lost its field
+    paramrefusalexit_test.go:67: boolean declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/select/light
+    paramrefusalexit_test.go:57: select declaration refusal lost its field
+    paramrefusalexit_test.go:67: select declaration cannot correct and retry
+=== RUN   TestToolRefusalExitParameter/select/dark
+    paramrefusalexit_test.go:57: select declaration refusal lost its field
+    paramrefusalexit_test.go:67: select declaration cannot correct and retry
+--- FAIL: TestToolRefusalExitParameter (5.07s)
+    --- FAIL: TestToolRefusalExitParameter/id/light (0.52s)
+    --- FAIL: TestToolRefusalExitParameter/id/dark (0.30s)
+    --- FAIL: TestToolRefusalExitParameter/duplicate/light (0.29s)
+    --- FAIL: TestToolRefusalExitParameter/duplicate/dark (0.29s)
+    --- FAIL: TestToolRefusalExitParameter/options/light (0.29s)
+    --- FAIL: TestToolRefusalExitParameter/options/dark (0.28s)
+    --- FAIL: TestToolRefusalExitParameter/flag/light (0.27s)
+    --- FAIL: TestToolRefusalExitParameter/flag/dark (0.27s)
+    --- FAIL: TestToolRefusalExitParameter/badflag/light (0.29s)
+    --- FAIL: TestToolRefusalExitParameter/badflag/dark (0.33s)
+    --- FAIL: TestToolRefusalExitParameter/number/light (0.30s)
+    --- FAIL: TestToolRefusalExitParameter/number/dark (0.32s)
+    --- FAIL: TestToolRefusalExitParameter/boolean/light (0.31s)
+    --- FAIL: TestToolRefusalExitParameter/boolean/dark (0.34s)
+    --- FAIL: TestToolRefusalExitParameter/select/light (0.31s)
+    --- FAIL: TestToolRefusalExitParameter/select/dark (0.36s)
+FAIL
+FAIL	floter/internal/settingsui	5.087s
+FAIL

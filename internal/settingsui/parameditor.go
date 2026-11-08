@@ -52,6 +52,43 @@ const paramEditorMono = "SF Mono, Menlo, Monaco, Consolas, monospace"
 
 type paramEditorFocusKey struct{ app *App }
 
+type paramRefusalTargets struct {
+	id, options, flag, defaultValue ui.Handle
+}
+
+func (a *App) paramRefusalTargets(c *ui.Context, param *toolParam) *paramRefusalTargets {
+	key := struct {
+		app         *App
+		form, param *int
+	}{a, a.toolFormKey, param.key}
+	return ui.Local(c.Root(), key, func() paramRefusalTargets { return paramRefusalTargets{} })
+}
+
+func (a *App) focusParamRefusal(c *ui.Context, issues map[int]extensions.ParamRowIssue) {
+	// Preserve the validator's row order; iteration over its map would send
+	// the user to a different error on each refused submission.
+	for i := range a.toolParams {
+		issue := issues[i]
+		if issue == "" {
+			continue
+		}
+		targets := a.paramRefusalTargets(c, &a.toolParams[i])
+		var target ui.Handle
+		switch issue {
+		case extensions.ParamIssueID, extensions.ParamIssueDuplicate:
+			target = targets.id
+		case extensions.ParamIssueOptions:
+			target = targets.options
+		case extensions.ParamIssueFlag, extensions.ParamIssueBadFlag:
+			target = targets.flag
+		case extensions.ParamIssueDefault:
+			target = targets.defaultValue
+		}
+		c.Resolve(target).Focus()
+		return
+	}
+}
+
 func (a *App) paramEditorFocus(c *ui.Context) *ui.Handle {
 	return ui.Local(c.Root(), paramEditorFocusKey{a}, func() ui.Handle { return ui.Handle{} })
 }
@@ -172,6 +209,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		Border(1, tokens.Hairline)
 	optionsFocus := ui.Local(plate, "options-focus", func() contentFocusState { return contentFocusState{} })
 	placeholderFocus := ui.Local(plate, "placeholder-focus", func() contentFocusState { return contentFocusState{} })
+	refusal := a.paramRefusalTargets(c, param)
 	plate.Children(func() {
 		// `.extension-param-editor__fields`: `repeat(auto-fit, minmax(140px,
 		// 1fr))` with a `6px 8px` gap. A wrap row of 140u-minimum growing cells
@@ -183,7 +221,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 					a.extensionField(c, &label, customFieldMetrics).Bind(labelFocus).Label(copy.ParamsLabel)
 				})
 				a.paramField(c, "id", copy.ParamsID, func() {
-					a.extensionField(c, &id, customFieldMetrics).Label(copy.ParamsID).Placeholder("target")
+					a.extensionField(c, &id, customFieldMetrics).Bind(&refusal.id).Label(copy.ParamsID).Placeholder("target")
 				})
 				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)
@@ -199,10 +237,10 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 					placeholderFocus.restore(c)
 				}
 				a.paramField(c, "default", copy.ParamsDefault, func() {
-					a.extensionField(c, &def, customFieldMetrics).Label(copy.ParamsDefault)
+					a.extensionField(c, &def, customFieldMetrics).Bind(&refusal.defaultValue).Label(copy.ParamsDefault)
 				})
 				a.paramField(c, "flag", copy.ParamsFlag, func() {
-					a.extensionField(c, &flag, customFieldMetrics).Label(copy.ParamsFlag).Placeholder("--target")
+					a.extensionField(c, &flag, customFieldMetrics).Bind(&refusal.flag).Label(copy.ParamsFlag).Placeholder("--target")
 				})
 			})
 		// `.extension-param-editor__controls`: the required checkbox at the
@@ -221,7 +259,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 			ui.Column(c).FillWidth().Gap(t.Space(0.75)).Children(func() {
 				ui.Text(c, copy.ParamsOptions).FontSize(tokens.Caption).FontWeight(600).
 					TextColor(t.TextMuted)
-				box := a.editorDismissKeys(ui.TextArea(c, &options)).Bind(&optionsFocus.button).Label(copy.ParamsOptions).
+				box := a.editorDismissKeys(ui.TextArea(c, &options)).Bind(&optionsFocus.button).Bind(&refusal.options).Label(copy.ParamsOptions).
 					FillWidth().MinHeight(t.Space(paramEditorOptionsMin)).
 					Radius(tokens.RadiusSM).Font(paramEditorMono)
 				a.fieldFace(c, box, true)

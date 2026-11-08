@@ -5994,8 +5994,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// A row that still needs something must not reach the backend: the
 			// editor already prints the reason under that row, so the save
 			// refuses here rather than bouncing back an error to re-explain it.
-			if len(extensions.ParamRowIssues(a.editorParams())) > 0 {
+			if issues := extensions.ParamRowIssues(a.editorParams()); len(issues) > 0 {
 				a.toolIssue = true
+				a.focusParamRefusal(c, issues)
 				return
 			}
 			// The same shape rules the host will apply, read before the host

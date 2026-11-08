@@ -56,3 +56,11 @@ M3 撤回脚本/平台目标后实红 `script refusal lost editable keyboard exi
 2. **导出取消或失败后不能接着写脚本**：现象 → 焦点停在动作按钮，直接输入落空；改动 → 派发后把自己持有的焦点交回原脚本，晚完成只解锁、不夺回用户已移动的焦点；验证 → 深浅原编辑器和主动改焦点四组直接输入正确落地，真实宿主 saveFile 的取消/选择失败/写入失败/成功四支各完成一次且可重试，取消无通知。
 
 新旧定向回归 **146 PASS / 0 FAIL / exit0**。M4 撤回等待闸和返焦后实红 `waiting export dispatched 2 save dialogs` / `export completion lost current keyboard exit: 脚本` / `export return dropped keyboard correction`；MD5 还原、touch 后 **13 PASS / exit0**，settingsui/shell vet exit0。旧直接宿主导出的并发通知 B 测试保持通过。无新增动画、无几何变化；只复用禁用面，不新增 spinner。
+
+第四批 197c3c50 已推送。
+
+### 第五批：同类遗漏补齐
+
+9. **参数声明拒绝后无法修正对应字段**：现象 → 第二条声明的 ID、重复 ID、空选项、缺 flag、非法 flag、数字/布尔/选择默认值八类错误都只拒绝提交，直接输入落在按钮；改动 → 按原验证顺序找到第一个错误行，焦点精确落到该行对应字段，绑定按表单与声明身份隔离；验证 → 八类 × 深浅共 16 组直接输入后可提交，第一条有效声明原样保留。既有参数删除和选项退出回归一起通过。
+
+M5 撤回提交拒绝的返焦调用后实红 `id declaration refusal lost its field`、`duplicate declaration cannot correct and retry`（其余六类同样红）；MD5 还原、touch 后复验通过。该补充只完善同表单错误出口，不更改任何参数验证或保存语义。

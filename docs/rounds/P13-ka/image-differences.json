@@ -130,6 +130,166 @@
     ]
   },
   {
+    "name": "refusal-param-badflag-dark",
+    "changed_pixels": 791,
+    "bbox": [
+      364,
+      1040,
+      691,
+      1070
+    ]
+  },
+  {
+    "name": "refusal-param-badflag-light",
+    "changed_pixels": 791,
+    "bbox": [
+      364,
+      1040,
+      691,
+      1070
+    ]
+  },
+  {
+    "name": "refusal-param-boolean-dark",
+    "changed_pixels": 455,
+    "bbox": [
+      532,
+      986,
+      691,
+      1016
+    ]
+  },
+  {
+    "name": "refusal-param-boolean-light",
+    "changed_pixels": 455,
+    "bbox": [
+      532,
+      986,
+      691,
+      1016
+    ]
+  },
+  {
+    "name": "refusal-param-duplicate-dark",
+    "changed_pixels": 455,
+    "bbox": [
+      197,
+      986,
+      356,
+      1016
+    ]
+  },
+  {
+    "name": "refusal-param-duplicate-light",
+    "changed_pixels": 455,
+    "bbox": [
+      197,
+      986,
+      356,
+      1016
+    ]
+  },
+  {
+    "name": "refusal-param-flag-dark",
+    "changed_pixels": 1461,
+    "bbox": [
+      29,
+      1040,
+      691,
+      1070
+    ]
+  },
+  {
+    "name": "refusal-param-flag-light",
+    "changed_pixels": 1461,
+    "bbox": [
+      29,
+      1040,
+      691,
+      1070
+    ]
+  },
+  {
+    "name": "refusal-param-id-dark",
+    "changed_pixels": 455,
+    "bbox": [
+      197,
+      986,
+      356,
+      1016
+    ]
+  },
+  {
+    "name": "refusal-param-id-light",
+    "changed_pixels": 455,
+    "bbox": [
+      197,
+      986,
+      356,
+      1016
+    ]
+  },
+  {
+    "name": "refusal-param-number-dark",
+    "changed_pixels": 791,
+    "bbox": [
+      29,
+      1040,
+      356,
+      1070
+    ]
+  },
+  {
+    "name": "refusal-param-number-light",
+    "changed_pixels": 791,
+    "bbox": [
+      29,
+      1040,
+      356,
+      1070
+    ]
+  },
+  {
+    "name": "refusal-param-options-dark",
+    "changed_pixels": 1497,
+    "bbox": [
+      29,
+      1128,
+      691,
+      1192
+    ]
+  },
+  {
+    "name": "refusal-param-options-light",
+    "changed_pixels": 1497,
+    "bbox": [
+      29,
+      1128,
+      691,
+      1192
+    ]
+  },
+  {
+    "name": "refusal-param-select-dark",
+    "changed_pixels": 791,
+    "bbox": [
+      29,
+      1040,
+      356,
+      1070
+    ]
+  },
+  {
+    "name": "refusal-param-select-light",
+    "changed_pixels": 791,
+    "bbox": [
+      29,
+      1040,
+      356,
+      1070
+    ]
+  },
+  {
     "name": "refusal-platform-connect-dark",
     "changed_pixels": 0,
     "bbox": null

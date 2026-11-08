@@ -1,0 +1,56 @@
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.42s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.37s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.05s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.09s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.05s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.04s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.09s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.04s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.04s)
+=== RUN   TestToolRefusalExitParameter
+=== RUN   TestToolRefusalExitParameter/id/light
+=== RUN   TestToolRefusalExitParameter/id/dark
+=== RUN   TestToolRefusalExitParameter/duplicate/light
+=== RUN   TestToolRefusalExitParameter/duplicate/dark
+=== RUN   TestToolRefusalExitParameter/options/light
+=== RUN   TestToolRefusalExitParameter/options/dark
+=== RUN   TestToolRefusalExitParameter/flag/light
+=== RUN   TestToolRefusalExitParameter/flag/dark
+=== RUN   TestToolRefusalExitParameter/badflag/light
+=== RUN   TestToolRefusalExitParameter/badflag/dark
+=== RUN   TestToolRefusalExitParameter/number/light
+=== RUN   TestToolRefusalExitParameter/number/dark
+=== RUN   TestToolRefusalExitParameter/boolean/light
+=== RUN   TestToolRefusalExitParameter/boolean/dark
+=== RUN   TestToolRefusalExitParameter/select/light
+=== RUN   TestToolRefusalExitParameter/select/dark
+--- PASS: TestToolRefusalExitParameter (6.20s)
+    --- PASS: TestToolRefusalExitParameter/id/light (0.39s)
+    --- PASS: TestToolRefusalExitParameter/id/dark (0.41s)
+    --- PASS: TestToolRefusalExitParameter/duplicate/light (0.38s)
+    --- PASS: TestToolRefusalExitParameter/duplicate/dark (0.38s)
+    --- PASS: TestToolRefusalExitParameter/options/light (0.37s)
+    --- PASS: TestToolRefusalExitParameter/options/dark (0.37s)
+    --- PASS: TestToolRefusalExitParameter/flag/light (0.38s)
+    --- PASS: TestToolRefusalExitParameter/flag/dark (0.48s)
+    --- PASS: TestToolRefusalExitParameter/badflag/light (0.36s)
+    --- PASS: TestToolRefusalExitParameter/badflag/dark (0.36s)
+    --- PASS: TestToolRefusalExitParameter/number/light (0.38s)
+    --- PASS: TestToolRefusalExitParameter/number/dark (0.39s)
+    --- PASS: TestToolRefusalExitParameter/boolean/light (0.34s)
+    --- PASS: TestToolRefusalExitParameter/boolean/dark (0.46s)
+    --- PASS: TestToolRefusalExitParameter/select/light (0.39s)
+    --- PASS: TestToolRefusalExitParameter/select/dark (0.37s)
+=== RUN   TestParamOptionsNewlineCodec
+--- PASS: TestParamOptionsNewlineCodec (0.00s)
+PASS
+ok  	floter/internal/settingsui	6.880s
