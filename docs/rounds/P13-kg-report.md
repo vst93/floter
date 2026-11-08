@@ -1,0 +1,31 @@
+# P13-kg · 运行结果阅读边界
+
+开盘 HEAD 64279daf，pull 最新、工作区干净。任务书安装表单线索已由 P13-jx 八项覆盖，接续 P13-kf 最新「仍待」。指定 done.log 不存在。当前 Codex 独立执行，未调用外部模型或子代理。
+
+## stash 清点
+
+本轮八条逐一执行 reverse-check，退出码均为 1；SHA 与交接账一致。指定 stash-backlog 已说明它们是早期独立 WIP，不能将 reverse 失败解释为待接续抢救稿。原件继续保留，无静默 drop，无旧主题/旧 Tauri 回灌。
+
+| ref | SHA | 判断 | 处置 |
+| --- | --- | --- | --- |
+| stash@{0} | 422483b4 | 旧 keycap/主题 | 保留 |
+| stash@{1} | 8af94a07 | 旧行距/滑块 | 保留 |
+| stash@{2} | 7e4aa710 | 旧卸载布局 | 保留 |
+| stash@{3} | 1e3aec94 | 旧数字字段 | 保留 |
+| stash@{4} | 363f5a42 | 旧字段/确认栏 | 保留 |
+| stash@{5} | 9b8ce23c | 旧快捷键 | 保留 |
+| stash@{6} | 90d314b2 | 旧动作栏 | 保留 |
+| stash@{7} | 7a9f6e13 | 旧 Tauri 发布链 | 保留 |
+
+## 增量证据
+
+开盘 locale 误为 C.UTF-8，旧视觉 pin 失败；按 AGENT-NOTES 切中文 locale 重跑。没有修改旧断言消红。后续逐批追加真实结果。
+
+中文 locale 开盘全量 **6370 PASS / 0 FAIL**，函数按 git ls-files 后统计为 **3486**（统计时含未提交两个新 ring 测试得到3488，扣除本轮两个）；基线测试在新增文件前已编译，不含本轮测试。
+
+### 第一批（1–2）
+
+1. 折叠入口：Tab 后按钮底沿在520px，外扩3px焦点环被裁、受16px页面淡边覆盖 → 原入口包裹等量正padding/负margin，进入焦点时显现19px净空 → 深浅四边光栅断言与既有折叠几何 pin 通过，原坐标/行高不改。
+2. 展开后的收起按钮：Enter 展开后30px按钮贴底，环只有三边 → 同样只在焦点进入时显现环与淡边净空 → 深浅四边像素完整，连续Enter可收回，后续滚动不被持续追随。
+
+相关 **54 PASS / 0 FAIL**，定向vet净；旧V/B/S修改0/0/0。M1把净空19→0，真实失败串 `fold ring bottom missing at [445 521]: blue-red=0`、`open ring bottom missing at [670 521]: blue-red=0`；MD5还原、touch后的6 PASS记录随日志归档。最早探针采样误落在环内侧，其输出不作正式mutation证据；正式M1采样在原生外扩环。

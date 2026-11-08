@@ -8230,15 +8230,17 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 							TextColor(tokens.TextTertiary)
 					}
 					ui.Row(c).Grow(1)
-					close := a.extensionIconButton(c.Key("run-output-close"), "chevron-down", copy.RunHideOutput, false)
-					focus := a.noticeFocus(c, integration.ID, "output")
-					close.Bind(&focus.confirm)
-					if focus.cancel.Focused(c) {
-						close.Focus().ScrollIntoView()
-					}
-					if close.Clicked() {
-						a.setRunOutputOpen(integration.ID, false)
-					}
+					outputFocusOutlet(c.Key("run-output-close-outlet"), func() {
+						close := a.extensionIconButton(c.Key("run-output-close"), "chevron-down", copy.RunHideOutput, false)
+						focus := a.noticeFocus(c, integration.ID, "output")
+						close.Bind(&focus.confirm)
+						if focus.cancel.Focused(c) {
+							close.Focus().ScrollIntoView()
+						}
+						if close.Clicked() {
+							a.setRunOutputOpen(integration.ID, false)
+						}
+					})
 				})
 				// The captured text itself: the monospace stack at the caption step, 1.45
 				// line height and the strong ink, selectable because a reader copies out
@@ -8365,56 +8367,58 @@ func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
 	// where the opened block's head does rather than at the card's frame.
 	inset := a.rowInset(t)
 	ui.Column(c).FillWidth().Padding(0, inset, 0, inset).Children(func() {
-		ink := tokens.TextTertiary
-		button := ui.ButtonBase(c.Key("run-output-toggle")).Label(copy.RunViewOutput).FillWidth().
-			MinHeight(t.Space(7)).Gap(t.Space(1)).Padding(0, t.Space(2)).
-			AlignItems(ui.Center).Justify(ui.Start).
-			Border(0, ui.Transparent).Radius(tokens.RadiusXS).
-			Background(ui.Transparent).
-			// P13-gv（§6.169）：这一行也有三档面，而它此前一帧跳过去。
-			Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
-		// P13-cn（`docs/liquid-glass.md` §6.57）：这枚折叠行此前**只有两档**——
-		// 静息透明、悬停 `ControlHover`，而按住不放的那一帧与悬停帧**逐像素相同**
-		// （同 P13-q / P13-al / P13-bv / P13-bw / P13-bx 那一族，这是这一族的最后
-		// 两处之一）。第三档是控制阶梯的**回退**：`ControlPress`（深 0.05 / 浅 0.032）
-		// 沉到悬停面之下、静息之上，指针按住时这块面「被压回去」而不是「更亮」。
-		//
-		// 顺带补一条普查漏账：旧写法把状态读进变量（`hovered := button.Hovered()`），
-		// 而 `internal/ci/litarm_contract_test.go` 的臂级普查只认 `case X.Hovered():`
-		// / `if X.Hovered() {`——这个函数对普查**完全隐形**，于是悬停那块
-		// `ControlHover` 面一直没有一对线（§2 判据 1 的 E1 缺件）也没人发现。
-		// 写成 `switch` 三档之后它进入普查视野，面的一对线按普查逃生口 ② 由
-		// 下面那句 `if plane.A > 0` 统一给（与 `savealert.go`、`launcher/power.go`
-		// 同一个形状：一份面，所有状态共用一对线）。
-		//
-		// 几何一个像素不动：参考的 `:active` 变换是给胶囊的
-		// （`.extensions-action-button:active { scale(.97) }`），而这一行是**整宽的
-		// 文字控制**（`extensions.css:1243-1256`，chevron + 一个词）；整宽收缩会把
-		// chevron 从行首往里挪，那是布局，不是墨。
-		plane := ui.Transparent
-		switch {
-		case button.Pressed():
-			plane = tokens.ControlPress
-		case button.Hovered():
-			plane = tokens.ControlHover
-		}
-		button.Background(plane)
-		if plane.A > 0 {
-			ink = t.Text
-			tokens.LitFace(button)
-		}
-		button.Children(func() {
-			ui.Icon(c, mustGlyph("chevron-right")).Size(t.Space(3), t.Space(3)).TextColor(ink)
-			ui.Text(c, copy.RunViewOutput).FontSize(tokens.Caption).TextColor(ink)
+		outputFocusOutlet(c.Key("run-output-toggle-outlet"), func() {
+			ink := tokens.TextTertiary
+			button := ui.ButtonBase(c.Key("run-output-toggle")).Label(copy.RunViewOutput).FillWidth().
+				MinHeight(t.Space(7)).Gap(t.Space(1)).Padding(0, t.Space(2)).
+				AlignItems(ui.Center).Justify(ui.Start).
+				Border(0, ui.Transparent).Radius(tokens.RadiusXS).
+				Background(ui.Transparent).
+				// P13-gv（§6.169）：这一行也有三档面，而它此前一帧跳过去。
+				Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
+			// P13-cn（`docs/liquid-glass.md` §6.57）：这枚折叠行此前**只有两档**——
+			// 静息透明、悬停 `ControlHover`，而按住不放的那一帧与悬停帧**逐像素相同**
+			// （同 P13-q / P13-al / P13-bv / P13-bw / P13-bx 那一族，这是这一族的最后
+			// 两处之一）。第三档是控制阶梯的**回退**：`ControlPress`（深 0.05 / 浅 0.032）
+			// 沉到悬停面之下、静息之上，指针按住时这块面「被压回去」而不是「更亮」。
+			//
+			// 顺带补一条普查漏账：旧写法把状态读进变量（`hovered := button.Hovered()`），
+			// 而 `internal/ci/litarm_contract_test.go` 的臂级普查只认 `case X.Hovered():`
+			// / `if X.Hovered() {`——这个函数对普查**完全隐形**，于是悬停那块
+			// `ControlHover` 面一直没有一对线（§2 判据 1 的 E1 缺件）也没人发现。
+			// 写成 `switch` 三档之后它进入普查视野，面的一对线按普查逃生口 ② 由
+			// 下面那句 `if plane.A > 0` 统一给（与 `savealert.go`、`launcher/power.go`
+			// 同一个形状：一份面，所有状态共用一对线）。
+			//
+			// 几何一个像素不动：参考的 `:active` 变换是给胶囊的
+			// （`.extensions-action-button:active { scale(.97) }`），而这一行是**整宽的
+			// 文字控制**（`extensions.css:1243-1256`，chevron + 一个词）；整宽收缩会把
+			// chevron 从行首往里挪，那是布局，不是墨。
+			plane := ui.Transparent
+			switch {
+			case button.Pressed():
+				plane = tokens.ControlPress
+			case button.Hovered():
+				plane = tokens.ControlHover
+			}
+			button.Background(plane)
+			if plane.A > 0 {
+				ink = t.Text
+				tokens.LitFace(button)
+			}
+			button.Children(func() {
+				ui.Icon(c, mustGlyph("chevron-right")).Size(t.Space(3), t.Space(3)).TextColor(ink)
+				ui.Text(c, copy.RunViewOutput).FontSize(tokens.Caption).TextColor(ink)
+			})
+			focus := a.noticeFocus(c, id, "output")
+			button.Bind(&focus.cancel)
+			if focus.confirm.Focused(c) || focus.panel.FocusWithin(c) {
+				button.Focus().ScrollIntoView()
+			}
+			if button.Clicked() {
+				a.setRunOutputOpen(id, true)
+			}
 		})
-		focus := a.noticeFocus(c, id, "output")
-		button.Bind(&focus.cancel)
-		if focus.confirm.Focused(c) || focus.panel.FocusWithin(c) {
-			button.Focus().ScrollIntoView()
-		}
-		if button.Clicked() {
-			a.setRunOutputOpen(id, true)
-		}
 	})
 }
 
