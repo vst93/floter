@@ -1,0 +1,97 @@
+=== RUN   TestToolCurrentPickerDraft
+=== RUN   TestToolCurrentPickerDraft/light/mode
+    toolcurrent_test.go:56: picker rewound newer mode: mode="" script="" program="/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerDraft/light/fields
+    toolcurrent_test.go:60: picker rewound newer fields: name="weather" program="/usr/bin/old-selection" command="weather" args="--weather"
+=== RUN   TestToolCurrentPickerDraft/light/clear
+    toolcurrent_test.go:64: picker refilled cleared path: "/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerDraft/dark/mode
+    toolcurrent_test.go:56: picker rewound newer mode: mode="" script="" program="/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerDraft/dark/fields
+    toolcurrent_test.go:60: picker rewound newer fields: name="weather" program="/usr/bin/old-selection" command="weather" args="--weather"
+=== RUN   TestToolCurrentPickerDraft/dark/clear
+    toolcurrent_test.go:64: picker refilled cleared path: "/usr/bin/old-selection"
+--- FAIL: TestToolCurrentPickerDraft (0.47s)
+    --- FAIL: TestToolCurrentPickerDraft/light/mode (0.22s)
+    --- FAIL: TestToolCurrentPickerDraft/light/fields (0.05s)
+    --- FAIL: TestToolCurrentPickerDraft/light/clear (0.05s)
+    --- FAIL: TestToolCurrentPickerDraft/dark/mode (0.05s)
+    --- FAIL: TestToolCurrentPickerDraft/dark/fields (0.05s)
+    --- FAIL: TestToolCurrentPickerDraft/dark/clear (0.05s)
+=== RUN   TestToolCurrentPickerErrorKeyboard
+=== RUN   TestToolCurrentPickerErrorKeyboard/light
+    toolcurrent_test.go:87: picker error lost editable exit: warnings=1 programFocus=false
+    toolcurrent_test.go:93: picker error dropped keyboard correction: "/usr/bin/weather"
+=== RUN   TestToolCurrentPickerErrorKeyboard/dark
+    toolcurrent_test.go:87: picker error lost editable exit: warnings=1 programFocus=false
+    toolcurrent_test.go:93: picker error dropped keyboard correction: "/usr/bin/weather"
+--- FAIL: TestToolCurrentPickerErrorKeyboard (0.08s)
+    --- FAIL: TestToolCurrentPickerErrorKeyboard/light (0.04s)
+    --- FAIL: TestToolCurrentPickerErrorKeyboard/dark (0.04s)
+=== RUN   TestToolCurrentCopyDraft
+=== RUN   TestToolCurrentCopyDraft/light/command
+    toolcurrent_test.go:126: ui: no element shows "Copy command"
+=== RUN   TestToolCurrentCopyDraft/light/plan
+    toolcurrent_test.go:126: ui: no element shows "Copy execution plan"
+=== RUN   TestToolCurrentCopyDraft/light/script
+    toolcurrent_test.go:126: ui: no element shows "Copy script"
+=== RUN   TestToolCurrentCopyDraft/dark/command
+    toolcurrent_test.go:126: ui: no element shows "Copy command"
+=== RUN   TestToolCurrentCopyDraft/dark/plan
+    toolcurrent_test.go:126: ui: no element shows "Copy execution plan"
+=== RUN   TestToolCurrentCopyDraft/dark/script
+    toolcurrent_test.go:126: ui: no element shows "Copy script"
+--- FAIL: TestToolCurrentCopyDraft (0.07s)
+    --- FAIL: TestToolCurrentCopyDraft/light/command (0.01s)
+    --- FAIL: TestToolCurrentCopyDraft/light/plan (0.01s)
+    --- FAIL: TestToolCurrentCopyDraft/light/script (0.02s)
+    --- FAIL: TestToolCurrentCopyDraft/dark/command (0.01s)
+    --- FAIL: TestToolCurrentCopyDraft/dark/plan (0.01s)
+    --- FAIL: TestToolCurrentCopyDraft/dark/script (0.01s)
+=== RUN   TestToolCurrentExportDraft
+=== RUN   TestToolCurrentExportDraft/light
+    toolcurrent_test.go:174: export rewound newer draft: command="weather" script="print('old')\n"
+    toolcurrent_test.go:181: exports lost click snapshots: names=["weather-script.py" "weather-script.py"] contents=["print('old')\n" "print('old')\n"]
+=== RUN   TestToolCurrentExportDraft/dark
+    toolcurrent_test.go:174: export rewound newer draft: command="weather" script="print('old')\n"
+    toolcurrent_test.go:181: exports lost click snapshots: names=["weather-script.py" "weather-script.py"] contents=["print('old')\n" "print('old')\n"]
+--- FAIL: TestToolCurrentExportDraft (0.12s)
+    --- FAIL: TestToolCurrentExportDraft/light (0.06s)
+    --- FAIL: TestToolCurrentExportDraft/dark (0.06s)
+=== RUN   TestToolCurrentPickerFold
+=== RUN   TestToolCurrentPickerFold/light
+    toolcurrent_test.go:229: picker fold accepted departed result: calls=1 open=true program="/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerFold/dark
+    toolcurrent_test.go:229: picker fold accepted departed result: calls=1 open=true program="/usr/bin/old-selection"
+--- FAIL: TestToolCurrentPickerFold (0.21s)
+    --- FAIL: TestToolCurrentPickerFold/light (0.10s)
+    --- FAIL: TestToolCurrentPickerFold/dark (0.11s)
+=== RUN   TestToolCurrentCopyFold
+=== RUN   TestToolCurrentCopyFold/light
+    toolcurrent_test.go:232: copy revived after fold departure
+    toolcurrent_test.go:239: ui: no element shows "复制命令"
+=== RUN   TestToolCurrentCopyFold/dark
+    toolcurrent_test.go:232: copy revived after fold departure
+    toolcurrent_test.go:239: ui: no element shows "复制命令"
+--- FAIL: TestToolCurrentCopyFold (0.17s)
+    --- FAIL: TestToolCurrentCopyFold/light (0.09s)
+    --- FAIL: TestToolCurrentCopyFold/dark (0.08s)
+=== RUN   TestToolCurrentPickerPage
+=== RUN   TestToolCurrentPickerPage/light
+    toolcurrent_test.go:224: ui: no element shows "Choose…"
+=== RUN   TestToolCurrentPickerPage/dark
+    toolcurrent_test.go:224: ui: no element shows "Choose…"
+--- FAIL: TestToolCurrentPickerPage (0.09s)
+    --- FAIL: TestToolCurrentPickerPage/light (0.03s)
+    --- FAIL: TestToolCurrentPickerPage/dark (0.06s)
+=== RUN   TestToolCurrentCopyPage
+=== RUN   TestToolCurrentCopyPage/light
+    toolcurrent_test.go:224: ui: no element shows "Copy command"
+=== RUN   TestToolCurrentCopyPage/dark
+    toolcurrent_test.go:224: ui: no element shows "Copy command"
+--- FAIL: TestToolCurrentCopyPage (0.08s)
+    --- FAIL: TestToolCurrentCopyPage/light (0.03s)
+    --- FAIL: TestToolCurrentCopyPage/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	1.312s
+FAIL

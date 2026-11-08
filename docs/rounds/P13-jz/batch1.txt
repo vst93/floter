@@ -1,0 +1,54 @@
+=== RUN   TestToolCallbackPickerKeepsNewDraft
+=== RUN   TestToolCallbackPickerKeepsNewDraft/light
+=== RUN   TestToolCallbackPickerKeepsNewDraft/dark
+--- PASS: TestToolCallbackPickerKeepsNewDraft (0.42s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/light (0.31s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/dark (0.10s)
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/light
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/dark
+--- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty (0.19s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.10s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.09s)
+=== RUN   TestToolCurrentPickerDraft
+=== RUN   TestToolCurrentPickerDraft/light/mode
+=== RUN   TestToolCurrentPickerDraft/light/fields
+=== RUN   TestToolCurrentPickerDraft/light/clear
+=== RUN   TestToolCurrentPickerDraft/dark/mode
+=== RUN   TestToolCurrentPickerDraft/dark/fields
+=== RUN   TestToolCurrentPickerDraft/dark/clear
+--- PASS: TestToolCurrentPickerDraft (0.56s)
+    --- PASS: TestToolCurrentPickerDraft/light/mode (0.09s)
+    --- PASS: TestToolCurrentPickerDraft/light/fields (0.11s)
+    --- PASS: TestToolCurrentPickerDraft/light/clear (0.10s)
+    --- PASS: TestToolCurrentPickerDraft/dark/mode (0.08s)
+    --- PASS: TestToolCurrentPickerDraft/dark/fields (0.09s)
+    --- PASS: TestToolCurrentPickerDraft/dark/clear (0.09s)
+=== RUN   TestToolCurrentPickerErrorKeyboard
+=== RUN   TestToolCurrentPickerErrorKeyboard/light
+=== RUN   TestToolCurrentPickerErrorKeyboard/dark
+--- PASS: TestToolCurrentPickerErrorKeyboard (0.16s)
+    --- PASS: TestToolCurrentPickerErrorKeyboard/light (0.08s)
+    --- PASS: TestToolCurrentPickerErrorKeyboard/dark (0.08s)
+=== RUN   TestToolPickerRecoveryError
+=== RUN   TestToolPickerRecoveryError/light
+=== RUN   TestToolPickerRecoveryError/dark
+--- PASS: TestToolPickerRecoveryError (0.07s)
+    --- PASS: TestToolPickerRecoveryError/light (0.04s)
+    --- PASS: TestToolPickerRecoveryError/dark (0.04s)
+=== RUN   TestToolPickerRecoveryCancel
+=== RUN   TestToolPickerRecoveryCancel/light
+=== RUN   TestToolPickerRecoveryCancel/dark
+--- PASS: TestToolPickerRecoveryCancel (0.09s)
+    --- PASS: TestToolPickerRecoveryCancel/light (0.04s)
+    --- PASS: TestToolPickerRecoveryCancel/dark (0.05s)
+=== RUN   TestToolPickerRecoveryPicked
+=== RUN   TestToolPickerRecoveryPicked/light
+=== RUN   TestToolPickerRecoveryPicked/dark
+--- PASS: TestToolPickerRecoveryPicked (0.08s)
+    --- PASS: TestToolPickerRecoveryPicked/light (0.04s)
+    --- PASS: TestToolPickerRecoveryPicked/dark (0.04s)
+=== RUN   TestToolPickerRecoveryStaleError
+--- PASS: TestToolPickerRecoveryStaleError (0.04s)
+PASS
+ok  	floter/internal/settingsui	1.621s

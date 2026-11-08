@@ -5784,6 +5784,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			language = scriptlang.Languages[0].ID
 		}
 		script := a.toolScript
+		interrupted := false
 		// The rules the host will apply, read here first: a row that broke one
 		// says so under itself rather than a banner bounced back from the
 		// backend. The same function gates the submit, so the two cannot drift.
@@ -5833,14 +5834,17 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 						Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source))
 					if a.Actions.ChooseProgram != nil {
 						if a.rememberModeContent(c, false, a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button)).Clicked() {
+							before := a.toolCallbackState()
 							picked, err := a.Actions.ChooseProgram()
-							if a.toolFormKey != form || !a.toolOpen {
+							if a.toolCallbackState() != before {
+								interrupted = true
 								return
 							}
 							if err != nil {
 								if a.Actions.NotifyWarning != nil {
 									a.Actions.NotifyWarning(copy.LocalToolFailed)
 								}
+								pickerFocus.restore(c)
 							} else if picked != "" {
 								program = picked
 								pickerFocus.restore(c)
@@ -5947,7 +5951,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		})
 		// A native picker or content callback may have opened another tool
 		// while this frame still holds the old field values in local variables.
-		if a.toolFormKey != form || !a.toolOpen {
+		if interrupted || a.toolFormKey != form || !a.toolOpen {
 			return
 		}
 		a.toolParamsEditor(c, copy)

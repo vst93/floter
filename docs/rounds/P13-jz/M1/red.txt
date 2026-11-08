@@ -1,0 +1,33 @@
+=== RUN   TestToolCurrentPickerDraft
+=== RUN   TestToolCurrentPickerDraft/light/mode
+    toolcurrent_test.go:56: picker rewound newer mode: mode="" script="" program="/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerDraft/light/fields
+    toolcurrent_test.go:60: picker rewound newer fields: name="weather" program="/usr/bin/old-selection" command="weather" args="--weather"
+=== RUN   TestToolCurrentPickerDraft/light/clear
+    toolcurrent_test.go:64: picker refilled cleared path: "/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerDraft/dark/mode
+    toolcurrent_test.go:56: picker rewound newer mode: mode="" script="" program="/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerDraft/dark/fields
+    toolcurrent_test.go:60: picker rewound newer fields: name="weather" program="/usr/bin/old-selection" command="weather" args="--weather"
+=== RUN   TestToolCurrentPickerDraft/dark/clear
+    toolcurrent_test.go:64: picker refilled cleared path: "/usr/bin/old-selection"
+--- FAIL: TestToolCurrentPickerDraft (0.69s)
+    --- FAIL: TestToolCurrentPickerDraft/light/mode (0.32s)
+    --- FAIL: TestToolCurrentPickerDraft/light/fields (0.07s)
+    --- FAIL: TestToolCurrentPickerDraft/light/clear (0.07s)
+    --- FAIL: TestToolCurrentPickerDraft/dark/mode (0.08s)
+    --- FAIL: TestToolCurrentPickerDraft/dark/fields (0.08s)
+    --- FAIL: TestToolCurrentPickerDraft/dark/clear (0.06s)
+=== RUN   TestToolCurrentPickerErrorKeyboard
+=== RUN   TestToolCurrentPickerErrorKeyboard/light
+    toolcurrent_test.go:87: picker error lost editable exit: warnings=1 programFocus=false
+    toolcurrent_test.go:93: picker error dropped keyboard correction: "/usr/bin/weather"
+=== RUN   TestToolCurrentPickerErrorKeyboard/dark
+    toolcurrent_test.go:87: picker error lost editable exit: warnings=1 programFocus=false
+    toolcurrent_test.go:93: picker error dropped keyboard correction: "/usr/bin/weather"
+--- FAIL: TestToolCurrentPickerErrorKeyboard (0.09s)
+    --- FAIL: TestToolCurrentPickerErrorKeyboard/light (0.04s)
+    --- FAIL: TestToolCurrentPickerErrorKeyboard/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.788s
+FAIL
