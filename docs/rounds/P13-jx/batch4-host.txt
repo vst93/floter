@@ -1,0 +1,8 @@
+=== RUN   TestInstallRecoveryPickerError
+=== RUN   TestInstallRecoveryPickerError/light
+=== RUN   TestInstallRecoveryPickerError/dark
+--- PASS: TestInstallRecoveryPickerError (1.14s)
+    --- PASS: TestInstallRecoveryPickerError/light (0.72s)
+    --- PASS: TestInstallRecoveryPickerError/dark (0.43s)
+PASS
+ok  	floter/internal/shell	1.156s

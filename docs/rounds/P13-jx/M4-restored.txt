@@ -1,0 +1,14 @@
+=== RUN   TestInstallFormFolderKeyboard
+=== RUN   TestInstallFormFolderKeyboard/light
+=== RUN   TestInstallFormFolderKeyboard/dark
+--- PASS: TestInstallFormFolderKeyboard (0.27s)
+    --- PASS: TestInstallFormFolderKeyboard/light (0.21s)
+    --- PASS: TestInstallFormFolderKeyboard/dark (0.06s)
+=== RUN   TestInstallFormFolderError
+=== RUN   TestInstallFormFolderError/light
+=== RUN   TestInstallFormFolderError/dark
+--- PASS: TestInstallFormFolderError (0.03s)
+    --- PASS: TestInstallFormFolderError/light (0.01s)
+    --- PASS: TestInstallFormFolderError/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.309s

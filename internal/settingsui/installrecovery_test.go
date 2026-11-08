@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"errors"
 	"image/png"
 	"os"
 	"testing"
@@ -159,6 +160,73 @@ func TestInstallFormRecoveryKeepsNewDraft(t *testing.T) {
 			tt.Frame()
 			if a.installName != name || a.installVersion != version {
 				t.Errorf("old result overwrote %s: %q / %q", edit, a.installName, a.installVersion)
+			}
+		})
+	}
+}
+
+func TestInstallFormFolderKeyboard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := noticeApp(t, dark)
+			closed, installs := 0, 0
+			a.Actions.Close = func() { closed++ }
+			a.Actions.ChooseFolder = func() (string, error) { return "/tmp/workspace-tool", nil }
+			a.Actions.InstallFromFolder = func(string) { installs++; a.BeginPackageInstall("folder") }
+			tt := noticeExitPage(t, a, dark)
+			optionExitFocus(t, tt, a.copy().InstallFolderChoose)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			tt.Frame()
+			if !tt.Focused(a.copy().Close) {
+				t.Error("folder waiting lost keyboard focus")
+			}
+			a.FinishPackageInstall("folder") // user cancels the native package review
+			tt.Frame()
+			tt.Frame()
+			installFormDump(t, tt, "folder-keyboard", dark)
+			if !tt.Focused(a.copy().Close) {
+				t.Error("cancelled folder lost keyboard exit")
+			}
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if closed != 1 || installs != 1 {
+				t.Errorf("cancelled folder exit: close=%d installs=%d", closed, installs)
+			}
+		})
+	}
+}
+
+func TestInstallFormFolderError(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := noticeApp(t, dark)
+			var warnings []string
+			installs := 0
+			a.Actions.NotifyWarning = func(s string) { warnings = append(warnings, s) }
+			a.Actions.InstallFromFolder = func(string) { installs++ }
+			a.Actions.ChooseFolder = func() (string, error) { return "", errors.New("file dialog unavailable") }
+			tt := noticeExitPage(t, a, dark)
+			optionExitFocus(t, tt, a.copy().InstallFolderChoose)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if len(warnings) != 1 || warnings[0] != a.copy().LocalToolFailed {
+				t.Errorf("picker failure warning=%q", warnings)
+			}
+			if !tt.Focused(a.copy().InstallFolderChoose) {
+				t.Error("picker failure lost retry focus")
+			}
+			a.Actions.ChooseFolder = func() (string, error) { return "", nil }
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if len(warnings) != 1 || installs != 0 {
+				t.Errorf("cancelled picker: warning=%q installs=%d", warnings, installs)
+			}
+			a.Actions.ChooseFolder = func() (string, error) { return "/tmp/workspace-tool", nil }
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if installs != 1 {
+				t.Errorf("picker retry calls=%d", installs)
 			}
 		})
 	}

@@ -118,3 +118,23 @@ func checkInstallRecovery(t *testing.T, scenario string) {
 func TestInstallRecoveryDownload(t *testing.T) { checkInstallRecovery(t, "download") }
 func TestInstallRecoveryCancel(t *testing.T)   { checkInstallRecovery(t, "cancel") }
 func TestInstallRecoveryCommit(t *testing.T)   { checkInstallRecovery(t, "commit") }
+
+func TestInstallRecoveryPickerError(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := newInstallCurrentFixture(t, dark)
+			f.a.Settings.Actions.ChooseFolder = func() (string, error) { return "", os.ErrPermission }
+			tt := installCurrentFrame(f, dark)
+			if err := tt.Click(i18n.For("zh").Settings.InstallFolderChoose); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Advance(200 * time.Millisecond)
+			tt.Frame()
+			installRecoveryDump(t, tt, "folder-error", dark)
+			if !tt.HasText(i18n.For("zh").Settings.LocalToolFailed) {
+				t.Error("picker failure warning never reached host")
+			}
+		})
+	}
+}

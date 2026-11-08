@@ -1,0 +1,25 @@
+=== RUN   TestInstallFormFolderKeyboard
+=== RUN   TestInstallFormFolderKeyboard/light
+    installrecovery_test.go:182: folder waiting lost keyboard focus
+    installrecovery_test.go:189: cancelled folder lost keyboard exit
+    installrecovery_test.go:194: cancelled folder exit: close=0 installs=2
+=== RUN   TestInstallFormFolderKeyboard/dark
+    installrecovery_test.go:182: folder waiting lost keyboard focus
+    installrecovery_test.go:189: cancelled folder lost keyboard exit
+    installrecovery_test.go:194: cancelled folder exit: close=0 installs=2
+--- FAIL: TestInstallFormFolderKeyboard (0.22s)
+    --- FAIL: TestInstallFormFolderKeyboard/light (0.16s)
+    --- FAIL: TestInstallFormFolderKeyboard/dark (0.06s)
+=== RUN   TestInstallFormFolderError
+=== RUN   TestInstallFormFolderError/light
+    installrecovery_test.go:214: picker failure warning=[]
+    installrecovery_test.go:223: cancelled picker: warning=[] installs=0
+=== RUN   TestInstallFormFolderError/dark
+    installrecovery_test.go:214: picker failure warning=[]
+    installrecovery_test.go:223: cancelled picker: warning=[] installs=0
+--- FAIL: TestInstallFormFolderError (0.02s)
+    --- FAIL: TestInstallFormFolderError/light (0.01s)
+    --- FAIL: TestInstallFormFolderError/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.255s
+FAIL

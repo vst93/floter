@@ -41,3 +41,10 @@ M2将表单还原到上一批产品，实红`busy registry permits repeat: 1`与
 6. **registry等待丢键盘**：现象→Enter提交后焦点留在禁用按钮，继续输入无效；改动→只在原安装按钮持有焦点时，把键盘交回已有包名字段；验证→Enter提交、等待中直接输入`next-package`成功，完成不抢回焦点，焦点已在关闭按钮时也不抢。深浅均验。
 
 M3a撤回提交失败恢复，深浅均报`commit lost retry draft: "" / ""`，还原后3 PASS；M3b撤回焦点接线，深浅均报`waiting registry lost keyboard focus`，还原后3 PASS。两次都MD5核对、touch复跑。新草稿保护另有name/version/输入后清空三条真实编辑事件，共4 PASS；定向vet净。键盘夹具起初漏接Close回调，补上后负向不抢焦点也通过，旧B测试未动。
+
+### 第四批：本地入口退出与错误反馈
+
+7. **本地审核取消后误重试**：现象→Enter提交、等待并取消审核后，再按Enter会再次安装（实测close=0、installs=2）；改动→原按钮持有键盘时，等待态把焦点交给现有关闭按钮，完成不抢回；验证→实际Tab/Enter、等待/取消/Enter链，close=1、installs=1，深浅两套。单纯文件选择器空结果取消原本已能保留入口焦点，不把该正常路径算bug。
+8. **选择器错误静默**：现象→系统选择器失败没有任何结果，用户无法区分取消和失败；改动→复用既有LocalToolFailed宿主warning，不新增文案或浮层；验证→失败一次warning、取消不新增、重新选择成功派发一次，真实shell接线在深浅帧均看见提示。
+
+M4撤回本地两条接线，实红`folder waiting lost keyboard focus`、`cancelled folder exit: close=0 installs=2`、`picker failure warning=[]`；MD5还原后touch复跑6 PASS。宿主警告3 PASS，相关vet净。八项均完成，四批产品提交；后续只补完整门槛、图像复核和交接。

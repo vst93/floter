@@ -1,0 +1,35 @@
+=== RUN   TestInstallFormFolderKeyboard
+=== RUN   TestInstallFormFolderKeyboard/light
+    installrecovery_test.go:182: folder waiting lost keyboard focus
+    installrecovery_test.go:189: cancelled folder lost keyboard exit
+    installrecovery_test.go:194: cancelled folder exit: close=0 installs=2
+=== RUN   TestInstallFormFolderKeyboard/dark
+    installrecovery_test.go:182: folder waiting lost keyboard focus
+    installrecovery_test.go:189: cancelled folder lost keyboard exit
+    installrecovery_test.go:194: cancelled folder exit: close=0 installs=2
+--- FAIL: TestInstallFormFolderKeyboard (0.43s)
+    --- FAIL: TestInstallFormFolderKeyboard/light (0.34s)
+    --- FAIL: TestInstallFormFolderKeyboard/dark (0.09s)
+=== RUN   TestInstallFormFolderError
+=== RUN   TestInstallFormFolderError/light
+    installrecovery_test.go:214: picker failure warning=[]
+    installrecovery_test.go:223: cancelled picker: warning=[] installs=0
+=== RUN   TestInstallFormFolderError/dark
+    installrecovery_test.go:214: picker failure warning=[]
+    installrecovery_test.go:223: cancelled picker: warning=[] installs=0
+--- FAIL: TestInstallFormFolderError (0.04s)
+    --- FAIL: TestInstallFormFolderError/light (0.02s)
+    --- FAIL: TestInstallFormFolderError/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.497s
+=== RUN   TestInstallRecoveryPickerError
+=== RUN   TestInstallRecoveryPickerError/light
+    installrecovery_test.go:136: picker failure warning never reached host
+=== RUN   TestInstallRecoveryPickerError/dark
+    installrecovery_test.go:136: picker failure warning never reached host
+--- FAIL: TestInstallRecoveryPickerError (1.22s)
+    --- FAIL: TestInstallRecoveryPickerError/light (0.79s)
+    --- FAIL: TestInstallRecoveryPickerError/dark (0.43s)
+FAIL
+FAIL	floter/internal/shell	1.239s
+FAIL

@@ -7528,10 +7528,20 @@ func (a *App) installFolderRow(c *ui.Context, copy i18n.Settings) {
 	a.card(c, func() {
 		a.row(c, copy.InstallFolderLabel, copy.InstallFolderHint, func() {
 			if a.packageInstallBusy["folder"] {
+				a.restoreNotice(c, "folder-install", "install", false, ui.Element{})
 				a.busyActionButton(c, copy.InstallFolderChoose, "install.folder")
-			} else if a.actionButton(c, copy.InstallFolderChoose).Clicked() {
-				if dir, err := a.Actions.ChooseFolder(); err == nil && dir != "" {
-					a.Actions.InstallFromFolder(dir)
+			} else {
+				button := a.actionButton(c, copy.InstallFolderChoose)
+				a.rememberOperationFocus(c, "folder-install", "install", button)
+				if button.Clicked() {
+					dir, err := a.Actions.ChooseFolder()
+					if err != nil {
+						if a.Actions.NotifyWarning != nil {
+							a.Actions.NotifyWarning(copy.LocalToolFailed)
+						}
+					} else if dir != "" {
+						a.Actions.InstallFromFolder(dir)
+					}
 				}
 			}
 		})
