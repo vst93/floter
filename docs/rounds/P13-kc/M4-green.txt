@@ -1,0 +1,14 @@
+=== RUN   TestConditionalOutletVisibilityOptions
+=== RUN   TestConditionalOutletVisibilityOptions/light
+=== RUN   TestConditionalOutletVisibilityOptions/dark
+--- PASS: TestConditionalOutletVisibilityOptions (0.45s)
+    --- PASS: TestConditionalOutletVisibilityOptions/light (0.35s)
+    --- PASS: TestConditionalOutletVisibilityOptions/dark (0.09s)
+=== RUN   TestConditionalOutletVisibilityPlaceholder
+=== RUN   TestConditionalOutletVisibilityPlaceholder/light
+=== RUN   TestConditionalOutletVisibilityPlaceholder/dark
+--- PASS: TestConditionalOutletVisibilityPlaceholder (0.14s)
+    --- PASS: TestConditionalOutletVisibilityPlaceholder/light (0.07s)
+    --- PASS: TestConditionalOutletVisibilityPlaceholder/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.591s

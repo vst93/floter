@@ -243,7 +243,9 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 						a.extensionField(c, &placeholder, customFieldMetrics).Bind(&placeholderFocus.button).Label(copy.ParamsPlaceholder)
 					})
 				} else {
-					placeholderFocus.restore(c)
+					if placeholderFocus.restore(c) {
+						c.Resolve(*fieldsFocus).ScrollIntoView()
+					}
 				}
 				a.paramField(c, "default", copy.ParamsDefault, func() {
 					a.extensionField(c, &def, customFieldMetrics).Bind(&refusal.defaultValue).Label(copy.ParamsDefault)
@@ -274,7 +276,9 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				a.fieldFace(c, box, true)
 			})
 		} else {
-			optionsFocus.restore(c)
+			if optionsFocus.restore(c) {
+				c.Resolve(*fieldsFocus).ScrollIntoView()
+			}
 		}
 		if message := paramIssueMessage(copy, issue); message != "" {
 			a.paramEditorError(c, message)

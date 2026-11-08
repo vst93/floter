@@ -1,0 +1,19 @@
+=== RUN   TestConditionalOutletVisibilityOptions
+=== RUN   TestConditionalOutletVisibilityOptions/light
+    outletvisibility_test.go:58: editing outlet outside viewport: rect={X:364.8 Y:-537.8002 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestConditionalOutletVisibilityOptions/dark
+    outletvisibility_test.go:58: editing outlet outside viewport: rect={X:364.8 Y:-537.8002 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+--- FAIL: TestConditionalOutletVisibilityOptions (0.19s)
+    --- FAIL: TestConditionalOutletVisibilityOptions/light (0.15s)
+    --- FAIL: TestConditionalOutletVisibilityOptions/dark (0.04s)
+=== RUN   TestConditionalOutletVisibilityPlaceholder
+=== RUN   TestConditionalOutletVisibilityPlaceholder/light
+    outletvisibility_test.go:58: editing outlet outside viewport: rect={X:364.8 Y:-537.8002 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestConditionalOutletVisibilityPlaceholder/dark
+    outletvisibility_test.go:58: editing outlet outside viewport: rect={X:364.8 Y:-537.8002 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+--- FAIL: TestConditionalOutletVisibilityPlaceholder (0.07s)
+    --- FAIL: TestConditionalOutletVisibilityPlaceholder/light (0.04s)
+    --- FAIL: TestConditionalOutletVisibilityPlaceholder/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.270s
+FAIL

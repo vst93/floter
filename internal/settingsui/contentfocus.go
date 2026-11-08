@@ -17,12 +17,14 @@ func (a *App) contentFocus(c *ui.Context, action string) *contentFocusState {
 	return ui.Local(c.Root(), key, func() contentFocusState { return contentFocusState{} })
 }
 
-func (s *contentFocusState) restore(c *ui.Context) {
+func (s *contentFocusState) restore(c *ui.Context) bool {
 	if s.button.FocusWithin(c) {
 		if source := c.Resolve(s.source); source.Valid() && !source.IsDisabled() {
 			source.Focus()
+			return true
 		}
 	}
+	return false
 }
 
 // Only the focused member of a mode owns its exit. The mode picker is a
