@@ -210,6 +210,9 @@ func checkPluginViewport(t *testing.T, kind plugincfg.Kind, name string) {
 	}
 }
 
+func TestPluginViewportSlider(t *testing.T) { checkPluginViewport(t, plugincfg.Slider, "slider") }
+func TestPluginViewportAction(t *testing.T) { checkPluginViewport(t, plugincfg.Action, "action") }
+
 func TestPluginViewportRadio(t *testing.T) { checkPluginViewport(t, plugincfg.Radio, "radio") }
 func TestPluginViewportCheckboxes(t *testing.T) {
 	checkPluginViewport(t, plugincfg.Checkboxes, "checkboxes")

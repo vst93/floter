@@ -39,10 +39,6 @@ func (s *pluginSheetLayoutState) observe(sheet PluginSheet) {
 	s.failed, s.armed, s.actionFailed = sheet.Failed, sheet.Armed, sheet.ActionFailed
 }
 
-func (a *App) pluginFieldOutlet(c *ui.Context, field ui.Element) {
-	pluginFieldOutlet(c, field, a.pluginSheetLayout(c).changed)
-}
-
 // A size change can hide the current editor even when the host's schema is
 // unchanged. Track only the viewport dimensions: tracking its position would
 // fight ordinary scrolling. Include the current window size so its resize is
