@@ -12,6 +12,9 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+func TestCommandAliasApprovalReflow(t *testing.T)  { checkCommandReflow(t, "alias", "approval") }
+func TestCommandSwitchApprovalReflow(t *testing.T) { checkCommandReflow(t, "switch", "approval") }
+
 func checkCommandReflow(t *testing.T, control, source string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {

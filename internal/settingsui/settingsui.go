@@ -3144,7 +3144,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				// on every row (the old build's R39).
 				a.sectionHeading(c, copy.IntegrationsCommands, nil)
 				a.sectionHint(c, copy.IntegrationsCommandsHint)
-				a.commandList(c, copy, integration.ID, commands)
+				a.commandList(c, copy, integration.ID, commands, approvalFeedback(integration))
 			})
 		}
 
@@ -3707,7 +3707,7 @@ func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Int
 // switch) above the alias editor at the plate's full width. The port had one
 // flat settings row per command with the alias editor as its grey second line,
 // which is neither the reference's two-line plate nor its bordered list.
-func (a *App) commandList(c *ui.Context, copy i18n.Settings, extensionID string, commands []Command) {
+func (a *App) commandList(c *ui.Context, copy i18n.Settings, extensionID string, commands []Command, preceding ...string) {
 	t := a.cardTheme(c)
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
 		occurrences := map[string]int{}
@@ -3717,7 +3717,8 @@ func (a *App) commandList(c *ui.Context, copy i18n.Settings, extensionID string,
 			// Distinguish duplicate declarations without keying other IDs by index.
 			occurrence := occurrences[command.ID]
 			occurrences[command.ID]++
-			a.commandPlate(c.Key(strconv.Itoa(occurrence)+"\x00"+command.ID), copy, extensionID, command, strconv.Itoa(index))
+			a.commandPlate(c.Key(strconv.Itoa(occurrence)+"\x00"+command.ID), copy, extensionID, command,
+				strconv.Itoa(index)+"\x00"+strings.Join(preceding, "\x00"))
 		}
 	})
 }
