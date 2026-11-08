@@ -30,6 +30,13 @@ func checkCommandReflow(t *testing.T, control, source string) {
 				in.Commands = append(in.Commands, Command{ID: fmt.Sprintf("other%d", i), Name: fmt.Sprintf("其他命令 %d", i+1), Declared: true, Enabled: true})
 			}
 			original := append([]Command(nil), in.Commands...)
+			freshness := extensions.Freshness{}
+			hasFreshness := source == "freshness-source"
+			a.Actions.Freshness = func(string) (extensions.Freshness, bool) { return freshness, hasFreshness }
+			if source == "config-schema" {
+				in.Config = []ConfigField{{Key: "city", Label: "城市", Type: "text"}}
+				a.configOpen = map[string]bool{in.ID: true}
+			}
 			label := a.copy().IntegrationsCommandAliasFor(active.Name)
 			if control == "switch" {
 				label = a.copy().IntegrationsCommandEnable(active.Name)
@@ -88,6 +95,24 @@ func checkCommandReflow(t *testing.T, control, source string) {
 					if step%2 == 0 {
 						in.Error = "无法连接天气服务，请检查网络后重试"
 					}
+				case "freshness":
+					hasFreshness = step%2 == 0
+				case "freshness-source":
+					freshness.Source = extensions.FreshnessNone
+					if step%2 == 0 {
+						freshness.Source = extensions.FreshnessHealth
+					}
+				case "config-presence":
+					in.Config = nil
+					if step%2 == 0 {
+						in.Config = []ConfigField{{Key: "city", Label: "城市", Type: "text"}}
+					}
+				case "config-schema":
+					in.Config = []ConfigField{{Key: "city", Label: "城市", Type: "text"}}
+					if step%2 == 0 {
+						in.Config[0].Description = strings.Repeat("请选择要查询的城市。\n", 5)
+						in.Config = append(in.Config, ConfigField{Key: "unit", Label: "温度单位", Type: "text"})
+					}
 				case "failure":
 					in.FailureCode, in.FailureDetail = "", ""
 					if step%2 == 0 {
@@ -114,6 +139,20 @@ func checkCommandReflow(t *testing.T, control, source string) {
 					}
 				}
 				tt.Frame()
+				if step == 0 && source == "freshness" && control == "alias" {
+					if tag := os.Getenv("FLOTER_P13KY_DUMP"); tag != "" {
+						f, err := os.Create("/tmp/floter-P13-ky-command-" + appearanceName(dark) + "-" + tag + ".png")
+						if err != nil {
+							t.Fatal(err)
+						}
+						if err := png.Encode(f, tt.Image()); err != nil {
+							t.Fatal(err)
+						}
+						if err := f.Close(); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
 				if step == 0 && source == "error" && control == "alias" {
 					if tag := os.Getenv("FLOTER_P13KX_DUMP"); tag != "" {
 						f, err := os.Create("/tmp/floter-P13-kx-command-" + appearanceName(dark) + "-" + tag + ".png")
@@ -156,6 +195,13 @@ func checkCommandReflow(t *testing.T, control, source string) {
 			a.Body.Y = 0
 			tt.Frame()
 			before := a.Body.Y
+			freshness.AtSeconds++
+			count := 2
+			freshness.CommandCount = &count
+			in.Config = append([]ConfigField(nil), in.Config...)
+			if len(in.Config) > 0 {
+				in.Config[0].Default = "新默认值"
+			}
 			in.Commands[len(in.Commands)-1].Description = "更新描述，不改变行高"
 			if in.Approval != nil {
 				copy := *in.Approval
@@ -172,6 +218,9 @@ func checkCommandReflow(t *testing.T, control, source string) {
 		})
 	}
 }
+
+func TestCommandAliasFreshnessReflow(t *testing.T)  { checkCommandReflow(t, "alias", "freshness") }
+func TestCommandSwitchFreshnessReflow(t *testing.T) { checkCommandReflow(t, "switch", "freshness") }
 
 func TestCommandAliasCatalogReflow(t *testing.T)  { checkCommandReflow(t, "alias", "catalog") }
 func TestCommandAliasOrderReflow(t *testing.T)    { checkCommandReflow(t, "alias", "order") }
