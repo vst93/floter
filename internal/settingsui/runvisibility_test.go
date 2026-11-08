@@ -116,3 +116,66 @@ func checkRunFieldVisibility(t *testing.T, change string) {
 
 func TestRunVisibilityRemovedField(t *testing.T) { checkRunFieldVisibility(t, "removed") }
 func TestRunVisibilityChangedKind(t *testing.T)  { checkRunFieldVisibility(t, "kind") }
+
+func checkRunActionVisibility(t *testing.T, unavailable bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, in := runVisibilityApp(t, dark)
+			calls := 0
+			a.Actions.RunWithParams = func(id string, values map[string]string) *extensions.ParamFailure {
+				calls++
+				if id != in.ID || len(values) != 12 || values["p0"] != "mine" {
+					t.Error("run lost submitted answers")
+				}
+				return nil
+			}
+			var viewport ui.Rect
+			tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) { viewport = c.Resolve(a.Body.Handle).Bounds() })
+			a.runValues[in.ID]["p0"] = "mine"
+			optionExitFocus(t, tt, a.copy().RunCancel)
+			name, want := "form-cancel", a.copy().RunAction
+			if unavailable {
+				tt.Key(0, ui.KeyTab)
+				if !tt.Focused(a.copy().RunLabel) {
+					t.Fatal("Run did not own keyboard before becoming unavailable")
+				}
+				a.Body.Y = 0
+				tt.Frame()
+				in.Running = false
+				name, want = "submit-unavailable", a.copy().RunCancel
+			} else {
+				a.Body.Y = a.Body.MaxY
+				tt.Frame()
+				tt.Key(0, ui.KeyEnter)
+			}
+			tt.Frame()
+			tt.Frame()
+			runVisibilityDump(t, tt, name, dark)
+			runVisible(t, a, tt, want, viewport)
+			if calls != 0 || a.runValues[in.ID]["p0"] != "mine" {
+				t.Fatal("exit ran a command or replaced draft")
+			}
+			runVisibilityWheel(t, a, tt)
+			if unavailable {
+				in.Running = true
+				tt.Frame()
+				tt.Key(0, ui.KeyTab)
+				tt.Key(0, ui.KeyEnter)
+				tt.Frame()
+				if calls != 1 {
+					t.Fatal("available Run cannot retry")
+				}
+			} else {
+				tt.Key(0, ui.KeyEnter)
+				tt.Frame()
+				if !a.runOpen[in.ID] || a.runValues[in.ID]["p0"] != "mine" {
+					t.Fatal("cancelled form cannot reopen original answers")
+				}
+			}
+		})
+	}
+}
+
+func TestRunVisibilitySubmitUnavailable(t *testing.T) { checkRunActionVisibility(t, true) }
+func TestRunVisibilityCancel(t *testing.T)            { checkRunActionVisibility(t, false) }

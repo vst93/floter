@@ -27,3 +27,10 @@
 2. 当前参数改型：参数1仍持焦但Body.Y=1515.3时绘制面积0 → 替代控件原Focus同时显现 → 深浅新数字框可直接输入24，其他答案不变，滚轮不被锁住。最初夹具停在顶部导致改型目标本来可见，不算缺陷；改为合法滚到页尾后实红。
 
 第一批定向6 PASS / 0 FAIL，settingsui vet净、gofmt空。M1回注开盘settingsui.go，四个深浅场景实红`run outlet outside viewport`（Cancel Y=1156.2；改型scroll=1515.3）；MD5逐字节还原成功、touch复验6 PASS。旧V/B/S断言0/0/0。
+
+第一批1c3c7f3c已推送；浅色after目视：参数1的新数字框与插入点在正文顶端，原紧凑参数行与侧栏保持。
+
+3. 运行提交变为不可用：原Cancel接焦后仍在Y=1216.2、绘制面积0 → 只在原Run失去可用性时显现Cancel → 深浅退出目标可见，未派发运行；恢复运行状态后Tab/Enter恰好提交一次，12个答案准确保留。
+4. 取消运行表单：长表单折叠后原Run已持焦但scroll=689.30005处被完全裁剪 → 原返焦同时显现 → 深浅原入口可见，Enter能重开同一草稿，取消本身不运行。
+
+第二批定向6 PASS / 0 FAIL，settingsui vet净、gofmt空。M2回注第一批产品，四场景实红`run outlet outside viewport`；MD5还原、touch复验6 PASS。旧V/B/S断言0/0/0。

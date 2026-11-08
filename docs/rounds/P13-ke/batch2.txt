@@ -1,0 +1,14 @@
+=== RUN   TestRunVisibilitySubmitUnavailable
+=== RUN   TestRunVisibilitySubmitUnavailable/light
+=== RUN   TestRunVisibilitySubmitUnavailable/dark
+--- PASS: TestRunVisibilitySubmitUnavailable (0.27s)
+    --- PASS: TestRunVisibilitySubmitUnavailable/light (0.19s)
+    --- PASS: TestRunVisibilitySubmitUnavailable/dark (0.07s)
+=== RUN   TestRunVisibilityCancel
+=== RUN   TestRunVisibilityCancel/light
+=== RUN   TestRunVisibilityCancel/dark
+--- PASS: TestRunVisibilityCancel (0.15s)
+    --- PASS: TestRunVisibilityCancel/light (0.07s)
+    --- PASS: TestRunVisibilityCancel/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.420s

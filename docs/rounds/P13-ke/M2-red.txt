@@ -1,0 +1,19 @@
+=== RUN   TestRunVisibilitySubmitUnavailable
+=== RUN   TestRunVisibilitySubmitUnavailable/light
+    runvisibility_test.go:155: run outlet outside viewport: label="Cancel" focused=true rect={X:499.8 Y:1216.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=0
+=== RUN   TestRunVisibilitySubmitUnavailable/dark
+    runvisibility_test.go:155: run outlet outside viewport: label="Cancel" focused=true rect={X:499.8 Y:1216.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=0
+--- FAIL: TestRunVisibilitySubmitUnavailable (0.19s)
+    --- FAIL: TestRunVisibilitySubmitUnavailable/light (0.12s)
+    --- FAIL: TestRunVisibilitySubmitUnavailable/dark (0.07s)
+=== RUN   TestRunVisibilityCancel
+=== RUN   TestRunVisibilityCancel/light
+    runvisibility_test.go:155: run outlet outside viewport: label="Run" focused=true rect={X:662.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=689.30005
+=== RUN   TestRunVisibilityCancel/dark
+    runvisibility_test.go:155: run outlet outside viewport: label="Run" focused=true rect={X:662.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=689.30005
+--- FAIL: TestRunVisibilityCancel (0.16s)
+    --- FAIL: TestRunVisibilityCancel/light (0.07s)
+    --- FAIL: TestRunVisibilityCancel/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	0.353s
+FAIL

@@ -3246,7 +3246,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					c.Resolve(*noticeExit(c)).Focus()
 				}
 				if runWasOpen && !a.runOpen[integration.ID] {
-					run.Focus()
+					run.Focus().ScrollIntoView()
 				}
 				a.restoreNotice(c, integration.ID, "run", a.runOpen[integration.ID] && len(integration.Params) > 0, run)
 				if run.Clicked() && runnable {
@@ -8001,7 +8001,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
 			run := a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus)
 			if runDisabled && hadSubmitFocus {
-				cancel.Focus()
+				cancel.Focus().ScrollIntoView()
 			}
 			if run.Clicked() && !runDisabled {
 				delete(a.runError, integration.ID)
