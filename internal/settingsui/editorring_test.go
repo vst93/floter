@@ -134,3 +134,6 @@ func TestEditorRingDefault(t *testing.T)     { checkEditorRing(t, "default") }
 
 func TestEditorRingFlag(t *testing.T)    { checkEditorRing(t, "flag") }
 func TestEditorRingOptions(t *testing.T) { checkEditorRing(t, "options") }
+
+func TestEditorRingCommand(t *testing.T) { checkEditorRing(t, "command") }
+func TestEditorRingVersion(t *testing.T) { checkEditorRing(t, "version") }
