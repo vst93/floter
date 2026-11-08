@@ -1,0 +1,69 @@
+=== RUN   TestFormViewportRunEditors
+=== RUN   TestFormViewportRunEditors/text
+=== RUN   TestFormViewportRunEditors/text/light
+    formviewport_test.go:122: run-text size=[720 360] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=229.70004
+    formviewport_test.go:124: run-text resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} focused=true
+    formviewport_test.go:122: run-text size=[620 320] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=229.70004
+    formviewport_test.go:124: run-text resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} focused=true
+    formviewport_test.go:122: run-text size=[720 520] target={X:204.8 Y:468.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=229.70004
+=== RUN   TestFormViewportRunEditors/text/dark
+    formviewport_test.go:122: run-text size=[720 360] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=229.70004
+    formviewport_test.go:124: run-text resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} focused=true
+    formviewport_test.go:122: run-text size=[620 320] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=229.70004
+    formviewport_test.go:124: run-text resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} focused=true
+    formviewport_test.go:122: run-text size=[720 520] target={X:204.8 Y:468.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=229.70004
+=== RUN   TestFormViewportRunEditors/number
+=== RUN   TestFormViewportRunEditors/number/light
+    formviewport_test.go:122: run-number size=[720 360] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=229.70004
+    formviewport_test.go:124: run-number resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} focused=true
+    formviewport_test.go:122: run-number size=[620 320] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=229.70004
+    formviewport_test.go:124: run-number resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} focused=true
+    formviewport_test.go:122: run-number size=[720 520] target={X:204.8 Y:468.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=229.70004
+=== RUN   TestFormViewportRunEditors/number/dark
+    formviewport_test.go:122: run-number size=[720 360] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=229.70004
+    formviewport_test.go:124: run-number resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} focused=true
+    formviewport_test.go:122: run-number size=[620 320] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=229.70004
+    formviewport_test.go:124: run-number resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} focused=true
+    formviewport_test.go:122: run-number size=[720 520] target={X:204.8 Y:468.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=229.70004
+=== RUN   TestFormViewportRunEditors/path
+=== RUN   TestFormViewportRunEditors/path/light
+    formviewport_test.go:122: run-path size=[720 360] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=229.70004
+    formviewport_test.go:124: run-path resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} focused=true
+    formviewport_test.go:122: run-path size=[620 320] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=229.70004
+    formviewport_test.go:124: run-path resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} focused=true
+    formviewport_test.go:122: run-path size=[720 520] target={X:204.8 Y:468.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=229.70004
+=== RUN   TestFormViewportRunEditors/path/dark
+    formviewport_test.go:122: run-path size=[720 360] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=229.70004
+    formviewport_test.go:124: run-path resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} focused=true
+    formviewport_test.go:122: run-path size=[620 320] target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=229.70004
+    formviewport_test.go:124: run-path resize hides active outlet: target={X:204.8 Y:468.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} focused=true
+    formviewport_test.go:122: run-path size=[720 520] target={X:204.8 Y:468.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=229.70004
+--- FAIL: TestFormViewportRunEditors (1.11s)
+    --- FAIL: TestFormViewportRunEditors/text (0.48s)
+        --- FAIL: TestFormViewportRunEditors/text/light (0.35s)
+        --- FAIL: TestFormViewportRunEditors/text/dark (0.14s)
+    --- FAIL: TestFormViewportRunEditors/number (0.34s)
+        --- FAIL: TestFormViewportRunEditors/number/light (0.17s)
+        --- FAIL: TestFormViewportRunEditors/number/dark (0.17s)
+    --- FAIL: TestFormViewportRunEditors/path (0.28s)
+        --- FAIL: TestFormViewportRunEditors/path/light (0.15s)
+        --- FAIL: TestFormViewportRunEditors/path/dark (0.14s)
+=== RUN   TestFormViewportRunToggle
+=== RUN   TestFormViewportRunToggle/light
+    formviewport_test.go:122: run-boolean size=[720 360] target={X:204.8 Y:473.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=224.70004
+    formviewport_test.go:124: run-boolean resize hides active outlet: target={X:204.8 Y:473.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} focused=true
+    formviewport_test.go:122: run-boolean size=[620 320] target={X:204.8 Y:473.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=224.70004
+    formviewport_test.go:124: run-boolean resize hides active outlet: target={X:204.8 Y:473.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} focused=true
+    formviewport_test.go:122: run-boolean size=[720 520] target={X:204.8 Y:473.99994 W:437.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.70004
+=== RUN   TestFormViewportRunToggle/dark
+    formviewport_test.go:122: run-boolean size=[720 360] target={X:204.8 Y:473.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=224.70004
+    formviewport_test.go:124: run-boolean resize hides active outlet: target={X:204.8 Y:473.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} focused=true
+    formviewport_test.go:122: run-boolean size=[620 320] target={X:204.8 Y:473.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=224.70004
+    formviewport_test.go:124: run-boolean resize hides active outlet: target={X:204.8 Y:473.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} focused=true
+    formviewport_test.go:122: run-boolean size=[720 520] target={X:204.8 Y:473.99994 W:437.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.70004
+--- FAIL: TestFormViewportRunToggle (0.26s)
+    --- FAIL: TestFormViewportRunToggle/light (0.13s)
+    --- FAIL: TestFormViewportRunToggle/dark (0.14s)
+FAIL
+FAIL	floter/internal/settingsui	1.386s
+FAIL
