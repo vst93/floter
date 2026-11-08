@@ -172,3 +172,6 @@ func TestPluginViewportRadio(t *testing.T) { checkPluginViewport(t, plugincfg.Ra
 func TestPluginViewportCheckboxes(t *testing.T) {
 	checkPluginViewport(t, plugincfg.Checkboxes, "checkboxes")
 }
+
+func TestPluginViewportText(t *testing.T)   { checkPluginViewport(t, plugincfg.Text, "text") }
+func TestPluginViewportNumber(t *testing.T) { checkPluginViewport(t, plugincfg.Number, "number") }
