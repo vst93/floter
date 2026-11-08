@@ -1,0 +1,4 @@
+877458b935a054d74fba5aefc628185e  internal/settingsui/settingsui.go
+7de7ab74da422dcddba738495ce42b9c  internal/settingsui/config.go
+52150a542ec7fca61e0ae33f79b389d4  internal/settingsui/outputfocus.go
+71ab394805bd14652a4826e14aeac7bd  internal/settingsui/formviewport_test.go
