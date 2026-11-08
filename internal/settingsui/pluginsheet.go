@@ -561,7 +561,7 @@ func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 		// `plugin-config.css:165-172`).
 		ui.Row(c).FillWidth().Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
 			e := ui.Slider(c, &v, field.Min, field.Max).Grow(1).Bind(a.pluginEditorRef(field.Key))
-			pluginFieldOutlet(c, e)
+			a.pluginFieldOutlet(c, e)
 			if e.Changed() {
 				changed = true
 			}
@@ -811,7 +811,7 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 	if button.Clicked() {
 		run()
 	}
-	pluginFieldOutlet(c, button)
+	a.pluginFieldOutlet(c, button)
 	return button
 }
 
