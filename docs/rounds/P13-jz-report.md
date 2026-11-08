@@ -36,3 +36,12 @@ M1撤回两处保护后实红`picker rewound newer mode`、`picker rewound newer
 4. **导出后新脚本倒退**：现象→导出回调期间修改命令/脚本，回到表单又变旧，第二次导出仍是旧快照；改动→导出返回也复核草稿并停止旧帧写回，已派发内容不变；验证→连续两次导出分别为weather-script.py/旧脚本和forecast-script.py/新脚本，两套外观均严格相等。
 
 第二批与既有回调/复制生命周期/内容出口回归88 PASS / 0 FAIL / exit0，vet exit0。M2退回仅校验form身份，实红`command/plan/script copy rewound newer draft`、`copy confirmed stale bytes`、`export rewound newer draft`；MD5还原并touch后88 PASS / exit0。旧V/B/S断言修改0/0/0、新增Skip0。
+
+第二批aa358d54已推送。
+
+### 第三批
+
+5. **折叠重开后接收旧选择**：现象→选文件期间真实点击添加入口折叠再打开，同一表单指针/字段均没变，旧路径仍写入；改动→回调身份加入既有toolDisclosure代次；验证→第二个ui.Tester视图泵入两次真实折叠按钮事件，旧选择不落地，重开后的新选择正常。
+6. **折叠重开后复活旧复制确认**：现象→折叠已清确认，晚回的复制重新显示已复制；改动→相同代次保护覆盖内容操作；验证→真实折叠往返后确认为空，显式重新复制才点亮，深浅均通过。
+
+第三批新旧回归94 PASS / 0 FAIL / exit0，vet exit0。M3将代次固定为0后实红`picker fold accepted departed result`、`copy revived after fold departure`；MD5还原、touch后6 PASS / exit0。旧V/B/S断言修改0/0/0、新增Skip0。

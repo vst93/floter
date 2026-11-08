@@ -1,0 +1,21 @@
+=== RUN   TestToolCurrentPickerFold
+=== RUN   TestToolCurrentPickerFold/light
+    toolcurrentdeparture_test.go:50: picker fold accepted departed result: calls=1 open=true program="/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerFold/dark
+    toolcurrentdeparture_test.go:50: picker fold accepted departed result: calls=1 open=true program="/usr/bin/old-selection"
+--- FAIL: TestToolCurrentPickerFold (0.65s)
+    --- FAIL: TestToolCurrentPickerFold/light (0.43s)
+    --- FAIL: TestToolCurrentPickerFold/dark (0.22s)
+=== RUN   TestToolCurrentCopyFold
+=== RUN   TestToolCurrentCopyFold/light
+    toolcurrentdeparture_test.go:53: copy revived after fold departure
+    toolcurrentdeparture_test.go:60: ui: no element shows "复制命令"
+=== RUN   TestToolCurrentCopyFold/dark
+    toolcurrentdeparture_test.go:53: copy revived after fold departure
+    toolcurrentdeparture_test.go:60: ui: no element shows "复制命令"
+--- FAIL: TestToolCurrentCopyFold (0.34s)
+    --- FAIL: TestToolCurrentCopyFold/light (0.18s)
+    --- FAIL: TestToolCurrentCopyFold/dark (0.16s)
+FAIL
+FAIL	floter/internal/settingsui	0.998s
+FAIL

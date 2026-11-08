@@ -1,0 +1,14 @@
+=== RUN   TestToolCurrentPickerFold
+=== RUN   TestToolCurrentPickerFold/light
+=== RUN   TestToolCurrentPickerFold/dark
+--- PASS: TestToolCurrentPickerFold (0.32s)
+    --- PASS: TestToolCurrentPickerFold/light (0.20s)
+    --- PASS: TestToolCurrentPickerFold/dark (0.12s)
+=== RUN   TestToolCurrentCopyFold
+=== RUN   TestToolCurrentCopyFold/light
+=== RUN   TestToolCurrentCopyFold/dark
+--- PASS: TestToolCurrentCopyFold (0.25s)
+    --- PASS: TestToolCurrentCopyFold/light (0.13s)
+    --- PASS: TestToolCurrentCopyFold/dark (0.12s)
+PASS
+ok  	floter/internal/settingsui	0.572s
