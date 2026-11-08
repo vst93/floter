@@ -77,6 +77,7 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 	if sheet.Schema == nil {
 		return
 	}
+	a.pluginSheetLayout(c).observe(sheet)
 	// Removed fields cannot run their blur cleanup. Prune editor drafts before
 	// painting, including an empty schema. Other plugins retain their own edits.
 	active := make(map[string]plugincfg.Kind)
@@ -465,7 +466,7 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 				changed = true
 			}
 		}, keys).Label(field.Label).Bind(a.pluginEditorRef(field.Key))
-		pluginFieldOutlet(c, picker)
+		a.pluginFieldOutlet(c, picker)
 	})
 	if changed {
 		sheet.Change(field.Key, field.Options[chosen].Value)
@@ -496,7 +497,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 				label := pluginOptionLabel(option, a.copy().ConfigNone)
 				box := ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, "").Label(label).MaxWidthPercent(100)
 				box.Children(func() { ui.Text(c, label).MinWidth(0).SingleLine() })
-				pluginFieldOutlet(c, box)
+				a.pluginFieldOutlet(c, box)
 				if box.Focused() {
 					box.Bind(focus)
 				}
@@ -529,7 +530,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 // and 1px for a bordered control's content inset.
 // An absolute, pointer-transparent envelope
 // preserves the field's layout and hit area, including wrapped options.
-func pluginFieldOutlet(c *ui.Context, field ui.Element) {
+func pluginFieldOutlet(c *ui.Context, field ui.Element, refresh ...bool) {
 	clearance := float32(math.Ceil(float64(c.Theme().Space(3)))) + 5
 	var envelope ui.Element
 	field.Children(func() {
@@ -538,7 +539,7 @@ func pluginFieldOutlet(c *ui.Context, field ui.Element) {
 	})
 	was := ui.Local(field, "plugin-field-focused", func() bool { return false })
 	focused := field.FocusWithin()
-	if focused && !*was {
+	if focused && (!*was || len(refresh) > 0 && refresh[0]) {
 		envelope.ScrollIntoView()
 	}
 	*was = focused
