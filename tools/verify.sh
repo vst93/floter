@@ -30,6 +30,15 @@ run() {
     printf '\n'
   fi
 }
+if [ "$resume" = --focused ]; then
+  pattern=${3:?focused test pattern required}
+  batch=${4:?focused evidence name required}
+  case "$batch" in *[!A-Za-z0-9_-]*) exit 2 ;; esac
+  run "$batch" go test -count=1 -v ./internal/settingsui -run "$pattern"
+  printf 'FOCUSED PASS=%s evidence=%s/%s.log\n' "$(grep -c -- '--- PASS' "$logs/$batch.log" || true)" "$logs" "$batch"
+  test "$failed" -eq 0
+  exit
+fi
 run gofmt bash -c 'out=$(gofmt -l cmd internal); printf "%s" "$out"; test -z "$out"'
 run vet-linux env GOOS=linux go vet ./...
 run vet-windows env GOOS=windows go vet ./...

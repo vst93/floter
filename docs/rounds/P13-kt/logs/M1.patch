@@ -1,0 +1,41 @@
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index dd57b71a..3a8f9355 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -7931,6 +7931,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 			ui.Text(c, copy.RunValuesHint).FontSize(a.tokens(c).Caption).TextColor(theme.TextMuted)
+ 		})
+ 		feedback := strconv.Quote(integration.Error) + strconv.Quote(integration.Description)
++		// Capture report contents, not its pointer: a refreshed probe can move
++		// an active field even when the viewport and diagnostics stay unchanged.
++		healthFeedback := fmt.Sprintf("%#v", integration.HealthReport)
+ 		a.runParamsBox(c, func() {
+ 			occurrences := map[string]int{}
+ 			for index, param := range integration.Params {
+@@ -7982,7 +7985,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 					on := truthyValue(values[param.ID])
+ 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
+ 						var sw ui.Element
+-						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback, func() {
++						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback+healthFeedback, func() {
+ 							sw = a.switchControl(c, &on).Label(label)
+ 							bindFocus(sw)
+ 						})
+@@ -8011,7 +8014,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 					}
+ 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
+ 						var picker ui.Element
+-						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback, func() {
++						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback+healthFeedback, func() {
+ 							picker = a.segmentedControlKeyed(c, &index, param.Options, keys)
+ 							bindFocus(picker)
+ 						})
+@@ -8033,7 +8036,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 								lockedControl(input.TextColor(a.tokens(c).Disabled))
+ 							}
+ 						}
+-						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback, draw)
++						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback+healthFeedback, draw)
+ 					}, below...)
+ 					if !locked {
+ 						values[param.ID] = value
