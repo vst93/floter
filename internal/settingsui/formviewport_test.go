@@ -236,7 +236,9 @@ func TestFormViewportRunToggle(t *testing.T) { checkFormViewport(t, "run-boolean
 func TestFormViewportRunSelect(t *testing.T) { checkFormViewport(t, "run-select") }
 func TestFormViewportRunCancel(t *testing.T) { checkFormViewport(t, "run-cancel") }
 
-func TestFormViewportRunSubmit(t *testing.T) { checkFormViewport(t, "run-submit") }
+func TestFormViewportRunSubmit(t *testing.T)      { checkFormViewport(t, "run-submit") }
+func TestFormViewportConfigDefaults(t *testing.T) { checkFormViewport(t, "config-defaults") }
+func TestFormViewportConfigSave(t *testing.T)     { checkFormViewport(t, "config-save") }
 func TestFormViewportConfigFields(t *testing.T) {
 	for _, kind := range []string{"text", "password", "path", "number", "boolean", "select", "multiselect"} {
 		t.Run(kind, func(t *testing.T) { checkFormViewport(t, "config-"+kind) })

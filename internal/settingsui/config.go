@@ -542,7 +542,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		// P13-s（§6.2b-6）：`busy` 不再用组透明度：它只传给面，面走 `ControlDim`
 		// 并熄灯，字自己淡到 40%。
 		var defaults ui.Element
-		outputFocusOutlet(c.Key("config-defaults-outlet"), func() {
+		a.formViewportOutlet(c.Key("config-defaults-outlet"), func() {
 			defaults = a.extensionGlyphActionButton(c, "rotate-ccw", copy.ConfigDefaults,
 				t.Space(7.5), t.Space(3.75), tokens.Body, busy)
 		})
@@ -582,7 +582,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		// P13-aq：Save 的 disabled 现在由 `extensionPrimaryButton` 自己给（它同时负责
 		// 熄灯）；这里不再叠一道 `.Opacity(0.4)`——那是框架 0.5 之外的第二次淡。
 		var save ui.Element
-		outputFocusOutlet(c.Key("config-save-outlet"), func() { save = a.extensionPrimaryButton(c, saveLabel, saveDisabled) })
+		a.formViewportOutlet(c.Key("config-save-outlet"), func() { save = a.extensionPrimaryButton(c, saveLabel, saveDisabled) })
 		if save.Clicked() && !saveDisabled {
 			if a.configSaveBusy == nil {
 				a.configSaveBusy = map[string]bool{}
