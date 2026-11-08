@@ -122,5 +122,7 @@ func checkCommandReflow(t *testing.T, control, source string) {
 	}
 }
 
-func TestCommandAliasCatalogReflow(t *testing.T) { checkCommandReflow(t, "alias", "catalog") }
-func TestCommandAliasOrderReflow(t *testing.T)   { checkCommandReflow(t, "alias", "order") }
+func TestCommandAliasCatalogReflow(t *testing.T)  { checkCommandReflow(t, "alias", "catalog") }
+func TestCommandAliasOrderReflow(t *testing.T)    { checkCommandReflow(t, "alias", "order") }
+func TestCommandSwitchCatalogReflow(t *testing.T) { checkCommandReflow(t, "switch", "catalog") }
+func TestCommandSwitchOrderReflow(t *testing.T)   { checkCommandReflow(t, "switch", "order") }

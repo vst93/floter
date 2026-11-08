@@ -3772,7 +3772,9 @@ func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string
 		plate.Opacity(0.62)
 	}
 	plate.Children(func() {
-		a.commandIdentity(c, copy, extensionID, command)
+		a.formFeedbackOutlet(c.Key("command-switch-outlet"), strings.Join(position, ""), func() {
+			a.commandIdentity(c, copy, extensionID, command)
+		})
 		// P13-kw: preserve the active editor's visible ink when discovery
 		// moves its stable ID. Values and single-line descriptions do not
 		// change its position, so they must not reclaim manual scrolling.
