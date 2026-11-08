@@ -1,0 +1,39 @@
+=== RUN   TestRunFieldEdgePath
+=== RUN   TestRunFieldEdgePath/light
+    runfieldedge_test.go:98: path top target={X:466.8 Y:51.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:102: path top top active edge missing: blue-red=30
+    runfieldedge_test.go:106: path active edge intersects page fade: {X:466.8 Y:51.399994 W:220 H:28}
+    runfieldedge_test.go:98: path bottom target={X:466.8 Y:491.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:102: path bottom bottom active edge missing: blue-red=30
+    runfieldedge_test.go:106: path active edge intersects page fade: {X:466.8 Y:491.99994 W:220 H:28}
+=== RUN   TestRunFieldEdgePath/dark
+    runfieldedge_test.go:98: path top target={X:466.8 Y:51.399994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:102: path top top active edge missing: blue-red=21
+    runfieldedge_test.go:106: path active edge intersects page fade: {X:466.8 Y:51.399994 W:220 H:28}
+    runfieldedge_test.go:98: path bottom target={X:466.8 Y:491.99994 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:102: path bottom bottom active edge missing: blue-red=22
+    runfieldedge_test.go:106: path active edge intersects page fade: {X:466.8 Y:491.99994 W:220 H:28}
+--- FAIL: TestRunFieldEdgePath (0.25s)
+    --- FAIL: TestRunFieldEdgePath/light (0.16s)
+    --- FAIL: TestRunFieldEdgePath/dark (0.09s)
+=== RUN   TestRunFieldEdgeBoolean
+=== RUN   TestRunFieldEdgeBoolean/light
+    runfieldedge_test.go:98: boolean top target={X:654.4 Y:51.399994 W:32.399998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:102: boolean top top active edge missing: blue-red=1
+    runfieldedge_test.go:106: boolean active edge intersects page fade: {X:654.4 Y:51.399994 W:32.399998 H:18}
+    runfieldedge_test.go:98: boolean bottom target={X:654.4 Y:501.99994 W:32.399998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:102: boolean bottom bottom active edge missing: blue-red=0
+    runfieldedge_test.go:106: boolean active edge intersects page fade: {X:654.4 Y:501.99994 W:32.399998 H:18}
+=== RUN   TestRunFieldEdgeBoolean/dark
+    runfieldedge_test.go:98: boolean top target={X:654.4 Y:51.399994 W:32.399998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:102: boolean top top active edge missing: blue-red=2
+    runfieldedge_test.go:106: boolean active edge intersects page fade: {X:654.4 Y:51.399994 W:32.399998 H:18}
+    runfieldedge_test.go:98: boolean bottom target={X:654.4 Y:501.99994 W:32.399998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:102: boolean bottom bottom active edge missing: blue-red=0
+    runfieldedge_test.go:106: boolean active edge intersects page fade: {X:654.4 Y:501.99994 W:32.399998 H:18}
+--- FAIL: TestRunFieldEdgeBoolean (0.18s)
+    --- FAIL: TestRunFieldEdgeBoolean/light (0.09s)
+    --- FAIL: TestRunFieldEdgeBoolean/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	0.437s
+FAIL

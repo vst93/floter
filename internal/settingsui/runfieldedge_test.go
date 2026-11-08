@@ -132,3 +132,6 @@ func checkRunFieldEdge(t *testing.T, kind string) {
 
 func TestRunFieldEdgeText(t *testing.T)   { checkRunFieldEdge(t, extensions.ParamText) }
 func TestRunFieldEdgeNumber(t *testing.T) { checkRunFieldEdge(t, extensions.ParamNumber) }
+
+func TestRunFieldEdgePath(t *testing.T)    { checkRunFieldEdge(t, extensions.ParamPath) }
+func TestRunFieldEdgeBoolean(t *testing.T) { checkRunFieldEdge(t, extensions.ParamBoolean) }

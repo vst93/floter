@@ -21,7 +21,7 @@
 
 ## 验证
 
-基线在当前HEAD运行完整verbose测试，数字随后按实测补录。深浅720×520 ui.Tester实键事件、上下边缘像素、静息图/几何、继续编辑归属与后续滚轮自由。PNG输出/tmp/floter-P13-km-*并归档。
+开盘完整基线实测6519 PASS / 0 FAIL / exit0，3536个测试函数。深浅720×520 ui.Tester实键事件、上下边缘像素、静息图/几何、继续编辑归属与后续滚轮自由。PNG输出/tmp/floter-P13-km-*并归档。
 
 全量门槛：gofmt -l cmd internal为空；linux/windows/darwin go vet ./...与go build ./...；go test -count=1 ./...；verbose全量PASS计数和函数数不减。
 

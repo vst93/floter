@@ -7975,8 +7975,11 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				case extensions.ParamBoolean:
 					on := truthyValue(values[param.ID])
 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
-						sw := a.switchControl(c, &on).Label(label)
-						bindFocus(sw)
+						var sw ui.Element
+						outputFocusOutlet(c.Key("run-switch-outlet"), func() {
+							sw = a.switchControl(c, &on).Label(label)
+							bindFocus(sw)
+						})
 						if locked {
 							lockedControl(sw)
 						}
@@ -8021,11 +8024,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 								lockedControl(input.TextColor(a.tokens(c).Disabled))
 							}
 						}
-						if param.Kind == extensions.ParamPath {
-							draw()
-						} else {
-							outputFocusOutlet(c.Key("run-input-outlet"), draw)
-						}
+						outputFocusOutlet(c.Key("run-input-outlet"), draw)
 					}, below...)
 					if !locked {
 						values[param.ID] = value
