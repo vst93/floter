@@ -202,3 +202,5 @@ gofmt输出为空，linux/windows/darwin vet与build全部exit0；race **24 PASS
 本轮八项产品、前后事件、深浅截图、四组变异、完整门槛均已闭环。跨中断继续沿用P13-jt，没有把抢救接续冒称为新一轮八项修复，也未为了凑时长重复改已完成的功能。
 
 提交前附加检查：`git diff --cached --check` 只报告 baseline.txt / verbose-test.txt 中 Go flag 帮助原始输出的 space-before-tab，共22行；保留两份原始日志字节，不为消除提示改写证据。排除这两个原始日志后，源码、脚本、文档及其余材料的 whitespace 检查通过。产品 gofmt 门槛此前已为空。
+
+接续验收已由 **6104515d** 独立提交并推送至 `origin/mygo-rewrite`。核对原SHA与归档引用一致后，已drop本次开盘的stash@{0}（79ad8d537b），活动stash **9 → 8**；其余八条原件逐条保留。前述表中“门槛通过后独立提交并归档”现已执行完成，没有静默丢弃独有工作。
