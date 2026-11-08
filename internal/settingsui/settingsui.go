@@ -6007,9 +6007,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				// validation while the user is editing another field.
 				switch issues[0].Field {
 				case extensions.CustomFieldName:
-					c.Resolve(a.contentFocus(c, "name").source).Focus()
+						c.Resolve(a.contentFocus(c, "name").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldCommand:
-					c.Resolve(a.contentFocus(c, "command").source).Focus()
+						c.Resolve(a.contentFocus(c, "command").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldVersion:
 					c.Resolve(a.contentFocus(c, "version").source).Focus()
 				case extensions.CustomFieldScript:

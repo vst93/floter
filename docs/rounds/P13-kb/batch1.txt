@@ -1,0 +1,42 @@
+=== RUN   TestToolRefusalExitName
+=== RUN   TestToolRefusalExitName/light/connect
+=== RUN   TestToolRefusalExitName/light/edit
+=== RUN   TestToolRefusalExitName/dark/connect
+=== RUN   TestToolRefusalExitName/dark/edit
+--- PASS: TestToolRefusalExitName (1.37s)
+    --- PASS: TestToolRefusalExitName/light/connect (0.59s)
+    --- PASS: TestToolRefusalExitName/light/edit (0.26s)
+    --- PASS: TestToolRefusalExitName/dark/connect (0.26s)
+    --- PASS: TestToolRefusalExitName/dark/edit (0.27s)
+=== RUN   TestToolRefusalExitCommand
+=== RUN   TestToolRefusalExitCommand/light/connect
+=== RUN   TestToolRefusalExitCommand/light/edit
+=== RUN   TestToolRefusalExitCommand/dark/connect
+=== RUN   TestToolRefusalExitCommand/dark/edit
+--- PASS: TestToolRefusalExitCommand (1.12s)
+    --- PASS: TestToolRefusalExitCommand/light/connect (0.35s)
+    --- PASS: TestToolRefusalExitCommand/light/edit (0.25s)
+    --- PASS: TestToolRefusalExitCommand/dark/connect (0.28s)
+    --- PASS: TestToolRefusalExitCommand/dark/edit (0.24s)
+=== RUN   TestToolRefusalVisibilityName
+=== RUN   TestToolRefusalVisibilityName/light/connect
+=== RUN   TestToolRefusalVisibilityName/light/edit
+=== RUN   TestToolRefusalVisibilityName/dark/connect
+=== RUN   TestToolRefusalVisibilityName/dark/edit
+--- PASS: TestToolRefusalVisibilityName (1.03s)
+    --- PASS: TestToolRefusalVisibilityName/light/connect (0.29s)
+    --- PASS: TestToolRefusalVisibilityName/light/edit (0.24s)
+    --- PASS: TestToolRefusalVisibilityName/dark/connect (0.26s)
+    --- PASS: TestToolRefusalVisibilityName/dark/edit (0.25s)
+=== RUN   TestToolRefusalVisibilityCommand
+=== RUN   TestToolRefusalVisibilityCommand/light/connect
+=== RUN   TestToolRefusalVisibilityCommand/light/edit
+=== RUN   TestToolRefusalVisibilityCommand/dark/connect
+=== RUN   TestToolRefusalVisibilityCommand/dark/edit
+--- PASS: TestToolRefusalVisibilityCommand (1.02s)
+    --- PASS: TestToolRefusalVisibilityCommand/light/connect (0.25s)
+    --- PASS: TestToolRefusalVisibilityCommand/light/edit (0.24s)
+    --- PASS: TestToolRefusalVisibilityCommand/dark/connect (0.24s)
+    --- PASS: TestToolRefusalVisibilityCommand/dark/edit (0.28s)
+PASS
+ok  	floter/internal/settingsui	4.560s

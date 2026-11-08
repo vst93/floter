@@ -1,0 +1,31 @@
+=== RUN   TestToolRefusalVisibilityName
+=== RUN   TestToolRefusalVisibilityName/light/connect
+    toolvisibility_test.go:80: name refusal remains outside viewport: rect={X:201.8 Y:51.399998 W:0 H:0} scroll=748.1001
+=== RUN   TestToolRefusalVisibilityName/light/edit
+    toolvisibility_test.go:80: name refusal remains outside viewport: rect={X:201.8 Y:51.399998 W:0 H:0} scroll=793.1001
+=== RUN   TestToolRefusalVisibilityName/dark/connect
+    toolvisibility_test.go:80: name refusal remains outside viewport: rect={X:201.8 Y:51.399998 W:0 H:0} scroll=748.1001
+=== RUN   TestToolRefusalVisibilityName/dark/edit
+    toolvisibility_test.go:80: name refusal remains outside viewport: rect={X:201.8 Y:51.399998 W:0 H:0} scroll=793.1001
+--- FAIL: TestToolRefusalVisibilityName (0.92s)
+    --- FAIL: TestToolRefusalVisibilityName/light/connect (0.46s)
+    --- FAIL: TestToolRefusalVisibilityName/light/edit (0.15s)
+    --- FAIL: TestToolRefusalVisibilityName/dark/connect (0.14s)
+    --- FAIL: TestToolRefusalVisibilityName/dark/edit (0.16s)
+=== RUN   TestToolRefusalVisibilityCommand
+=== RUN   TestToolRefusalVisibilityCommand/light/connect
+    toolvisibility_test.go:80: command refusal remains outside viewport: rect={X:201.8 Y:51.399998 W:0 H:0} scroll=748.1001
+=== RUN   TestToolRefusalVisibilityCommand/light/edit
+    toolvisibility_test.go:80: command refusal remains outside viewport: rect={X:201.8 Y:51.399998 W:0 H:0} scroll=793.1001
+=== RUN   TestToolRefusalVisibilityCommand/dark/connect
+    toolvisibility_test.go:80: command refusal remains outside viewport: rect={X:201.8 Y:51.399998 W:0 H:0} scroll=748.1001
+=== RUN   TestToolRefusalVisibilityCommand/dark/edit
+    toolvisibility_test.go:80: command refusal remains outside viewport: rect={X:201.8 Y:51.399998 W:0 H:0} scroll=793.1001
+--- FAIL: TestToolRefusalVisibilityCommand (0.59s)
+    --- FAIL: TestToolRefusalVisibilityCommand/light/connect (0.15s)
+    --- FAIL: TestToolRefusalVisibilityCommand/light/edit (0.15s)
+    --- FAIL: TestToolRefusalVisibilityCommand/dark/connect (0.14s)
+    --- FAIL: TestToolRefusalVisibilityCommand/dark/edit (0.14s)
+FAIL
+FAIL	floter/internal/settingsui	1.530s
+FAIL
