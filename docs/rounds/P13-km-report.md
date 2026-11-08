@@ -4,7 +4,7 @@
 
 ## stash清点
 
-八条均与交接SHA相同，原始patch与reverse输出暂存/tmp/floter-P13-km，归档时入仓。不是未接续stale-kill，不将旧主题/Tauri链覆盖当前实现。
+八条均与交接SHA相同，reverse输出随报告入仓，原始patch用于临时核对；完整原件继续留在stash。不是未接续stale-kill，不将旧主题/Tauri链覆盖当前实现。
 
 | ref | SHA | 判断 | 处置 |
 | --- | --- | --- | --- |
@@ -158,3 +158,5 @@ skill的五项工艺密度与通用字号门槛没有机械套用；用户明确
 原始证据：baseline、batch1–4、M1–M3、pointer-correction、first-full-test/first-full-verbose、final-test/final-verbose，以及各平台vet/build日志和exit文件均在本轮目录。首次错误与中断没有用成功日志覆盖；最终普通/verbose日志明确分开。
 
 执行偏差：调用超过40，达到预算后只做门槛、必要回归纠正与归档；开盘15:17到门槛15:58约41分钟，低于45–75分钟目标下沿，不增加无关修改凑时长。任务量八项达标，跨运行参数与配置多选；原生Windows/macOS交互仍未验。
+
+完整验收与图证已由cce88260提交并推送；工作树已核为空。收尾交接只核准stash证据描述与done.log，不再改产品或测试。
