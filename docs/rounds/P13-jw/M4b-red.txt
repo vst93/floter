@@ -1,0 +1,13 @@
+=== RUN   TestInstallCurrentRegistryCancel
+=== RUN   TestInstallCurrentRegistryCancel/light
+2026/11/08 11:16:30 floter: could not install review-current: extensions: the package declaration changed during review
+    installcurrent_test.go:400: cancelled registry-cancel published a result: notices=["review-current 安装失败"] pending=0
+=== RUN   TestInstallCurrentRegistryCancel/dark
+2026/11/08 11:16:31 floter: could not install review-current: extensions: the package declaration changed during review
+    installcurrent_test.go:400: cancelled registry-cancel published a result: notices=["review-current 安装失败"] pending=0
+--- FAIL: TestInstallCurrentRegistryCancel (2.02s)
+    --- FAIL: TestInstallCurrentRegistryCancel/light (1.22s)
+    --- FAIL: TestInstallCurrentRegistryCancel/dark (0.80s)
+FAIL
+FAIL	floter/internal/shell	2.045s
+FAIL

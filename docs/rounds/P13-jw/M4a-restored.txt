@@ -1,0 +1,8 @@
+=== RUN   TestInstallCurrentLinkCancel
+=== RUN   TestInstallCurrentLinkCancel/light
+=== RUN   TestInstallCurrentLinkCancel/dark
+--- PASS: TestInstallCurrentLinkCancel (1.12s)
+    --- PASS: TestInstallCurrentLinkCancel/light (0.73s)
+    --- PASS: TestInstallCurrentLinkCancel/dark (0.39s)
+PASS
+ok  	floter/internal/shell	1.133s

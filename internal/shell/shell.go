@@ -885,6 +885,11 @@ func New(opts Options) *App {
 		SetCustomShortcuts: a.setCustomShortcuts,
 		InstallFromRegistry: func(name, constraint string) {
 			go func() {
+				defer a.onMain(func() {
+					if a.Settings.Actions.Invalidate != nil {
+						a.Settings.Actions.Invalidate()
+					}
+				})
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
 				if err != nil {
 					log.Printf("floter: could not install %s: %v", name, err)
@@ -894,6 +899,10 @@ func New(opts Options) *App {
 				approved := true
 				if prepared.Approval.NeedsApproval() {
 					approved = a.confirmInstallPermissions(prepared.Approval)
+					if !approved {
+						prepared.Cancel()
+						return
+					}
 				}
 				entry, err := prepared.Commit(approved)
 				if err != nil {
@@ -2664,6 +2673,11 @@ func optionsAsStrings(options []any) []string {
 // decision, and it stays quiet.
 func (a *App) connectFromLink(manifest string) {
 	go func() {
+		defer a.onMain(func() {
+			if a.Settings.Actions.Invalidate != nil {
+				a.Settings.Actions.Invalidate()
+			}
+		})
 		expanded := manifest
 		info, err := os.Stat(expanded)
 		if err != nil {
@@ -2694,6 +2708,10 @@ func (a *App) connectFromLink(manifest string) {
 		approved := true
 		if prepared.Approval.NeedsApproval() {
 			approved = a.confirmInstallPermissions(prepared.Approval)
+		}
+		if !approved {
+			prepared.Cancel()
+			return
 		}
 		entry, err := prepared.Commit(approved)
 		if err != nil {

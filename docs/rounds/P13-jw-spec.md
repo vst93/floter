@@ -30,3 +30,11 @@
 全量一次：gofmt -l cmd internal；三平台 go vet ./...；go test -count=1 ./...；go test -count=1 -v ./... 计 PASS；三平台 go build ./...。每批仅定向回归与受影响包 vet，避免重复全量。
 
 M1 恢复两入口可点击：重复 Click pin 红。M2 撤销摘要检查：本地/推荐新权限写入 pin 红。M3 撤销包路径检查：旧声明仍安装 pin 红。M4 恢复取消进入 Commit：取消后仓库变化 pin 红。每组保存原文件 MD5，实跑红、还原、md5sum -c、touch 复跑。深浅 ui.Tester PNG，比较图入轮次目录；原生系统权限弹窗与其他系统真机不冒充已验。
+
+## 2026-11-08 接续范围
+
+接续起点 `9b5f1b01`，前三批六项已在远端。依据 AGENT-NOTES 的中断沿用轮号规则，接回 `d74161692d` 抢救稿的第四批两项，并完成整轮八项验收；不另起轮号、重复计算前六项。
+
+本次动手前核实：registry 回答在 `internal/shell/shell.go:897`，深链回答在 `:2696`；拒绝仍抵达 `Commit`。`internal/extensions/install.go:201` 的 Commit 才负责释放下载暂存目录，因此提前退出需要显式 Cancel。原生权限窗口通过已有回调控制，下载通过本地 HTTP registry，断言仓库字节、通知数量与暂存目录，禁止仅凭内部布尔量判成功。
+
+M4 的准确失败判据：在本轮前三批摘要保护已经生效的前提下，取消后产生错误通知，而非必然写盘。撤销两个取消出口应使 `cancelled link-cancel published a result` 与 `cancelled registry-cancel published a result` 实红；恢复后额外确认本地源目录仍在、下载目录已释放。若抢救夹具不能可靠结束，先修同步门控再保留原语义断言。

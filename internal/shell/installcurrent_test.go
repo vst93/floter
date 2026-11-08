@@ -1,9 +1,14 @@
 package shell
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync"
@@ -161,11 +166,8 @@ func checkInstallCurrentBusy(t *testing.T, recommended bool) {
 				f.a.installPackageFolder(f.dir)
 			}
 			resume()
-			// Fixed host produces one begin and one finish; old implementation has
-			// no lifecycle signal, so its UI assertion above is the reproduction.
-			if repeated != 0 {
-				return
-			}
+			// Await the host's begin and finish even when the UI assertion fails;
+			// a mutation must not leave a worker reading a removed fixture.
 			adoptionWait(t, settled)
 			adoptionWait(t, settled)
 			if calls.Load() != 1 {
@@ -239,6 +241,7 @@ func checkInstallCurrentDeclaration(t *testing.T, recommended bool, change strin
 			if err != nil {
 				t.Fatal(err)
 			}
+			titles := noticeTitles(f.a)
 			tt.Frame()
 			tt.Advance(200 * time.Millisecond)
 			tt.Frame()
@@ -250,7 +253,7 @@ func checkInstallCurrentDeclaration(t *testing.T, recommended bool, change strin
 			if !bytes.Equal(before, after) {
 				t.Errorf("obsolete %s review rewrote repository", scenario)
 			}
-			if titles := noticeTitles(f.a); len(titles) != 0 {
+			if len(titles) != 0 {
 				t.Errorf("obsolete %s review published a result: %q", scenario, titles)
 			}
 			if t.Failed() {
@@ -282,3 +285,130 @@ func TestInstallCurrentLocalPackage(t *testing.T) {
 func TestInstallCurrentRecommendedPackage(t *testing.T) {
 	checkInstallCurrentDeclaration(t, true, "package")
 }
+
+func installCurrentRegistry(t *testing.T, f *installCurrentFixture) *extensions.Registry {
+	t.Helper()
+	var buffer bytes.Buffer
+	gz := gzip.NewWriter(&buffer)
+	archive := tar.NewWriter(gz)
+	manifest, err := json.Marshal(f.manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string][]byte{
+		"package/floter.extension.json":     manifest,
+		"package/package.json":              []byte(`{"name":"review-current","version":"1.0.0","floter":{"manifest":"floter.extension.json"}}`),
+		"package/provider-description.json": []byte(`{"protocolVersion":"1.0","provider":{"id":"dev.floter.review-current","name":"工作区工具","version":"1.0.0"},"commands":[]}`),
+	} {
+		if err := archive.WriteHeader(&tar.Header{Name: name, Mode: 0600, Size: int64(len(body))}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := archive.Write(body); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := archive.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/tarball" {
+			w.Write(buffer.Bytes())
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"name": "review-current", "dist-tags": map[string]string{"latest": "1.0.0"}, "versions": map[string]any{"1.0.0": map[string]any{"version": "1.0.0", "dist": map[string]string{"tarball": "http://" + r.Host + "/tarball"}}}})
+	}))
+	t.Cleanup(server.Close)
+	return &extensions.Registry{BaseURL: server.URL, Client: server.Client()}
+}
+
+func checkInstallCurrentCancel(t *testing.T, registry bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := newInstallCurrentFixture(t, dark)
+			started, release, settled := make(chan struct{}), make(chan struct{}), make(chan struct{}, 4)
+			resume := sync.OnceFunc(func() { close(release) })
+			defer resume()
+			f.a.confirmPermissions = func(extensions.PermissionApproval) bool { close(started); <-release; return false }
+			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
+			tt := installCurrentFrame(f, dark)
+			if registry {
+				f.a.Registry = installCurrentRegistry(t, f)
+				if err := tt.Click(i18n.For("zh").Settings.IntegrationsPackageHint); err != nil {
+					t.Fatal(err)
+				}
+				tt.Type("review-current")
+				tt.Frame()
+				run := f.a.Settings.Actions.InstallFromRegistry
+				var name, version string
+				f.a.Settings.Actions.InstallFromRegistry = func(n, v string) { name, version = n, v }
+				if err := tt.Click(i18n.For("zh").Settings.IntegrationsInstall); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				f.a.Settings.Actions.InstallFromRegistry = run
+				if name != "review-current" {
+					t.Fatalf("registry input dispatched %q", name)
+				}
+				run(name, version)
+			} else {
+				f.a.HandleURL("floter://connect?manifest=" + f.dir)
+			}
+			adoptionWait(t, started)
+			dir := f.dir
+			if registry {
+				dirs, err := filepath.Glob(filepath.Join(f.a.Paths.Root, ".download-*"))
+				if err != nil || len(dirs) != 1 {
+					t.Fatalf("download stage: %v %v", dirs, err)
+				}
+				dir = dirs[0]
+			}
+			current := f.manifest
+			current.Permissions = nil
+			diagnosisWrite(t, filepath.Join(dir, "floter.extension.json"), current)
+			source, err := os.ReadFile(filepath.Join(dir, "floter.extension.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(f.a.Paths.RepositoryFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resume()
+			adoptionWait(t, settled)
+			after, err := os.ReadFile(f.a.Paths.RepositoryFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			titles := noticeTitles(f.a)
+			tt.Frame()
+			tt.Advance(200 * time.Millisecond)
+			tt.Frame()
+			scenario := "link-cancel"
+			if registry {
+				scenario = "registry-cancel"
+			}
+			installCurrentDump(t, tt, scenario, dark)
+			if !bytes.Equal(before, after) {
+				t.Errorf("cancelled %s rewrote repository", scenario)
+			}
+			// Cancellation is an answer, never a failed install or refused link.
+			if len(titles) != 0 {
+				t.Errorf("cancelled %s published a result: notices=%q pending=%d", scenario, titles, pendingNotices(f.a))
+			}
+			if registry {
+				if _, err := os.Stat(dir); !os.IsNotExist(err) {
+					t.Errorf("cancelled registry retained download: %v", err)
+				}
+			} else if kept, err := os.ReadFile(filepath.Join(dir, "floter.extension.json")); err != nil || !bytes.Equal(source, kept) {
+				t.Errorf("cancelled link changed the local source: %v", err)
+			}
+		})
+	}
+}
+
+func TestInstallCurrentLinkCancel(t *testing.T)     { checkInstallCurrentCancel(t, false) }
+func TestInstallCurrentRegistryCancel(t *testing.T) { checkInstallCurrentCancel(t, true) }

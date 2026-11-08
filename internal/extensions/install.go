@@ -198,6 +198,14 @@ func (p Prepared) Name() string { return p.Manifest.Name }
 // ErrInstallChanged retires a review whose package declaration changed.
 var ErrInstallChanged = errors.New("extensions: the package declaration changed during review")
 
+// Cancel releases a staged download without re-reading or installing it.
+// Local source packages are never owned by Prepared and remain untouched.
+func (p Prepared) Cancel() {
+	if p.cleanup != nil {
+		p.cleanup()
+	}
+}
+
 // Commit installs the prepared package. approved says whether the user
 // approved the permissions RequiresApproval asked about; without it, a
 // package that declares permissions is refused.

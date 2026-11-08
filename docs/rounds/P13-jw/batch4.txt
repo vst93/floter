@@ -1,0 +1,50 @@
+=== RUN   TestInstallCurrentLocalBusy
+=== RUN   TestInstallCurrentLocalBusy/light
+=== RUN   TestInstallCurrentLocalBusy/dark
+--- PASS: TestInstallCurrentLocalBusy (1.90s)
+    --- PASS: TestInstallCurrentLocalBusy/light (1.13s)
+    --- PASS: TestInstallCurrentLocalBusy/dark (0.77s)
+=== RUN   TestInstallCurrentRecommendedBusy
+=== RUN   TestInstallCurrentRecommendedBusy/light
+=== RUN   TestInstallCurrentRecommendedBusy/dark
+--- PASS: TestInstallCurrentRecommendedBusy (1.63s)
+    --- PASS: TestInstallCurrentRecommendedBusy/light (0.84s)
+    --- PASS: TestInstallCurrentRecommendedBusy/dark (0.79s)
+=== RUN   TestInstallCurrentLocalPermissions
+=== RUN   TestInstallCurrentLocalPermissions/light
+=== RUN   TestInstallCurrentLocalPermissions/dark
+--- PASS: TestInstallCurrentLocalPermissions (2.61s)
+    --- PASS: TestInstallCurrentLocalPermissions/light (1.30s)
+    --- PASS: TestInstallCurrentLocalPermissions/dark (1.31s)
+=== RUN   TestInstallCurrentRecommendedPermissions
+=== RUN   TestInstallCurrentRecommendedPermissions/light
+=== RUN   TestInstallCurrentRecommendedPermissions/dark
+--- PASS: TestInstallCurrentRecommendedPermissions (2.71s)
+    --- PASS: TestInstallCurrentRecommendedPermissions/light (1.35s)
+    --- PASS: TestInstallCurrentRecommendedPermissions/dark (1.36s)
+=== RUN   TestInstallCurrentLocalPackage
+=== RUN   TestInstallCurrentLocalPackage/light
+=== RUN   TestInstallCurrentLocalPackage/dark
+--- PASS: TestInstallCurrentLocalPackage (2.45s)
+    --- PASS: TestInstallCurrentLocalPackage/light (1.34s)
+    --- PASS: TestInstallCurrentLocalPackage/dark (1.12s)
+=== RUN   TestInstallCurrentRecommendedPackage
+=== RUN   TestInstallCurrentRecommendedPackage/light
+=== RUN   TestInstallCurrentRecommendedPackage/dark
+--- PASS: TestInstallCurrentRecommendedPackage (2.24s)
+    --- PASS: TestInstallCurrentRecommendedPackage/light (1.16s)
+    --- PASS: TestInstallCurrentRecommendedPackage/dark (1.08s)
+=== RUN   TestInstallCurrentLinkCancel
+=== RUN   TestInstallCurrentLinkCancel/light
+=== RUN   TestInstallCurrentLinkCancel/dark
+--- PASS: TestInstallCurrentLinkCancel (0.33s)
+    --- PASS: TestInstallCurrentLinkCancel/light (0.17s)
+    --- PASS: TestInstallCurrentLinkCancel/dark (0.16s)
+=== RUN   TestInstallCurrentRegistryCancel
+=== RUN   TestInstallCurrentRegistryCancel/light
+=== RUN   TestInstallCurrentRegistryCancel/dark
+--- PASS: TestInstallCurrentRegistryCancel (0.88s)
+    --- PASS: TestInstallCurrentRegistryCancel/light (0.44s)
+    --- PASS: TestInstallCurrentRegistryCancel/dark (0.44s)
+PASS
+ok  	floter/internal/shell	14.764s

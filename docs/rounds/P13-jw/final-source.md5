@@ -1,0 +1,4 @@
+932742b2dd163227c506dc5d7f1fdc8a  internal/extensions/install.go
+94318c845e8d9a4eb7d192c9fca81918  internal/settingsui/settingsui.go
+25dcba3d3952a78e6359b7a4b86ecc35  internal/shell/shell.go
+60be88b3b0a805c422f82917464c004b  internal/shell/installcurrent_test.go

@@ -1,0 +1,14 @@
+=== RUN   TestInstallCurrentLinkCancel
+=== RUN   TestInstallCurrentLinkCancel/light
+=== RUN   TestInstallCurrentLinkCancel/dark
+--- PASS: TestInstallCurrentLinkCancel (1.79s)
+    --- PASS: TestInstallCurrentLinkCancel/light (1.03s)
+    --- PASS: TestInstallCurrentLinkCancel/dark (0.76s)
+=== RUN   TestInstallCurrentRegistryCancel
+=== RUN   TestInstallCurrentRegistryCancel/light
+=== RUN   TestInstallCurrentRegistryCancel/dark
+--- PASS: TestInstallCurrentRegistryCancel (7.52s)
+    --- PASS: TestInstallCurrentRegistryCancel/light (3.72s)
+    --- PASS: TestInstallCurrentRegistryCancel/dark (3.81s)
+PASS
+ok  	floter/internal/shell	10.362s

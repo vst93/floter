@@ -1,0 +1,230 @@
+diff --git a/docs/rounds/P13-jw-report.md b/docs/rounds/P13-jw-report.md
+index 9c295f10..6fddb4c5 100644
+--- a/docs/rounds/P13-jw-report.md
++++ b/docs/rounds/P13-jw-report.md
+@@ -49,3 +49,12 @@
+ 第三批原代码四场景均报 `obsolete local-package review rewrote repository` / `obsolete recommended-package review rewrote repository`。新审核后manifest路径也一并钉住，不单算第九项。
+ 
+ 第三批相关 **92 PASS / 0 FAIL**，extensions/shell vet净。M3撤销入口复核，四场景实红；MD5还原、touch后 **6 PASS**。两次审核后的当前manifest名称有独立断言。
++
++第三批 **9b5f1b01** 已推送。
++
++### 第四批：取消答案不进入提交
++
++7. 现象：深链审核取消仍进入Commit；审核期间声明变化后产生“链接失败”反馈（没有摘要保护时还能误装已不声明权限的包）。改动：拒绝答案直接退出。验证：真实HandleURL→权限门控→磁盘移除权限→取消，仓库不变、通知0条。
++8. 现象：registry审核取消也进入Commit，变化后的声明变成“安装失败”。改动：拒绝答案直接释放拥有的下载暂存目录再退出，使用既有刷新回调唤醒页面。验证：真实输入包名/Click安装→本地HTTP注册表→审核→取消，深浅仓库不变、通知0条、下载目录消失。
++
++测试夹具首次编译引用不存在的ToastText，已改为已有notice队列在渲染前的断言；该编译错误不是产品证据，不计mutation。
+diff --git a/internal/extensions/install.go b/internal/extensions/install.go
+index c1ee53be..e0e861e7 100644
+--- a/internal/extensions/install.go
++++ b/internal/extensions/install.go
+@@ -198,6 +198,14 @@ func (p Prepared) Name() string { return p.Manifest.Name }
+ // ErrInstallChanged retires a review whose package declaration changed.
+ var ErrInstallChanged = errors.New("extensions: the package declaration changed during review")
+ 
++// Cancel releases a staged download without re-reading or installing it.
++// Local source packages are never owned by Prepared and remain untouched.
++func (p Prepared) Cancel() {
++	if p.cleanup != nil {
++		p.cleanup()
++	}
++}
++
+ // Commit installs the prepared package. approved says whether the user
+ // approved the permissions RequiresApproval asked about; without it, a
+ // package that declares permissions is refused.
+diff --git a/internal/shell/installcurrent_test.go b/internal/shell/installcurrent_test.go
+index 2e8d9fdf..bc996832 100644
+--- a/internal/shell/installcurrent_test.go
++++ b/internal/shell/installcurrent_test.go
+@@ -1,9 +1,14 @@
+ package shell
+ 
+ import (
++	"archive/tar"
+ 	"bytes"
++	"compress/gzip"
+ 	"context"
++	"encoding/json"
+ 	"image/png"
++	"net/http"
++	"net/http/httptest"
+ 	"os"
+ 	"path/filepath"
+ 	"sync"
+@@ -282,3 +287,124 @@ func TestInstallCurrentLocalPackage(t *testing.T) {
+ func TestInstallCurrentRecommendedPackage(t *testing.T) {
+ 	checkInstallCurrentDeclaration(t, true, "package")
+ }
++
++func installCurrentRegistry(t *testing.T, f *installCurrentFixture) *extensions.Registry {
++	t.Helper()
++	var buffer bytes.Buffer
++	gz := gzip.NewWriter(&buffer)
++	archive := tar.NewWriter(gz)
++	manifest, err := json.Marshal(f.manifest)
++	if err != nil {
++		t.Fatal(err)
++	}
++	for name, body := range map[string][]byte{
++		"package/floter.extension.json":     manifest,
++		"package/package.json":              []byte(`{"name":"review-current","version":"1.0.0","floter":{"manifest":"floter.extension.json"}}`),
++		"package/provider-description.json": []byte(`{"protocolVersion":"1.0","provider":{"id":"dev.floter.review-current","name":"工作区工具","version":"1.0.0"},"commands":[]}`),
++	} {
++		if err := archive.WriteHeader(&tar.Header{Name: name, Mode: 0600, Size: int64(len(body))}); err != nil {
++			t.Fatal(err)
++		}
++		if _, err := archive.Write(body); err != nil {
++			t.Fatal(err)
++		}
++	}
++	if err := archive.Close(); err != nil {
++		t.Fatal(err)
++	}
++	if err := gz.Close(); err != nil {
++		t.Fatal(err)
++	}
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Path == "/tarball" {
++			w.Write(buffer.Bytes())
++			return
++		}
++		json.NewEncoder(w).Encode(map[string]any{"name": "review-current", "dist-tags": map[string]string{"latest": "1.0.0"}, "versions": map[string]any{"1.0.0": map[string]any{"version": "1.0.0", "dist": map[string]string{"tarball": "http://" + r.Host + "/tarball"}}}})
++	}))
++	t.Cleanup(server.Close)
++	return &extensions.Registry{BaseURL: server.URL, Client: server.Client()}
++}
++
++func checkInstallCurrentCancel(t *testing.T, registry bool) {
++	t.Helper()
++	for _, dark := range []bool{false, true} {
++		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
++			f := newInstallCurrentFixture(t, dark)
++			started, release, settled := make(chan struct{}), make(chan struct{}), make(chan struct{}, 4)
++			resume := sync.OnceFunc(func() { close(release) })
++			defer resume()
++			f.a.confirmPermissions = func(extensions.PermissionApproval) bool { close(started); <-release; return false }
++			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
++			tt := installCurrentFrame(f, dark)
++			if registry {
++				f.a.Registry = installCurrentRegistry(t, f)
++				if err := tt.Click(i18n.For("zh").Settings.IntegrationsPackageHint); err != nil {
++					t.Fatal(err)
++				}
++				tt.Type("review-current")
++				tt.Frame()
++				run := f.a.Settings.Actions.InstallFromRegistry
++				var name, version string
++				f.a.Settings.Actions.InstallFromRegistry = func(n, v string) { name, version = n, v }
++				if err := tt.Click(i18n.For("zh").Settings.IntegrationsInstall); err != nil {
++					t.Fatal(err)
++				}
++				tt.Frame()
++				f.a.Settings.Actions.InstallFromRegistry = run
++				if name != "review-current" {
++					t.Fatalf("registry input dispatched %q", name)
++				}
++				run(name, version)
++			} else {
++				f.a.HandleURL("floter://connect?manifest=" + f.dir)
++			}
++			adoptionWait(t, started)
++			dir := f.dir
++			if registry {
++				dirs, err := filepath.Glob(filepath.Join(f.a.Paths.Root, ".download-*"))
++				if err != nil || len(dirs) != 1 {
++					t.Fatalf("download stage: %v %v", dirs, err)
++				}
++				dir = dirs[0]
++			}
++			current := f.manifest
++			current.Permissions = nil
++			diagnosisWrite(t, filepath.Join(dir, "floter.extension.json"), current)
++			before, err := os.ReadFile(f.a.Paths.RepositoryFile)
++			if err != nil {
++				t.Fatal(err)
++			}
++			resume()
++			adoptionWait(t, settled)
++			after, err := os.ReadFile(f.a.Paths.RepositoryFile)
++			if err != nil {
++				t.Fatal(err)
++			}
++			titles := noticeTitles(f.a)
++			tt.Frame()
++			tt.Advance(200 * time.Millisecond)
++			tt.Frame()
++			scenario := "link-cancel"
++			if registry {
++				scenario = "registry-cancel"
++			}
++			installCurrentDump(t, tt, scenario, dark)
++			if !bytes.Equal(before, after) {
++				t.Errorf("cancelled %s rewrote repository", scenario)
++			}
++			// Cancellation is an answer, never a failed install or refused link.
++			if len(titles) != 0 {
++				t.Errorf("cancelled %s published a result: notices=%q pending=%d", scenario, titles, pendingNotices(f.a))
++			}
++			if registry {
++				if _, err := os.Stat(dir); !os.IsNotExist(err) {
++					t.Errorf("cancelled registry retained download: %v", err)
++				}
++			}
++		})
++	}
++}
++
++func TestInstallCurrentLinkCancel(t *testing.T)     { checkInstallCurrentCancel(t, false) }
++func TestInstallCurrentRegistryCancel(t *testing.T) { checkInstallCurrentCancel(t, true) }
+diff --git a/internal/shell/shell.go b/internal/shell/shell.go
+index 481be221..f401975f 100644
+--- a/internal/shell/shell.go
++++ b/internal/shell/shell.go
+@@ -885,6 +885,11 @@ func New(opts Options) *App {
+ 		SetCustomShortcuts: a.setCustomShortcuts,
+ 		InstallFromRegistry: func(name, constraint string) {
+ 			go func() {
++				defer a.onMain(func() {
++					if a.Settings.Actions.Invalidate != nil {
++						a.Settings.Actions.Invalidate()
++					}
++				})
+ 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
+ 				if err != nil {
+ 					log.Printf("floter: could not install %s: %v", name, err)
+@@ -894,6 +899,10 @@ func New(opts Options) *App {
+ 				approved := true
+ 				if prepared.Approval.NeedsApproval() {
+ 					approved = a.confirmInstallPermissions(prepared.Approval)
++					if !approved {
++						prepared.Cancel()
++						return
++					}
+ 				}
+ 				entry, err := prepared.Commit(approved)
+ 				if err != nil {
+@@ -2664,6 +2673,11 @@ func optionsAsStrings(options []any) []string {
+ // decision, and it stays quiet.
+ func (a *App) connectFromLink(manifest string) {
+ 	go func() {
++		defer a.onMain(func() {
++			if a.Settings.Actions.Invalidate != nil {
++				a.Settings.Actions.Invalidate()
++			}
++		})
+ 		expanded := manifest
+ 		info, err := os.Stat(expanded)
+ 		if err != nil {
+@@ -2695,6 +2709,10 @@ func (a *App) connectFromLink(manifest string) {
+ 		if prepared.Approval.NeedsApproval() {
+ 			approved = a.confirmInstallPermissions(prepared.Approval)
+ 		}
++		if !approved {
++			prepared.Cancel()
++			return
++		}
+ 		entry, err := prepared.Commit(approved)
+ 		if err != nil {
+ 			log.Printf("floter: %s was not connected: %v", prepared.Name(), err)

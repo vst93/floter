@@ -1,0 +1,8 @@
+=== RUN   TestInstallCurrentRegistryCancel
+=== RUN   TestInstallCurrentRegistryCancel/light
+=== RUN   TestInstallCurrentRegistryCancel/dark
+--- PASS: TestInstallCurrentRegistryCancel (1.62s)
+    --- PASS: TestInstallCurrentRegistryCancel/light (0.96s)
+    --- PASS: TestInstallCurrentRegistryCancel/dark (0.67s)
+PASS
+ok  	floter/internal/shell	1.640s

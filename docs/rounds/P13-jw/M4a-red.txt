@@ -1,0 +1,13 @@
+=== RUN   TestInstallCurrentLinkCancel
+=== RUN   TestInstallCurrentLinkCancel/light
+2026/11/08 11:15:39 floter: 工作区工具 was not connected: extensions: the package declaration changed during review
+    installcurrent_test.go:400: cancelled link-cancel published a result: notices=["无法打开该链接"] pending=0
+=== RUN   TestInstallCurrentLinkCancel/dark
+2026/11/08 11:15:40 floter: 工作区工具 was not connected: extensions: the package declaration changed during review
+    installcurrent_test.go:400: cancelled link-cancel published a result: notices=["无法打开该链接"] pending=0
+--- FAIL: TestInstallCurrentLinkCancel (1.47s)
+    --- FAIL: TestInstallCurrentLinkCancel/light (0.94s)
+    --- FAIL: TestInstallCurrentLinkCancel/dark (0.54s)
+FAIL
+FAIL	floter/internal/shell	1.489s
+FAIL
