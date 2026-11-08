@@ -114,7 +114,9 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	heading.Children(func() {
 		ui.Text(c, copy.ParamsTitle).FontSize(tokens.Caption).FontWeight(600).
 			TextColor(t.TextMuted)
-		add = a.paramIconButton(c, "plus", copy.ParamsAdd)
+		outputFocusOutlet(c.Key("param-add-outlet"), func() {
+			add = a.paramIconButton(c, "plus", copy.ParamsAdd)
+		})
 		if add.Clicked() {
 			a.toolParams = append(a.toolParams, toolParam{Kind: extensions.ParamText})
 			added = true
@@ -259,7 +261,11 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 			Gap(t.Space(2)).Children(func() {
 			a.paramRequiredToggle(c, copy, &required)
-			if a.paramIconButton(c, "close", copy.ParamsRemove).Clicked() {
+			var remove ui.Element
+			outputFocusOutlet(c.Key("param-remove-outlet"), func() {
+				remove = a.paramIconButton(c, "close", copy.ParamsRemove)
+			})
+			if remove.Clicked() {
 				removed = true
 			}
 		})
