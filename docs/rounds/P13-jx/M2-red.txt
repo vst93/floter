@@ -1,0 +1,19 @@
+=== RUN   TestInstallFormRegistryBusy
+=== RUN   TestInstallFormRegistryBusy/light
+    installrecovery_test.go:41: busy registry permits repeat: 1
+=== RUN   TestInstallFormRegistryBusy/dark
+    installrecovery_test.go:41: busy registry permits repeat: 1
+--- FAIL: TestInstallFormRegistryBusy (0.18s)
+    --- FAIL: TestInstallFormRegistryBusy/light (0.14s)
+    --- FAIL: TestInstallFormRegistryBusy/dark (0.04s)
+=== RUN   TestInstallFormBlankPackage
+=== RUN   TestInstallFormBlankPackage/light
+    installrecovery_test.go:72: blank install remains a keyboard stop
+=== RUN   TestInstallFormBlankPackage/dark
+    installrecovery_test.go:72: blank install remains a keyboard stop
+--- FAIL: TestInstallFormBlankPackage (0.09s)
+    --- FAIL: TestInstallFormBlankPackage/light (0.04s)
+    --- FAIL: TestInstallFormBlankPackage/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.276s
+FAIL

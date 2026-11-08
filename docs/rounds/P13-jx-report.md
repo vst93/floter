@@ -1,6 +1,6 @@
 # P13-jx · 安装表单失败恢复
 
-2026-11-08 03:32 UTC开盘。HEAD 762606e1，pull已最新，工作区干净；done.log在给定路径不存在。按上轮“仍待”继续registry表单与本地选择出口。全量基线运行中，未填写猜测数字。
+2026-11-08 03:32 UTC开盘。HEAD 762606e1，pull已最新，工作区干净；done.log在给定路径不存在。按上轮“仍待”继续registry表单与本地选择出口。全量基线实测5998 PASS / 0 FAIL、3403函数、exit0。
 
 ## stash清点
 
@@ -27,3 +27,10 @@
 2. **权限取消**：现象→拒绝审核后输入被丢弃；改动→取消清理下载目录后恢复本次输入，仍不发失败通知；验证→本地registry包与权限回调、取消后重新点击，输入完整、通知数0，深浅两套。
 
 M1实跑：撤回两条宿主恢复接线，两个场景深浅均红，原始串`download lost retry draft: "" / ""`、`cancel lost retry draft: "" / ""`。MD5还原OK，touch复跑6 PASS，旧提交即清空B测试1 PASS，定向vet无输出。第一次夹具误把无Label的版本占位符当Click目标，未触发业务；已改为真实Tab进入版本，初次输出保留但不计mutation证据。旧V/B/S修改0/0/0。
+
+### 第二批：registry等待与空态
+
+3. **等待期间仍可重复提交**：现象→本地/推荐已有锁而registry仍亮着可按；改动→同一安装入口复用packageInstallBusy，显示原忙态环、禁用重复点击，宿主同步拒绝重复派发；验证→等待期间真实点击派发0次、完成后重试1次，原取消宿主回归仍通过。
+4. **空包名仍是Tab停靠点**：现象→空白包名的安装按钮看起来可用、能拿焦点，却无动作；改动→空白包名走disabledActionButton，输入有效包名即解锁；验证→Tab跳过、点击派发0次、填入后派发1次，深浅均验。
+
+M2将表单还原到上一批产品，实红`busy registry permits repeat: 1`与`blank install remains a keyboard stop`；MD5还原OK、touch后6 PASS。宿主恢复与旧取消回归9 PASS，相关vet净。第一批已推送e5c74f50；V/B/S旧断言修改仍0/0/0。

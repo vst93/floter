@@ -884,13 +884,12 @@ func New(opts Options) *App {
 		CustomShortcuts:    func() []settings.CustomShortcut { return settings.CustomShortcutsOf(a.Store.Snapshot()) },
 		SetCustomShortcuts: a.setCustomShortcuts,
 		InstallFromRegistry: func(name, constraint string) {
+			if !a.Settings.BeginRegistryInstall() {
+				return
+			}
 			recoverDraft := a.Settings.RegistryInstallRecovery(name, constraint)
 			go func() {
-				defer a.onMain(func() {
-					if a.Settings.Actions.Invalidate != nil {
-						a.Settings.Actions.Invalidate()
-					}
-				})
+				defer a.onMain(func() { a.Settings.FinishPackageInstall("registry") })
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
 				if err != nil {
 					a.onMain(recoverDraft)

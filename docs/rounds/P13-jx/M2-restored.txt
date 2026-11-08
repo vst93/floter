@@ -1,0 +1,14 @@
+=== RUN   TestInstallFormRegistryBusy
+=== RUN   TestInstallFormRegistryBusy/light
+=== RUN   TestInstallFormRegistryBusy/dark
+--- PASS: TestInstallFormRegistryBusy (0.24s)
+    --- PASS: TestInstallFormRegistryBusy/light (0.19s)
+    --- PASS: TestInstallFormRegistryBusy/dark (0.05s)
+=== RUN   TestInstallFormBlankPackage
+=== RUN   TestInstallFormBlankPackage/light
+=== RUN   TestInstallFormBlankPackage/dark
+--- PASS: TestInstallFormBlankPackage (0.10s)
+    --- PASS: TestInstallFormBlankPackage/light (0.05s)
+    --- PASS: TestInstallFormBlankPackage/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.343s

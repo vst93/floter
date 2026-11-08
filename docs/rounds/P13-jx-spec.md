@@ -19,7 +19,7 @@
 
 ## 门槛与mutation
 
-开盘HEAD 762606e1，基线全量正在实跑，数字以baseline.txt/exit为准，函数实数稍后填。完整门槛为gofmt空、linux/windows/darwin vet和build、普通与verbose全量测试，统一LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。每批定向测试与vet通过才提交。
+开盘HEAD 762606e1，基线实测5998 PASS / 0 FAIL、3403函数、exit0，原始输出baseline.txt/exit。完整门槛为gofmt空、linux/windows/darwin vet和build、普通与verbose全量测试，统一LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。每批定向测试与vet通过才提交。
 
 M1撤回准备失败/取消的恢复调用，恢复与重试断言应红；M2撤回registry互斥/禁用面，重复与空态断言应红；M3撤回提交失败恢复/焦点出口；M4撤回本地焦点/错误通知。每批保留源码MD5、实红输出、逐字节还原、touch复跑。
 

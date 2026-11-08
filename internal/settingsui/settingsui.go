@@ -2301,7 +2301,16 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 		Padding(0, 0, t.Space(1), 0).Children(func() {
 		a.textInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
 		a.textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
-		if a.actionButton(c, copy.IntegrationsInstall).Clicked() {
+		var install ui.Element
+		switch {
+		case a.packageInstallBusy["registry"]:
+			install = a.busyActionButton(c, copy.IntegrationsInstall, "install.registry")
+		case strings.TrimSpace(name) == "":
+			install = a.disabledActionButton(c, copy.IntegrationsInstall)
+		default:
+			install = a.actionButton(c, copy.IntegrationsInstall)
+		}
+		if install.Clicked() {
 			requested = true
 		}
 	})
@@ -2314,6 +2323,19 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 		a.installName, a.installVersion = "", ""
 		a.Body.Y = 0
 	}
+}
+
+// BeginRegistryInstall runs synchronously in the submit event, so the current
+// frame sees the busy state. Completion redraws after all host work settles.
+func (a *App) BeginRegistryInstall() bool {
+	if a.packageInstallBusy["registry"] {
+		return false
+	}
+	if a.packageInstallBusy == nil {
+		a.packageInstallBusy = map[string]bool{}
+	}
+	a.packageInstallBusy["registry"] = true
+	return true
 }
 
 // RegistryInstallRecovery returns this request's failure outlet. Submission
