@@ -1,0 +1,34 @@
+package settingsui
+
+import (
+    "fmt"
+    "image/png"
+    "os"
+    "testing"
+    "floter/internal/extensions"
+)
+
+// Loaded only through Go overlay: resting geometry must remain byte exact.
+func TestKIRestingGeometry(t *testing.T) {
+    for _, dark := range []bool{false, true} {
+        a := declarationVisibilityApp(t, dark, 5)
+        a.toolParams[0].Kind = extensions.ParamSelect
+        a.toolParams[0].Options = "北京\n上海"
+        tt := toolVisibilityFrame(t, a, dark)
+        for i, y := range []float32{0, 600, a.Body.MaxY} {
+            a.Body.Y = y
+            tt.Frame()
+            name := fmt.Sprintf("/tmp/floter-P13-ki-rest-%s-%d-%s", appearanceName(dark), i, os.Getenv("FLOTER_P13KI_REST"))
+            f, err := os.Create(name+".png")
+            if err != nil { t.Fatal(err) }
+            if err := png.Encode(f, tt.Image()); err != nil { t.Fatal(err) }
+            f.Close()
+            geometry := fmt.Sprintf("scroll=%v max=%v\n", a.Body.Y, a.Body.MaxY)
+            for _, label := range tt.Texts() {
+                r, _ := tt.Find(label)
+                geometry += fmt.Sprintf("%q %+v\n", label, r)
+            }
+            if err := os.WriteFile(name+".txt", []byte(geometry), 0600); err != nil { t.Fatal(err) }
+        }
+    }
+}

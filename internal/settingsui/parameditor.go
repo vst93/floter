@@ -263,7 +263,9 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 					})
 				})
 				a.paramField(c, "flag", copy.ParamsFlag, func() {
-					a.extensionField(c, &flag, customFieldMetrics).Bind(&refusal.flag).Label(copy.ParamsFlag).Placeholder("--target")
+					outputFocusOutlet(c.Key("param-flag-outlet"), func() {
+						a.extensionField(c, &flag, customFieldMetrics).Bind(&refusal.flag).Label(copy.ParamsFlag).Placeholder("--target")
+					})
 				})
 			})
 		// `.extension-param-editor__controls`: the required checkbox at the
@@ -288,10 +290,12 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 			ui.Column(c).FillWidth().Gap(t.Space(0.75)).Children(func() {
 				ui.Text(c, copy.ParamsOptions).FontSize(tokens.Caption).FontWeight(600).
 					TextColor(t.TextMuted)
-				box := a.editorDismissKeys(ui.TextArea(c, &options)).Bind(&optionsFocus.button).Bind(&refusal.options).Label(copy.ParamsOptions).
-					FillWidth().MinHeight(t.Space(paramEditorOptionsMin)).
-					Radius(tokens.RadiusSM).Font(paramEditorMono)
-				a.fieldFace(c, box, true)
+				outputFocusOutlet(c.Key("param-options-outlet"), func() {
+					box := a.editorDismissKeys(ui.TextArea(c, &options)).Bind(&optionsFocus.button).Bind(&refusal.options).Label(copy.ParamsOptions).
+						FillWidth().MinHeight(t.Space(paramEditorOptionsMin)).
+						Radius(tokens.RadiusSM).Font(paramEditorMono)
+					a.fieldFace(c, box, true)
+				})
 			})
 		} else {
 			if optionsFocus.restore(c) {
