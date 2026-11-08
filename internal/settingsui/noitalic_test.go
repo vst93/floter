@@ -270,8 +270,9 @@ func TestTheEmptyCaptureStaysAheadOfTheTruncationAside(t *testing.T) {
 	// the two asides do not. Read as text because the font choice is a claim
 	// about which call site draws what.
 	source := readPackageSource(t, "settingsui.go")
-	// P13-ha S: plain Text -> ANSI RichText; keep the exact font chain pin.
-	if !strings.Contains(source, "ui.RichText(c, view.TextSpans(tokens.Appearance, tokens.TextStrong, tokens.Caption)...).\n\t\t\t\t\t\t\tFont(runOutputFont)") {
+	// P13-kf S: unkeyed RichText -> per-result keyed RichText + reader binding;
+	// keep the exact font chain pin, including the new identity and binding.
+	if !strings.Contains(source, "ui.RichText(c.Key(a.outputKeys[integration.ID]), view.TextSpans(tokens.Appearance, tokens.TextStrong, tokens.Caption)...).\n\t\t\t\t\t\t\tBind(&reader.panel).\n\t\t\t\t\t\t\tFont(runOutputFont)") {
 		t.Error("the captured text no longer wears runOutputFont: the monospace register is " +
 			"what separates a program's bytes from the two asides")
 	}

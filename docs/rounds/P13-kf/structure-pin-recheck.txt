@@ -1,0 +1,90 @@
+=== RUN   TestTheEmptyCaptureStaysAheadOfTheTruncationAside
+--- PASS: TestTheEmptyCaptureStaysAheadOfTheTruncationAside (0.11s)
+=== RUN   TestOutputRecoveryExpand
+=== RUN   TestOutputRecoveryExpand/light
+=== RUN   TestOutputRecoveryExpand/dark
+--- PASS: TestOutputRecoveryExpand (0.18s)
+    --- PASS: TestOutputRecoveryExpand/light (0.15s)
+    --- PASS: TestOutputRecoveryExpand/dark (0.03s)
+=== RUN   TestOutputRecoveryCollapse
+=== RUN   TestOutputRecoveryCollapse/light
+=== RUN   TestOutputRecoveryCollapse/dark
+--- PASS: TestOutputRecoveryCollapse (0.06s)
+    --- PASS: TestOutputRecoveryCollapse/light (0.03s)
+    --- PASS: TestOutputRecoveryCollapse/dark (0.03s)
+=== RUN   TestOutputRecoveryExternalFold
+=== RUN   TestOutputRecoveryExternalFold/light
+=== RUN   TestOutputRecoveryExternalFold/dark
+--- PASS: TestOutputRecoveryExternalFold (0.09s)
+    --- PASS: TestOutputRecoveryExternalFold/light (0.05s)
+    --- PASS: TestOutputRecoveryExternalFold/dark (0.05s)
+=== RUN   TestOutputRecoveryEmptyResult
+=== RUN   TestOutputRecoveryEmptyResult/light
+=== RUN   TestOutputRecoveryEmptyResult/dark
+--- PASS: TestOutputRecoveryEmptyResult (0.09s)
+    --- PASS: TestOutputRecoveryEmptyResult/light (0.05s)
+    --- PASS: TestOutputRecoveryEmptyResult/dark (0.04s)
+=== RUN   TestOutputRecoveryOrphan
+=== RUN   TestOutputRecoveryOrphan/light
+=== RUN   TestOutputRecoveryOrphan/dark
+--- PASS: TestOutputRecoveryOrphan (0.10s)
+    --- PASS: TestOutputRecoveryOrphan/light (0.06s)
+    --- PASS: TestOutputRecoveryOrphan/dark (0.05s)
+=== RUN   TestOutputRecoveryRemoved
+=== RUN   TestOutputRecoveryRemoved/light
+=== RUN   TestOutputRecoveryRemoved/dark
+--- PASS: TestOutputRecoveryRemoved (0.09s)
+    --- PASS: TestOutputRecoveryRemoved/light (0.05s)
+    --- PASS: TestOutputRecoveryRemoved/dark (0.05s)
+=== RUN   TestOutputRecoveryNewResultSelection
+=== RUN   TestOutputRecoveryNewResultSelection/light/same=false
+=== RUN   TestOutputRecoveryNewResultSelection/light/same=true
+=== RUN   TestOutputRecoveryNewResultSelection/dark/same=false
+=== RUN   TestOutputRecoveryNewResultSelection/dark/same=true
+--- PASS: TestOutputRecoveryNewResultSelection (0.17s)
+    --- PASS: TestOutputRecoveryNewResultSelection/light/same=false (0.05s)
+    --- PASS: TestOutputRecoveryNewResultSelection/light/same=true (0.04s)
+    --- PASS: TestOutputRecoveryNewResultSelection/dark/same=false (0.04s)
+    --- PASS: TestOutputRecoveryNewResultSelection/dark/same=true (0.04s)
+=== RUN   TestOutputRecoveryTruncationRefresh
+=== RUN   TestOutputRecoveryTruncationRefresh/light/truncated=false
+=== RUN   TestOutputRecoveryTruncationRefresh/light/truncated=true
+=== RUN   TestOutputRecoveryTruncationRefresh/dark/truncated=false
+=== RUN   TestOutputRecoveryTruncationRefresh/dark/truncated=true
+--- PASS: TestOutputRecoveryTruncationRefresh (0.11s)
+    --- PASS: TestOutputRecoveryTruncationRefresh/light/truncated=false (0.03s)
+    --- PASS: TestOutputRecoveryTruncationRefresh/light/truncated=true (0.03s)
+    --- PASS: TestOutputRecoveryTruncationRefresh/dark/truncated=false (0.03s)
+    --- PASS: TestOutputRecoveryTruncationRefresh/dark/truncated=true (0.03s)
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/light/expand
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/light/fold
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/light/empty
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/light/orphan
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/light/removed
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/light/result
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/light/truncated
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/dark/expand
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/dark/fold
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/dark/empty
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/dark/orphan
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/dark/removed
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/dark/result
+=== RUN   TestOutputRecoveryDoesNotReclaimOtherFocus/dark/truncated
+--- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus (0.32s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/light/expand (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/light/fold (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/light/empty (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/light/orphan (0.03s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/light/removed (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/light/result (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/light/truncated (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/dark/expand (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/dark/fold (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/dark/empty (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/dark/orphan (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/dark/removed (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/dark/result (0.02s)
+    --- PASS: TestOutputRecoveryDoesNotReclaimOtherFocus/dark/truncated (0.02s)
+PASS
+ok  	floter/internal/settingsui	1.326s
