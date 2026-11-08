@@ -110,12 +110,14 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	heading := ui.Row(c).FillWidth().MinHeight(t.Space(paramEditorHeadingMin)).
 		AlignItems(ui.Center).Justify(ui.SpaceBetween).Gap(t.Space(2))
 	var add ui.Element
+	added := false
 	heading.Children(func() {
 		ui.Text(c, copy.ParamsTitle).FontSize(tokens.Caption).FontWeight(600).
 			TextColor(t.TextMuted)
 		add = a.paramIconButton(c, "plus", copy.ParamsAdd)
 		if add.Clicked() {
 			a.toolParams = append(a.toolParams, toolParam{Kind: extensions.ParamText})
+			added = true
 		}
 	})
 	defer func() {
@@ -160,6 +162,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	issues := extensions.ParamRowIssues(a.editorParams())
 	removed := -1
 	labels := make([]ui.Handle, len(a.toolParams))
+	fields := make([]ui.Handle, len(a.toolParams))
 	ui.Column(c).FillWidth().Gap(t.Space(paramEditorPlateGap)).Children(func() {
 		for index := range a.toolParams {
 			index := index
@@ -167,11 +170,16 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 			if param.key == nil {
 				param.key = new(int)
 			}
-			if a.paramPlate(c.Key(param.key), copy, param, issues[index], &labels[index]) {
+			if a.paramPlate(c.Key(param.key), copy, param, issues[index], &labels[index], &fields[index]) {
 				removed = index
 			}
 		}
 	})
+	if added {
+		// Continue in the declaration just appended, even in a long list.
+		c.Resolve(labels[len(labels)-1]).Focus()
+		c.Resolve(fields[len(fields)-1]).ScrollIntoView()
+	}
 	if removed >= 0 {
 		// Continue at the next surviving declaration (or the previous one
 		// when deleting the tail). An empty list returns to its add button.
@@ -191,7 +199,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 // paramPlate draws one parameter definition: the hairline record plate with its
 // fields grid, its controls line, the choice options and the row's refusal. It
 // reports whether the remove key was pressed this frame.
-func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, issue extensions.ParamRowIssue, labelFocus *ui.Handle) bool {
+func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, issue extensions.ParamRowIssue, labelFocus, fieldsFocus *ui.Handle) bool {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 
@@ -215,7 +223,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		// 1fr))` with a `6px 8px` gap. A wrap row of 140u-minimum growing cells
 		// is the same layout in this framework: a full line of cells, and a lone
 		// last cell taking the line's remainder.
-		ui.Row(c).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(paramEditorPlateGap)).
+		ui.Row(c).Bind(fieldsFocus).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(paramEditorPlateGap)).
 			Children(func() {
 				a.paramField(c, "label", copy.ParamsLabel, func() {
 					a.extensionField(c, &label, customFieldMetrics).Bind(labelFocus).Label(copy.ParamsLabel)

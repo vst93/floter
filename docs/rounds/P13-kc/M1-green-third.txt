@@ -1,0 +1,11 @@
+=== RUN   TestDeclarationVisibilityAdd
+=== RUN   TestDeclarationVisibilityAdd/light
+    declarationvisibility_test.go:141: editing outlet outside viewport: rect={X:364.8 Y:490.00006 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1326.3
+=== RUN   TestDeclarationVisibilityAdd/dark
+    declarationvisibility_test.go:141: editing outlet outside viewport: rect={X:364.8 Y:490.00006 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1326.3
+--- FAIL: TestDeclarationVisibilityAdd (0.27s)
+    --- FAIL: TestDeclarationVisibilityAdd/light (0.20s)
+    --- FAIL: TestDeclarationVisibilityAdd/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.277s
+FAIL

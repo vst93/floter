@@ -1,0 +1,25 @@
+=== RUN   TestDeclarationVisibilityAdd
+=== RUN   TestDeclarationVisibilityAdd/light
+    declarationvisibility_test.go:139: editing outlet outside viewport: rect={X:364.8 Y:490.00006 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1326.3
+=== RUN   TestDeclarationVisibilityAdd/dark
+    declarationvisibility_test.go:139: editing outlet outside viewport: rect={X:364.8 Y:490.00006 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1326.3
+--- FAIL: TestDeclarationVisibilityAdd (0.69s)
+    --- FAIL: TestDeclarationVisibilityAdd/light (0.56s)
+    --- FAIL: TestDeclarationVisibilityAdd/dark (0.13s)
+=== RUN   TestDeclarationVisibilityRemoveNeighbor
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next/light
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next/dark
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail/light
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail/dark
+--- PASS: TestDeclarationVisibilityRemoveNeighbor (0.85s)
+    --- PASS: TestDeclarationVisibilityRemoveNeighbor/next (0.45s)
+        --- PASS: TestDeclarationVisibilityRemoveNeighbor/next/light (0.20s)
+        --- PASS: TestDeclarationVisibilityRemoveNeighbor/next/dark (0.25s)
+    --- PASS: TestDeclarationVisibilityRemoveNeighbor/tail (0.40s)
+        --- PASS: TestDeclarationVisibilityRemoveNeighbor/tail/light (0.23s)
+        --- PASS: TestDeclarationVisibilityRemoveNeighbor/tail/dark (0.17s)
+FAIL
+FAIL	floter/internal/settingsui	1.561s
+FAIL

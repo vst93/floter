@@ -1,0 +1,15 @@
+=== RUN   TestDeclarationVisibilityAdd
+=== RUN   TestDeclarationVisibilityAdd/light
+    declarationvisibility_test.go:145: editing outlet lost focus: 显示名
+    declarationvisibility_test.go:145: editing outlet outside viewport: rect={X:364.8 Y:1290 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.2999
+    declarationvisibility_test.go:150: wrong declaration receives edit: [{key:0x1e3a8be9b2f0 ID:field0 Label:字段0 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9b320 ID:field1 Label:字段1 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9b350 ID:field2 Label:字段2 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9b380 ID:field3 Label:字段3 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9b3b0 ID:field4 Label:字段4 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9a8a0 ID: Label: Kind:text Placeholder: Default: Flag: Required:false Options:}]
+=== RUN   TestDeclarationVisibilityAdd/dark
+    declarationvisibility_test.go:145: editing outlet lost focus: 显示名
+    declarationvisibility_test.go:145: editing outlet outside viewport: rect={X:364.8 Y:1290 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.2999
+    declarationvisibility_test.go:150: wrong declaration receives edit: [{key:0x1e3a8be9b768 ID:field0 Label:字段0 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9b798 ID:field1 Label:字段1 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9b7c8 ID:field2 Label:字段2 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9b7f8 ID:field3 Label:字段3 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8be9b828 ID:field4 Label:字段4 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x1e3a8c3049d0 ID: Label: Kind:text Placeholder: Default: Flag: Required:false Options:}]
+--- FAIL: TestDeclarationVisibilityAdd (0.27s)
+    --- FAIL: TestDeclarationVisibilityAdd/light (0.21s)
+    --- FAIL: TestDeclarationVisibilityAdd/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.277s
+FAIL

@@ -1,0 +1,8 @@
+=== RUN   TestDeclarationVisibilityAdd
+=== RUN   TestDeclarationVisibilityAdd/light
+=== RUN   TestDeclarationVisibilityAdd/dark
+--- PASS: TestDeclarationVisibilityAdd (0.34s)
+    --- PASS: TestDeclarationVisibilityAdd/light (0.28s)
+    --- PASS: TestDeclarationVisibilityAdd/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	0.350s
