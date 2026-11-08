@@ -25,3 +25,10 @@
 2. 程序选择取消：同样的长表单Enter取消，编辑出口在屏外 → 返焦时一次显示原框 → 草稿原样保留、警告0次、选择器仅派发1次，直接键入有效。
 
 第一批定向6 PASS / 0 FAIL / exit0，gofmt空、settingsui vet净。M1回注旧settingsui.go，四个深浅场景实红`editing outlet outside viewport: rect={X:386.8 Y:-1152.0001 W:240 H:30}`；MD5逐字节还原成功，touch复验6 PASS。浅色after目视：程序框和蓝色插入点出现在正文顶端，下面仍是原命令与参数行，无新增面层。原图暂存/tmp，最终归档深浅对照。
+
+第一批e75f97b0已推送。
+
+3. 程序选择成功：长表单页尾按Enter选定路径，路径更新但程序框仍Y=-1152.0001 → 同步返回原框时显示它 → 深浅新路径精确为/usr/bin/forecast，派发1次、警告0次，可直接改为/usr/bin/corrected。
+4. 程序选择能力撤回：ChooseProgram变nil后按钮消失，返焦原框仍屏外（X=449.8、Y=-1152.0001）→ 仅实际拥有焦点的退役按钮显示原程序框 → 深浅回调0次、原路径保留、直接编辑与自由滚轮通过。
+
+M2回注第一批产品，四场景实红`editing outlet outside viewport`；MD5逐字节还原，touch后四条程序选择测试12 PASS / 0 FAIL / exit0。settingsui vet净；旧V/B/S断言0/0/0。

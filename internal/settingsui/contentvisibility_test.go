@@ -94,3 +94,6 @@ func checkPickerReturnVisibility(t *testing.T, result string) {
 
 func TestContentVisibilityPickerError(t *testing.T)  { checkPickerReturnVisibility(t, "error") }
 func TestContentVisibilityPickerCancel(t *testing.T) { checkPickerReturnVisibility(t, "cancel") }
+
+func TestContentVisibilityPickerSuccess(t *testing.T)  { checkPickerReturnVisibility(t, "success") }
+func TestContentVisibilityPickerWithdraw(t *testing.T) { checkPickerReturnVisibility(t, "withdraw") }

@@ -5863,13 +5863,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 								pickerFocus.restoreVisible(c)
 							} else if picked != "" {
 								program = picked
-								pickerFocus.restore(c)
+								pickerFocus.restoreVisible(c)
 							} else {
 								pickerFocus.restoreVisible(c)
 							}
 						}
 					} else {
-						pickerFocus.restore(c)
+						pickerFocus.restoreVisible(c)
 					}
 				})
 			}
