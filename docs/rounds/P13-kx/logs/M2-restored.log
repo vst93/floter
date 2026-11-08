@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasHealthReflow
+=== RUN   TestCommandAliasHealthReflow/light
+=== RUN   TestCommandAliasHealthReflow/dark
+--- PASS: TestCommandAliasHealthReflow (0.12s)
+    --- PASS: TestCommandAliasHealthReflow/light (0.08s)
+    --- PASS: TestCommandAliasHealthReflow/dark (0.04s)
+=== RUN   TestCommandSwitchHealthReflow
+=== RUN   TestCommandSwitchHealthReflow/light
+=== RUN   TestCommandSwitchHealthReflow/dark
+--- PASS: TestCommandSwitchHealthReflow (0.06s)
+    --- PASS: TestCommandSwitchHealthReflow/light (0.03s)
+    --- PASS: TestCommandSwitchHealthReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.176s

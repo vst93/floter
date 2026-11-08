@@ -1,0 +1,23 @@
+=== RUN   TestCommandAliasHealthReflow
+=== RUN   TestCommandAliasHealthReflow/light
+    commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:695 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:695 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasHealthReflow/dark
+    commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:695 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:695 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasHealthReflow (0.19s)
+    --- FAIL: TestCommandAliasHealthReflow/light (0.16s)
+    --- FAIL: TestCommandAliasHealthReflow/dark (0.03s)
+=== RUN   TestCommandSwitchHealthReflow
+=== RUN   TestCommandSwitchHealthReflow/light
+    commandreflow_test.go:133: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:673 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:133: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:673 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandSwitchHealthReflow/dark
+    commandreflow_test.go:133: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:673 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:133: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:673 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandSwitchHealthReflow (0.05s)
+    --- FAIL: TestCommandSwitchHealthReflow/light (0.02s)
+    --- FAIL: TestCommandSwitchHealthReflow/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.240s
+FAIL

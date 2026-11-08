@@ -95,9 +95,13 @@ func checkCommandReflow(t *testing.T, control, source string) {
 						in.FailureDetail = "/usr/bin/weather"
 					}
 				case "health":
-					in.Health, in.HealthReport = "", nil
-					if step%2 == 0 {
+					switch step {
+					case 0, 3:
 						in.Health, in.HealthReport = "Degraded", testHealthReport()
+					case 1:
+						in.HealthReport.Probes = append(in.HealthReport.Probes, HealthProbe{ID: "network", Stderr: strings.Repeat("连接失败，请检查服务。\n", 12)})
+					case 2:
+						in.Health, in.HealthReport = "", nil
 					}
 				case "diagnosis":
 					in.Diagnosis = ""
@@ -153,6 +157,10 @@ func checkCommandReflow(t *testing.T, control, source string) {
 				copy := *in.Approval
 				in.Approval = &copy
 			}
+			if in.HealthReport != nil {
+				copy := *in.HealthReport
+				in.HealthReport = &copy
+			}
 			tt.Frame()
 			if a.Body.Y != before {
 				t.Errorf("stable layout stole scroll: %v -> %v", before, a.Body.Y)
@@ -171,3 +179,6 @@ func TestCommandSwitchErrorReflow(t *testing.T) { checkCommandReflow(t, "switch"
 
 func TestCommandAliasFailureReflow(t *testing.T)  { checkCommandReflow(t, "alias", "failure") }
 func TestCommandSwitchFailureReflow(t *testing.T) { checkCommandReflow(t, "switch", "failure") }
+
+func TestCommandAliasHealthReflow(t *testing.T)  { checkCommandReflow(t, "alias", "health") }
+func TestCommandSwitchHealthReflow(t *testing.T) { checkCommandReflow(t, "switch", "health") }
