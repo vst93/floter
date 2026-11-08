@@ -197,3 +197,8 @@ func TestPluginRefreshOutletRadio(t *testing.T) {
 func TestPluginRefreshOutletCheckboxes(t *testing.T) {
 	checkPluginRefreshOutlet(t, plugincfg.Checkboxes, "checkboxes")
 }
+
+func TestPluginRefreshOutletText(t *testing.T) { checkPluginRefreshOutlet(t, plugincfg.Text, "text") }
+func TestPluginRefreshOutletNumber(t *testing.T) {
+	checkPluginRefreshOutlet(t, plugincfg.Number, "number")
+}

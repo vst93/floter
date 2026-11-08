@@ -694,7 +694,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 				TextColor(t.TextMuted).SingleLine()
 		}
 	})
-	pluginFieldOutlet(c, slot)
+	a.pluginFieldOutlet(c, slot)
 	return slot, changed
 }
 
@@ -736,7 +736,7 @@ func (a *App) sheetTextField(c *ui.Context, placeholder string, value *string) u
 	slot.Children(func() {
 		input = ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1)
 	})
-	pluginFieldOutlet(c, slot)
+	a.pluginFieldOutlet(c, slot)
 	// Submitted and Label belong to the editor; input events do not bubble
 	// through the decorative slot.
 	return input
