@@ -7927,7 +7927,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				TextColor(a.tokens(c).TextStrong)
 			ui.Text(c, copy.RunValuesHint).FontSize(a.tokens(c).Caption).TextColor(theme.TextMuted)
 		})
-		feedback := ""
+		feedback := strconv.Quote(integration.Error) + strconv.Quote(integration.Description)
 		a.runParamsBox(c, func() {
 			occurrences := map[string]int{}
 			for index, param := range integration.Params {
@@ -8069,7 +8069,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			}
 			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
 			var run ui.Element
-			a.formViewportOutlet(c.Key("run-submit-outlet"), func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
+			a.formFeedbackOutlet(c.Key("run-submit-outlet"), feedback, func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
 			if runDisabled && hadSubmitFocus {
 				cancel.Focus().ScrollIntoView()
 			}

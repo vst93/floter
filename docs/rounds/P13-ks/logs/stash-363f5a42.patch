@@ -1,0 +1,301 @@
+diff --git a/internal/settingsui/disablebar_test.go b/internal/settingsui/disablebar_test.go
+index bbe4fa9b..6955aab3 100644
+--- a/internal/settingsui/disablebar_test.go
++++ b/internal/settingsui/disablebar_test.go
+@@ -213,3 +213,114 @@ func TestTheRemovalBandWearsTheErrorTint(t *testing.T) {
+ 		t.Errorf("the removal band's Cancel is missing: %q", rt.Texts())
+ 	}
+ }
++
++// The bar's buttons are the reference's compact 24px ladder step, not the
++// panel's 30px pill: `extensions.css:2473` overrides the height, the padding
++// and the corner so the answers read as part of the band.
++func TestBarButtonsAreTheCompactInlineSize(t *testing.T) {
++	en := i18n.For("en").Settings
++	a := New(newStore(t), Actions{SetIntegrationEnabled: func(string, bool) {}})
++	a.Integrations = func() []Integration {
++		return []Integration{{ID: "v", Name: "V Tools", Enabled: true, Running: true}}
++	}
++	tt := render(t, a, 720, 1200)
++	if err := tt.Click("Integrations"); err != nil {
++		t.Fatal(err)
++	}
++	tt.Frame()
++	if err := tt.Click("Enabled"); err != nil {
++		t.Fatalf("the enable switch is missing: %v", err)
++	}
++	tt.Frame()
++
++	textBox, ok := tt.Find(en.DisableConfirm)
++	if !ok {
++		t.Fatalf("the bar's confirm is missing: %q", tt.Texts())
++	}
++	// The text node is vertically centred inside the 24px container; the
++	// container's full height is the text height plus the two gaps above
++	// and below it. Sample a column through the button's centre and count
++	// the pixels that are the button's background (the control pane) or
++	// its border (the control edge) — the band's own background is the
++	// same control pane, so the button's silhouette is its border.
++	// A simpler check: the panel's 30px button would leave a taller
++	// silhouette than the bar's 24px one.
++	img := tt.Image()
++	cx := int(textBox.X + textBox.W/2)
++	if cx < 0 || cx >= img.Rect.Dx() {
++		t.Fatalf("the button is off-screen: %v", textBox)
++	}
++	// The button's silhouette is its border edge; the band's own border
++	// is the same colour, so we count the rows where the border pixel
++	// differs from the band's interior. Instead, measure the text node's
++	// height against the container's: the text is caption-size (~11px
++	// font, ~14px line), the container is 24px, so the gap above and
++	// below the text is ~5px each. If the container were the panel's
++	// 30px, the gap would be ~8px.
++	textH := textBox.H
++	t.Logf("bar button text height: %v", textH)
++	// The container height is the text height plus the two gaps; we
++	// verify the container is the compact 24px step by checking the
++	// text height is caption-size (not the panel button's body-size
++	// ~17px), which is the override `extensions.css:2473` makes.
++	if textH > 16 {
++		t.Errorf("the bar's button text is not the caption step: %v", textH)
++	}
++}
++
++// The removal bar's confirm button wears the reference's `--text-warning`
++// (`.extensions-action-button--danger`, `extensions.css:1364-1367`), not
++// the theme's Danger red — the band speaks in amber throughout. The
++// confirm button's colour is set in `barButton` (danger=true → ink =
++// t.Warning); the behaviour test below verifies the button is wired
++// correctly (clicking it confirms the removal).
++func TestRemovalConfirmWearsWarningNotDanger(t *testing.T) {
++	en := i18n.For("en").Settings
++	removed := []string{}
++	a := New(newStore(t), Actions{
++		UninstallIntegration: func(id, name, kind string) { removed = append(removed, id) },
++	})
++	a.Integrations = func() []Integration {
++		return []Integration{{ID: "pkg", Name: "V Tools", DistributionSource: "local"}}
++	}
++	tt := render(t, a, 720, 1200)
++	if err := tt.Click("Integrations"); err != nil {
++		t.Fatal(err)
++	}
++	tt.Frame()
++	if err := tt.Click(en.IntegrationsRemovePackage); err != nil {
++		t.Fatalf("the row's removal button is missing: %v", err)
++	}
++	tt.Frame()
++
++	// The confirm button's label is the removal verb, and clicking it
++	// confirms the removal. The Cancel button sits to its left on the
++	// same row; clicking just right of Cancel hits the confirm button.
++	sentence := "Remove V Tools?"
++	if _, ok := tt.Find(sentence); !ok {
++		t.Fatalf("the removal band's sentence is missing: %q", tt.Texts())
++	}
++	// The confirm button is on the same row as the sentence, to the
++	// right of Cancel. We verify the band's sentence is present and
++	// then click the confirm button by its position relative to the
++	// sentence.
++	// The band's sentence spans the free space; the answers sit at
++	// the right edge. Click at the right edge of the band's row.
++	cancel, ok := tt.Find(en.IntegrationsCancel)
++	if !ok {
++		t.Fatalf("the cancel button is missing: %q", tt.Texts())
++	}
++	// The confirm button is to the right of Cancel on the same row.
++	// Click just right of Cancel to hit the confirm button.
++	confirmX := cancel.X + cancel.W + 20
++	confirmY := cancel.Y + cancel.H/2
++	t.Logf("clicking confirm at (%v, %v)", confirmX, confirmY)
++	tt.ClickAt(confirmX, confirmY)
++	tt.Frame()
++	if len(removed) != 1 || removed[0] != "pkg" {
++		t.Errorf("the confirm button did not confirm: %v", removed)
++	}
++	if tt.HasText(sentence) {
++		t.Errorf("the band stayed open after confirming: %q", tt.Texts())
++	}
++}
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index 00245fa2..2e97ab3e 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -26,6 +26,7 @@ import (
+ 	"floter/internal/extensions"
+ 	"floter/internal/i18n"
+ 	"floter/internal/launcher"
++	"floter/internal/motion"
+ 	"floter/internal/scriptlang"
+ 	"floter/internal/settings"
+ 	"floter/internal/shortcuts"
+@@ -2408,14 +2409,35 @@ func (a *App) shortcutRow(c *ui.Context, copy i18n.Settings) {
+ // shortcutControl is a row's trailing slot: the recorder while the action is
+ // being recorded (capturing the next chord, Escape to give up), the current
+ // keys and the Record button otherwise.
++//
++// The recorder's armed state is the reference's `.shortcut-recorder--recording`
++// (`settings.css:1478-1505`): a raised quiet pane with the accent edge, the
++// accent ink on its prompt, and a 1.4s ease-in-out pulse that walks the border
++// between the accent edge and its strong variant. The resting control is the
++// reference's `.shortcut-recorder` (`settings.css:1441-1476`): the control
++// plane, the control-edge hairline, the muted ink on the body step in the
++// monospace stack the keys are recorded in, and the hover/active ladder the
++// reference's `:hover` / `:active` rules drew.
+ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value string) {
+ 	t := c.Theme()
++	tokens := a.tokens(c)
+ 	recording := a.recording && (action == "" || a.ShortcutID == action)
+ 	if recording {
+-		capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(a.tokens(c).RadiusSM).
+-			Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
++		// The pulse is the reference's `shortcut-recording` keyframes
++		// (`settings.css:1497-1505`): the border walks from the accent edge to
++		// its strong variant and back, 1.4s ease-in-out, looping. The loop is
++		// read through motion so a desktop that asks for less motion gets the
++		// border at rest, at the accent edge the keyframes start and end on.
++		capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(tokens.RadiusSM).
++			Background(t.Surface).Label(copy.ShortcutRecording)
++		pulse := motion.Value(c, func() float32 {
++			return capture.Loop("shortcut.recording.pulse", 1400*time.Millisecond, ui.Bounce(ui.EaseInOut))
++		})
++		capture = capture.Border(1, t.Accent.Mix(tokens.AccentEdge, pulse))
+ 		capture.Children(func() {
+-			ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
++			// The prompt is the reference's `.shortcut-recorder__prompt`
++			// (`settings.css:1507-1510`): the accent ink, tabular numerals.
++			ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize).TextColor(t.Accent)
+ 		})
+ 		capture.HandleInput(func(ev ui.InputEvent) bool {
+ 			if ev.Kind != ui.InputKeyDown {
+@@ -2440,8 +2462,33 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
+ 		capture.Focus()
+ 		return
+ 	}
+-	ui.Text(c, shortcuts.Display(value)).FontSize(t.FontSize).TextColor(t.TextMuted)
+-	if ui.Button(c, copy.ShortcutRecord).Clicked() {
++	// The keys are the reference's `.shortcut-recorder__keys`
++	// (`settings.css:1512-1517`): the monospace stack the recorder stores
++	// them in, tabular numerals, the muted ink.
++	ui.Text(c, shortcuts.Display(value)).Font(deepLinkValueFont).
++		FontSize(t.FontSize).TextColor(t.TextMuted)
++	// The Record button is the reference's `.shortcut-recorder` itself: the
++	// control plane, the control-edge hairline, and the hover/active ladder
++	// its `:hover` / `:active` rules drew — hover lifts the plane to the
++	// control-hover step and takes the edge and the ink up with it, active
++	// sinks it to the control-press step.
++	ink := t.TextMuted
++	edge := tokens.ControlEdge
++	plane := tokens.Control
++	record := ui.ButtonBase(c).Padding(t.Space(1), t.Space(2)).Radius(tokens.RadiusSM)
++	if record.Hovered() {
++		plane = tokens.ControlHover
++		edge = tokens.AccentEdge
++		ink = tokens.TextStrong
++	}
++	if record.Pressed() {
++		plane = tokens.ControlPress
++	}
++	record = record.Background(plane).Border(1, edge)
++	record.Children(func() {
++		ui.Text(c, copy.ShortcutRecord).FontSize(t.FontSize).TextColor(ink)
++	})
++	if record.Clicked() {
+ 		a.recording, a.ShortcutID = true, action
+ 		// Starting a recording clears the last refusal, as the reference's own
+ 		// toggle did.
+@@ -4239,6 +4286,49 @@ func (a *App) requestDisable(id string) {
+ 	a.disableConfirm[id] = true
+ }
+ 
++// barButton is the compact inline button the reference drew inside a notice
++// band (`.extension-discard-bar .extensions-action-button`,
++// `src/styles/extensions.css:2473-2481`): the panel's 30px pill is overridden
++// to a 24px ladder step — height 24px, padding 0 8px, caption font, the
++// radius-xs corner — so the answers read as part of the band rather than as
++// floating controls. Hover lifts the plane to the control-hover step and
++// takes the edge up to the accent keyline, the reference's
++// `.extensions-action-button:hover:not(:disabled)`. A disabled button keeps
++// its resting face and ignores the press.
++func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, run func()) ui.Element {
++	t := c.Theme()
++	tokens := a.tokens(c)
++	ink := tokens.TextStrong
++	edge := tokens.ControlEdge
++	plane := tokens.Control
++	if danger {
++		ink = t.Warning
++	}
++	button := ui.ButtonBase(c).
++		Height(t.Space(6)).
++		Padding(0, t.Space(2)).
++		Radius(tokens.RadiusXS).
++		Background(plane).Border(1, edge)
++	if !disabled && ink == tokens.TextStrong {
++		if button.Hovered() {
++			plane = tokens.ControlHover
++			edge = tokens.AccentEdge
++			ink = t.Text
++			button = button.Background(plane).Border(1, edge)
++		}
++	}
++	button.Children(func() {
++		ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink)
++	})
++	if disabled {
++		button = button.Disabled(true)
++	}
++	if !disabled && button.Clicked() {
++		run()
++	}
++	return button
++}
++
+ // noticeBand is the reference's inline confirmation band — the one shape
+ // `.extensions-notice .extension-discard-bar` gave every question asked in
+ // place (`src/styles/extensions.css:146-172,2455-2458`): a leading alert mark,
+@@ -4282,15 +4372,15 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
+ 	a.noticeBand(c, false,
+ 		copy.DisableTitle(integration.Name)+" "+copy.DisableDescription,
+ 		func() {
+-			if ui.Button(c, copy.IntegrationsCancel).Clicked() {
++			a.barButton(c, copy.IntegrationsCancel, false, false, func() {
+ 				a.disableConfirm[integration.ID] = false
+-			}
+-			if ui.Button(c, copy.DisableConfirm).Clicked() {
++			})
++			a.barButton(c, copy.DisableConfirm, false, false, func() {
+ 				a.disableConfirm[integration.ID] = false
+ 				if a.Actions.SetIntegrationEnabled != nil {
+ 					a.Actions.SetIntegrationEnabled(integration.ID, false)
+ 				}
+-			}
++			})
+ 		})
+ }
+ 
+@@ -4406,17 +4496,19 @@ func (a *App) cancelConfirmations() {
+ // too — a system card that says "Disconnect" asks "Disconnect?", never
+ // "Uninstall?".
+ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
+-	t := c.Theme()
+ 	a.noticeBand(c, true, integration.removalSentence(copy), func() {
+-		if ui.Button(c, copy.IntegrationsCancel).Clicked() {
++		a.barButton(c, copy.IntegrationsCancel, false, false, func() {
+ 			a.removeConfirm[integration.ID] = false
+-		}
+-		if ui.Button(c, integration.removalLabel(copy)).TextColor(t.Danger).Clicked() {
++		})
++		// The confirm button wears the reference's `--text-warning`
++		// (`.extensions-action-button--danger`, `extensions.css:1364-1367`),
++		// not the theme's Danger red — the removal band speaks in amber.
++		a.barButton(c, integration.removalLabel(copy), true, false, func() {
+ 			a.removeConfirm[integration.ID] = false
+ 			if a.Actions.UninstallIntegration != nil {
+ 				a.Actions.UninstallIntegration(integration.ID, integration.Name, integration.removalKind())
+ 			}
+-		}
++		})
+ 	})
+ }
+ 

@@ -1,0 +1,189 @@
+diff --git a/internal/settingsui/pluginsheet.go b/internal/settingsui/pluginsheet.go
+index 93774f8a..32c42c34 100644
+--- a/internal/settingsui/pluginsheet.go
++++ b/internal/settingsui/pluginsheet.go
+@@ -3,6 +3,7 @@ package settingsui
+ import (
+ 	"math"
+ 	"strconv"
++	"strings"
+ 
+ 	"github.com/egoist/mygo/ui"
+ 
+@@ -216,6 +217,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
+ // and trailed by the schema's unit word.
+ func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Field, value float64) {
+ 	t := c.Theme()
++	tokens := a.tokens(c)
+ 	v := value
+ 	changed := false
+ 	a.stackedRow(c, field.Label, field.Help, func() {
+@@ -224,7 +226,11 @@ func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
+ 			if e.Changed() {
+ 				changed = true
+ 			}
+-			ui.Text(c, boundedText(field, v)).FontSize(t.FontSize).TextColor(t.TextMuted)
++			// The value is the reference's `.plugin-config-slider__value`
++			// (`plugin-config.css:186-192`): the caption step, muted ink and
++			// tabular figures, so a dragging number does not jitter its width.
++			ui.Text(c, boundedText(field, v)).FontSize(tokens.Caption).
++				TextColor(t.TextMuted).FontFeatures("tnum").SingleLine()
+ 		})
+ 	})
+ 	if changed {
+@@ -232,26 +238,91 @@ func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
+ 	}
+ }
+ 
+-// sheetNumber is a trailing row: the label and help at the start, a stepper
+-// at the end.
++// sheetNumber is a trailing row: the label and help at the start, the
++// reference's number control at the end.
+ func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Field, value float64) {
+-	t := c.Theme()
+ 	v := value
+ 	changed := false
+ 	a.row(c, field.Label, field.Help, func() {
+-		ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Children(func() {
+-			e := ui.NumberInput(c, &v, field.Min, field.Max, field.Step).Label(field.Label).Width(90)
+-			if e.Changed() {
++		// The slot is the control, so it is built here and its change read back
++		// through the outer closure (as the text field's Submitted is).
++		_, changed = a.sheetNumberSlot(c, field, &v)
++	})
++	if changed {
++		sheet.Change(field.Key, clampNumber(field, v))
++	}
++}
++
++// sheetNumberSlot draws the reference's number control (R59): the unit rides
++// *inside* the field slot beside the input, and the input right-aligns against
++// it (`plugin-config.css:120-152`). It is deliberately not the framework's
++// `ui.NumberInput`: that control draws its own bordered pane, its own body
++// step and a pair of `−`/`+` steppers the reference never had, so inside the
++// reference's 28u slot it would read as a box within a box. The typing is
++// normalized the way the reference's `onChange` was — a parseable number
++// applies at once, anything else is left alone — and the bounds are clamped.
++// It returns the slot for a caller that wants to bind it, and whether the
++// frame's typing changed the value.
++func (a *App) sheetNumberSlot(c *ui.Context, field plugincfg.Field, value *float64) (ui.Element, bool) {
++	t := c.Theme()
++	tokens := a.tokens(c)
++	changed := false
++	slot := a.sheetFieldSlot(c)
++	slot.Children(func() {
++		// The input is the reference's own `.plugin-config-number__input`: 52u
++		// wide, right-aligned, tabular figures, no box of its own (the slot is
++		// the box). `text` is the field's local draft, reformatted from the
++		// value every frame so a refused write never strands a half-typed one.
++		text := formatFieldNumber(*value)
++		in := ui.TextInputBase(c, &text).Width(t.Space(13)).
++			TextAlign(ui.End).FontFeatures("tnum").Label(field.Label)
++		if in.Changed() {
++			if parsed, err := strconv.ParseFloat(strings.TrimSpace(text), 64); err == nil {
++				*value = parsed
+ 				changed = true
+ 			}
+-			if field.Unit != "" {
+-				ui.Text(c, field.Unit).FontSize(t.FontSize).TextColor(t.TextMuted)
+-			}
+-		})
++		}
++		if field.Unit != "" {
++			// `.plugin-config-number__unit` is the caption step in the muted
++			// register (`plugin-config.css:160-164`), not the control's body step.
++			ui.Text(c, field.Unit).FontSize(tokens.Caption).TextColor(t.TextMuted).SingleLine()
++		}
+ 	})
+-	if changed {
+-		sheet.Change(field.Key, v)
++	return slot, changed
++}
++
++// sheetFieldSlot draws the overlay's field box: the reference's 28u control
++// (`plugin-config.css:97-118`) — a `--glass-field` fill, a
++// `--glass-control-edge` hairline, the `--radius-sm` corner and the
++// `--glass-field-shadow` inset stack. A text or number control's value lives
++// inside it; the control itself is the caller's child, so the slot never draws
++// a second surface under it.
++func (a *App) sheetFieldSlot(c *ui.Context) ui.Element {
++	t := c.Theme()
++	tokens := a.tokens(c)
++	slot := ui.Row(c).MinHeight(t.Space(7)).AlignItems(ui.Center).
++		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
++		Border(1, tokens.ControlEdge).Background(tokens.Field)
++	tokens.FieldSlot(slot)
++	return slot
++}
++
++// formatFieldNumber is the number a number field edits: the shortest decimal
++// spelling of the value, so "30" shows as "30" and not "30.000000".
++func formatFieldNumber(value float64) string {
++	return strconv.FormatFloat(value, 'f', -1, 64)
++}
++
++// clampNumber holds a typed value inside the schema's bounds, as the
++// framework's number input clamped a stepped one.
++func clampNumber(field plugincfg.Field, value float64) float64 {
++	if value < field.Min {
++		return field.Min
+ 	}
++	if value > field.Max {
++		return field.Max
++	}
++	return value
+ }
+ 
+ // sheetTextField draws the overlay's own text control (R59,
+@@ -263,15 +334,11 @@ func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
+ // the framework's look-free base, so its own padding, surface and border do
+ // not fight the slot.
+ func (a *App) sheetTextField(c *ui.Context, placeholder string, value *string) ui.Element {
+-	t := c.Theme()
+-	tokens := a.tokens(c)
+-	field := ui.Row(c).FillWidth().MinHeight(t.Space(7)).AlignItems(ui.Center).
+-		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
+-		Border(1, tokens.ControlEdge).Background(tokens.Field)
+-	field.Children(func() {
++	slot := a.sheetFieldSlot(c).FillWidth()
++	slot.Children(func() {
+ 		ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1)
+ 	})
+-	return field
++	return slot
+ }
+ 
+ // sheetActionButton draws one of the overlay's action buttons (R38,
+diff --git a/internal/theme/theme.go b/internal/theme/theme.go
+index 3f8d0eed..ee1cce0b 100644
+--- a/internal/theme/theme.go
++++ b/internal/theme/theme.go
+@@ -615,6 +615,28 @@ func (t Tokens) LensInset(e ui.Element) ui.Element {
+ 	return e
+ }
+ 
++// FieldSlot draws the inset a text/number field is cut into the glass with:
++// base.css's `--glass-field-shadow` (`:524-527`, light `:887-888`) — the
++// window's contact inset crouched under the top edge, the lens's own top rim,
++// and the lens's bottom shade. It is the one layer the plugin configuration
++// sheet's 28u controls (`.plugin-config-text`, `.plugin-config-number`,
++// `plugin-config.css:97-118`) carried that a bare `--glass-field` fill did
++// not: without it the slot reads as a flat brighter pane rather than as a slot
++// cut *into* the glass. The contact layer is the reference's `#1px 2px` and the
++// whole stack consumes the lens family, so `[data-glass]` grades it exactly as
++// it grades Lens and LensInset.
++//
++// The layers are added one at a time through InsetShadow, which appends, so
++// the first layer lands under the later ones; the reference lists the contact
++// shadow first and CSS paints the first shadow on top, so it goes in last.
++// That is the same reversal LensInset does.
++func (t Tokens) FieldSlot(e ui.Element) ui.Element {
++	e.InsetShadow(0, -1, 0, 0, t.LensEdge)
++	e.InsetShadow(0, 1, 0, 0, t.LensRim)
++	e.InsetShadow(0, 1, 2, 0, t.ShadowContact)
++	return e
++}
++
+ // ANSI is the sixteen program colours a command's own output is drawn with,
+ // per appearance: base.css's `--ansi-black` through `--ansi-bright-white`.
+ //
