@@ -1,0 +1,19 @@
+=== RUN   TestRunVisibilityRemovedField
+=== RUN   TestRunVisibilityRemovedField/light
+    runvisibility_test.go:93: run outlet outside viewport: label="Cancel" focused=true rect={X:499.8 Y:1156.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=0
+=== RUN   TestRunVisibilityRemovedField/dark
+    runvisibility_test.go:93: run outlet outside viewport: label="Cancel" focused=true rect={X:499.8 Y:1156.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=0
+--- FAIL: TestRunVisibilityRemovedField (0.29s)
+    --- FAIL: TestRunVisibilityRemovedField/light (0.21s)
+    --- FAIL: TestRunVisibilityRemovedField/dark (0.08s)
+=== RUN   TestRunVisibilityChangedKind
+=== RUN   TestRunVisibilityChangedKind/light
+    runvisibility_test.go:93: run outlet outside viewport: label="参数 1" focused=true rect={X:204.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1515.3
+=== RUN   TestRunVisibilityChangedKind/dark
+    runvisibility_test.go:93: run outlet outside viewport: label="参数 1" focused=true rect={X:204.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1515.3
+--- FAIL: TestRunVisibilityChangedKind (0.14s)
+    --- FAIL: TestRunVisibilityChangedKind/light (0.08s)
+    --- FAIL: TestRunVisibilityChangedKind/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.447s
+FAIL

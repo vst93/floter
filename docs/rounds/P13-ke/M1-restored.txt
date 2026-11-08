@@ -1,0 +1,14 @@
+=== RUN   TestRunVisibilityRemovedField
+=== RUN   TestRunVisibilityRemovedField/light
+=== RUN   TestRunVisibilityRemovedField/dark
+--- PASS: TestRunVisibilityRemovedField (0.36s)
+    --- PASS: TestRunVisibilityRemovedField/light (0.26s)
+    --- PASS: TestRunVisibilityRemovedField/dark (0.10s)
+=== RUN   TestRunVisibilityChangedKind
+=== RUN   TestRunVisibilityChangedKind/light
+=== RUN   TestRunVisibilityChangedKind/dark
+--- PASS: TestRunVisibilityChangedKind (0.20s)
+    --- PASS: TestRunVisibilityChangedKind/light (0.11s)
+    --- PASS: TestRunVisibilityChangedKind/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	0.573s

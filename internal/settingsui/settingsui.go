@@ -7886,7 +7886,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				bindFocus := func(control ui.Element) {
 					control.Bind(&focus.control)
 					if refocus && !locked {
-						control.Focus()
+						control.Focus().ScrollIntoView()
 					}
 					if control.FocusWithin() {
 						control.Bind(fieldFocus)
@@ -7992,7 +7992,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			// `runParamMemory`, session memory seeded only on a fresh open.
 			cancel := a.actionButton(c, copy.RunCancel)
 			if hadFieldFocus && !c.Resolve(*fieldFocus).Valid() {
-				cancel.Focus()
+				cancel.Focus().ScrollIntoView()
 			}
 			if cancel.Clicked() {
 				a.runOpen[integration.ID] = false
