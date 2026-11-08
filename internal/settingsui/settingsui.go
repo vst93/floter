@@ -3630,6 +3630,16 @@ func (a *App) toggleAudit(id string) {
 	a.auditOpen[id] = !a.auditOpen[id]
 }
 
+// Permission declarations can reflow the audit above a focused form. Compare
+// contents, including enforcement groups, without following draft or scroll
+// changes. Hidden audits do not contribute an expanded list to the layout.
+func (a *App) permissionFeedback(integration Integration) string {
+	if integration.Orphan || len(integration.Permissions) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%t:%#v:%#v", a.auditOpen[integration.ID], integration.Permissions, integration.Enforced)
+}
+
 // permissionAudit draws the per-permission explanation under a row: what each
 // permission allows, and whether the host itself decides it. The list is folded
 // away until the user asks for it, so a row stays a row.
@@ -7997,7 +8007,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					on := truthyValue(values[param.ID])
 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var sw ui.Element
-						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback+healthFeedback, func() {
+						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback+healthFeedback+a.permissionFeedback(integration), func() {
 							sw = a.switchControl(c, &on).Label(label)
 							bindFocus(sw)
 						})
@@ -8026,7 +8036,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					}
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var picker ui.Element
-						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback+healthFeedback, func() {
+						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback+healthFeedback+a.permissionFeedback(integration), func() {
 							picker = a.segmentedControlKeyed(c, &index, param.Options, keys)
 							bindFocus(picker)
 						})
@@ -8048,7 +8058,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 								lockedControl(input.TextColor(a.tokens(c).Disabled))
 							}
 						}
-						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback+healthFeedback, draw)
+						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback+healthFeedback+a.permissionFeedback(integration), draw)
 					}, below...)
 					if !locked {
 						values[param.ID] = value
