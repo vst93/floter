@@ -1,0 +1,146 @@
+[
+  {
+    "scenario": "connect-prepare",
+    "theme": "light",
+    "changed_pixels": 1093775,
+    "size": [
+      960,
+      2400
+    ]
+  },
+  {
+    "scenario": "connect-cancel",
+    "theme": "light",
+    "changed_pixels": 1094399,
+    "size": [
+      960,
+      2400
+    ]
+  },
+  {
+    "scenario": "connect-commit",
+    "theme": "light",
+    "changed_pixels": 1093775,
+    "size": [
+      960,
+      2400
+    ]
+  },
+  {
+    "scenario": "connect-wait",
+    "theme": "light",
+    "changed_pixels": 1722,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "scenario": "picker-error",
+    "theme": "light",
+    "changed_pixels": 33206,
+    "size": [
+      960,
+      2400
+    ]
+  },
+  {
+    "scenario": "picker-cancel",
+    "theme": "light",
+    "changed_pixels": 2478,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "scenario": "picker-picked",
+    "theme": "light",
+    "changed_pixels": 2385,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "scenario": "submit-keyboard",
+    "theme": "light",
+    "changed_pixels": 552,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "scenario": "connect-prepare",
+    "theme": "dark",
+    "changed_pixels": 1094361,
+    "size": [
+      960,
+      2400
+    ]
+  },
+  {
+    "scenario": "connect-cancel",
+    "theme": "dark",
+    "changed_pixels": 1094361,
+    "size": [
+      960,
+      2400
+    ]
+  },
+  {
+    "scenario": "connect-commit",
+    "theme": "dark",
+    "changed_pixels": 1094361,
+    "size": [
+      960,
+      2400
+    ]
+  },
+  {
+    "scenario": "connect-wait",
+    "theme": "dark",
+    "changed_pixels": 1730,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "scenario": "picker-error",
+    "theme": "dark",
+    "changed_pixels": 24368,
+    "size": [
+      960,
+      2400
+    ]
+  },
+  {
+    "scenario": "picker-cancel",
+    "theme": "dark",
+    "changed_pixels": 2505,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "scenario": "picker-picked",
+    "theme": "dark",
+    "changed_pixels": 2404,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "scenario": "submit-keyboard",
+    "theme": "dark",
+    "changed_pixels": 552,
+    "size": [
+      720,
+      1500
+    ]
+  }
+]

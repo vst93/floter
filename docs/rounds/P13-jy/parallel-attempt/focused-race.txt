@@ -1,0 +1,228 @@
+=== RUN   TestToolPickerRecoveryError
+=== RUN   TestToolPickerRecoveryError/light
+=== RUN   TestToolPickerRecoveryError/dark
+--- PASS: TestToolPickerRecoveryError (5.42s)
+    --- PASS: TestToolPickerRecoveryError/light (3.30s)
+    --- PASS: TestToolPickerRecoveryError/dark (2.12s)
+=== RUN   TestToolPickerRecoveryCancel
+=== RUN   TestToolPickerRecoveryCancel/light
+=== RUN   TestToolPickerRecoveryCancel/dark
+--- PASS: TestToolPickerRecoveryCancel (4.59s)
+    --- PASS: TestToolPickerRecoveryCancel/light (2.95s)
+    --- PASS: TestToolPickerRecoveryCancel/dark (1.63s)
+=== RUN   TestToolPickerRecoveryPicked
+=== RUN   TestToolPickerRecoveryPicked/light
+=== RUN   TestToolPickerRecoveryPicked/dark
+--- PASS: TestToolPickerRecoveryPicked (5.39s)
+    --- PASS: TestToolPickerRecoveryPicked/light (2.70s)
+    --- PASS: TestToolPickerRecoveryPicked/dark (2.69s)
+=== RUN   TestToolPickerRecoveryStaleError
+--- PASS: TestToolPickerRecoveryStaleError (1.96s)
+=== RUN   TestToolRecoveryRestoresCompleteDraft
+=== RUN   TestToolRecoveryRestoresCompleteDraft/light
+=== RUN   TestToolRecoveryRestoresCompleteDraft/dark
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptlight
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptdark
+--- PASS: TestToolRecoveryRestoresCompleteDraft (21.75s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/light (6.67s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/dark (6.06s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/scriptlight (4.61s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/scriptdark (4.41s)
+=== RUN   TestToolRecoveryKeepsNewerForm
+=== RUN   TestToolRecoveryKeepsNewerForm/typed
+=== RUN   TestToolRecoveryKeepsNewerForm/cleared
+=== RUN   TestToolRecoveryKeepsNewerForm/folded
+=== RUN   TestToolRecoveryKeepsNewerForm/edit
+--- PASS: TestToolRecoveryKeepsNewerForm (31.67s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/typed (8.47s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/cleared (12.41s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/folded (8.99s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/edit (1.79s)
+=== RUN   TestToolRecoveryBusyConnection
+=== RUN   TestToolRecoveryBusyConnection/light
+=== RUN   TestToolRecoveryBusyConnection/dark
+--- PASS: TestToolRecoveryBusyConnection (23.17s)
+    --- PASS: TestToolRecoveryBusyConnection/light (11.64s)
+    --- PASS: TestToolRecoveryBusyConnection/dark (11.53s)
+=== RUN   TestToolRecoverySubmitKeyboard
+=== RUN   TestToolRecoverySubmitKeyboard/submit-keyboardlight
+=== RUN   TestToolRecoverySubmitKeyboard/submit-keyboarddark
+=== RUN   TestToolRecoverySubmitKeyboard/submit-wait-keyboardlight
+=== RUN   TestToolRecoverySubmitKeyboard/submit-wait-keyboarddark
+--- PASS: TestToolRecoverySubmitKeyboard (11.62s)
+    --- PASS: TestToolRecoverySubmitKeyboard/submit-keyboardlight (2.90s)
+    --- PASS: TestToolRecoverySubmitKeyboard/submit-keyboarddark (2.80s)
+    --- PASS: TestToolRecoverySubmitKeyboard/submit-wait-keyboardlight (3.03s)
+    --- PASS: TestToolRecoverySubmitKeyboard/submit-wait-keyboarddark (2.89s)
+PASS
+ok  	floter/internal/settingsui	107.181s
+=== RUN   TestToolConnectionPrepareRecovery
+=== RUN   TestToolConnectionPrepareRecovery/light
+2026/11/08 12:35:00 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverylight1935922962/003/missing-program cannot be run
+=== RUN   TestToolConnectionPrepareRecovery/dark
+2026/11/08 12:37:34 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverydark3635606162/003/missing-program cannot be run
+--- PASS: TestToolConnectionPrepareRecovery (329.76s)
+    --- PASS: TestToolConnectionPrepareRecovery/light (178.08s)
+    --- PASS: TestToolConnectionPrepareRecovery/dark (151.68s)
+=== RUN   TestToolConnectionCancelRecovery
+=== RUN   TestToolConnectionCancelRecovery/light
+=== RUN   TestToolConnectionCancelRecovery/dark
+--- PASS: TestToolConnectionCancelRecovery (217.06s)
+    --- PASS: TestToolConnectionCancelRecovery/light (126.51s)
+    --- PASS: TestToolConnectionCancelRecovery/dark (90.55s)
+=== RUN   TestToolConnectionCommitRecovery
+=== RUN   TestToolConnectionCommitRecovery/light
+panic: test timed out after 10m0s
+	running tests:
+		TestToolConnectionCommitRecovery (53s)
+		TestToolConnectionCommitRecovery/light (53s)
+
+goroutine 626 [running]:
+testing.(*M).startAlarm.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2961 +0x605
+created by time.goFunc
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/time/sleep.go:182 +0x45
+
+goroutine 1 [chan receive, locked to thread]:
+testing.(*T).Run(0xc00012a6c8, {0x159ea68, 0x20}, 0x21b4698)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2268 +0xb3e
+testing.runTests.func1(0xc00012a6c8)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2744 +0x85
+testing.tRunner(0xc00012a6c8, 0xc000041a40)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0x21d
+testing.runTests({0x1578793, 0x6}, {0x158cfa0, 0x15}, 0xc000016198, {0x21e8440, 0x295, 0x295}, {0xc2b41d495742e92d, 0x8bc0a4abf9, ...})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2742 +0x9ea
+testing.(*M).Run(0xc0000d4500)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2602 +0xf45
+main.main()
+	_testmain.go:1366 +0x165
+
+goroutine 561 [chan receive]:
+testing.(*T).Run(0xc00012b208, {0x1577960, 0x5}, 0xc000234320)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2268 +0xb3e
+floter/internal/shell.checkToolConnectionRecovery(0xc00012b208, {0x157893d, 0x6})
+	/home/tar/workspace/floter/internal/shell/toolrecovery_test.go:51 +0x98
+floter/internal/shell.TestToolConnectionCommitRecovery(0xc00012b208)
+	/home/tar/workspace/floter/internal/shell/toolrecovery_test.go:158 +0x33
+testing.tRunner(0xc00012b208, 0x21b4698)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0x21d
+created by testing.(*T).Run in goroutine 1
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0xb13
+
+goroutine 36 [chan receive]:
+github.com/egoist/mygo/internal/raster.help()
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:75 +0xb4
+created by github.com/egoist/mygo/internal/raster.hire in goroutine 35
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:69 +0xd1
+
+goroutine 37 [chan receive]:
+github.com/egoist/mygo/internal/raster.help()
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:75 +0xb4
+created by github.com/egoist/mygo/internal/raster.hire in goroutine 35
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:69 +0xd1
+
+goroutine 38 [chan receive]:
+github.com/egoist/mygo/internal/raster.help()
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:75 +0xb4
+created by github.com/egoist/mygo/internal/raster.hire in goroutine 35
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:69 +0xd1
+
+goroutine 578 [runnable]:
+github.com/egoist/mygo/ui.Icon(0xc00047cce0, 0xc0000b2210)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1286 +0x298
+floter/internal/settingsui.(*App).sidebarRow.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1560 +0x8c
+github.com/egoist/mygo/ui.(*node).Children(0xc00061e2b0, 0xc00078d0b8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.Element.Children({0xc00047ccd0?, 0x0?, 0x0?}, 0xc00078d0b8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x59
+floter/internal/settingsui.(*App).sidebarRow(0xc00049b308, 0xc00047cce0, 0x4)
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1552 +0x8a9
+floter/internal/settingsui.(*App).View.func3.2.1.1(0x4)
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1387 +0x45
+github.com/egoist/mygo/ui.(*listFrame).build.func4()
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/list.go:749 +0x4d
+github.com/egoist/mygo/ui.(*node).Children(0xc00061dbc0, 0xc00078d6c0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.(*listFrame).build(0xc00049c1d0, 0x4)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/list.go:749 +0x224a
+github.com/egoist/mygo/ui.buildList.func1()
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/list.go:497 +0x74
+github.com/egoist/mygo/ui.(*node).Children(0xc0003683d0, 0xc00078d938)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.buildList(0xc00041e138, 0xc0003683d0, 0xc0003683d0, 0xc00049bcd0, 0x5, 0xc000017548, 0x0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/list.go:495 +0xa25
+github.com/egoist/mygo/ui.coreList(0xc00041e138, 0xc00049bcd0, 0x5, 0xc000017548)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/list.go:450 +0x139
+github.com/egoist/mygo/ui.List(0xc00047cce0, 0xc00049bcd0, 0x5, {0xc00078db60, 0x1, 0xc000367ce0?})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/list_builder.go:35 +0x1b4
+floter/internal/settingsui.(*App).View.func3.2.1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1386 +0x265
+github.com/egoist/mygo/ui.(*node).Children(0xc000367ce0, 0xc00078e380)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.Element.Children({0xc00047ccd0?, 0x78dc48?, 0xc0?}, 0xc00078e380)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x59
+floter/internal/settingsui.(*App).View.func3.2()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1385 +0x2d8
+github.com/egoist/mygo/ui.(*node).Children(0xc0003675f0, 0xc00078e6c0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.Element.Children({0xc00047ccd0?, 0x0?, 0x0?}, 0xc00078e6c0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x59
+floter/internal/settingsui.(*App).View.func3()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1383 +0x578
+github.com/egoist/mygo/ui.(*node).Children(0xc000363780, 0xc000793038)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.Element.Children({0xc00047ccd0?, 0xecc00?, 0xc0?}, 0xc000793038)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x59
+floter/internal/settingsui.(*App).View(0xc00049b308, 0xc00047cce0)
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1288 +0x858
+floter/internal/shell.(*App).surface(0xc000233008, 0xc00047cce0)
+	/home/tar/workspace/floter/internal/shell/shell.go:4867 +0xbb
+floter/internal/shell.(*App).View.func1.1.1.1()
+	/home/tar/workspace/floter/internal/shell/shell.go:4857 +0x39
+github.com/egoist/mygo/ui.(*node).Children(0xc000363090, 0xc0007932d0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.Element.Children({0xc00047ccd0?, 0xffff0000?, 0x3ff?}, 0xc0007932d0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x59
+floter/internal/shell.(*App).View.func1.1.1()
+	/home/tar/workspace/floter/internal/shell/shell.go:4857 +0x337
+github.com/egoist/mygo/ui.(*node).Children(0xc0003622b0, 0xc0007938d8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.Element.Children({0xc00047ccd0?, 0xf7f70000?, 0x76f8?}, 0xc0007938d8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x59
+floter/internal/shell.(*App).View.func1.1()
+	/home/tar/workspace/floter/internal/shell/shell.go:4850 +0x7c5
+github.com/egoist/mygo/ui.(*node).Children(0xc000361bc0, 0xc000793f68)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.Element.Children({0xc00047ccd0?, 0x5?, 0x0?}, 0xc000793f68)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x59
+floter/internal/shell.(*App).View.func1()
+	/home/tar/workspace/floter/internal/shell/shell.go:4804 +0xc5d
+github.com/egoist/mygo/ui.(*node).Children(0xc0003614d0, 0xc000795b38)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0xaa
+github.com/egoist/mygo/ui.Element.Children({0xc00047ccd0?, 0x47cce0?, 0xc0?}, 0xc000795b38)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x59
+floter/internal/shell.(*App).View(0xc000233008, 0xc00047cce0)
+	/home/tar/workspace/floter/internal/shell/shell.go:4707 +0x12c5
+github.com/egoist/mygo/ui.NewTester.1(0xc00041e138)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x3a
+github.com/egoist/mygo/ui.(*engine).runFrame(0xc00041e008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0xea4
+github.com/egoist/mygo/ui.(*Tester).settle(0xc0001f6bd0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x145
+github.com/egoist/mygo/ui.(*Tester).send(0xc0001f6bd0, {0x9, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, ...})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:368 +0x275
+github.com/egoist/mygo/ui.(*Tester).Key(0xc0001f6bd0, 0x0, 0x4)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:705 +0xe5
+floter/internal/shell.toolConnectionFocus(0xc00012bd48, 0xc0001f6bd0, {0x1578fc1, 0x6})
+	/home/tar/workspace/floter/internal/shell/toolrecovery_test.go:29 +0x6e
+floter/internal/shell.toolConnectionSubmit(0xc00012bd48, 0xc0001f6bd0)
+	/home/tar/workspace/floter/internal/shell/toolrecovery_test.go:43 +0x1b1
+floter/internal/shell.checkToolConnectionRecovery.func1(0xc00012bd48)
+	/home/tar/workspace/floter/internal/shell/toolrecovery_test.go:111 +0x1213
+testing.tRunner(0xc00012bd48, 0xc000234320)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0x21d
+created by testing.(*T).Run in goroutine 561
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0xb13
+FAIL	floter/internal/shell	600.398s
+FAIL

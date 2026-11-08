@@ -1,0 +1,88 @@
+=== RUN   TestToolPickerRecoveryError
+=== RUN   TestToolPickerRecoveryError/light
+=== RUN   TestToolPickerRecoveryError/dark
+--- PASS: TestToolPickerRecoveryError (2.43s)
+    --- PASS: TestToolPickerRecoveryError/light (1.41s)
+    --- PASS: TestToolPickerRecoveryError/dark (1.02s)
+=== RUN   TestToolPickerRecoveryCancel
+=== RUN   TestToolPickerRecoveryCancel/light
+=== RUN   TestToolPickerRecoveryCancel/dark
+--- PASS: TestToolPickerRecoveryCancel (2.00s)
+    --- PASS: TestToolPickerRecoveryCancel/light (1.05s)
+    --- PASS: TestToolPickerRecoveryCancel/dark (0.95s)
+=== RUN   TestToolPickerRecoveryPicked
+=== RUN   TestToolPickerRecoveryPicked/light
+=== RUN   TestToolPickerRecoveryPicked/dark
+--- PASS: TestToolPickerRecoveryPicked (1.94s)
+    --- PASS: TestToolPickerRecoveryPicked/light (0.95s)
+    --- PASS: TestToolPickerRecoveryPicked/dark (0.99s)
+=== RUN   TestToolPickerRecoveryStaleError
+--- PASS: TestToolPickerRecoveryStaleError (0.96s)
+=== RUN   TestToolRecoveryRestoresCompleteDraft
+=== RUN   TestToolRecoveryRestoresCompleteDraft/light
+=== RUN   TestToolRecoveryRestoresCompleteDraft/dark
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptlight
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptdark
+--- PASS: TestToolRecoveryRestoresCompleteDraft (10.66s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/light (2.59s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/dark (2.97s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/scriptlight (2.48s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/scriptdark (2.62s)
+=== RUN   TestToolRecoveryKeepsNewerForm
+=== RUN   TestToolRecoveryKeepsNewerForm/typed
+=== RUN   TestToolRecoveryKeepsNewerForm/cleared
+=== RUN   TestToolRecoveryKeepsNewerForm/folded
+=== RUN   TestToolRecoveryKeepsNewerForm/edit
+--- PASS: TestToolRecoveryKeepsNewerForm (19.34s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/typed (5.35s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/cleared (7.45s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/folded (5.55s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/edit (0.98s)
+=== RUN   TestToolRecoveryBusyConnection
+=== RUN   TestToolRecoveryBusyConnection/light
+=== RUN   TestToolRecoveryBusyConnection/dark
+--- PASS: TestToolRecoveryBusyConnection (14.68s)
+    --- PASS: TestToolRecoveryBusyConnection/light (7.38s)
+    --- PASS: TestToolRecoveryBusyConnection/dark (7.30s)
+=== RUN   TestToolRecoverySubmitKeyboard
+=== RUN   TestToolRecoverySubmitKeyboard/submit-keyboardlight
+=== RUN   TestToolRecoverySubmitKeyboard/submit-keyboarddark
+=== RUN   TestToolRecoverySubmitKeyboard/submit-wait-keyboardlight
+=== RUN   TestToolRecoverySubmitKeyboard/submit-wait-keyboarddark
+--- PASS: TestToolRecoverySubmitKeyboard (7.04s)
+    --- PASS: TestToolRecoverySubmitKeyboard/submit-keyboardlight (1.72s)
+    --- PASS: TestToolRecoverySubmitKeyboard/submit-keyboarddark (1.79s)
+    --- PASS: TestToolRecoverySubmitKeyboard/submit-wait-keyboardlight (1.78s)
+    --- PASS: TestToolRecoverySubmitKeyboard/submit-wait-keyboarddark (1.75s)
+PASS
+ok  	floter/internal/settingsui	60.314s
+=== RUN   TestToolConnectionPrepareRecovery
+=== RUN   TestToolConnectionPrepareRecovery/light
+2026/11/08 12:55:01 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverylight2368099490/003/missing-program cannot be run
+=== RUN   TestToolConnectionPrepareRecovery/dark
+2026/11/08 12:56:07 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverydark4246167204/003/missing-program cannot be run
+--- PASS: TestToolConnectionPrepareRecovery (164.84s)
+    --- PASS: TestToolConnectionPrepareRecovery/light (102.26s)
+    --- PASS: TestToolConnectionPrepareRecovery/dark (62.58s)
+=== RUN   TestToolConnectionCancelRecovery
+=== RUN   TestToolConnectionCancelRecovery/light
+=== RUN   TestToolConnectionCancelRecovery/dark
+--- PASS: TestToolConnectionCancelRecovery (107.63s)
+    --- PASS: TestToolConnectionCancelRecovery/light (53.18s)
+    --- PASS: TestToolConnectionCancelRecovery/dark (54.46s)
+=== RUN   TestToolConnectionCommitRecovery
+=== RUN   TestToolConnectionCommitRecovery/light
+2026/11/08 12:58:53 floter: could not connect 工作区工具: extensions: no manifest
+=== RUN   TestToolConnectionCommitRecovery/dark
+2026/11/08 12:59:39 floter: could not connect 工作区工具: extensions: no manifest
+--- PASS: TestToolConnectionCommitRecovery (103.57s)
+    --- PASS: TestToolConnectionCommitRecovery/light (58.49s)
+    --- PASS: TestToolConnectionCommitRecovery/dark (45.08s)
+=== RUN   TestToolConnectionPickerFailure
+=== RUN   TestToolConnectionPickerFailure/light
+=== RUN   TestToolConnectionPickerFailure/dark
+--- PASS: TestToolConnectionPickerFailure (6.94s)
+    --- PASS: TestToolConnectionPickerFailure/light (3.59s)
+    --- PASS: TestToolConnectionPickerFailure/dark (3.35s)
+PASS
+ok  	floter/internal/shell	384.142s
