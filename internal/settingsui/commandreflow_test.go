@@ -247,6 +247,13 @@ func TestCommandSwitchConfigPresenceReflow(t *testing.T) {
 	checkCommandReflow(t, "switch", "config-presence")
 }
 
+func TestCommandAliasConfigSchemaReflow(t *testing.T) {
+	checkCommandReflow(t, "alias", "config-schema")
+}
+func TestCommandSwitchConfigSchemaReflow(t *testing.T) {
+	checkCommandReflow(t, "switch", "config-schema")
+}
+
 func TestCommandAliasCatalogReflow(t *testing.T)  { checkCommandReflow(t, "alias", "catalog") }
 func TestCommandAliasOrderReflow(t *testing.T)    { checkCommandReflow(t, "alias", "order") }
 func TestCommandSwitchCatalogReflow(t *testing.T) { checkCommandReflow(t, "switch", "catalog") }

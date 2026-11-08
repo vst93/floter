@@ -324,6 +324,25 @@ func lockedControl(e ui.Element) ui.Element {
 // configFields draws the form for one integration's configuration: the
 // fields and the save button, shown while the form is open. The toggle that
 // opens it is the integration row's own (see integrationRow).
+// Only rendered schema contributes to the command controls' scroll recovery.
+// Draft/default values and closed forms must not take over manual scrolling.
+func (a *App) commandConfigLayoutFeedback(integration Integration) string {
+	if integration.Orphan || !configOwnerIsHost(integration) || !a.configOpen[integration.ID] {
+		return ""
+	}
+	var feedback strings.Builder
+	for _, field := range integration.Config {
+		for _, value := range []string{field.Key, strings.ToLower(field.Type), field.Label, field.Description, strconv.FormatBool(field.Required)} {
+			feedback.WriteString(strconv.Quote(value))
+		}
+		for _, option := range field.Options {
+			feedback.WriteString(strconv.Quote(option))
+		}
+		feedback.WriteByte(0)
+	}
+	return feedback.String()
+}
+
 func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := a.cardTheme(c)
 	// A removed list never renders another frame to retire its range anchor.
