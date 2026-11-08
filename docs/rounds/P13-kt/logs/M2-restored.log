@@ -1,0 +1,19 @@
+=== RUN   TestResultReflowRun
+=== RUN   TestResultReflowRun/light
+    reportreflow_test.go:161: outlet reveal trapped subsequent scrolling
+=== RUN   TestResultReflowRun/dark
+    reportreflow_test.go:161: outlet reveal trapped subsequent scrolling
+--- FAIL: TestResultReflowRun (0.09s)
+    --- FAIL: TestResultReflowRun/light (0.07s)
+    --- FAIL: TestResultReflowRun/dark (0.02s)
+=== RUN   TestResultReflowCheck
+=== RUN   TestResultReflowCheck/light
+    reportreflow_test.go:161: outlet reveal trapped subsequent scrolling
+=== RUN   TestResultReflowCheck/dark
+    reportreflow_test.go:161: outlet reveal trapped subsequent scrolling
+--- FAIL: TestResultReflowCheck (0.04s)
+    --- FAIL: TestResultReflowCheck/light (0.02s)
+    --- FAIL: TestResultReflowCheck/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.137s
+FAIL

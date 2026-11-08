@@ -1,0 +1,23 @@
+=== RUN   TestResultReflowRun
+=== RUN   TestResultReflowRun/light
+    reportreflow_test.go:159: feedback reflow hides active outlet "Run": target={X:437.40002 Y:658.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:159: feedback reflow hides active outlet "Run": target={X:437.40002 Y:658.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestResultReflowRun/dark
+    reportreflow_test.go:159: feedback reflow hides active outlet "Run": target={X:437.40002 Y:658.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:159: feedback reflow hides active outlet "Run": target={X:437.40002 Y:658.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestResultReflowRun (0.17s)
+    --- FAIL: TestResultReflowRun/light (0.15s)
+    --- FAIL: TestResultReflowRun/dark (0.02s)
+=== RUN   TestResultReflowCheck
+=== RUN   TestResultReflowCheck/light
+    reportreflow_test.go:159: feedback reflow hides active outlet "Check": target={X:489.40002 Y:658.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:159: feedback reflow hides active outlet "Check": target={X:489.40002 Y:658.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestResultReflowCheck/dark
+    reportreflow_test.go:159: feedback reflow hides active outlet "Check": target={X:489.40002 Y:658.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:159: feedback reflow hides active outlet "Check": target={X:489.40002 Y:658.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestResultReflowCheck (0.04s)
+    --- FAIL: TestResultReflowCheck/light (0.02s)
+    --- FAIL: TestResultReflowCheck/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.214s
+FAIL

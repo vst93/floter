@@ -1,0 +1,95 @@
+=== RUN   TestResultReflowRun
+=== RUN   TestResultReflowRun/light
+    reportreflow_test.go:161: outlet reveal trapped subsequent scrolling
+=== RUN   TestResultReflowRun/dark
+    reportreflow_test.go:161: outlet reveal trapped subsequent scrolling
+--- FAIL: TestResultReflowRun (0.19s)
+    --- FAIL: TestResultReflowRun/light (0.16s)
+    --- FAIL: TestResultReflowRun/dark (0.03s)
+=== RUN   TestResultReflowCheck
+=== RUN   TestResultReflowCheck/light
+    reportreflow_test.go:161: outlet reveal trapped subsequent scrolling
+=== RUN   TestResultReflowCheck/dark
+    reportreflow_test.go:161: outlet reveal trapped subsequent scrolling
+--- FAIL: TestResultReflowCheck (0.06s)
+    --- FAIL: TestResultReflowCheck/light (0.03s)
+    --- FAIL: TestResultReflowCheck/dark (0.03s)
+=== RUN   TestRunOutputNewResultStartsAtTop
+=== RUN   TestRunOutputNewResultStartsAtTop/light/failure
+=== RUN   TestRunOutputNewResultStartsAtTop/light/success
+=== RUN   TestRunOutputNewResultStartsAtTop/dark/failure
+=== RUN   TestRunOutputNewResultStartsAtTop/dark/success
+--- PASS: TestRunOutputNewResultStartsAtTop (0.07s)
+    --- PASS: TestRunOutputNewResultStartsAtTop/light/failure (0.03s)
+    --- PASS: TestRunOutputNewResultStartsAtTop/light/success (0.01s)
+    --- PASS: TestRunOutputNewResultStartsAtTop/dark/failure (0.01s)
+    --- PASS: TestRunOutputNewResultStartsAtTop/dark/success (0.01s)
+=== RUN   TestRunOutputRendersANSIAndCopiesPlainText
+=== RUN   TestRunOutputRendersANSIAndCopiesPlainText/light
+=== RUN   TestRunOutputRendersANSIAndCopiesPlainText/dark
+--- PASS: TestRunOutputRendersANSIAndCopiesPlainText (0.02s)
+    --- PASS: TestRunOutputRendersANSIAndCopiesPlainText/light (0.01s)
+    --- PASS: TestRunOutputRendersANSIAndCopiesPlainText/dark (0.01s)
+=== RUN   TestRunVisibilityRemovedField
+=== RUN   TestRunVisibilityRemovedField/light
+=== RUN   TestRunVisibilityRemovedField/dark
+--- PASS: TestRunVisibilityRemovedField (0.06s)
+    --- PASS: TestRunVisibilityRemovedField/light (0.03s)
+    --- PASS: TestRunVisibilityRemovedField/dark (0.03s)
+=== RUN   TestRunVisibilityChangedKind
+=== RUN   TestRunVisibilityChangedKind/light
+=== RUN   TestRunVisibilityChangedKind/dark
+--- PASS: TestRunVisibilityChangedKind (0.05s)
+    --- PASS: TestRunVisibilityChangedKind/light (0.03s)
+    --- PASS: TestRunVisibilityChangedKind/dark (0.03s)
+=== RUN   TestRunVisibilitySubmitUnavailable
+=== RUN   TestRunVisibilitySubmitUnavailable/light
+=== RUN   TestRunVisibilitySubmitUnavailable/dark
+--- PASS: TestRunVisibilitySubmitUnavailable (0.16s)
+    --- PASS: TestRunVisibilitySubmitUnavailable/light (0.08s)
+    --- PASS: TestRunVisibilitySubmitUnavailable/dark (0.08s)
+=== RUN   TestRunVisibilityCancel
+=== RUN   TestRunVisibilityCancel/light
+=== RUN   TestRunVisibilityCancel/dark
+--- PASS: TestRunVisibilityCancel (0.15s)
+    --- PASS: TestRunVisibilityCancel/light (0.08s)
+    --- PASS: TestRunVisibilityCancel/dark (0.08s)
+=== RUN   TestRunVisibilityFormClosed
+=== RUN   TestRunVisibilityFormClosed/light
+=== RUN   TestRunVisibilityFormClosed/dark
+--- PASS: TestRunVisibilityFormClosed (0.06s)
+    --- PASS: TestRunVisibilityFormClosed/light (0.03s)
+    --- PASS: TestRunVisibilityFormClosed/dark (0.03s)
+=== RUN   TestRunVisibilityAllParametersRemoved
+=== RUN   TestRunVisibilityAllParametersRemoved/light
+=== RUN   TestRunVisibilityAllParametersRemoved/dark
+--- PASS: TestRunVisibilityAllParametersRemoved (0.05s)
+    --- PASS: TestRunVisibilityAllParametersRemoved/light (0.02s)
+    --- PASS: TestRunVisibilityAllParametersRemoved/dark (0.02s)
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/dark
+--- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm (0.15s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/light (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/dark (0.01s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/light (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/dark (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/light (0.02s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/dark (0.01s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/light (0.01s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/dark (0.01s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/light (0.01s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/dark (0.01s)
+=== RUN   TestRunOutputBlock
+--- PASS: TestRunOutputBlock (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	1.130s
+FAIL

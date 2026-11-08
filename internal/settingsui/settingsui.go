@@ -3213,6 +3213,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// `disabled={busy}`, `src/extensions/ExtensionRow.tsx:131,301-419,447`),
 		// not only the button that was pressed.
 		busy := a.rowBusy(integration.ID)
+		// A first result or its disclosure changes the space above this row.
+		// Observe those transitions, not the scroll position or output bytes.
+		_, hasOutput := a.runOutputs[integration.ID]
+		outputFeedback := strconv.FormatBool(hasOutput) + strconv.FormatBool(a.outputOpen[integration.ID])
 		// rowAction draws one of the row's action pills, disabled while the row
 		// is busy. The one button whose own work is in flight (the re-check or
 		// the reconnect) is drawn by repairAction in its busy face instead.
@@ -3241,14 +3245,16 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				// fact, so its crown goes out with the rest of the cluster. Exactly one
 				// pill is built either way.
 				var run ui.Element
-				switch {
-				case !runnable:
-					run = tokens.Tip(c, a.disabledActionButton(c, copy.RunAction), copy.RunActionUnavailable)
-				case busy:
-					run = a.disabledActionButton(c, copy.RunAction)
-				default:
-					run = a.actionButton(c, copy.RunAction)
-				}
+				a.formFeedbackOutlet(c.Key("row-run-output-outlet"), outputFeedback, func() {
+					switch {
+					case !runnable:
+						run = tokens.Tip(c, a.disabledActionButton(c, copy.RunAction), copy.RunActionUnavailable)
+					case busy:
+						run = a.disabledActionButton(c, copy.RunAction)
+					default:
+						run = a.actionButton(c, copy.RunAction)
+					}
+				})
 				a.rememberOperationFocus(c, integration.ID, "run-opener", run)
 				if run.IsDisabled() && run.FocusWithin() {
 					c.Resolve(*noticeExit(c)).Focus()
@@ -3302,7 +3308,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				}
 			}
 			if a.Actions.DiagnoseIntegration != nil {
-				checkOpener = rowAction(copy.IntegrationsCheck)
+				a.formFeedbackOutlet(c.Key("row-check-output-outlet"), outputFeedback, func() {
+					checkOpener = rowAction(copy.IntegrationsCheck)
+				})
 				if checkOpener.Clicked() {
 					a.Actions.DiagnoseIntegration(integration.ID)
 				}

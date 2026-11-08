@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"floter/internal/extensions"
 	"github.com/egoist/mygo/ui"
@@ -158,11 +159,20 @@ func checkResultReflow(t *testing.T, action string) {
 				}
 				checkFeedbackVisible(t, tt, label)
 			}
-			runVisibilityWheel(t, a, tt)
+			// Wheel over the page gutter: the output body intentionally has
+			// its own independent scroll chain.
+			before := a.Body.Y
+			dy := float32(140)
+			if before == a.Body.MaxY {
+				dy = -dy
+			}
+			tt.Wheel(180, 280, 0, dy)
+			tt.Advance(250 * time.Millisecond)
+			tt.Frame()
 			manual := a.Body.Y
 			tt.Frame()
 			tt.Frame()
-			if a.Body.Y != manual {
+			if manual == before || a.Body.Y != manual {
 				t.Error("output update trapped manual scroll")
 			}
 			key := ui.KeyEnter
@@ -188,3 +198,6 @@ func checkResultReflow(t *testing.T, action string) {
 		})
 	}
 }
+
+func TestResultReflowRun(t *testing.T)   { checkResultReflow(t, "run") }
+func TestResultReflowCheck(t *testing.T) { checkResultReflow(t, "check") }
