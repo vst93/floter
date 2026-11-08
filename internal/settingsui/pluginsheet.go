@@ -466,7 +466,7 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 				changed = true
 			}
 		}, keys).Label(field.Label).Bind(a.pluginEditorRef(field.Key))
-		a.pluginFieldOutlet(c, picker)
+		a.pluginViewportOutlet(c, picker)
 	})
 	if changed {
 		sheet.Change(field.Key, field.Options[chosen].Value)
@@ -497,7 +497,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 				label := pluginOptionLabel(option, a.copy().ConfigNone)
 				box := ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, "").Label(label).MaxWidthPercent(100)
 				box.Children(func() { ui.Text(c, label).MinWidth(0).SingleLine() })
-				a.pluginFieldOutlet(c, box)
+				a.pluginViewportOutlet(c, box)
 				if box.Focused() {
 					box.Bind(focus)
 				}
