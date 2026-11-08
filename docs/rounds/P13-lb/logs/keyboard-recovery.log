@@ -1,0 +1,42 @@
+=== RUN   TestLeadActionsReprobe
+=== RUN   TestLeadActionsReprobe/local
+=== RUN   TestLeadActionsReprobe/local/light
+=== RUN   TestLeadActionsReprobe/local/dark
+=== RUN   TestLeadActionsReprobe/recommended
+=== RUN   TestLeadActionsReprobe/recommended/light
+=== RUN   TestLeadActionsReprobe/recommended/dark
+=== RUN   TestLeadActionsReprobe/detected
+=== RUN   TestLeadActionsReprobe/detected/light
+=== RUN   TestLeadActionsReprobe/detected/dark
+--- PASS: TestLeadActionsReprobe (0.52s)
+    --- PASS: TestLeadActionsReprobe/local (0.29s)
+        --- PASS: TestLeadActionsReprobe/local/light (0.25s)
+        --- PASS: TestLeadActionsReprobe/local/dark (0.04s)
+    --- PASS: TestLeadActionsReprobe/recommended (0.11s)
+        --- PASS: TestLeadActionsReprobe/recommended/light (0.06s)
+        --- PASS: TestLeadActionsReprobe/recommended/dark (0.05s)
+    --- PASS: TestLeadActionsReprobe/detected (0.11s)
+        --- PASS: TestLeadActionsReprobe/detected/light (0.06s)
+        --- PASS: TestLeadActionsReprobe/detected/dark (0.06s)
+=== RUN   TestLeadActionsEdit
+=== RUN   TestLeadActionsEdit/local
+=== RUN   TestLeadActionsEdit/local/light
+=== RUN   TestLeadActionsEdit/local/dark
+=== RUN   TestLeadActionsEdit/recommended
+=== RUN   TestLeadActionsEdit/recommended/light
+=== RUN   TestLeadActionsEdit/recommended/dark
+=== RUN   TestLeadActionsEdit/detected
+=== RUN   TestLeadActionsEdit/detected/light
+=== RUN   TestLeadActionsEdit/detected/dark
+--- PASS: TestLeadActionsEdit (0.35s)
+    --- PASS: TestLeadActionsEdit/local (0.15s)
+        --- PASS: TestLeadActionsEdit/local/light (0.09s)
+        --- PASS: TestLeadActionsEdit/local/dark (0.05s)
+    --- PASS: TestLeadActionsEdit/recommended (0.11s)
+        --- PASS: TestLeadActionsEdit/recommended/light (0.05s)
+        --- PASS: TestLeadActionsEdit/recommended/dark (0.05s)
+    --- PASS: TestLeadActionsEdit/detected (0.10s)
+        --- PASS: TestLeadActionsEdit/detected/light (0.05s)
+        --- PASS: TestLeadActionsEdit/detected/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.885s

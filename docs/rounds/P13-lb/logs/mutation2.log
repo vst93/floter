@@ -1,0 +1,41 @@
+=== RUN   TestLeadActionsRun
+=== RUN   TestLeadActionsRun/local
+=== RUN   TestLeadActionsRun/local/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/local/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/recommended
+=== RUN   TestLeadActionsRun/recommended/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/recommended/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/detected
+=== RUN   TestLeadActionsRun/detected/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/detected/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLeadActionsRun (0.43s)
+    --- FAIL: TestLeadActionsRun/local (0.26s)
+        --- FAIL: TestLeadActionsRun/local/light (0.21s)
+        --- FAIL: TestLeadActionsRun/local/dark (0.04s)
+    --- FAIL: TestLeadActionsRun/recommended (0.09s)
+        --- FAIL: TestLeadActionsRun/recommended/light (0.04s)
+        --- FAIL: TestLeadActionsRun/recommended/dark (0.04s)
+    --- FAIL: TestLeadActionsRun/detected (0.09s)
+        --- FAIL: TestLeadActionsRun/detected/light (0.05s)
+        --- FAIL: TestLeadActionsRun/detected/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.439s
+FAIL

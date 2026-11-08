@@ -1,0 +1,79 @@
+=== RUN   TestLeadActionsRun
+=== RUN   TestLeadActionsRun/local
+=== RUN   TestLeadActionsRun/local/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/local/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/recommended
+=== RUN   TestLeadActionsRun/recommended/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/recommended/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/detected
+=== RUN   TestLeadActionsRun/detected/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsRun/detected/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Run": target={X:662.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLeadActionsRun (0.54s)
+    --- FAIL: TestLeadActionsRun/local (0.27s)
+        --- FAIL: TestLeadActionsRun/local/light (0.20s)
+        --- FAIL: TestLeadActionsRun/local/dark (0.07s)
+    --- FAIL: TestLeadActionsRun/recommended (0.14s)
+        --- FAIL: TestLeadActionsRun/recommended/light (0.07s)
+        --- FAIL: TestLeadActionsRun/recommended/dark (0.07s)
+    --- FAIL: TestLeadActionsRun/detected (0.13s)
+        --- FAIL: TestLeadActionsRun/detected/light (0.06s)
+        --- FAIL: TestLeadActionsRun/detected/dark (0.06s)
+=== RUN   TestLeadActionsDiagnose
+=== RUN   TestLeadActionsDiagnose/local
+=== RUN   TestLeadActionsDiagnose/local/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsDiagnose/local/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsDiagnose/recommended
+=== RUN   TestLeadActionsDiagnose/recommended/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsDiagnose/recommended/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsDiagnose/detected
+=== RUN   TestLeadActionsDiagnose/detected/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsDiagnose/detected/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Check": target={X:650.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLeadActionsDiagnose (0.37s)
+    --- FAIL: TestLeadActionsDiagnose/local (0.12s)
+        --- FAIL: TestLeadActionsDiagnose/local/light (0.06s)
+        --- FAIL: TestLeadActionsDiagnose/local/dark (0.06s)
+    --- FAIL: TestLeadActionsDiagnose/recommended (0.12s)
+        --- FAIL: TestLeadActionsDiagnose/recommended/light (0.06s)
+        --- FAIL: TestLeadActionsDiagnose/recommended/dark (0.06s)
+    --- FAIL: TestLeadActionsDiagnose/detected (0.12s)
+        --- FAIL: TestLeadActionsDiagnose/detected/light (0.06s)
+        --- FAIL: TestLeadActionsDiagnose/detected/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.920s
+FAIL

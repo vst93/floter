@@ -1,0 +1,79 @@
+=== RUN   TestLeadActionsAlias
+=== RUN   TestLeadActionsAlias/local
+=== RUN   TestLeadActionsAlias/local/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:585.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:585.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:585.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsAlias/local/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:585.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:585.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:585.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsAlias/recommended
+=== RUN   TestLeadActionsAlias/recommended/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:611.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:611.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:611.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsAlias/recommended/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:611.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:611.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:611.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsAlias/detected
+=== RUN   TestLeadActionsAlias/detected/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:664.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:664.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:664.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsAlias/detected/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:664.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:664.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:664.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLeadActionsAlias (0.86s)
+    --- FAIL: TestLeadActionsAlias/local (0.49s)
+        --- FAIL: TestLeadActionsAlias/local/light (0.42s)
+        --- FAIL: TestLeadActionsAlias/local/dark (0.07s)
+    --- FAIL: TestLeadActionsAlias/recommended (0.17s)
+        --- FAIL: TestLeadActionsAlias/recommended/light (0.08s)
+        --- FAIL: TestLeadActionsAlias/recommended/dark (0.09s)
+    --- FAIL: TestLeadActionsAlias/detected (0.20s)
+        --- FAIL: TestLeadActionsAlias/detected/light (0.10s)
+        --- FAIL: TestLeadActionsAlias/detected/dark (0.09s)
+=== RUN   TestLeadActionsCommand
+=== RUN   TestLeadActionsCommand/local
+=== RUN   TestLeadActionsCommand/local/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:563.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:563.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:563.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsCommand/local/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:563.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:563.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:563.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsCommand/recommended
+=== RUN   TestLeadActionsCommand/recommended/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:589.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:589.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:589.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsCommand/recommended/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:589.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:589.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:589.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsCommand/detected
+=== RUN   TestLeadActionsCommand/detected/light
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:642.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:642.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:642.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadActionsCommand/detected/dark
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:642.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:642.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    leadactions_test.go:139: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:642.7999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLeadActionsCommand (0.44s)
+    --- FAIL: TestLeadActionsCommand/local (0.13s)
+        --- FAIL: TestLeadActionsCommand/local/light (0.07s)
+        --- FAIL: TestLeadActionsCommand/local/dark (0.06s)
+    --- FAIL: TestLeadActionsCommand/recommended (0.16s)
+        --- FAIL: TestLeadActionsCommand/recommended/light (0.07s)
+        --- FAIL: TestLeadActionsCommand/recommended/dark (0.08s)
+    --- FAIL: TestLeadActionsCommand/detected (0.15s)
+        --- FAIL: TestLeadActionsCommand/detected/light (0.08s)
+        --- FAIL: TestLeadActionsCommand/detected/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	1.310s
+FAIL

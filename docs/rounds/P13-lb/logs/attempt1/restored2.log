@@ -1,0 +1,22 @@
+=== RUN   TestLeadActionsRun
+=== RUN   TestLeadActionsRun/local
+=== RUN   TestLeadActionsRun/local/light
+=== RUN   TestLeadActionsRun/local/dark
+=== RUN   TestLeadActionsRun/recommended
+=== RUN   TestLeadActionsRun/recommended/light
+=== RUN   TestLeadActionsRun/recommended/dark
+=== RUN   TestLeadActionsRun/detected
+=== RUN   TestLeadActionsRun/detected/light
+=== RUN   TestLeadActionsRun/detected/dark
+--- PASS: TestLeadActionsRun (0.32s)
+    --- PASS: TestLeadActionsRun/local (0.16s)
+        --- PASS: TestLeadActionsRun/local/light (0.12s)
+        --- PASS: TestLeadActionsRun/local/dark (0.04s)
+    --- PASS: TestLeadActionsRun/recommended (0.08s)
+        --- PASS: TestLeadActionsRun/recommended/light (0.04s)
+        --- PASS: TestLeadActionsRun/recommended/dark (0.04s)
+    --- PASS: TestLeadActionsRun/detected (0.08s)
+        --- PASS: TestLeadActionsRun/detected/light (0.04s)
+        --- PASS: TestLeadActionsRun/detected/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.331s

@@ -1,0 +1,269 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.010s
+ok  	floter/internal/apps	0.546s
+ok  	floter/internal/browser	0.029s
+ok  	floter/internal/calc	0.007s
+ok  	floter/internal/calculator	0.023s
+ok  	floter/internal/ci	11.553s
+ok  	floter/internal/clipboard	0.097s
+ok  	floter/internal/control	0.350s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.007s
+ok  	floter/internal/drops	0.006s
+ok  	floter/internal/extensions	36.033s
+ok  	floter/internal/extensions/recommended	0.209s
+ok  	floter/internal/frameaudit	0.112s
+ok  	floter/internal/glassmap	0.013s
+ok  	floter/internal/homepath	0.010s
+ok  	floter/internal/i18n	2.218s
+ok  	floter/internal/inputtext	0.095s
+ok  	floter/internal/inventory	0.175s
+ok  	floter/internal/launcher	44.338s
+ok  	floter/internal/motion	0.023s
+ok  	floter/internal/pathid	0.011s
+ok  	floter/internal/pathlist	0.011s
+ok  	floter/internal/pinyin	0.010s
+ok  	floter/internal/plist	0.006s
+ok  	floter/internal/plugincfg	0.027s
+ok  	floter/internal/progname	0.015s
+ok  	floter/internal/progtype	0.013s
+ok  	floter/internal/scriptlang	0.009s
+ok  	floter/internal/semver	0.017s
+ok  	floter/internal/settings	3.948s
+ok  	floter/internal/settingsui	347.521s
+2026/11/09 07:19:41 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailurelight1032270295/001/extension-repository.json: unexpected end of JSON input
+2026/11/09 07:19:41 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailuredark2212386551/001/extension-repository.json: unexpected end of JSON input
+2026/11/09 07:19:43 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/09 07:19:44 floter: re-probed dev.floter.drifttool (commands=3, was 0x2902d3b15100)
+2026/11/09 07:19:44 floter: could not re-probe dev.floter.drifttool: extensions: the tool did not produce usable help output
+2026/11/09 07:19:44 floter: re-probed dev.floter.drifttool (commands=3, was 0x2902d38860a0)
+2026/11/09 07:19:45 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/09 07:19:47 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- FAIL: TestCommandReprobeRejectsRepeatedClick (2.45s)
+    --- FAIL: TestCommandReprobeRejectsRepeatedClick/light (1.20s)
+        commandreprobebusy_test.go:196: completed command reprobe cannot be retried: calls=0
+    --- FAIL: TestCommandReprobeRejectsRepeatedClick/dark (1.26s)
+        commandreprobebusy_test.go:196: completed command reprobe cannot be retried: calls=0
+2026/11/09 07:19:48 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/09 07:19:50 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- FAIL: TestCommandReprobeLocksCompetingActions (2.98s)
+    --- FAIL: TestCommandReprobeLocksCompetingActions/light (1.46s)
+        commandreprobebusy_test.go:196: completed command reprobe cannot be retried: calls=0
+    --- FAIL: TestCommandReprobeLocksCompetingActions/dark (1.51s)
+        commandreprobebusy_test.go:196: completed command reprobe cannot be retried: calls=0
+2026/11/09 07:19:57 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/09 07:19:58 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/09 07:19:59 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/09 07:20:00 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/09 07:20:01 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboardlight1174792535/003/clipboard-history/.floter-state-2270403457.tmp /tmp/TestCompletionSeverityClipboardlight1174792535/003/clipboard-history/index.json: file exists
+2026/11/09 07:20:02 floter: could not clear the clipboard history: rename /tmp/TestCompletionSeverityClipboarddark4265311622/003/clipboard-history/.floter-state-2766795319.tmp /tmp/TestCompletionSeverityClipboarddark4265311622/003/clipboard-history/index.json: file exists
+2026/11/09 07:20:02 floter: could not reconnect missing-tool: extensions: no such integration
+2026/11/09 07:20:02 floter: could not reconnect missing-tool: extensions: no such integration
+2026/11/09 07:20:03 floter: could not re-check missing-tool: extensions: no such integration
+2026/11/09 07:20:03 floter: could not re-check missing-tool: extensions: no such integration
+2026/11/09 07:20:04 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+2026/11/09 07:20:04 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+2026/11/09 07:20:04 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+2026/11/09 07:20:04 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+2026/11/09 07:20:05 floter: could not uninstall missing-tool: extensions: no such integration
+2026/11/09 07:20:05 floter: could not uninstall missing-tool: extensions: no such integration
+2026/11/09 07:20:05 floter: could not uninstall missing-tool: extensions: no such integration
+2026/11/09 07:20:06 floter: could not uninstall missing-tool: extensions: no such integration
+2026/11/09 07:20:16 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "endpoint"
+2026/11/09 07:20:17 floter: could not build the configuration copy for dev.floter.configured: extensions: unknown configuration key "endpoint"
+2026/11/09 07:20:19 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+2026/11/09 07:20:20 floter: could not build the configuration export for dev.floter.configured: extensions: unknown configuration key "endpoint"
+2026/11/09 07:20:25 floter: Ghost was not connected: extensions: runtime-unavailable: runtime-unavailable:{"names":["floter-test-no-such-program"]}
+2026/11/09 07:20:25 floter: connected Linked local
+2026/11/09 07:20:50 floter: could not re-probe dev.floter.drifttool on version drift: extensions: the tool did not produce usable help output
+2026/11/09 07:21:06 floter: health re-check of dev.floter.check: extensions: binding-missing: binding-missing:{"path":"/tmp/TestHealthRefreshBindingFailurelight3401452793/002/missing-program"}
+2026/11/09 07:21:07 floter: health re-check of dev.floter.check: extensions: binding-missing: binding-missing:{"path":"/tmp/TestHealthRefreshBindingFailuredark263664735/002/missing-program"}
+2026/11/09 07:21:07 floter: health re-check of dev.floter.check: extensions: invalid repository /tmp/TestHealthRefreshRepositoryFailurelight3693193330/001/extension-repository.json: unexpected end of JSON input
+2026/11/09 07:21:08 floter: health re-check of dev.floter.check: extensions: invalid repository /tmp/TestHealthRefreshRepositoryFailuredark4240600606/001/extension-repository.json: unexpected end of JSON input
+2026/11/09 07:21:18 floter: could not install review-current: extensions: the registry answered 503 Service Unavailable for review-current
+2026/11/09 07:21:19 floter: could not install review-current: extensions: the registry answered 503 Service Unavailable for review-current
+2026/11/09 07:21:20 floter: could not install review-current: extensions: no manifest
+2026/11/09 07:21:21 floter: could not install review-current: extensions: no manifest
+2026/11/09 07:21:22 floter: could not open /tmp/TestOpenPathResolvesAndRequiresExistence638688857/002/missing.txt: stat /tmp/TestOpenPathResolvesAndRequiresExistence638688857/002/missing.txt: no such file or directory
+2026/11/09 07:21:23 floter: the connected manifest is not a .json file: /tmp/TestAConnectLinkTakesAJSONFileOrThePackageDirectory2025227244/001/extensions/dev.floter.jsononly/notes.txt
+2026/11/09 07:21:23 floter: connected JSON only local
+2026/11/09 07:21:23 floter: the connected manifest is not there: stat /tmp/TestAConnectLinkRefusesAParameterItDoesNotName3468599500/005/tool.json: no such file or directory
+2026/11/09 07:21:25 floter: the connected manifest is not there: stat /tmp/TestConnectThatFailedSaysSo2573667748/002/missing.json: no such file or directory
+2026/11/09 07:21:27 floter: browser tabs: browser: the browser's tabs are not readable: tab capture is off in the browser plugin's settings
+2026/11/09 07:21:27 floter: could not clear the clipboard history: mkdir /tmp/TestPluginConfigActionFailureReportsOnTheActionLine4072100888/001/not-a-dir: not a directory
+2026/11/09 07:21:31 floter: could not reconnect dev.floter.moved: extensions: runtime-unavailable: runtime-unavailable:{"names":["systool"]}
+2026/11/09 07:21:32 floter: could not reconnect dev.floter.moved: extensions: runtime-unavailable: runtime-unavailable:{"names":["systool"]}
+2026/11/09 07:21:38 floter: could not prepare the local tool rg: open /tmp/TestTheRegisterMarkIsAMoment751189286/001/extension-data/local.7bf53aeb/integration/floter.extension.json: no such file or directory
+2026/11/09 07:21:40 floter: could not pick a path for weather.py: portal unavailable
+2026/11/09 07:21:40 floter: could not write /tmp/TestScriptExportCompletionEveryExitwrite-error1976224433/001: open /tmp/TestScriptExportCompletionEveryExitwrite-error1976224433/001: is a directory
+2026/11/09 07:21:41 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+2026/11/09 07:21:41 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+2026/11/09 07:21:41 floter: could not write /tmp/TestScriptExportWriteExplainsFailurelight916804390/001: open /tmp/TestScriptExportWriteExplainsFailurelight916804390/001: is a directory
+2026/11/09 07:21:42 floter: could not write /tmp/TestScriptExportWriteExplainsFailuredark42577674/001: open /tmp/TestScriptExportWriteExplainsFailuredark42577674/001: is a directory
+2026/11/09 07:21:48 floter: could not run jv: no library in tests
+2026/11/09 07:21:48 floter: installed NPM Tool 1.0.0
+2026/11/09 07:21:48 floter: installed NPM Tool 1.0.0
+2026/11/09 07:21:49 floter: could not run [/usr/sbin/7z]: no terminal library in tests
+2026/11/09 07:21:49 floter: could not register Cmd+F1: taken
+2026/11/09 07:21:49 floter: "Hyper+X" is not a shortcut
+2026/11/09 07:21:49 floter: "something_else" is not an action this build knows
+2026/11/09 07:21:49 floter: custom shortcut Cmd+Shift+T: occupied
+2026/11/09 07:21:49 floter: custom shortcut Cmd+W: conflict
+2026/11/09 07:21:49 floter: custom shortcut Cmd+Shift+T: occupied
+2026/11/09 07:21:49 floter: could not change test.ext: extensions: no such integration
+2026/11/09 07:21:49 floter: could not run jv: no library in tests
+2026/11/09 07:21:49 floter: could not read /tmp/TestIntegrationExportAndImport3448991842/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+2026/11/09 07:21:49 floter: could not pick a path for local.abc-script.py: no disk
+2026/11/09 07:21:50 floter: connected Linked local
+2026/11/09 07:21:50 floter: Linked was not connected: open /tmp/TestDeepLinkConnectAndRegister2900525195/001/extensions/dev.floter.linked/floter.extension.json: no such file or directory
+2026/11/09 07:21:50 floter: could not open a terminal: no emulator
+2026/11/09 07:21:51 floter: could not register Ctrl+Alt+K: occupied
+2026/11/09 07:21:51 floter: could not save Ctrl+Alt+L: rename /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal1654985463/001/.floter-state-3303003766.tmp /tmp/TestSummonDiskFailureDoesNotRepeatOldSystemRefusal1654985463/001/settings.json: file exists
+2026/11/09 07:21:54 floter: could not register Ctrl+Alt+K: occupied
+2026/11/09 07:21:55 floter: custom shortcut Ctrl+Shift+Z: occupied
+2026/11/09 07:21:56 floter: custom shortcut Ctrl+Shift+Z: occupied
+2026/11/09 07:21:57 floter: custom shortcut Ctrl+Shift+Z: occupied
+2026/11/09 07:21:57 floter: custom shortcut Ctrl+Shift+Z: occupied
+2026/11/09 07:21:59 floter: could not register Ctrl+Alt+K: occupied
+2026/11/09 07:21:59 floter: could not register Ctrl+Alt+K: occupied
+2026/11/09 07:21:59 floter: could not register Ctrl+Alt+K: occupied
+2026/11/09 07:22:00 floter: could not register Ctrl+Alt+K: occupied
+2026/11/09 07:22:02 floter: could not register Ctrl+Alt+J: occupied
+2026/11/09 07:22:02 floter: could not register Ctrl+Alt+J: occupied
+2026/11/09 07:22:02 floter: could not re-register Ctrl+Space: occupied
+2026/11/09 07:22:02 floter: could not register Ctrl+Alt+J: occupied
+2026/11/09 07:22:02 floter: custom shortcut Ctrl+Shift+B: occupied
+2026/11/09 07:22:02 floter: could not re-register Ctrl+Alt+J: occupied
+2026/11/09 07:22:02 floter: could not re-register Ctrl+Alt+J: occupied
+2026/11/09 07:22:03 floter: custom shortcut Ctrl+Shift+B: occupied
+2026/11/09 07:22:03 floter: custom shortcut Ctrl+Shift+B: occupied
+2026/11/09 07:22:06 floter: custom shortcut Ctrl+Shift+Z: occupied
+2026/11/09 07:22:06 floter: could not save Ctrl+Alt+K: rename /tmp/TestQueuedSummonFailedReplacementKeepsWorkingCallback2939518920/001/.floter-state-3854015337.tmp /tmp/TestQueuedSummonFailedReplacementKeepsWorkingCallback2939518920/001/settings.json: file exists
+2026/11/09 07:22:08 floter: could not register Cmd+Shift+G: taken
+2026/11/09 07:22:08 floter: could not register Ctrl+Space: taken
+2026/11/09 07:22:08 floter: could not reset the shortcuts: rename /tmp/TestResetSystemRefusalKeepsConfirmedBindings2410387075/002/.floter-state-3893778362.tmp /tmp/TestResetSystemRefusalKeepsConfirmedBindings2410387075/002/settings.json: file exists
+2026/11/09 07:22:08 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd4083494707/001/.floter-state-1069521947.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysadd4083494707/001/settings.json: file exists
+2026/11/09 07:22:08 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove492715756/001/.floter-state-4075318486.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysremove492715756/001/settings.json: file exists
+2026/11/09 07:22:08 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord608882343/001/.floter-state-2884694288.tmp /tmp/TestCustomWriteFailureRestoresRegisteredKeysrerecord608882343/001/settings.json: file exists
+2026/11/09 07:22:08 floter: could not save the custom shortcuts: rename /tmp/TestCustomWriteFailureRestoresActionDispatch1981161617/001/.floter-state-600918358.tmp /tmp/TestCustomWriteFailureRestoresActionDispatch1981161617/001/settings.json: file exists
+2026/11/09 07:22:09 floter: could not save Ctrl+Alt+K: rename /tmp/TestSummonWriteFailurePreservesOldKeyAndDisplay1076942404/001/.floter-state-1157864148.tmp /tmp/TestSummonWriteFailurePreservesOldKeyAndDisplay1076942404/001/settings.json: file exists
+2026/11/09 07:22:09 floter: could not prepare the local tool : extensions: the connection request is not usable: nameLength
+2026/11/09 07:22:09 floter: boom: <nil>
+2026/11/09 07:22:15 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverylight3938911833/003/missing-program cannot be run
+2026/11/09 07:22:20 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverydark1793438372/003/missing-program cannot be run
+2026/11/09 07:22:36 floter: could not connect 工作区工具: extensions: no manifest
+2026/11/09 07:22:42 floter: could not connect 工作区工具: extensions: no manifest
+2026/11/09 07:22:45 floter: could not pick a path for diagnose.py: current picker failure
+2026/11/09 07:22:45 floter: could not pick a path for diagnose.py: obsolete picker failure
+2026/11/09 07:22:45 floter: could not pick a path for diagnose.py: current picker failure
+2026/11/09 07:22:45 floter: could not pick a path for diagnose.py: obsolete picker failure
+2026/11/09 07:22:47 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:22:47 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:22:47 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+2026/11/09 07:22:47 floter: could not pick a path for the configuration export of dev.floter.configured: current export failed: picker unavailable
+2026/11/09 07:22:47 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+2026/11/09 07:22:48 floter: could not pick a path for diagnose.py: current export failed: picker unavailable
+2026/11/09 07:22:48 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+2026/11/09 07:22:48 floter: could not pick a path for the configuration export of dev.floter.configured: obsolete picker failure
+2026/11/09 07:22:48 floter: could not pick a path for diagnose.py: obsolete picker failure
+2026/11/09 07:22:48 floter: could not pick a path for diagnose.py: obsolete picker failure
+2026/11/09 07:22:49 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:22:49 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:22:49 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselight{versio62099244/002/backup.json: extensions: import version 99 is not supported
+2026/11/09 07:22:49 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCauselightnot_a_do1544949361/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+2026/11/09 07:22:49 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedark{version1523011458/002/backup.json: extensions: import version 99 is not supported
+2026/11/09 07:22:49 floter: could not read /tmp/TestIntegrationImportDocumentFailureExplainsCausedarknot_a_doc1770369351/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+2026/11/09 07:22:50 floter: could not import /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight1414934660/002/backup.json: extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippedlight1414934660/001/extension-repository.json: invalid character 'b' looking for beginning of value
+2026/11/09 07:22:50 floter: could not import /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark3450279669/002/backup.json: extensions: invalid repository /tmp/TestIntegrationImportRepositoryFailureDoesNotClaimSkippeddark3450279669/001/extension-repository.json: invalid character 'b' looking for beginning of value
+2026/11/09 07:22:50 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+2026/11/09 07:22:50 floter: could not encode the integrations: json: error calling MarshalJSON for type *jsontext.Value: invalid character 'b' looking for beginning of value
+2026/11/09 07:22:51 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingScriptPreservesBackuplight828721537/002/extensions/dev.floter.configured/tool.sh: no such file or directory
+2026/11/09 07:22:51 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingScriptPreservesBackupdark3867272508/002/extensions/dev.floter.configured/tool.sh: no such file or directory
+2026/11/09 07:22:51 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingDescriptorPreservesBackuplight4059908402/002/extensions/dev.floter.configured/description.json: no such file or directory
+2026/11/09 07:22:51 floter: could not export the integrations: extensions: exporting dev.floter.configured: open /tmp/TestExportMissingDescriptorPreservesBackupdark2421677321/002/extensions/dev.floter.configured/description.json: no such file or directory
+2026/11/09 07:22:51 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+2026/11/09 07:22:51 floter: could not build the configuration copy for dev.floter.configured: extensions: missing required configuration key "endpoint"
+2026/11/09 07:22:52 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+2026/11/09 07:22:52 floter: could not build the configuration export for dev.floter.configured: extensions: missing required configuration key "endpoint"
+2026/11/09 07:22:52 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+2026/11/09 07:22:53 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+2026/11/09 07:22:56 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:22:56 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:22:56 floter: could not build the configuration export for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:22:56 floter: could not build the configuration export for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:22:56 floter: could not export the integrations: extensions: exporting dev.floter.configured: extensions: invalid configuration /tmp/TestBackupRejectsInvalidStoredTextlight2727031549/002/extension-data/dev.floter.configured/config.json: configuration contains invalid UTF-8
+2026/11/09 07:22:56 floter: could not export the integrations: extensions: exporting dev.floter.configured: extensions: invalid configuration /tmp/TestBackupRejectsInvalidStoredTextdark507825629/002/extension-data/dev.floter.configured/config.json: configuration contains invalid UTF-8
+2026/11/09 07:22:57 floter: could not export the integrations: extensions: exporting dev.floter.configured: /tmp/TestBackupRejectsBrokenDeclaredManifestlight3959248421/002/extensions/dev.floter.configured/floter.extension.json: invalid character 'b' looking for beginning of object key string
+2026/11/09 07:22:57 floter: could not export the integrations: extensions: exporting dev.floter.configured: /tmp/TestBackupRejectsBrokenDeclaredManifestdark790551021/002/extensions/dev.floter.configured/floter.extension.json: invalid character 'b' looking for beginning of object key string
+2026/11/09 07:22:57 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsEmptyScriptlight2435948288/002/extensions/dev.floter.configured/tool.sh is empty; the backup cannot restore it
+2026/11/09 07:22:58 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsEmptyScriptdark3882334258/002/extensions/dev.floter.configured/tool.sh is empty; the backup cannot restore it
+2026/11/09 07:22:58 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsInvalidScriptTextlight121766349/002/extensions/dev.floter.configured/tool.sh contains invalid UTF-8
+2026/11/09 07:22:59 floter: could not export the integrations: extensions: exporting dev.floter.configured: script /tmp/TestBackupRejectsInvalidScriptTextdark843670134/002/extensions/dev.floter.configured/tool.sh contains invalid UTF-8
+2026/11/09 07:22:59 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsEmptyDescriptorlight3433178917/002/extensions/dev.floter.configured/description.json is empty; the backup cannot restore it
+2026/11/09 07:22:59 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsEmptyDescriptordark1201742232/002/extensions/dev.floter.configured/description.json is empty; the backup cannot restore it
+2026/11/09 07:23:00 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsInvalidDescriptorTextlight994038662/002/extensions/dev.floter.configured/description.json contains invalid UTF-8
+2026/11/09 07:23:00 floter: could not export the integrations: extensions: exporting dev.floter.configured: descriptor /tmp/TestBackupRejectsInvalidDescriptorTextdark2440072127/002/extensions/dev.floter.configured/description.json contains invalid UTF-8
+2026/11/09 07:23:00 floter: could not encode the integrations: extensions: export is larger than 4194304 bytes; reduce its content before exporting
+2026/11/09 07:23:01 floter: could not encode the integrations: extensions: export is larger than 4194304 bytes; reduce its content before exporting
+2026/11/09 07:23:01 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:23:01 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:23:01 floter: dev.workspace.broken was not imported: extensions: the package declares dev.workspace.other, not dev.workspace.broken
+2026/11/09 07:23:01 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+2026/11/09 07:23:01 floter: dev.workspace.broken was not imported: extensions: the package declares dev.workspace.other, not dev.workspace.broken
+2026/11/09 07:23:01 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+2026/11/09 07:23:02 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+2026/11/09 07:23:02 floter: dev.workspace.missing was skipped: not installed here, and the export carries no package
+2026/11/09 07:23:02 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight11991341/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrylight11991341/002/removed-backup.json: no such file or directory
+2026/11/09 07:23:02 floter: could not read /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark1666054594/002/removed-backup.json: open /tmp/TestIntegrationImportReadFailureHasCauseAndRetrydark1666054594/002/removed-backup.json: no such file or directory
+2026/11/09 07:23:02 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrylight2103089536/002/extension-repository.json: invalid character 'b' looking for beginning of value
+2026/11/09 07:23:02 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRepositoryFailureHasCauseAndRetrydark3528248843/002/extension-repository.json: invalid character 'b' looking for beginning of value
+2026/11/09 07:23:02 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatelight2005152532/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+2026/11/09 07:23:03 floter: dev.floter.configured was not imported: enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportEnabledFailureReportsCommittedStatedark382972534/001/extension-data/dev.floter.configured/config.json: unexpected end of JSON input
+2026/11/09 07:23:04 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatelight4258685158/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+2026/11/09 07:23:05 floter: dev.floter.imported was not imported: package was installed; enabled state was set to false; configuration was not applied: extensions: invalid configuration /tmp/TestImportPackageFailureReportsCommittedStatedark338686849/001/extension-data/dev.floter.imported/config.json: unexpected end of JSON input
+2026/11/09 07:23:05 floter: dev.floter.imported was not imported: package was installed; configuration templates were not completed: mkdir /tmp/TestImportTemplateFailureReportsCommittedStatelight365689640/001/extension-data/dev.floter.imported: not a directory
+2026/11/09 07:23:06 floter: dev.floter.imported was not imported: package was installed; configuration templates were not completed: mkdir /tmp/TestImportTemplateFailureReportsCommittedStatedark4250835430/001/extension-data/dev.floter.imported: not a directory
+2026/11/09 07:23:06 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrorlight800800327/002/extension-repository.json: invalid character 'b' looking for beginning of value
+2026/11/09 07:23:07 floter: could not export the integrations: extensions: invalid repository /tmp/TestIntegrationExportRetryRetiresResolvedErrordark3940837144/002/extension-repository.json: invalid character 'b' looking for beginning of value
+2026/11/09 07:23:08 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:23:08 floter: could not build the configuration copy for dev.floter.configured: extensions: configuration field "endpoint" contains invalid UTF-8
+2026/11/09 07:23:08 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+2026/11/09 07:23:08 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable: restart the desktop portal
+2026/11/09 07:23:08 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+2026/11/09 07:23:08 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+2026/11/09 07:23:09 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrorlight2570039630/003/import.json: extensions: import version 99 is not supported
+2026/11/09 07:23:09 floter: could not read /tmp/TestIntegrationImportRetryRetiresResolvedErrordark308671775/003/import.json: extensions: import version 99 is not supported
+2026/11/09 07:23:10 floter: could not pick a path for the configuration export of dev.floter.configured: file picker unavailable
+2026/11/09 07:23:10 floter: could not pick a path for diagnose.py: newer picker failed
+2026/11/09 07:23:10 floter: could not read /tmp/TestImportNegativeVersionRefusedBeforeWritelight4042474633/002/workspace.json: extensions: import version -1 is not supported
+2026/11/09 07:23:11 floter: could not read /tmp/TestImportNegativeVersionRefusedBeforeWritedark2223347686/002/workspace.json: extensions: import version -1 is not supported
+2026/11/09 07:23:11 floter: could not read /tmp/TestImportInvalidUTF8RefusedBeforeWritelight2681558825/002/workspace.json: extensions: import document contains invalid UTF-8
+2026/11/09 07:23:11 floter: could not read /tmp/TestImportInvalidUTF8RefusedBeforeWritedark2017262906/002/workspace.json: extensions: import document contains invalid UTF-8
+2026/11/09 07:23:11 floter: could not write /tmp/TestConfigExportWriteCauselight133527351/001: open /tmp/TestConfigExportWriteCauselight133527351/001: is a directory
+2026/11/09 07:23:11 floter: could not write /tmp/TestConfigExportWriteCausedark1303881496/001: open /tmp/TestConfigExportWriteCausedark1303881496/001: is a directory
+2026/11/09 07:23:12 floter: could not write /tmp/TestIntegrationsExportWriteCauselight37129031/001: open /tmp/TestIntegrationsExportWriteCauselight37129031/001: is a directory
+2026/11/09 07:23:12 floter: could not write /tmp/TestIntegrationsExportWriteCausedark3171178320/001: open /tmp/TestIntegrationsExportWriteCausedark3171178320/001: is a directory
+2026/11/09 07:23:13 floter: uninstalled io.github.vst93.v (config=true data=true artifacts=true)
+2026/11/09 07:23:13 floter: could not uninstall nope: extensions: no such integration
+2026/11/09 07:23:13 floter: could not uninstall nope: extensions: no such integration
+2026/11/09 07:23:13 floter: could not change nope: extensions: no such integration
+2026/11/09 07:23:15 floter: could not record the clipboard (): mkdir /tmp/TestAFailedCaptureIsRetriedOnTheNextPolltext3691074038/001/blocked: not a directory
+2026/11/09 07:23:15 floter: could not record the copied files (): mkdir /tmp/TestAFailedCaptureIsRetriedOnTheNextPollfiles465515804/001/blocked: not a directory
+2026/11/09 07:23:15 floter: could not open file:///etc/passwd: shell: refusing to open a non-web URL
+2026/11/09 07:23:15 floter: could not open https://example.com/tool: opener exploded
+FAIL
+FAIL	floter/internal/shell	222.296s
+ok  	floter/internal/shortcuts	0.034s
+ok  	floter/internal/spawn	0.177s
+ok  	floter/internal/statefile	0.018s
+ok  	floter/internal/terminalui	24.314s
+ok  	floter/internal/termsession	4.423s
+ok  	floter/internal/textlines	0.012s
+ok  	floter/internal/theme	0.049s
+ok  	floter/internal/tools	0.018s
+ok  	floter/internal/usage	0.006s
+ok  	floter/internal/valuedomain	0.004s
+ok  	floter/internal/versioning	0.004s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.005s
+FAIL

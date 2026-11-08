@@ -78,16 +78,36 @@ M2原始报错：`feedback reflow hides active outlet "Run": target={X:662.8 Y:5
 
 **D2逐条**：D2-1沿用系统中文字体与zh_CN.UTF-8；D2-2项目正文10.8/Caption9.9及行盒不满足通用14px/1.5倍规则，属既有待拍板；D2-3生产文案未改；D2-4夹具中文采用全角标点，生产墨色不改，7:1本轮未重测，不宣称新增合规。
 
-## 仍待
-
 ## 全量发现的B回归及修复
 
 首次普通全量发现原有TestCommandReprobeRejectsRepeatedClick与TestCommandReprobeLocksCompetingActions深浅均失败：`completed command reprobe cannot be retried: calls=0`。新增包络在鼠标按下获得焦点后滚动，移动了松开时的命中位置。
 
 修复：只对本轮新加的重新发现/编辑包络限定“键盘入焦时自动显现”；前置内容和窗口变化的显现保持。复用outputFocusOutlet已有reveal回调，通过两层现有包装透传；其他调用行为不变。原B测试零改，统一入口加入可选包路径后聚焦shell得到6 PASS；新增重新发现/编辑键盘用例20 PASS。此次产品补丁需完整门槛唯一一次复验，首轮失败保留。
 
+修正提交445a0de0已推送。首轮完整入口exit1，7244 PASS、6个FAIL（两根测试及四个深浅子例），普通/verbose均由上述B回归失败；gofmt、三平台vet/build通过。首轮运行期间扩展verify脚本的聚焦包参数还触发了shell读取偏移，日志含`行60: v: command not found`；保留verify-attempt1.log，不把首轮当作通过。复验使用稳定后的脚本从头执行，不再修改正在执行的入口。
+
 ## 仍待（结案队列）
 
 1. 下一轮先事件复现已有修复入口（重新检查/重连/主页）在前置区块刷新后的可见性，以及本地表单真实展开/折叠后活动控件是否仍可操作；未复现不计bug。本轮不重复P13-jx安装恢复与P13-la运行/配置表单八项。
 2. 字号/行盒、accent禁用、未知多选、保存期间草稿、终端S1b/S1c/S2尾等原拍板项保持；3秒窗口、保存和会话语义不改。
 3. Linux ui.Tester事件和图片已验；其他平台只做交叉vet/build，不声明原生窗口验收。八条历史独立WIP保留，未完成移植，不冒称stash清空。
+
+## 最终完整门槛
+
+统一入口首轮失败后仅复验一次；修正后的完整入口exit0、failed_gates=0，10行摘要。
+
+|项目|最终实测|
+|---|---|
+|gofmt|空，exit0|
+|Linux / Windows / Darwin vet|三项净，exit0|
+|普通全量测试|exit0；settingsui 301.573s，shell 188.709s|
+|verbose全量|7250 PASS / 0 FAIL，exit0|
+|Linux / Windows / Darwin build|三项exit0|
+|测试函数|3666（基线3658，+8）|
+|PASS增量|7170 → 7250，+80|
+|旧V/B/S断言修改|0 / 0 / 0；新增Skip 0|
+|独立变异|M1 20 FAIL、M2 10 FAIL；MD5还原、touch后20/10 PASS|
+
+完整摘要：[最终verify.log](P13-lb/logs/verify.log)；[首次失败摘要](P13-lb/logs/verify-attempt1.log)。原始日志按attempt1/attempt2保留，修前四批、修后四批、变异与还原、鼠标回归修复的聚焦日志一并归档。
+
+四批产品0f202b1c / 89003a02 / a7239198 / e641bed7和鼠标修正445a0de0均已推送。合约§6.281与.pending-bugs.md当前进度已更新；本结案只归档实测结果及证据。

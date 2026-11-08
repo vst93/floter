@@ -23,6 +23,6 @@
 
 每两项聚焦门槛通过即提交推送；交付前完整门槛只执行bash tools/verify.sh P13-lb，明细落盘、摘要不超过30行。同一失败最多重跑一次，第二次失败记录并停止该项扩展。
 
-M1去掉命令integrationLead；M2去掉行底动作integrationLead/包络。两条均注入、实红、MD5还原、touch后复验。深浅两套各一个代表状态前后图，不重复同状态截图。
+M1去掉命令integrationLead；M2去掉行底运行的integrationLead。两条均注入、实红、MD5还原、touch后复验。深浅两套各一个代表状态前后图，不重复同状态截图。
 
 qiaomu-design既定方向打磨：craft-loop #3沿用3px焦点环，#4一次0ms显现，#9沿用16px淡边；不为工艺数量新增装饰。Apple供体只借交互色专属、留白服务内容、单一主焦点三个动作；保留项目token与字号合约。

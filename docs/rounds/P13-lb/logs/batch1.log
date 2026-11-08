@@ -1,0 +1,42 @@
+=== RUN   TestLeadActionsAlias
+=== RUN   TestLeadActionsAlias/local
+=== RUN   TestLeadActionsAlias/local/light
+=== RUN   TestLeadActionsAlias/local/dark
+=== RUN   TestLeadActionsAlias/recommended
+=== RUN   TestLeadActionsAlias/recommended/light
+=== RUN   TestLeadActionsAlias/recommended/dark
+=== RUN   TestLeadActionsAlias/detected
+=== RUN   TestLeadActionsAlias/detected/light
+=== RUN   TestLeadActionsAlias/detected/dark
+--- PASS: TestLeadActionsAlias (0.79s)
+    --- PASS: TestLeadActionsAlias/local (0.44s)
+        --- PASS: TestLeadActionsAlias/local/light (0.37s)
+        --- PASS: TestLeadActionsAlias/local/dark (0.07s)
+    --- PASS: TestLeadActionsAlias/recommended (0.20s)
+        --- PASS: TestLeadActionsAlias/recommended/light (0.11s)
+        --- PASS: TestLeadActionsAlias/recommended/dark (0.09s)
+    --- PASS: TestLeadActionsAlias/detected (0.15s)
+        --- PASS: TestLeadActionsAlias/detected/light (0.08s)
+        --- PASS: TestLeadActionsAlias/detected/dark (0.07s)
+=== RUN   TestLeadActionsCommand
+=== RUN   TestLeadActionsCommand/local
+=== RUN   TestLeadActionsCommand/local/light
+=== RUN   TestLeadActionsCommand/local/dark
+=== RUN   TestLeadActionsCommand/recommended
+=== RUN   TestLeadActionsCommand/recommended/light
+=== RUN   TestLeadActionsCommand/recommended/dark
+=== RUN   TestLeadActionsCommand/detected
+=== RUN   TestLeadActionsCommand/detected/light
+=== RUN   TestLeadActionsCommand/detected/dark
+--- PASS: TestLeadActionsCommand (0.36s)
+    --- PASS: TestLeadActionsCommand/local (0.12s)
+        --- PASS: TestLeadActionsCommand/local/light (0.06s)
+        --- PASS: TestLeadActionsCommand/local/dark (0.06s)
+    --- PASS: TestLeadActionsCommand/recommended (0.12s)
+        --- PASS: TestLeadActionsCommand/recommended/light (0.06s)
+        --- PASS: TestLeadActionsCommand/recommended/dark (0.06s)
+    --- PASS: TestLeadActionsCommand/detected (0.13s)
+        --- PASS: TestLeadActionsCommand/detected/light (0.06s)
+        --- PASS: TestLeadActionsCommand/detected/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	1.176s

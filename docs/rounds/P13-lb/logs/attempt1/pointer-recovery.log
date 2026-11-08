@@ -1,0 +1,18 @@
+=== RUN   TestCommandReprobeRejectsRepeatedClick
+=== RUN   TestCommandReprobeRejectsRepeatedClick/light
+2026/11/09 07:27:37 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRejectsRepeatedClick/dark
+2026/11/09 07:27:38 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeRejectsRepeatedClick (1.99s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/light (1.11s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/dark (0.88s)
+=== RUN   TestCommandReprobeLocksCompetingActions
+=== RUN   TestCommandReprobeLocksCompetingActions/light
+2026/11/09 07:27:39 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeLocksCompetingActions/dark
+2026/11/09 07:27:40 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeLocksCompetingActions (1.89s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/light (0.94s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/dark (0.96s)
+PASS
+ok  	floter/internal/shell	3.898s
