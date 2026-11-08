@@ -2168,8 +2168,10 @@ func (a *App) reconnectIntegration(id string, done func(error)) {
 	var manifest extensions.Manifest
 	recorded := ""
 	known := false
+	var source string
 	if integration, ok := a.Integrations.Inventory().WithID(id); ok {
 		known = true
+		source = reconnectChoiceSource(integration)
 		manifest = integration.Manifest
 		recorded = integration.Entry.ExecutablePath
 		if integration.Name != "" {
@@ -2195,6 +2197,18 @@ func (a *App) reconnectIntegration(id string, done func(error)) {
 			}
 			path = chosen
 		}
+		// The chooser can outlive a package refresh. Its answer belongs to
+		// the declaration it displayed, even if the cached list is unchanged.
+		current := extensions.LoadInventory(a.Paths)
+		if owner, present := current.WithID(id); known && present && reconnectChoiceSource(owner) != source {
+			a.RefreshIntegrations(context.Background())
+			a.onMain(func() {
+				if done != nil {
+					done(nil)
+				}
+			})
+			return
+		}
 		report, err := extensions.ReconnectAt(a.Paths, id, path)
 		// The list is re-read first, as the reference's `refreshAfterMutation`
 		// did before its toast: a reconnect may have rewritten the entry (a new
@@ -2219,6 +2233,13 @@ func (a *App) reconnectIntegration(id string, done func(error)) {
 			}
 		})
 	}()
+}
+
+// A runtime choice belongs to the package and declaration that offered it.
+func reconnectChoiceSource(integration extensions.Integration) string {
+	data, _ := json.Marshal([]any{integration.Entry.ManifestPath,
+		integration.Manifest, integration.ManifestErr != nil})
+	return string(data)
 }
 
 // repairIntegration re-checks an installed package and repairs it when the
