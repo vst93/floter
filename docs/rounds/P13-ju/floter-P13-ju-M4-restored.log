@@ -1,0 +1,14 @@
+=== RUN   TestReconnectChoiceCurrentOwnership
+=== RUN   TestReconnectChoiceCurrentOwnership/light
+=== RUN   TestReconnectChoiceCurrentOwnership/dark
+--- PASS: TestReconnectChoiceCurrentOwnership (0.66s)
+    --- PASS: TestReconnectChoiceCurrentOwnership/light (0.39s)
+    --- PASS: TestReconnectChoiceCurrentOwnership/dark (0.27s)
+=== RUN   TestReconnectChoiceCurrentRemoved
+=== RUN   TestReconnectChoiceCurrentRemoved/light
+=== RUN   TestReconnectChoiceCurrentRemoved/dark
+--- PASS: TestReconnectChoiceCurrentRemoved (0.47s)
+    --- PASS: TestReconnectChoiceCurrentRemoved/light (0.24s)
+    --- PASS: TestReconnectChoiceCurrentRemoved/dark (0.23s)
+PASS
+ok  	floter/internal/shell	1.141s

@@ -1,0 +1,27 @@
+=== RUN   TestReconnectChoiceCurrentBinding
+=== RUN   TestReconnectChoiceCurrentBinding/light
+    reconnectchoicecurrent_test.go:84: obsolete binding choice rewrote current repository
+    reconnectchoicecurrent_test.go:87: obsolete binding choice published a result: err=<nil> notices=["检查工具 已重新连接"]
+=== RUN   TestReconnectChoiceCurrentBinding/dark
+    reconnectchoicecurrent_test.go:84: obsolete binding choice rewrote current repository
+    reconnectchoicecurrent_test.go:87: obsolete binding choice published a result: err=<nil> notices=["检查工具 已重新连接"]
+--- FAIL: TestReconnectChoiceCurrentBinding (0.64s)
+    --- FAIL: TestReconnectChoiceCurrentBinding/light (0.38s)
+    --- FAIL: TestReconnectChoiceCurrentBinding/dark (0.26s)
+=== RUN   TestReconnectChoiceCurrentRoot
+=== RUN   TestReconnectChoiceCurrentRoot/light
+    reconnectchoicecurrent_test.go:84: obsolete root choice rewrote current repository
+    reconnectchoicecurrent_test.go:87: obsolete root choice published a result: err=<nil> notices=["检查工具 已重新连接"]
+    reconnectchoicecurrent_test.go:95: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:99: current root row lost retry outlet: calls=0
+=== RUN   TestReconnectChoiceCurrentRoot/dark
+    reconnectchoicecurrent_test.go:84: obsolete root choice rewrote current repository
+    reconnectchoicecurrent_test.go:87: obsolete root choice published a result: err=<nil> notices=["检查工具 已重新连接"]
+    reconnectchoicecurrent_test.go:95: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:99: current root row lost retry outlet: calls=0
+--- FAIL: TestReconnectChoiceCurrentRoot (0.54s)
+    --- FAIL: TestReconnectChoiceCurrentRoot/light (0.26s)
+    --- FAIL: TestReconnectChoiceCurrentRoot/dark (0.28s)
+FAIL
+FAIL	floter/internal/shell	1.187s
+FAIL

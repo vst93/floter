@@ -1,0 +1,30 @@
+=== RUN   TestReconnectAsksWhichExecutableToBind
+--- PASS: TestReconnectAsksWhichExecutableToBind (0.06s)
+=== RUN   TestTheReconnectActionRebindsAMovedProgram
+--- PASS: TestTheReconnectActionRebindsAMovedProgram (0.05s)
+=== RUN   TestReconnectChoiceCurrentManifest
+=== RUN   TestReconnectChoiceCurrentManifest/light
+=== RUN   TestReconnectChoiceCurrentManifest/dark
+--- PASS: TestReconnectChoiceCurrentManifest (0.79s)
+    --- PASS: TestReconnectChoiceCurrentManifest/light (0.50s)
+    --- PASS: TestReconnectChoiceCurrentManifest/dark (0.29s)
+=== RUN   TestReconnectChoiceCurrentPackage
+=== RUN   TestReconnectChoiceCurrentPackage/light
+=== RUN   TestReconnectChoiceCurrentPackage/dark
+--- PASS: TestReconnectChoiceCurrentPackage (0.59s)
+    --- PASS: TestReconnectChoiceCurrentPackage/light (0.29s)
+    --- PASS: TestReconnectChoiceCurrentPackage/dark (0.29s)
+=== RUN   TestRepairSearchReconnect
+=== RUN   TestRepairSearchReconnect/light
+=== RUN   TestRepairSearchReconnect/dark
+--- PASS: TestRepairSearchReconnect (0.46s)
+    --- PASS: TestRepairSearchReconnect/light (0.24s)
+    --- PASS: TestRepairSearchReconnect/dark (0.22s)
+=== RUN   TestRepairSearchRecheck
+=== RUN   TestRepairSearchRecheck/light
+=== RUN   TestRepairSearchRecheck/dark
+--- PASS: TestRepairSearchRecheck (0.42s)
+    --- PASS: TestRepairSearchRecheck/light (0.21s)
+    --- PASS: TestRepairSearchRecheck/dark (0.21s)
+PASS
+ok  	floter/internal/shell	2.371s

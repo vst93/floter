@@ -1,0 +1,18 @@
+=== RUN   TestReconnectAsksWhichExecutableToBind
+--- PASS: TestReconnectAsksWhichExecutableToBind (0.11s)
+=== RUN   TestTheReconnectActionRebindsAMovedProgram
+--- PASS: TestTheReconnectActionRebindsAMovedProgram (0.11s)
+=== RUN   TestRepairSearchReconnect
+=== RUN   TestRepairSearchReconnect/light
+=== RUN   TestRepairSearchReconnect/dark
+--- PASS: TestRepairSearchReconnect (1.58s)
+    --- PASS: TestRepairSearchReconnect/light (0.94s)
+    --- PASS: TestRepairSearchReconnect/dark (0.64s)
+=== RUN   TestRepairSearchRecheck
+=== RUN   TestRepairSearchRecheck/light
+=== RUN   TestRepairSearchRecheck/dark
+--- PASS: TestRepairSearchRecheck (1.08s)
+    --- PASS: TestRepairSearchRecheck/light (0.59s)
+    --- PASS: TestRepairSearchRecheck/dark (0.49s)
+PASS
+ok  	floter/internal/shell	2.909s

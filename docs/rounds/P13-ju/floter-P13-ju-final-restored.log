@@ -1,0 +1,26 @@
+=== RUN   TestReconnectChoiceCurrentManifest
+=== RUN   TestReconnectChoiceCurrentManifest/light
+=== RUN   TestReconnectChoiceCurrentManifest/dark
+--- PASS: TestReconnectChoiceCurrentManifest (1.34s)
+    --- PASS: TestReconnectChoiceCurrentManifest/light (0.75s)
+    --- PASS: TestReconnectChoiceCurrentManifest/dark (0.59s)
+=== RUN   TestReconnectChoiceCurrentPackage
+=== RUN   TestReconnectChoiceCurrentPackage/light
+=== RUN   TestReconnectChoiceCurrentPackage/dark
+--- PASS: TestReconnectChoiceCurrentPackage (1.21s)
+    --- PASS: TestReconnectChoiceCurrentPackage/light (0.60s)
+    --- PASS: TestReconnectChoiceCurrentPackage/dark (0.61s)
+=== RUN   TestRepairSearchReconnect
+=== RUN   TestRepairSearchReconnect/light
+=== RUN   TestRepairSearchReconnect/dark
+--- PASS: TestRepairSearchReconnect (0.93s)
+    --- PASS: TestRepairSearchReconnect/light (0.48s)
+    --- PASS: TestRepairSearchReconnect/dark (0.45s)
+=== RUN   TestRepairSearchRecheck
+=== RUN   TestRepairSearchRecheck/light
+=== RUN   TestRepairSearchRecheck/dark
+--- PASS: TestRepairSearchRecheck (0.86s)
+    --- PASS: TestRepairSearchRecheck/light (0.43s)
+    --- PASS: TestRepairSearchRecheck/dark (0.43s)
+PASS
+ok  	floter/internal/shell	4.346s

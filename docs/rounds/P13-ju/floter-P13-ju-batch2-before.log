@@ -1,0 +1,27 @@
+=== RUN   TestReconnectChoiceCurrentManifest
+=== RUN   TestReconnectChoiceCurrentManifest/light
+    reconnectchoicecurrent_test.go:83: obsolete manifest choice rewrote current repository
+    reconnectchoicecurrent_test.go:94: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:98: current manifest row lost retry outlet: calls=0
+=== RUN   TestReconnectChoiceCurrentManifest/dark
+    reconnectchoicecurrent_test.go:83: obsolete manifest choice rewrote current repository
+    reconnectchoicecurrent_test.go:94: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:98: current manifest row lost retry outlet: calls=0
+--- FAIL: TestReconnectChoiceCurrentManifest (1.61s)
+    --- FAIL: TestReconnectChoiceCurrentManifest/light (0.88s)
+    --- FAIL: TestReconnectChoiceCurrentManifest/dark (0.73s)
+=== RUN   TestReconnectChoiceCurrentPackage
+=== RUN   TestReconnectChoiceCurrentPackage/light
+    reconnectchoicecurrent_test.go:83: obsolete package choice rewrote current repository
+    reconnectchoicecurrent_test.go:94: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:98: current package row lost retry outlet: calls=0
+=== RUN   TestReconnectChoiceCurrentPackage/dark
+    reconnectchoicecurrent_test.go:83: obsolete package choice rewrote current repository
+    reconnectchoicecurrent_test.go:94: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:98: current package row lost retry outlet: calls=0
+--- FAIL: TestReconnectChoiceCurrentPackage (1.53s)
+    --- FAIL: TestReconnectChoiceCurrentPackage/light (0.76s)
+    --- FAIL: TestReconnectChoiceCurrentPackage/dark (0.77s)
+FAIL
+FAIL	floter/internal/shell	3.159s
+FAIL

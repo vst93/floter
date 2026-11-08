@@ -1,0 +1,14 @@
+=== RUN   TestRepairSearchReconnect
+=== RUN   TestRepairSearchReconnect/light
+=== RUN   TestRepairSearchReconnect/dark
+--- PASS: TestRepairSearchReconnect (1.36s)
+    --- PASS: TestRepairSearchReconnect/light (0.71s)
+    --- PASS: TestRepairSearchReconnect/dark (0.65s)
+=== RUN   TestRepairSearchRecheck
+=== RUN   TestRepairSearchRecheck/light
+=== RUN   TestRepairSearchRecheck/dark
+--- PASS: TestRepairSearchRecheck (1.13s)
+    --- PASS: TestRepairSearchRecheck/light (0.58s)
+    --- PASS: TestRepairSearchRecheck/dark (0.55s)
+PASS
+ok  	floter/internal/shell	2.499s

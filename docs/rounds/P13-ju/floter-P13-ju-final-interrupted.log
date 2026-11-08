@@ -1,0 +1,650 @@
+?   	floter/cmd/floter	[no test files]
+=== RUN   TestPlainTextIsOneSpan
+--- PASS: TestPlainTextIsOneSpan (0.00s)
+=== RUN   TestColourAndReset
+--- PASS: TestColourAndReset (0.00s)
+=== RUN   TestWeightsAndDecorations
+--- PASS: TestWeightsAndDecorations (0.00s)
+=== RUN   TestBrightBackgroundAndInverse
+--- PASS: TestBrightBackgroundAndInverse (0.00s)
+=== RUN   TestExtendedColours
+--- PASS: TestExtendedColours (0.00s)
+=== RUN   TestOtherEscapesAreDropped
+--- PASS: TestOtherEscapesAreDropped (0.00s)
+=== RUN   TestUnknownCodesAreIgnored
+--- PASS: TestUnknownCodesAreIgnored (0.00s)
+=== RUN   TestTruncatedSequences
+--- PASS: TestTruncatedSequences (0.00s)
+=== RUN   TestEmptyParametersAreZeros
+--- PASS: TestEmptyParametersAreZeros (0.00s)
+=== RUN   TestMultibyteText
+--- PASS: TestMultibyteText (0.00s)
+=== RUN   TestMalformedParametersAreIgnored
+--- PASS: TestMalformedParametersAreIgnored (0.00s)
+=== RUN   TestNotAControlSequenceKeepsTheText
+--- PASS: TestNotAControlSequenceKeepsTheText (0.00s)
+=== RUN   TestDesignationsAreThreeBytes
+--- PASS: TestDesignationsAreThreeBytes (0.00s)
+=== RUN   TestTwoByteEscapesStayTwoBytes
+--- PASS: TestTwoByteEscapesStayTwoBytes (0.00s)
+=== RUN   TestTruncatedDesignation
+--- PASS: TestTruncatedDesignation (0.00s)
+PASS
+ok  	floter/internal/ansi	0.002s
+=== RUN   TestSplitDesktopExec
+--- PASS: TestSplitDesktopExec (0.00s)
+=== RUN   TestScanDarwin
+--- PASS: TestScanDarwin (0.00s)
+=== RUN   TestScanWindows
+--- PASS: TestScanWindows (0.00s)
+=== RUN   TestScanLinux
+--- PASS: TestScanLinux (0.00s)
+=== RUN   TestDesktopLocalizedNameAndComment
+=== RUN   TestDesktopLocalizedNameAndComment/the_best_Chinese_name_wins
+=== RUN   TestDesktopLocalizedNameAndComment/a_locale_outside_the_ladder_is_ignored
+=== RUN   TestDesktopLocalizedNameAndComment/a_localized_name_equal_to_the_plain_one_is_dropped
+=== RUN   TestDesktopLocalizedNameAndComment/a_localized_comment_overrides_the_plain_one
+=== RUN   TestDesktopLocalizedNameAndComment/a_plain_comment_stands_when_nothing_localized_exists
+=== RUN   TestDesktopLocalizedNameAndComment/an_empty_comment_is_dropped
+=== RUN   TestDesktopLocalizedNameAndComment/desktop-entry_escapes_are_unescaped
+--- PASS: TestDesktopLocalizedNameAndComment (0.00s)
+    --- PASS: TestDesktopLocalizedNameAndComment/the_best_Chinese_name_wins (0.00s)
+    --- PASS: TestDesktopLocalizedNameAndComment/a_locale_outside_the_ladder_is_ignored (0.00s)
+    --- PASS: TestDesktopLocalizedNameAndComment/a_localized_name_equal_to_the_plain_one_is_dropped (0.00s)
+    --- PASS: TestDesktopLocalizedNameAndComment/a_localized_comment_overrides_the_plain_one (0.00s)
+    --- PASS: TestDesktopLocalizedNameAndComment/a_plain_comment_stands_when_nothing_localized_exists (0.00s)
+    --- PASS: TestDesktopLocalizedNameAndComment/an_empty_comment_is_dropped (0.00s)
+    --- PASS: TestDesktopLocalizedNameAndComment/desktop-entry_escapes_are_unescaped (0.00s)
+=== RUN   TestDesktopSearchAliases
+=== RUN   TestDesktopSearchAliases/every_source_is_collected
+=== RUN   TestDesktopSearchAliases/a_candidate_equal_to_a_name_is_dropped_and_repeats_collapse
+=== RUN   TestDesktopSearchAliases/the_desktop-id's_application_half_is_an_alias
+=== RUN   TestDesktopSearchAliases/executableName_strips_the_path_and_arguments
+--- PASS: TestDesktopSearchAliases (0.00s)
+    --- PASS: TestDesktopSearchAliases/every_source_is_collected (0.00s)
+    --- PASS: TestDesktopSearchAliases/a_candidate_equal_to_a_name_is_dropped_and_repeats_collapse (0.00s)
+    --- PASS: TestDesktopSearchAliases/the_desktop-id's_application_half_is_an_alias (0.00s)
+    --- PASS: TestDesktopSearchAliases/executableName_strips_the_path_and_arguments (0.00s)
+=== RUN   TestScanLinuxFillsAliases
+--- PASS: TestScanLinuxFillsAliases (0.00s)
+=== RUN   TestParseDesktopFileRejectsJunk
+--- PASS: TestParseDesktopFileRejectsJunk (0.00s)
+=== RUN   TestDedupeSortsAndCaps
+--- PASS: TestDedupeSortsAndCaps (0.00s)
+=== RUN   TestBundleNamesFromInfoPlist
+--- PASS: TestBundleNamesFromInfoPlist (0.00s)
+=== RUN   TestIcons
+--- PASS: TestIcons (0.05s)
+=== RUN   TestICNSRejectsJunk
+--- PASS: TestICNSRejectsJunk (0.00s)
+=== RUN   TestResolveBundleNames
+--- PASS: TestResolveBundleNames (0.00s)
+=== RUN   TestStringsValueAndAliases
+--- PASS: TestStringsValueAndAliases (0.00s)
+=== RUN   TestComputeInitials
+--- PASS: TestComputeInitials (0.00s)
+=== RUN   TestStringsFileUTF16
+--- PASS: TestStringsFileUTF16 (0.00s)
+=== RUN   TestDesktopEntryTypeGate
+--- PASS: TestDesktopEntryTypeGate (0.00s)
+=== RUN   TestExecutableAvailable
+--- PASS: TestExecutableAvailable (0.00s)
+=== RUN   TestScanLinuxDropsUnavailableTryExec
+--- PASS: TestScanLinuxDropsUnavailableTryExec (0.00s)
+=== RUN   TestDesktopLaunchCommand
+--- PASS: TestDesktopLaunchCommand (0.00s)
+=== RUN   TestTheAppLaunchPathIsTheSpawnPackagesOwn
+--- PASS: TestTheAppLaunchPathIsTheSpawnPackagesOwn (0.00s)
+=== RUN   TestCachedScanRoundTrip
+--- PASS: TestCachedScanRoundTrip (0.00s)
+=== RUN   TestPathsSignature
+--- PASS: TestPathsSignature (0.00s)
+=== RUN   TestACachedScanGoesStaleByAge
+--- PASS: TestACachedScanGoesStaleByAge (0.00s)
+=== RUN   TestScanCommands
+--- PASS: TestScanCommands (0.00s)
+=== RUN   TestCommandDirs
+--- PASS: TestCommandDirs (0.00s)
+=== RUN   TestDesktopFileWithBOMIsStillAnApp
+=== RUN   TestDesktopFileWithBOMIsStillAnApp/bom_only
+=== RUN   TestDesktopFileWithBOMIsStillAnApp/bom_and_crlf
+--- PASS: TestDesktopFileWithBOMIsStillAnApp (0.00s)
+    --- PASS: TestDesktopFileWithBOMIsStillAnApp/bom_only (0.00s)
+    --- PASS: TestDesktopFileWithBOMIsStillAnApp/bom_and_crlf (0.00s)
+=== RUN   TestFileStemDropsTheFinalExtension
+--- PASS: TestFileStemDropsTheFinalExtension (0.00s)
+=== RUN   TestDesktopFileStemIsTheBaseNameWithoutItsExtension
+--- PASS: TestDesktopFileStemIsTheBaseNameWithoutItsExtension (0.00s)
+=== RUN   TestTheTwoStemRulesDisagreeOnPurpose
+--- PASS: TestTheTwoStemRulesDisagreeOnPurpose (0.00s)
+=== RUN   TestTheThreeNameFacesDisagreeOnPurpose
+--- PASS: TestTheThreeNameFacesDisagreeOnPurpose (0.00s)
+=== RUN   TestICNSConvertArgsMatchTheReference
+--- PASS: TestICNSConvertArgsMatchTheReference (0.00s)
+=== RUN   TestConvertICNSReturnsTheConvertedPNG
+--- PASS: TestConvertICNSReturnsTheConvertedPNG (0.00s)
+=== RUN   TestConvertICNSRefusesAHalfAnswer
+--- PASS: TestConvertICNSRefusesAHalfAnswer (0.00s)
+=== RUN   TestReadIconAsksThePlatformForALegacyICNS
+--- PASS: TestReadIconAsksThePlatformForALegacyICNS (0.00s)
+=== RUN   TestReadIconKeepsThePNGEntryWithoutAsking
+--- PASS: TestReadIconKeepsThePNGEntryWithoutAsking (0.00s)
+=== RUN   TestReadIconAsksThePlatformForAnUnreadableFile
+--- PASS: TestReadIconAsksThePlatformForAnUnreadableFile (0.00s)
+=== RUN   TestIconFromFileTruthTable
+--- PASS: TestIconFromFileTruthTable (0.00s)
+=== RUN   TestTheIconNameLosesOnlyAKnownExtension
+--- PASS: TestTheIconNameLosesOnlyAKnownExtension (0.03s)
+=== RUN   TestPixmapsComeBeforeThemes
+--- PASS: TestPixmapsComeBeforeThemes (0.00s)
+=== RUN   TestEveryThemeUnderABaseIsSearched
+--- PASS: TestEveryThemeUnderABaseIsSearched (0.00s)
+=== RUN   TestTheThreeThemeLayouts
+--- PASS: TestTheThreeThemeLayouts (0.00s)
+=== RUN   TestTheLargestSizeWins
+--- PASS: TestTheLargestSizeWins (0.00s)
+=== RUN   TestTheIconBaseDirsAreTheReferences
+--- PASS: TestTheIconBaseDirsAreTheReferences (0.00s)
+=== RUN   TestAnUnusualLayoutIsFoundThreeDeep
+--- PASS: TestAnUnusualLayoutIsFoundThreeDeep (0.03s)
+=== RUN   TestOnlyPNGIconsAreReturned
+--- PASS: TestOnlyPNGIconsAreReturned (0.02s)
+=== RUN   TestParseRegistryProgramsReadsWhatRegPrints
+--- PASS: TestParseRegistryProgramsReadsWhatRegPrints (0.00s)
+=== RUN   TestRegistryEntryNamesTheProgramItInstalled
+=== RUN   TestRegistryEntryNamesTheProgramItInstalled/icon_with_index
+=== RUN   TestRegistryEntryNamesTheProgramItInstalled/install_location
+=== RUN   TestRegistryEntryNamesTheProgramItInstalled/chinese_name_without_an_icon
+=== RUN   TestRegistryEntryNamesTheProgramItInstalled/system_component
+=== RUN   TestRegistryEntryNamesTheProgramItInstalled/no_display_name
+=== RUN   TestRegistryEntryNamesTheProgramItInstalled/icon_file_only
+=== RUN   TestRegistryEntryNamesTheProgramItInstalled/name_does_not_match
+--- PASS: TestRegistryEntryNamesTheProgramItInstalled (0.00s)
+    --- PASS: TestRegistryEntryNamesTheProgramItInstalled/icon_with_index (0.00s)
+    --- PASS: TestRegistryEntryNamesTheProgramItInstalled/install_location (0.00s)
+    --- PASS: TestRegistryEntryNamesTheProgramItInstalled/chinese_name_without_an_icon (0.00s)
+    --- PASS: TestRegistryEntryNamesTheProgramItInstalled/system_component (0.00s)
+    --- PASS: TestRegistryEntryNamesTheProgramItInstalled/no_display_name (0.00s)
+    --- PASS: TestRegistryEntryNamesTheProgramItInstalled/icon_file_only (0.00s)
+    --- PASS: TestRegistryEntryNamesTheProgramItInstalled/name_does_not_match (0.00s)
+=== RUN   TestDecodeRegistryOutputReadsPowerShellsUnicode
+--- PASS: TestDecodeRegistryOutputReadsPowerShellsUnicode (0.00s)
+=== RUN   TestScanRegistryProgramsSkipsWhatTheStartMenuListed
+--- PASS: TestScanRegistryProgramsSkipsWhatTheStartMenuListed (0.00s)
+=== RUN   TestALinuxDesktopIDIsUniqueAcrossRoots
+--- PASS: TestALinuxDesktopIDIsUniqueAcrossRoots (0.00s)
+=== RUN   TestANestedDesktopIDIsThePathWithDashes
+--- PASS: TestANestedDesktopIDIsThePathWithDashes (0.00s)
+=== RUN   TestScanLinuxOnOneRootKeepsEveryEntry
+--- PASS: TestScanLinuxOnOneRootKeepsEveryEntry (0.00s)
+=== RUN   TestLinuxRootsFollowTheSearchPath
+--- PASS: TestLinuxRootsFollowTheSearchPath (0.00s)
+=== RUN   TestLinuxDataHome
+--- PASS: TestLinuxDataHome (0.00s)
+=== RUN   TestAWindowsShortcutIsOneRowAcrossRoots
+--- PASS: TestAWindowsShortcutIsOneRowAcrossRoots (0.00s)
+=== RUN   TestScanKeepsOneRowPerDesktopID
+--- PASS: TestScanKeepsOneRowPerDesktopID (0.00s)
+=== RUN   TestAShortcutTargetIsRead
+--- PASS: TestAShortcutTargetIsRead (0.00s)
+=== RUN   TestTheUnicodePathWins
+--- PASS: TestTheUnicodePathWins (0.00s)
+=== RUN   TestASuffixIsPartOfTheTarget
+--- PASS: TestASuffixIsPartOfTheTarget (0.00s)
+=== RUN   TestAnUnreadableShortcutKeepsItsRow
+--- PASS: TestAnUnreadableShortcutKeepsItsRow (0.00s)
+=== RUN   TestUninstallersAreNotRows
+--- PASS: TestUninstallersAreNotRows (0.00s)
+=== RUN   TestTheTargetNameIsTheAlias
+--- PASS: TestTheTargetNameIsTheAlias (0.00s)
+=== RUN   TestScanWindowsDerivesWhatTheTargetSays
+--- PASS: TestScanWindowsDerivesWhatTheTargetSays (0.00s)
+=== RUN   TestScanWindowsDropsAnAliasThatIsTheName
+--- PASS: TestScanWindowsDropsAnAliasThatIsTheName (0.00s)
+=== RUN   TestTheFilterIsAboutTheFileNameNotThePath
+--- PASS: TestTheFilterIsAboutTheFileNameNotThePath (0.00s)
+=== RUN   TestTheFilterTrimsWhereTheReferenceDoesNot
+--- PASS: TestTheFilterTrimsWhereTheReferenceDoesNot (0.00s)
+=== RUN   TestALiteralDotExeNamesNothing
+--- PASS: TestALiteralDotExeNamesNothing (0.00s)
+=== RUN   TestTheUninstallerSubstringIsMatchedAnywhereInTheStem
+--- PASS: TestTheUninstallerSubstringIsMatchedAnywhereInTheStem (0.00s)
+=== RUN   TestTheTwoProgramQuestionsDisagreeOnCom
+--- PASS: TestTheTwoProgramQuestionsDisagreeOnCom (0.00s)
+=== RUN   TestALocalizedNameOutsideTheBMPReadsAsOneCharacter
+--- PASS: TestALocalizedNameOutsideTheBMPReadsAsOneCharacter (0.00s)
+=== RUN   TestTheDarwinScanStopsAtTheReferencesDepth
+--- PASS: TestTheDarwinScanStopsAtTheReferencesDepth (0.00s)
+=== RUN   TestTheWindowsScanStopsAtTheReferencesDepth
+--- PASS: TestTheWindowsScanStopsAtTheReferencesDepth (0.00s)
+=== RUN   TestTheWalkDepthsAreTheReferences
+--- PASS: TestTheWalkDepthsAreTheReferences (0.00s)
+=== RUN   TestTheSignatureCoversTheDepthEachPlatformsScanReads
+--- PASS: TestTheSignatureCoversTheDepthEachPlatformsScanReads (0.00s)
+=== RUN   TestRootsReadsTheXDGEnvironment
+--- PASS: TestRootsReadsTheXDGEnvironment (0.00s)
+PASS
+ok  	floter/internal/apps	0.170s
+=== RUN   TestProfilesFindsWhatsInstalled
+--- PASS: TestProfilesFindsWhatsInstalled (0.00s)
+=== RUN   TestBrowserTablesPerPlatform
+--- PASS: TestBrowserTablesPerPlatform (0.00s)
+=== RUN   TestProfileOrderAndDetection
+--- PASS: TestProfileOrderAndDetection (0.00s)
+=== RUN   TestLocalStateNamesAProfile
+--- PASS: TestLocalStateNamesAProfile (0.00s)
+=== RUN   TestCustomBaseDirIsSearched
+--- PASS: TestCustomBaseDirIsSearched (0.00s)
+=== RUN   TestDefaultProfile
+--- PASS: TestDefaultProfile (0.00s)
+=== RUN   TestChromiumBookmarks
+--- PASS: TestChromiumBookmarks (0.00s)
+=== RUN   TestTimestamps
+--- PASS: TestTimestamps (0.00s)
+=== RUN   TestSearchMatchesAndOrders
+--- PASS: TestSearchMatchesAndOrders (0.00s)
+=== RUN   TestSortOrders
+--- PASS: TestSortOrders (0.00s)
+=== RUN   TestMatchesClause
+--- PASS: TestMatchesClause (0.00s)
+=== RUN   TestHistoryStatementAppliesTheWindow
+--- PASS: TestHistoryStatementAppliesTheWindow (0.00s)
+=== RUN   TestLabel
+--- PASS: TestLabel (0.00s)
+=== RUN   TestEveryOfferedSortOrderIsImplemented
+--- PASS: TestEveryOfferedSortOrderIsImplemented (0.00s)
+=== RUN   TestEveryOfferedSearchFieldIsImplemented
+--- PASS: TestEveryOfferedSearchFieldIsImplemented (0.00s)
+=== RUN   TestTheTypedConstantsSpellTheDomain
+--- PASS: TestTheTypedConstantsSpellTheDomain (0.00s)
+=== RUN   TestWindowsOpensAURLThroughTheShellExecuteOpener
+--- PASS: TestWindowsOpensAURLThroughTheShellExecuteOpener (0.00s)
+=== RUN   TestMacOSFallsBackToTheDefaultBrowser
+--- PASS: TestMacOSFallsBackToTheDefaultBrowser (0.00s)
+=== RUN   TestLinuxOpensAURLWithXdgOpen
+--- PASS: TestLinuxOpensAURLWithXdgOpen (0.00s)
+=== RUN   TestAnUnsupportedPlatformRefusesTheURL
+--- PASS: TestAnUnsupportedPlatformRefusesTheURL (0.00s)
+=== RUN   TestSafariBookmarks
+--- PASS: TestSafariBookmarks (0.00s)
+=== RUN   TestReadsRealDatabase
+    sqlite_test.go:22: set FLOTER_SQLITE_TEST=1 to load the sqlite plugin's library
+--- SKIP: TestReadsRealDatabase (0.00s)
+=== RUN   TestAppleScriptTabsParse
+--- PASS: TestAppleScriptTabsParse (0.00s)
+=== RUN   TestAppleScriptSource
+--- PASS: TestAppleScriptSource (0.00s)
+=== RUN   TestCDPTargets
+--- PASS: TestCDPTargets (0.00s)
+=== RUN   TestCDPTabsOverHTTP
+--- PASS: TestCDPTabsOverHTTP (0.00s)
+=== RUN   TestOpenURLRefusesAnEmptyPage
+--- PASS: TestOpenURLRefusesAnEmptyPage (0.00s)
+=== RUN   TestTabLabel
+--- PASS: TestTabLabel (0.00s)
+PASS
+ok  	floter/internal/browser	0.011s
+=== RUN   TestEval
+--- PASS: TestEval (0.00s)
+=== RUN   TestEvalRejects
+--- PASS: TestEvalRejects (0.00s)
+=== RUN   TestFormat
+--- PASS: TestFormat (0.00s)
+=== RUN   TestNotAnExpressionForNamesWithSigns
+--- PASS: TestNotAnExpressionForNamesWithSigns (0.00s)
+=== RUN   TestEvalBuiltins
+--- PASS: TestEvalBuiltins (0.00s)
+=== RUN   TestEvalFunctionTableMatchesTheFork
+--- PASS: TestEvalFunctionTableMatchesTheFork (0.00s)
+=== RUN   TestEvalRejectsUnknownNames
+--- PASS: TestEvalRejectsUnknownNames (0.00s)
+=== RUN   TestTheExpressionHasOneNormalForm
+--- PASS: TestTheExpressionHasOneNormalForm (0.00s)
+=== RUN   TestALongExpressionIsRefusedBeforeItIsParsed
+--- PASS: TestALongExpressionIsRefusedBeforeItIsParsed (0.00s)
+=== RUN   TestDivisionByZeroIsTheNotFiniteRefusal
+--- PASS: TestDivisionByZeroIsTheNotFiniteRefusal (0.00s)
+PASS
+ok  	floter/internal/calc	0.003s
+=== RUN   TestAddFoldsAndKeepsFavorites
+--- PASS: TestAddFoldsAndKeepsFavorites (0.00s)
+=== RUN   TestRetentionExemptsFavorites
+--- PASS: TestRetentionExemptsFavorites (0.00s)
+=== RUN   TestTheCapacityDropsTheOldestByAgeNotByPosition
+--- PASS: TestTheCapacityDropsTheOldestByAgeNotByPosition (0.00s)
+=== RUN   TestADeleteAlsoPrunes
+--- PASS: TestADeleteAlsoPrunes (0.00s)
+=== RUN   TestSearchDeleteAndClear
+--- PASS: TestSearchDeleteAndClear (0.00s)
+=== RUN   TestPersistenceAndRecovery
+--- PASS: TestPersistenceAndRecovery (0.00s)
+=== RUN   TestNormalizers
+--- PASS: TestNormalizers (0.00s)
+=== RUN   TestEntryText
+--- PASS: TestEntryText (0.00s)
+=== RUN   TestPruneTieBreakDropsTheOldest
+--- PASS: TestPruneTieBreakDropsTheOldest (0.00s)
+=== RUN   TestAddFoldsTheCanonicalSpellings
+--- PASS: TestAddFoldsTheCanonicalSpellings (0.00s)
+=== RUN   TestFailedAddPublishesNothing
+--- PASS: TestFailedAddPublishesNothing (0.00s)
+=== RUN   TestFailedFavoriteKeepsTheOldStar
+--- PASS: TestFailedFavoriteKeepsTheOldStar (0.00s)
+=== RUN   TestFailedDeleteAndClearKeepTheRows
+--- PASS: TestFailedDeleteAndClearKeepTheRows (0.00s)
+=== RUN   TestFailedRetentionDoesNotCommitThePrune
+--- PASS: TestFailedRetentionDoesNotCommitThePrune (0.00s)
+PASS
+ok  	floter/internal/calculator	0.010s
+=== RUN   TestTheWindowsSetupGlobMatchesMygoNames
+--- PASS: TestTheWindowsSetupGlobMatchesMygoNames (0.00s)
+=== RUN   TestTheAppNameKeepsArtifactNamesStable
+--- PASS: TestTheAppNameKeepsArtifactNamesStable (0.00s)
+=== RUN   TestTheWindowsSetupAssetIsNamedLikeTheDocs
+--- PASS: TestTheWindowsSetupAssetIsNamedLikeTheDocs (0.00s)
+=== RUN   TestTheColorStepIsTheReferenceDurTwo
+--- PASS: TestTheColorStepIsTheReferenceDurTwo (0.00s)
+=== RUN   TestEveryColorTransitionRidesOneStep
+--- PASS: TestEveryColorTransitionRidesOneStep (0.02s)
+=== RUN   TestTestHelpersAreVisibleOnEveryPlatform
+--- PASS: TestTestHelpersAreVisibleOnEveryPlatform (2.35s)
+=== RUN   TestTheDeadCodeBaselineStaysDeleted
+--- PASS: TestTheDeadCodeBaselineStaysDeleted (0.29s)
+=== RUN   TestTheDeadCodeFalsePositiveStaysOut
+--- PASS: TestTheDeadCodeFalsePositiveStaysOut (0.00s)
+=== RUN   TestDesktopEntriesHaveOneReader
+--- PASS: TestDesktopEntriesHaveOneReader (0.02s)
+=== RUN   TestNoDisabledChainFadesTwice
+--- PASS: TestNoDisabledChainFadesTwice (0.21s)
+=== RUN   TestFloatingThrowsFollowTheFrameScale
+--- PASS: TestFloatingThrowsFollowTheFrameScale (0.01s)
+=== RUN   TestNoPaddedPaneIsFlat
+--- PASS: TestNoPaddedPaneIsFlat (0.47s)
+=== RUN   TestTheSettingsPackagesTextSizesAreLadderRungs
+=== RUN   TestTheSettingsPackagesTextSizesAreLadderRungs/../settingsui
+=== RUN   TestTheSettingsPackagesTextSizesAreLadderRungs/../launcher
+--- PASS: TestTheSettingsPackagesTextSizesAreLadderRungs (0.10s)
+    --- PASS: TestTheSettingsPackagesTextSizesAreLadderRungs/../settingsui (0.07s)
+    --- PASS: TestTheSettingsPackagesTextSizesAreLadderRungs/../launcher (0.03s)
+=== RUN   TestTheFontLadderExceptionsAreStillNamed
+--- PASS: TestTheFontLadderExceptionsAreStillNamed (0.01s)
+=== RUN   TestTheFrameAuditHasOneRule
+--- PASS: TestTheFrameAuditHasOneRule (0.00s)
+=== RUN   TestTildeExpansionHasOneAnswer
+--- PASS: TestTildeExpansionHasOneAnswer (0.02s)
+=== RUN   TestLanguageWhitelistHasOneAnswer
+--- PASS: TestLanguageWhitelistHasOneAnswer (0.03s)
+=== RUN   TestTheTwoLanguagePackagesAgree
+--- PASS: TestTheTwoLanguagePackagesAgree (0.00s)
+=== RUN   TestTheLiquidGlassContractSupersedesTheRaycastOne
+    liquidglass_contract_test.go:101: the gap table has 1224 rows, 1224 of them carry a status
+--- PASS: TestTheLiquidGlassContractSupersedesTheRaycastOne (0.01s)
+=== RUN   TestEveryPointerStateFaceNamesItsPair
+--- PASS: TestEveryPointerStateFaceNamesItsPair (0.13s)
+=== RUN   TestEveryLitEdgeTakesItsColourFromAToken
+--- PASS: TestEveryLitEdgeTakesItsColourFromAToken (0.20s)
+=== RUN   TestTheFrameworkIsPinnedAtOrAboveTheAuditedVersion
+--- PASS: TestTheFrameworkIsPinnedAtOrAboveTheAuditedVersion (0.00s)
+=== RUN   TestTheScrollHandlersStayOutOfTheWheelPath
+--- PASS: TestTheScrollHandlersStayOutOfTheWheelPath (0.02s)
+=== RUN   TestPathIdentityHasOneAnswer
+--- PASS: TestPathIdentityHasOneAnswer (0.03s)
+=== RUN   TestPathListsHaveOneSplitter
+--- PASS: TestPathListsHaveOneSplitter (0.03s)
+=== RUN   TestAPlainVersionIsAlwaysTheLatestRelease
+--- PASS: TestAPlainVersionIsAlwaysTheLatestRelease (0.00s)
+=== RUN   TestTheStampedVersionIsAPlainSemver
+--- PASS: TestTheStampedVersionIsAPlainSemver (0.00s)
+=== RUN   TestTheChangelogHasOneUnreleasedSection
+--- PASS: TestTheChangelogHasOneUnreleasedSection (0.00s)
+=== RUN   TestTheSettingsRowsKeepOneVerticalStep
+--- PASS: TestTheSettingsRowsKeepOneVerticalStep (0.04s)
+=== RUN   TestTheSettingsPackageKeepsItsSpacingSteps
+--- PASS: TestTheSettingsPackageKeepsItsSpacingSteps (0.04s)
+=== RUN   TestVersionOrderingHasOneAnswer
+--- PASS: TestVersionOrderingHasOneAnswer (0.03s)
+=== RUN   TestTheTwoVersionPackagesOrderTheSameWay
+--- PASS: TestTheTwoVersionPackagesOrderTheSameWay (0.00s)
+=== RUN   TestTheSessionListTakesItsOutcomeFromTheTerminalSurface
+--- PASS: TestTheSessionListTakesItsOutcomeFromTheTerminalSurface (0.00s)
+=== RUN   TestStateFilesHaveOneWriter
+--- PASS: TestStateFilesHaveOneWriter (0.01s)
+=== RUN   TestNoControlWearsTheFrameworksStockButton
+--- PASS: TestNoControlWearsTheFrameworksStockButton (0.02s)
+=== RUN   TestTheSessionHostIsASubcommandBeforeTheSingleInstanceLock
+--- PASS: TestTheSessionHostIsASubcommandBeforeTheSingleInstanceLock (0.00s)
+=== RUN   TestTheSessionHostAddsNoDependency
+--- PASS: TestTheSessionHostAddsNoDependency (0.00s)
+=== RUN   TestTextLinesHaveOneReader
+--- PASS: TestTextLinesHaveOneReader (0.02s)
+=== RUN   TestValueDomainsHaveOneAnswer
+--- PASS: TestValueDomainsHaveOneAnswer (0.03s)
+=== RUN   TestTheLoaderAndThePickableDomainsAgree
+--- PASS: TestTheLoaderAndThePickableDomainsAgree (0.00s)
+=== RUN   TestTheCalculatorCopyModesHaveOneAnswer
+--- PASS: TestTheCalculatorCopyModesHaveOneAnswer (0.00s)
+=== RUN   TestWindowsSmokeIsDispatchOnly
+--- PASS: TestWindowsSmokeIsDispatchOnly (0.00s)
+=== RUN   TestWindowsSmokeStaysOutOfTheReleaseChain
+--- PASS: TestWindowsSmokeStaysOutOfTheReleaseChain (0.00s)
+PASS
+ok  	floter/internal/ci	4.169s
+=== RUN   TestReadsTheOldIndex
+--- PASS: TestReadsTheOldIndex (0.00s)
+=== RUN   TestAddTextDedupesAndPrunes
+--- PASS: TestAddTextDedupesAndPrunes (0.00s)
+=== RUN   TestRetentionDropsOldEntries
+--- PASS: TestRetentionDropsOldEntries (0.00s)
+=== RUN   TestSearchAndMutations
+--- PASS: TestSearchAndMutations (0.00s)
+=== RUN   TestClampMaxItems
+--- PASS: TestClampMaxItems (0.00s)
+=== RUN   TestAddImage
+--- PASS: TestAddImage (0.00s)
+=== RUN   TestAddFiles
+--- PASS: TestAddFiles (0.00s)
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/text_keeps_only_its_first_line
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/text_is_elided_at_the_cap
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/the_cap_never_exceeds_twice_the_image_preview
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/a_non-positive_cap_is_one_rune,_not_none
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/an_image_with_a_caption_shows_the_caption
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/an_image_caption_is_elided_at_60
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/a_bare_image_shows_its_size
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/an_unrecorded_size_is_a_question_mark,_not_a_zero
+=== RUN   TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/an_empty_text_entry_previews_as_nothing
+--- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/text_keeps_only_its_first_line (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/text_is_elided_at_the_cap (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/the_cap_never_exceeds_twice_the_image_preview (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/a_non-positive_cap_is_one_rune,_not_none (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/an_image_with_a_caption_shows_the_caption (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/an_image_caption_is_elided_at_60 (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/a_bare_image_shows_its_size (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/an_unrecorded_size_is_a_question_mark,_not_a_zero (0.00s)
+    --- PASS: TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize/an_empty_text_entry_previews_as_nothing (0.00s)
+=== RUN   TestFilesSummaryCountsTheRest
+--- PASS: TestFilesSummaryCountsTheRest (0.00s)
+=== RUN   TestAgeIsCompactUntilItNeedsADate
+=== RUN   TestAgeIsCompactUntilItNeedsADate/no_timestamp
+=== RUN   TestAgeIsCompactUntilItNeedsADate/just_now
+=== RUN   TestAgeIsCompactUntilItNeedsADate/under_an_hour
+=== RUN   TestAgeIsCompactUntilItNeedsADate/exactly_an_hour
+=== RUN   TestAgeIsCompactUntilItNeedsADate/under_a_day
+=== RUN   TestAgeIsCompactUntilItNeedsADate/a_day_or_more
+=== RUN   TestAgeIsCompactUntilItNeedsADate/the_future_never_goes_negative
+--- PASS: TestAgeIsCompactUntilItNeedsADate (0.00s)
+    --- PASS: TestAgeIsCompactUntilItNeedsADate/no_timestamp (0.00s)
+    --- PASS: TestAgeIsCompactUntilItNeedsADate/just_now (0.00s)
+    --- PASS: TestAgeIsCompactUntilItNeedsADate/under_an_hour (0.00s)
+    --- PASS: TestAgeIsCompactUntilItNeedsADate/exactly_an_hour (0.00s)
+    --- PASS: TestAgeIsCompactUntilItNeedsADate/under_a_day (0.00s)
+    --- PASS: TestAgeIsCompactUntilItNeedsADate/a_day_or_more (0.00s)
+    --- PASS: TestAgeIsCompactUntilItNeedsADate/the_future_never_goes_negative (0.00s)
+=== RUN   TestImageEntriesAnswerToTheirOwnWords
+--- PASS: TestImageEntriesAnswerToTheirOwnWords (0.00s)
+=== RUN   TestImageCaptionIsSearchable
+--- PASS: TestImageCaptionIsSearchable (0.00s)
+=== RUN   TestAddFilesIsOrderInsensitive
+--- PASS: TestAddFilesIsOrderInsensitive (0.00s)
+=== RUN   TestLoadRefreshesFilesIdentity
+--- PASS: TestLoadRefreshesFilesIdentity (0.00s)
+=== RUN   TestSearchMatchesTheSharedContractVectors
+--- PASS: TestSearchMatchesTheSharedContractVectors (0.00s)
+=== RUN   TestPrepareFiles
+=== RUN   TestPrepareFiles/keeps_the_originals_and_drops_the_rest
+=== RUN   TestPrepareFiles/nothing_left_is_no_capture
+=== RUN   TestPrepareFiles/the_count_ceiling_is_the_list_as_it_arrived
+=== RUN   TestPrepareFiles/the_byte_ceiling_is_the_list_as_it_arrived
+=== RUN   TestPrepareFiles/identity_is_canonical,_the_stored_path_is_not
+=== RUN   TestPrepareFiles/the_order_is_not_part_of_the_identity
+--- PASS: TestPrepareFiles (0.00s)
+    --- PASS: TestPrepareFiles/keeps_the_originals_and_drops_the_rest (0.00s)
+    --- PASS: TestPrepareFiles/nothing_left_is_no_capture (0.00s)
+    --- PASS: TestPrepareFiles/the_count_ceiling_is_the_list_as_it_arrived (0.00s)
+    --- PASS: TestPrepareFiles/the_byte_ceiling_is_the_list_as_it_arrived (0.00s)
+    --- PASS: TestPrepareFiles/identity_is_canonical,_the_stored_path_is_not (0.00s)
+    --- PASS: TestPrepareFiles/the_order_is_not_part_of_the_identity (0.00s)
+=== RUN   TestCaptionFor
+=== RUN   TestCaptionFor/trimmed
+=== RUN   TestCaptionFor/whitespace_only_is_no_caption
+=== RUN   TestCaptionFor/empty_is_no_caption
+=== RUN   TestCaptionFor/over_the_ceiling_is_no_caption
+=== RUN   TestCaptionFor/at_the_ceiling_is_a_caption
+--- PASS: TestCaptionFor (0.00s)
+    --- PASS: TestCaptionFor/trimmed (0.00s)
+    --- PASS: TestCaptionFor/whitespace_only_is_no_caption (0.00s)
+    --- PASS: TestCaptionFor/empty_is_no_caption (0.00s)
+    --- PASS: TestCaptionFor/over_the_ceiling_is_no_caption (0.00s)
+    --- PASS: TestCaptionFor/at_the_ceiling_is_a_caption (0.00s)
+=== RUN   TestImageHash
+--- PASS: TestImageHash (0.00s)
+=== RUN   TestAddImageCaption
+--- PASS: TestAddImageCaption (0.00s)
+=== RUN   TestAddFilesCapture
+--- PASS: TestAddFilesCapture (0.00s)
+=== RUN   TestFilesHash
+=== RUN   TestFilesHash/order_and_repeats_do_not_matter
+=== RUN   TestFilesHash/the_contents_do
+=== RUN   TestFilesHash/a_path_boundary_is_not_a_separator
+=== RUN   TestFilesHash/a_newline_inside_a_name_is_not_two_paths
+=== RUN   TestFilesHash/a_file_list_is_not_a_text_clip
+--- PASS: TestFilesHash (0.00s)
+    --- PASS: TestFilesHash/order_and_repeats_do_not_matter (0.00s)
+    --- PASS: TestFilesHash/the_contents_do (0.00s)
+    --- PASS: TestFilesHash/a_path_boundary_is_not_a_separator (0.00s)
+    --- PASS: TestFilesHash/a_newline_inside_a_name_is_not_two_paths (0.00s)
+    --- PASS: TestFilesHash/a_file_list_is_not_a_text_clip (0.00s)
+=== RUN   TestFoldTopDuplicateIsANoOpRegardlessOfFavorite
+--- PASS: TestFoldTopDuplicateIsANoOpRegardlessOfFavorite (0.00s)
+=== RUN   TestFoldOlderDuplicateMovesToTopWithFreshTimestamp
+--- PASS: TestFoldOlderDuplicateMovesToTopWithFreshTimestamp (0.00s)
+=== RUN   TestFoldKeepsTheFavoritedDuplicateAndCarriesItsFlag
+--- PASS: TestFoldKeepsTheFavoritedDuplicateAndCarriesItsFlag (0.00s)
+=== RUN   TestFoldOnlyTouchesTheSameContent
+--- PASS: TestFoldOnlyTouchesTheSameContent (0.00s)
+=== RUN   TestFoldKeepsFavoritesForEveryKind
+=== RUN   TestFoldKeepsFavoritesForEveryKind/text
+=== RUN   TestFoldKeepsFavoritesForEveryKind/image
+=== RUN   TestFoldKeepsFavoritesForEveryKind/files
+--- PASS: TestFoldKeepsFavoritesForEveryKind (0.00s)
+    --- PASS: TestFoldKeepsFavoritesForEveryKind/text (0.00s)
+    --- PASS: TestFoldKeepsFavoritesForEveryKind/image (0.00s)
+    --- PASS: TestFoldKeepsFavoritesForEveryKind/files (0.00s)
+=== RUN   TestFailedWritePublishesNothing
+--- PASS: TestFailedWritePublishesNothing (0.00s)
+=== RUN   TestFailedWriteKeepsTheLoadedHistory
+--- PASS: TestFailedWriteKeepsTheLoadedHistory (0.00s)
+=== RUN   TestFailedImageWriteLeavesNoFileBehind
+--- PASS: TestFailedImageWriteLeavesNoFileBehind (0.00s)
+=== RUN   TestFailedPruneKeepsTheDroppedImages
+--- PASS: TestFailedPruneKeepsTheDroppedImages (0.01s)
+=== RUN   TestFailedMutationsKeepTheOldState
+--- PASS: TestFailedMutationsKeepTheOldState (0.00s)
+PASS
+ok  	floter/internal/clipboard	0.032s
+=== RUN   TestSegmentedDrawsEveryChoice
+--- PASS: TestSegmentedDrawsEveryChoice (0.06s)
+=== RUN   TestSegmentedReportsTheChosenIndex
+--- PASS: TestSegmentedReportsTheChosenIndex (0.00s)
+=== RUN   TestSegmentedKeepsTheChosenOptionMarked
+--- PASS: TestSegmentedKeepsTheChosenOptionMarked (0.00s)
+=== RUN   TestAppearanceAxesSplit
+--- PASS: TestAppearanceAxesSplit (0.00s)
+=== RUN   TestTheSegmentedControlCarriesTheStopLens
+    lens_test.go:63: chosen=0 off      rgb sum 4020135.0
+    lens_test.go:63: chosen=0 frosted  rgb sum 4023637.0
+    lens_test.go:63: chosen=0 regular  rgb sum 4026574.0
+    lens_test.go:63: chosen=0 liquid   rgb sum 4030705.0
+    lens_test.go:63: chosen=1 off      rgb sum 4014625.0
+    lens_test.go:63: chosen=1 frosted  rgb sum 4018125.0
+    lens_test.go:63: chosen=1 regular  rgb sum 4021023.0
+    lens_test.go:63: chosen=1 liquid   rgb sum 4025139.0
+--- PASS: TestTheSegmentedControlCarriesTheStopLens (0.02s)
+=== RUN   TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered
+=== RUN   TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered/base_row
+=== RUN   TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered/glass_center
+--- PASS: TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered (0.01s)
+    --- PASS: TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered/base_row (0.01s)
+    --- PASS: TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered/glass_center (0.00s)
+=== RUN   TestEverySegmentLabelIsTextStrong
+--- PASS: TestEverySegmentLabelIsTextStrong (0.01s)
+=== RUN   TestTheSegmentBoxIsThirtyUnitsHigh
+--- PASS: TestTheSegmentBoxIsThirtyUnitsHigh (0.00s)
+=== RUN   TestTheChosenSegmentRisesOutOfItsGroove
+=== RUN   TestTheChosenSegmentRisesOutOfItsGroove/light
+    thumb_test.go:143: [light] ground {247 247 248 255 [0 0 0]} card {230 230 230 255 [0 0 0]} track {216 216 216 255 [0 0 0]} thumb {249 249 249 255 [0 0 0]} ring(top) {152 177 210 255 [0 0 0]} ring(bottom) {143 167 201 255 [0 0 0]} box {X:26.8 Y:26.8 W:366.4 H:30.6}
+=== RUN   TestTheChosenSegmentRisesOutOfItsGroove/dark
+    thumb_test.go:143: [dark] ground {39 40 44 255 [0 0 0]} card {61 62 66 255 [0 0 0]} track {78 79 83 255 [0 0 0]} thumb {103 104 107 255 [0 0 0]} ring(top) {133 145 168 255 [0 0 0]} ring(bottom) {109 122 145 255 [0 0 0]} box {X:26.8 Y:26.8 W:366.4 H:30.6}
+--- PASS: TestTheChosenSegmentRisesOutOfItsGroove (0.01s)
+    --- PASS: TestTheChosenSegmentRisesOutOfItsGroove/light (0.00s)
+    --- PASS: TestTheChosenSegmentRisesOutOfItsGroove/dark (0.00s)
+=== RUN   TestTheLightThumbIsTheSheetColour
+    thumb_test.go:162: [light] ground {247 247 248 255 [0 0 0]} card {230 230 230 255 [0 0 0]} track {216 216 216 255 [0 0 0]} thumb {249 249 249 255 [0 0 0]} ring(top) {152 177 210 255 [0 0 0]} ring(bottom) {143 167 201 255 [0 0 0]} box {X:26.8 Y:26.8 W:366.4 H:30.6}
+--- PASS: TestTheLightThumbIsTheSheetColour (0.00s)
+=== RUN   TestTheChosenThumbKeepsItsAccentRing
+=== RUN   TestTheChosenThumbKeepsItsAccentRing/light
+    thumb_test.go:192: [light] ground {247 247 248 255 [0 0 0]} card {230 230 230 255 [0 0 0]} track {216 216 216 255 [0 0 0]} thumb {249 249 249 255 [0 0 0]} ring(top) {152 177 210 255 [0 0 0]} ring(bottom) {143 167 201 255 [0 0 0]} box {X:26.8 Y:26.8 W:366.4 H:30.6}
+=== RUN   TestTheChosenThumbKeepsItsAccentRing/dark
+    thumb_test.go:192: [dark] ground {39 40 44 255 [0 0 0]} card {61 62 66 255 [0 0 0]} track {78 79 83 255 [0 0 0]} thumb {103 104 107 255 [0 0 0]} ring(top) {133 145 168 255 [0 0 0]} ring(bottom) {109 122 145 255 [0 0 0]} box {X:26.8 Y:26.8 W:366.4 H:30.6}
+--- PASS: TestTheChosenThumbKeepsItsAccentRing (0.00s)
+    --- PASS: TestTheChosenThumbKeepsItsAccentRing/light (0.00s)
+    --- PASS: TestTheChosenThumbKeepsItsAccentRing/dark (0.00s)
+=== RUN   TestDumpP13RSegmentPNGs
+    thumb_test.go:214: opt-in: FLOTER_PNG=1 writes /tmp/floter-P13-r-segment-<tag>-<appearance>.png
+--- SKIP: TestDumpP13RSegmentPNGs (0.00s)
+PASS
+ok  	floter/internal/control	0.141s
+?   	floter/internal/deadline	[no test files]
+=== RUN   TestTheDesktopEntryFieldsHaveOneReading
+--- PASS: TestTheDesktopEntryFieldsHaveOneReading (0.00s)
+=== RUN   TestTheDesktopEntryLocaleLadderIsTheOnlyFallback
+--- PASS: TestTheDesktopEntryLocaleLadderIsTheOnlyFallback (0.00s)
+=== RUN   TestTheDesktopEntryEscapesAreUndone
+--- PASS: TestTheDesktopEntryEscapesAreUndone (0.00s)
+=== RUN   TestTheDesktopEntryExecIsAnArgv
+--- PASS: TestTheDesktopEntryExecIsAnArgv (0.00s)
+=== RUN   TestTheDesktopEntryExecIsUnescapedBeforeItIsSplit
+--- PASS: TestTheDesktopEntryExecIsUnescapedBeforeItIsSplit (0.00s)
+=== RUN   TestTheDesktopEntryUsableRule
+--- PASS: TestTheDesktopEntryUsableRule (0.00s)
+=== RUN   TestParseReportsOnlyUnreadableFiles
+--- PASS: TestParseReportsOnlyUnreadableFiles (0.00s)
+=== RUN   TestTheDesktopEntryFileID
+--- PASS: TestTheDesktopEntryFileID (0.00s)
+PASS
+ok  	floter/internal/desktopentry	0.004s
+=== RUN   TestNormalizeResolvesAndFilters
+--- PASS: TestNormalizeResolvesAndFilters (0.00s)
+=== RUN   TestNormalizeKeepsADanglingSymlinkButNotAsADirectory
+--- PASS: TestNormalizeKeepsADanglingSymlinkButNotAsADirectory (0.00s)
+=== RUN   TestNormalizeDoesNotTrimThePathItResolves
+--- PASS: TestNormalizeDoesNotTrimThePathItResolves (0.00s)
+=== RUN   TestNormalizeTreatsALiteralTildeNameAsAFileUnderHome
+--- PASS: TestNormalizeTreatsALiteralTildeNameAsAFileUnderHome (0.00s)
+=== RUN   TestDirectoryForCD
+--- PASS: TestDirectoryForCD (0.00s)
+=== RUN   TestShellQuote
+--- PASS: TestShellQuote (0.00s)
+PASS
+ok  	floter/internal/drops	0.003s

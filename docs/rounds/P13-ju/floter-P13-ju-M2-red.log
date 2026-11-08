@@ -1,0 +1,31 @@
+=== RUN   TestReconnectChoiceCurrentManifest
+=== RUN   TestReconnectChoiceCurrentManifest/light
+    reconnectchoicecurrent_test.go:84: obsolete manifest choice rewrote current repository
+    reconnectchoicecurrent_test.go:87: obsolete manifest choice published a result: err=<nil> notices=["检查工具 已重新连接"]
+    reconnectchoicecurrent_test.go:95: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:99: current manifest row lost retry outlet: calls=0
+=== RUN   TestReconnectChoiceCurrentManifest/dark
+    reconnectchoicecurrent_test.go:84: obsolete manifest choice rewrote current repository
+    reconnectchoicecurrent_test.go:87: obsolete manifest choice published a result: err=<nil> notices=["检查工具 已重新连接"]
+    reconnectchoicecurrent_test.go:95: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:99: current manifest row lost retry outlet: calls=0
+--- FAIL: TestReconnectChoiceCurrentManifest (1.15s)
+    --- FAIL: TestReconnectChoiceCurrentManifest/light (0.67s)
+    --- FAIL: TestReconnectChoiceCurrentManifest/dark (0.47s)
+=== RUN   TestReconnectChoiceCurrentPackage
+=== RUN   TestReconnectChoiceCurrentPackage/light
+    reconnectchoicecurrent_test.go:84: obsolete package choice rewrote current repository
+    reconnectchoicecurrent_test.go:87: obsolete package choice published a result: err=<nil> notices=["检查工具 已重新连接"]
+    reconnectchoicecurrent_test.go:95: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:99: current package row lost retry outlet: calls=0
+=== RUN   TestReconnectChoiceCurrentPackage/dark
+    reconnectchoicecurrent_test.go:84: obsolete package choice rewrote current repository
+    reconnectchoicecurrent_test.go:87: obsolete package choice published a result: err=<nil> notices=["检查工具 已重新连接"]
+    reconnectchoicecurrent_test.go:95: ui: no element shows "重新连接"
+    reconnectchoicecurrent_test.go:99: current package row lost retry outlet: calls=0
+--- FAIL: TestReconnectChoiceCurrentPackage (0.96s)
+    --- FAIL: TestReconnectChoiceCurrentPackage/light (0.49s)
+    --- FAIL: TestReconnectChoiceCurrentPackage/dark (0.48s)
+FAIL
+FAIL	floter/internal/shell	2.122s
+FAIL

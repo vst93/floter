@@ -1,0 +1,19 @@
+=== RUN   TestRepairSearchReconnect
+=== RUN   TestRepairSearchReconnect/light
+    repairsearch_test.go:126: reconnect-search completed but search stayed unavailable: commands=0
+=== RUN   TestRepairSearchReconnect/dark
+    repairsearch_test.go:126: reconnect-search completed but search stayed unavailable: commands=0
+--- FAIL: TestRepairSearchReconnect (1.20s)
+    --- FAIL: TestRepairSearchReconnect/light (0.71s)
+    --- FAIL: TestRepairSearchReconnect/dark (0.48s)
+=== RUN   TestRepairSearchRecheck
+=== RUN   TestRepairSearchRecheck/light
+    repairsearch_test.go:126: repair-search completed but search stayed unavailable: commands=0
+=== RUN   TestRepairSearchRecheck/dark
+    repairsearch_test.go:126: repair-search completed but search stayed unavailable: commands=0
+--- FAIL: TestRepairSearchRecheck (0.95s)
+    --- FAIL: TestRepairSearchRecheck/light (0.47s)
+    --- FAIL: TestRepairSearchRecheck/dark (0.48s)
+FAIL
+FAIL	floter/internal/shell	2.156s
+FAIL

@@ -1,0 +1,23 @@
+=== RUN   TestReconnectChoiceCurrentOwnership
+=== RUN   TestReconnectChoiceCurrentOwnership/light
+2026/11/08 09:53:01 floter: could not reconnect dev.floter.check: extensions: only a system-owned integration can be reconnected: dev.floter.check
+    reconnectchoicecurrent_test.go:87: obsolete ownership choice published a result: err=extensions: only a system-owned integration can be reconnected: dev.floter.check notices=["检查工具 报告了问题"]
+=== RUN   TestReconnectChoiceCurrentOwnership/dark
+2026/11/08 09:53:02 floter: could not reconnect dev.floter.check: extensions: only a system-owned integration can be reconnected: dev.floter.check
+    reconnectchoicecurrent_test.go:87: obsolete ownership choice published a result: err=extensions: only a system-owned integration can be reconnected: dev.floter.check notices=["检查工具 报告了问题"]
+--- FAIL: TestReconnectChoiceCurrentOwnership (0.79s)
+    --- FAIL: TestReconnectChoiceCurrentOwnership/light (0.47s)
+    --- FAIL: TestReconnectChoiceCurrentOwnership/dark (0.32s)
+=== RUN   TestReconnectChoiceCurrentRemoved
+=== RUN   TestReconnectChoiceCurrentRemoved/light
+2026/11/08 09:53:02 floter: could not reconnect dev.floter.check: extensions: no such integration
+    reconnectchoicecurrent_test.go:87: obsolete removed choice published a result: err=extensions: no such integration notices=["检查工具 报告了问题"]
+=== RUN   TestReconnectChoiceCurrentRemoved/dark
+2026/11/08 09:53:02 floter: could not reconnect dev.floter.check: extensions: no such integration
+    reconnectchoicecurrent_test.go:87: obsolete removed choice published a result: err=extensions: no such integration notices=["检查工具 报告了问题"]
+--- FAIL: TestReconnectChoiceCurrentRemoved (0.49s)
+    --- FAIL: TestReconnectChoiceCurrentRemoved/light (0.25s)
+    --- FAIL: TestReconnectChoiceCurrentRemoved/dark (0.25s)
+FAIL
+FAIL	floter/internal/shell	1.287s
+FAIL

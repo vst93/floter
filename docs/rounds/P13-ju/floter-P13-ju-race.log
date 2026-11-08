@@ -1,0 +1,50 @@
+=== RUN   TestReconnectChoiceCurrentManifest
+=== RUN   TestReconnectChoiceCurrentManifest/light
+=== RUN   TestReconnectChoiceCurrentManifest/dark
+--- PASS: TestReconnectChoiceCurrentManifest (22.00s)
+    --- PASS: TestReconnectChoiceCurrentManifest/light (11.62s)
+    --- PASS: TestReconnectChoiceCurrentManifest/dark (10.38s)
+=== RUN   TestReconnectChoiceCurrentPackage
+=== RUN   TestReconnectChoiceCurrentPackage/light
+=== RUN   TestReconnectChoiceCurrentPackage/dark
+--- PASS: TestReconnectChoiceCurrentPackage (22.11s)
+    --- PASS: TestReconnectChoiceCurrentPackage/light (10.97s)
+    --- PASS: TestReconnectChoiceCurrentPackage/dark (11.14s)
+=== RUN   TestReconnectChoiceCurrentBinding
+=== RUN   TestReconnectChoiceCurrentBinding/light
+=== RUN   TestReconnectChoiceCurrentBinding/dark
+--- PASS: TestReconnectChoiceCurrentBinding (16.61s)
+    --- PASS: TestReconnectChoiceCurrentBinding/light (8.70s)
+    --- PASS: TestReconnectChoiceCurrentBinding/dark (7.91s)
+=== RUN   TestReconnectChoiceCurrentRoot
+=== RUN   TestReconnectChoiceCurrentRoot/light
+=== RUN   TestReconnectChoiceCurrentRoot/dark
+--- PASS: TestReconnectChoiceCurrentRoot (17.90s)
+    --- PASS: TestReconnectChoiceCurrentRoot/light (9.00s)
+    --- PASS: TestReconnectChoiceCurrentRoot/dark (8.90s)
+=== RUN   TestReconnectChoiceCurrentOwnership
+=== RUN   TestReconnectChoiceCurrentOwnership/light
+=== RUN   TestReconnectChoiceCurrentOwnership/dark
+--- PASS: TestReconnectChoiceCurrentOwnership (12.13s)
+    --- PASS: TestReconnectChoiceCurrentOwnership/light (6.34s)
+    --- PASS: TestReconnectChoiceCurrentOwnership/dark (5.79s)
+=== RUN   TestReconnectChoiceCurrentRemoved
+=== RUN   TestReconnectChoiceCurrentRemoved/light
+=== RUN   TestReconnectChoiceCurrentRemoved/dark
+--- PASS: TestReconnectChoiceCurrentRemoved (9.52s)
+    --- PASS: TestReconnectChoiceCurrentRemoved/light (5.03s)
+    --- PASS: TestReconnectChoiceCurrentRemoved/dark (4.49s)
+=== RUN   TestRepairSearchReconnect
+=== RUN   TestRepairSearchReconnect/light
+=== RUN   TestRepairSearchReconnect/dark
+--- PASS: TestRepairSearchReconnect (10.33s)
+    --- PASS: TestRepairSearchReconnect/light (5.27s)
+    --- PASS: TestRepairSearchReconnect/dark (5.06s)
+=== RUN   TestRepairSearchRecheck
+=== RUN   TestRepairSearchRecheck/light
+=== RUN   TestRepairSearchRecheck/dark
+--- PASS: TestRepairSearchRecheck (9.72s)
+    --- PASS: TestRepairSearchRecheck/light (5.22s)
+    --- PASS: TestRepairSearchRecheck/dark (4.49s)
+PASS
+ok  	floter/internal/shell	121.370s

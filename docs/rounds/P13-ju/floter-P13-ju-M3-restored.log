@@ -1,0 +1,14 @@
+=== RUN   TestReconnectChoiceCurrentBinding
+=== RUN   TestReconnectChoiceCurrentBinding/light
+=== RUN   TestReconnectChoiceCurrentBinding/dark
+--- PASS: TestReconnectChoiceCurrentBinding (0.94s)
+    --- PASS: TestReconnectChoiceCurrentBinding/light (0.54s)
+    --- PASS: TestReconnectChoiceCurrentBinding/dark (0.39s)
+=== RUN   TestReconnectChoiceCurrentRoot
+=== RUN   TestReconnectChoiceCurrentRoot/light
+=== RUN   TestReconnectChoiceCurrentRoot/dark
+--- PASS: TestReconnectChoiceCurrentRoot (1.06s)
+    --- PASS: TestReconnectChoiceCurrentRoot/light (0.52s)
+    --- PASS: TestReconnectChoiceCurrentRoot/dark (0.53s)
+PASS
+ok  	floter/internal/shell	2.002s

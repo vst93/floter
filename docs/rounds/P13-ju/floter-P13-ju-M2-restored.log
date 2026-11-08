@@ -1,0 +1,14 @@
+=== RUN   TestReconnectChoiceCurrentManifest
+=== RUN   TestReconnectChoiceCurrentManifest/light
+=== RUN   TestReconnectChoiceCurrentManifest/dark
+--- PASS: TestReconnectChoiceCurrentManifest (1.36s)
+    --- PASS: TestReconnectChoiceCurrentManifest/light (0.78s)
+    --- PASS: TestReconnectChoiceCurrentManifest/dark (0.57s)
+=== RUN   TestReconnectChoiceCurrentPackage
+=== RUN   TestReconnectChoiceCurrentPackage/light
+=== RUN   TestReconnectChoiceCurrentPackage/dark
+--- PASS: TestReconnectChoiceCurrentPackage (1.15s)
+    --- PASS: TestReconnectChoiceCurrentPackage/light (0.57s)
+    --- PASS: TestReconnectChoiceCurrentPackage/dark (0.58s)
+PASS
+ok  	floter/internal/shell	2.519s
