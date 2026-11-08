@@ -1,0 +1,32 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.026s
+ok  	floter/internal/apps	0.474s
+ok  	floter/internal/browser	0.077s
+ok  	floter/internal/calc	0.015s
+ok  	floter/internal/calculator	0.028s
+ok  	floter/internal/ci	14.617s
+ok  	floter/internal/clipboard	0.087s
+ok  	floter/internal/control	0.483s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.024s
+ok  	floter/internal/drops	0.048s
+ok  	floter/internal/extensions	47.949s
+ok  	floter/internal/extensions/recommended	0.254s
+ok  	floter/internal/frameaudit	0.182s
+ok  	floter/internal/glassmap	0.016s
+ok  	floter/internal/homepath	0.008s
+ok  	floter/internal/i18n	2.015s
+ok  	floter/internal/inputtext	0.058s
+ok  	floter/internal/inventory	0.107s
+ok  	floter/internal/launcher	75.723s
+ok  	floter/internal/motion	0.031s
+ok  	floter/internal/pathid	0.016s
+ok  	floter/internal/pathlist	0.040s
+ok  	floter/internal/pinyin	0.008s
+ok  	floter/internal/plist	0.007s
+ok  	floter/internal/plugincfg	0.035s
+ok  	floter/internal/progname	0.009s
+ok  	floter/internal/progtype	0.011s
+ok  	floter/internal/scriptlang	0.018s
+ok  	floter/internal/semver	0.035s
+ok  	floter/internal/settings	4.485s

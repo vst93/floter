@@ -1,0 +1,26 @@
+=== RUN   TestEditorRingCommand
+=== RUN   TestEditorRingCommand/light
+    editorring_test.go:78: command rect={X:529.8 Y:70.40001 W:160 H:30} scroll=386.69998
+    editorring_test.go:84: command top RGB spread=160
+    editorring_test.go:84: command bottom RGB spread=160
+=== RUN   TestEditorRingCommand/dark
+    editorring_test.go:78: command rect={X:529.8 Y:70.40001 W:160 H:30} scroll=386.69998
+    editorring_test.go:84: command top RGB spread=112
+    editorring_test.go:84: command bottom RGB spread=112
+--- PASS: TestEditorRingCommand (0.62s)
+    --- PASS: TestEditorRingCommand/light (0.43s)
+    --- PASS: TestEditorRingCommand/dark (0.20s)
+=== RUN   TestEditorRingVersion
+=== RUN   TestEditorRingVersion/light
+    editorring_test.go:78: version rect={X:569.8 Y:70.39996 W:120 H:30} scroll=551.7
+    editorring_test.go:84: version bottom RGB spread=160
+    editorring_test.go:84: version top RGB spread=160
+=== RUN   TestEditorRingVersion/dark
+    editorring_test.go:78: version rect={X:569.8 Y:70.39996 W:120 H:30} scroll=551.7
+    editorring_test.go:84: version top RGB spread=112
+    editorring_test.go:84: version bottom RGB spread=112
+--- PASS: TestEditorRingVersion (0.54s)
+    --- PASS: TestEditorRingVersion/light (0.31s)
+    --- PASS: TestEditorRingVersion/dark (0.23s)
+PASS
+ok  	floter/internal/settingsui	1.184s

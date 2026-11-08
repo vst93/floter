@@ -1,0 +1,35 @@
+=== RUN   TestEditorRingCommand
+=== RUN   TestEditorRingCommand/light
+    editorring_test.go:78: command rect={X:529.8 Y:51.40001 W:160 H:30} scroll=405.69998
+    editorring_test.go:84: command top RGB spread=30
+    editorring_test.go:86: command top ring missing at [609 51]: blue-red=30
+    editorring_test.go:84: command bottom RGB spread=160
+    editorring_test.go:91: command active border intersects 16px fade: rect={X:529.8 Y:51.40001 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingCommand/dark
+    editorring_test.go:78: command rect={X:529.8 Y:51.40001 W:160 H:30} scroll=405.69998
+    editorring_test.go:84: command top RGB spread=21
+    editorring_test.go:86: command top ring missing at [609 51]: blue-red=21
+    editorring_test.go:84: command bottom RGB spread=112
+    editorring_test.go:91: command active border intersects 16px fade: rect={X:529.8 Y:51.40001 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingCommand (0.67s)
+    --- FAIL: TestEditorRingCommand/light (0.44s)
+    --- FAIL: TestEditorRingCommand/dark (0.23s)
+=== RUN   TestEditorRingVersion
+=== RUN   TestEditorRingVersion/light
+    editorring_test.go:78: version rect={X:569.8 Y:51.400024 W:120 H:30} scroll=570.7
+    editorring_test.go:84: version top RGB spread=30
+    editorring_test.go:86: version top ring missing at [629 51]: blue-red=30
+    editorring_test.go:84: version bottom RGB spread=160
+    editorring_test.go:91: version active border intersects 16px fade: rect={X:569.8 Y:51.400024 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingVersion/dark
+    editorring_test.go:78: version rect={X:569.8 Y:51.400024 W:120 H:30} scroll=570.7
+    editorring_test.go:84: version top RGB spread=21
+    editorring_test.go:86: version top ring missing at [629 51]: blue-red=21
+    editorring_test.go:84: version bottom RGB spread=112
+    editorring_test.go:91: version active border intersects 16px fade: rect={X:569.8 Y:51.400024 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingVersion (0.50s)
+    --- FAIL: TestEditorRingVersion/light (0.26s)
+    --- FAIL: TestEditorRingVersion/dark (0.24s)
+FAIL
+FAIL	floter/internal/settingsui	1.195s
+FAIL

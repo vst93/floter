@@ -1,0 +1,4 @@
+=== RUN   TestKIRestingGeometry
+--- PASS: TestKIRestingGeometry (0.54s)
+PASS
+ok  	floter/internal/settingsui	0.556s

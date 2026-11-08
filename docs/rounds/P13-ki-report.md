@@ -1,4 +1,4 @@
-# P13-ki · 编辑槽焦点边缘（进行中）
+# P13-ki · 编辑槽焦点边缘（八项完成）
 
 开盘pull --ff-only成功，工作树空，HEAD b838c37c。P13-kh抢救稿a45eb7b836接回为7777fb41；不重复计入新修复。最新待办接续参数文本与选项编辑区，安装恢复已由P13-jx等后续轮处理。
 
@@ -24,7 +24,7 @@
 
 纠正：编辑器使用框内1px活动边，并非按钮外扩环。最初外扩采样为错误假设；改成真实边线后首次Tab均通过低限20，不冒充八项bug。随后复现Shift+Tab从下方返回：控件顶边落在视口51.4处，深色蓝红差21、浅30，另一侧深112/浅160；活动边进入16px淡边。确认pin增加严格淡边几何条件并把新增探针的最低蓝红差设60（此前未提交旧B断言零改），八项深浅实红。confirmed-red.txt保留原始证据。
 
-开盘完整基线：6413 PASS / 0 FAIL / exit0。当前历史记录的3503函数需按全仓*_test.go口径核对；后续只用同一范围计数。
+开盘完整基线：6413 PASS / 0 FAIL / exit0。全仓*_test.go中3503函数（只数internal/cmd会漏根目录2个）；最终同口径3511，增加8个，旧测试未删除。
 
 ## 第一批（标签、标识符）
 
@@ -51,3 +51,92 @@
 
 7. 工具命令：现象→从下方返回原命令输入时顶边进入淡区；改动→原160px输入入口包裹一次显现净空；验证→深浅活动边、16px严格净区、输入只改toolCommand，不触发保存。
 8. 工具版本：现象→向上返回版本输入时同样只剩约两成蓝线；改动→原120px输入入口补净空并保留原恢复handle；验证→输入2.3.4仍归toolVersion，参数无变化、滚轮不被焦点拉回。
+
+## 为什么更轻、偷了什么
+
+把当前编辑面的蓝边从淡区移回清楚的内容区，使面与底分开，保持一层原材质；没有加粗框线、加阴影或增加组件透明度。
+
+- craft-loop菜单第3项：焦点表达。编辑器保留框内1px主题活动边；不照搬按钮外扩2px环，深浅主题蓝色零改。修复前上边蓝红差深21/浅30，pin要求至少60且几何完整避开16px淡区。
+- 第4项：滚动显现。复用19px净空，只在进入焦点时一次显现；新增动画0ms。真实滚轮后不追随焦点。
+- 第12项：材质细节。保留ControlEdge深0.07/浅0.06与原凹面受光线，新增组件透明层0、阴影0。
+- Linear供体具体值#0f1011、0.05–0.08发丝线、仅交互使用单一accent，分别译为现有#0E0E10、0.07/0.06、深#8FB7FF/浅#064AA6。保留中文系统字体；用户既有方向与修bug优先，不为凑五项加装饰。
+
+## 两轮看图
+
+ui.Tester，720×520，中文locale，深浅分别渲染，ReduceMotion=true。第一轮：艺术总监看到活动面顶边与背景糊在一起；工程师纠正了文本框与按钮不同的画线位置；任务所有者要返回后继续输入原字段；读者在顶部看不出完整输入边界。第二轮补净空并加编辑归属、滚轮、保存回调检查；逐项前后图确认。
+
+| 项 | 图上可见变化 | 深/浅 |
+| --- | --- | --- |
+| 标签 | 顶端胶囊蓝边完整露出 | [深](P13-ki/label-dark-comparison.png) / [浅](P13-ki/label-light-comparison.png) |
+| ID | 顶部第二槽的蓝线不再融入淡区 | [深](P13-ki/id-dark-comparison.png) / [浅](P13-ki/id-light-comparison.png) |
+| 占位 | 左侧输入的顶边从冲淡变成清楚 | [深](P13-ki/placeholder-dark-comparison.png) / [浅](P13-ki/placeholder-light-comparison.png) |
+| 默认 | 中列当前槽完整闭合 | [深](P13-ki/default-dark-comparison.png) / [浅](P13-ki/default-light-comparison.png) |
+| 前缀 | 右列胶囊顶线显现 | [深](P13-ki/flag-dark-comparison.png) / [浅](P13-ki/flag-light-comparison.png) |
+| 选项 | 多行框顶部横线和两角完整 | [深](P13-ki/options-dark-comparison.png) / [浅](P13-ki/options-light-comparison.png) |
+| 命令 | 右端weather槽离开顶边淡区 | [深](P13-ki/command-dark-comparison.png) / [浅](P13-ki/command-light-comparison.png) |
+| 版本 | 右端1.2.3槽完整显现 | [深](P13-ki/version-dark-comparison.png) / [浅](P13-ki/version-light-comparison.png) |
+
+## Preflight逐项
+
+| 项 | 结论 |
+| --- | --- |
+| A1 渐变/霓虹/纯黑 | 无新增，沿用仓库主题 |
+| A2 字体 | 沿用系统中文字体，用户已有方向优先于网页换字体建议 |
+| A3 斜体 | 无新增 |
+| A4 Hero | 不适用原生功能表单 |
+| A5 三卡/万能卡片 | 无新增视觉容器，净空包裹不绘制 |
+| A6 假数据 | 产品无新增；测试城市与weather为隔离夹具 |
+| A7 营销文案 | i18n零改 |
+| A8 眉批 | 无新增 |
+| A9 H1 | 沿用原页头 |
+| A10 Bento | 不适用 |
+| A11 装饰竖线 | 无新增 |
+| B1 读取一致 | 稳定3/即时2/紧凑7，现有任务流保留 |
+| B2 色板 | 深浅分别测量，未混色 |
+| B3 记忆点 | 返回上方输入时完整活动边 |
+| B4 气质 | 即时显现，未加表演动效 |
+| C1 目的频率 | 高频键盘动作，新增动画0ms |
+| C2 transition/ease/scale | 无新增 |
+| C3 时长/按压 | 0ms，原反馈保留 |
+| C4 弹层origin | 无修改 |
+| C5 reduced-motion | 全部图证与事件在ReduceMotion=true |
+| C6 hover | 原指针判断与hover不改 |
+| C7 动画属性 | 无布局动画；静态padding/margin抵消 |
+| C8 重播 | 无新keyframes |
+| C9 手势 | 无新手势，八项滚轮自由断言 |
+| C10 Framer | 不适用Go自绘 |
+| C11 慢放 | 无新增时间曲线，事件后逐帧看图 |
+| D2-1 字体 | 系统中文字体，无新webfont |
+| D2-2 字号行高字重 | 既有10.8/9.9及580与通用≥14px等冲突，沿用需拍板，不冒充通过 |
+| D2-3 中西混排 | 产品文案零改，原i18n保留 |
+| D2-4 标点/对比 | 标点不改；未承诺所有次文字7:1，主题旧测试照跑 |
+
+项目特定规则记录在本合约与pin，不把自绘框架细节写成全局skill偏好。无HTML预览、K3、子代理或新依赖。
+
+## 提交与验收（增量）
+
+四批分别d7bed3d9 / 46d0525d / 3525b1ca / 50a22f51，均在相关测试与包vet通过后推送；第四批128 PASS。旧V/B/S断言改动0/0/0，新Skip0。
+
+三平台vet/build六项exit0、gofmt输出空。普通与verbose全量最终均exit0；6437 PASS / 0 FAIL（基线6413，增加24），3511函数（基线3503，增加8）。文档CI exit0。所有产品文件MD5逐字节复核通过，门槛后没有再改产品源码。
+
+M1实际Go overlay撤回参数六条接线，六项×深浅实红；原报错`label top ring missing at [276 51]: blue-red=30`、`id top ring missing at [445 51]: blue-red=30`。替换源MD5还原成功，touch后18 PASS / exit0。
+
+M2实际Go overlay撤回工具命令/版本接线，两项×深浅实红；原报错`command top ring missing at [609 51]: blue-red=30`、`version top ring missing at [629 51]: blue-red=30`。替换源MD5还原成功，touch后6 PASS / exit0。overlay不修改工作树产品文件。
+
+两组变异已完整结束；同一外层后续运行静息几何检查时退出143，未把它算通过，改为单独重跑。独立检查比较深浅、0/600/MaxY三位置的静息PNG和文字矩形/scroll范围，结果按实际日志补。
+
+独立静息检查已通过：深/浅×0/600/MaxY×PNG/几何文本，共12次cmp逐字节相同。`rest-comparison.txt`记录完整结果，证明静息布局、控件宽高、文字位置与滚动范围不变。
+
+普通全量首跑外层退出143，未产生full-test.exit，不能算通过；保留full-test-interrupted.txt。两组全量通过setsid独立验证进程接续，tests-driver.txt及各.exit才作为完成依据。文档CI另验exit0。
+
+接续已完成：tests-driver.txt明确记录full-test exit=0 / full-verbose exit=0 / 6437，tests.exit=0。首跑中断不算一次通过，也不隐藏。32原始PNG、16深浅对照、16张4×局部和2张总览归档在P13-ki/；图片来自真实ui.Tester，已看两套总览及选项正文的4×顶边。
+
+本轮八项跨两个组件已完成；未为了满足时间目标追加未复现改动。其余候选与原生平台验证限制逐项留在下节，不宣称整个输入控件族已验尽。
+
+时长限制如实记录：开盘基线文件创建于11:02 UTC，完整门槛约11:31 UTC结束；已记录区间约30分钟，开盘准备段没有独立计时，不宣称达到45–75分钟目标。
+
+## 仍待
+
+1. 其余本地工具名称/程序/启动参数/版本参数/描述未按严格淡区pin复现；后续从真实事件检查，带Grow的字段先证明宽度不变，不凭相同调用推断已坏。
+2. 原字号/行盒、保存草稿、输出首尾键/选区、未知多选、accent禁用、终端S1b/S1c/S2尾仍需拍板。
+3. 本轮图证来自Linux ui.Tester；Windows/macOS只做编译，原生交互未验。

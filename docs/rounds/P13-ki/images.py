@@ -21,8 +21,12 @@ for theme in ['dark', 'light']:
         pair.paste(a, (0, 30)); pair.paste(b, (720, 30))
         pair.save(root / f'{name}-{theme}-comparison.png')
         panels.append(pair.resize((720, 275)))
-        detail = pair.crop((170, 75, 1440, 150)).resize((2540, 150), Image.Resampling.NEAREST)
-        detail.save(root / f'{name}-{theme}-detail2x.png')
+        detail = Image.new('RGB', (1100, 95))
+        detail.paste(a.crop((170, 45, 720, 140)), (0, 0))
+        detail.paste(b.crop((170, 45, 720, 140)), (550, 0))
+        detail.resize((4400, 380), Image.Resampling.NEAREST).save(root / f'{name}-{theme}-detail4x.png')
+        old = root / f'{name}-{theme}-detail2x.png'
+        if old.exists(): old.unlink()
     if panels:
         overview = Image.new('RGB', (1440, 275*((len(panels)+1)//2)), '#dddddd')
         for i, panel in enumerate(panels): overview.paste(panel, ((i%2)*720, (i//2)*275))
