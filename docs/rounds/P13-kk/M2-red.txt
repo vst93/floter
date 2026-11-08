@@ -1,0 +1,15 @@
+=== RUN   TestScriptEditorEdge
+=== RUN   TestScriptEditorEdge/light
+    permissionedge_test.go:156: script target={X:201.8 Y:51.400036 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    permissionedge_test.go:161: script first line intersects fade: target={X:201.8 Y:51.400036 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    permissionedge_test.go:168: script caret is not fully visible: {X:250.8 Y:51.400036 W:1 H:17} active=true
+=== RUN   TestScriptEditorEdge/dark
+    permissionedge_test.go:156: script target={X:201.8 Y:51.400036 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    permissionedge_test.go:161: script first line intersects fade: target={X:201.8 Y:51.400036 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    permissionedge_test.go:168: script caret is not fully visible: {X:250.8 Y:51.400036 W:1 H:17} active=true
+--- FAIL: TestScriptEditorEdge (0.30s)
+    --- FAIL: TestScriptEditorEdge/light (0.21s)
+    --- FAIL: TestScriptEditorEdge/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	0.306s
+FAIL

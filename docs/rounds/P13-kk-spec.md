@@ -25,7 +25,7 @@
 
 高度链、Tab顺序/Space含义、权限声明语义、保存、会话、i18n、3秒窗口、命令接线零改。复用19px一次显现净空，静息几何和PNG与开盘逐字节一致；焦点停留时滚轮可自由离开。
 
-基线正在实测；首次误用LC_ALL=C.UTF-8已终止，原日志保留且不作为基线。正式统一LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4，开盘函数3519。每批相关事件与包vet通过才提交/推送；最终gofmt空、三平台vet/build、普通和verbose全量，函数/PASS不减。
+基线实测6461 PASS / 0 FAIL / exit0；首次误用LC_ALL=C.UTF-8已终止，原日志保留且不作为基线。正式统一LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4，开盘函数3519。每批相关事件与包vet通过才提交/推送；最终gofmt空、三平台vet/build、普通和verbose全量，函数/PASS不减。
 
 M1撤销权限净空：七开关上下活动环pin应红；M2撤销脚本净空：首行完整像素或几何pin应红。每次保存MD5，实红后还原、md5sum -c、touch复跑。ui.Tester导出/tmp/floter-P13-kk-*-{light,dark}-{before,after}.png并归档。
 

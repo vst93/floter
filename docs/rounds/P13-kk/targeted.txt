@@ -1,0 +1,80 @@
+=== RUN   TestPermissionEdgeFilesystemRead
+=== RUN   TestPermissionEdgeFilesystemRead/light
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=481.30002
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=893.9
+=== RUN   TestPermissionEdgeFilesystemRead/dark
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=481.30002
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=893.9
+--- PASS: TestPermissionEdgeFilesystemRead (0.46s)
+    --- PASS: TestPermissionEdgeFilesystemRead/light (0.28s)
+    --- PASS: TestPermissionEdgeFilesystemRead/dark (0.18s)
+=== RUN   TestPermissionEdgeFilesystemWrite
+=== RUN   TestPermissionEdgeFilesystemWrite/light
+    permissionedge_test.go:59: first target={X:643.4 Y:482.99994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.39996 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=938.9
+=== RUN   TestPermissionEdgeFilesystemWrite/dark
+    permissionedge_test.go:59: first target={X:643.4 Y:482.99994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.39996 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=938.9
+--- PASS: TestPermissionEdgeFilesystemWrite (0.37s)
+    --- PASS: TestPermissionEdgeFilesystemWrite/light (0.18s)
+    --- PASS: TestPermissionEdgeFilesystemWrite/dark (0.19s)
+=== RUN   TestPermissionEdgeNetwork
+=== RUN   TestPermissionEdgeNetwork/light
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=571.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=983.9
+=== RUN   TestPermissionEdgeNetwork/dark
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=571.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=983.9
+--- PASS: TestPermissionEdgeNetwork (0.39s)
+    --- PASS: TestPermissionEdgeNetwork/light (0.19s)
+    --- PASS: TestPermissionEdgeNetwork/dark (0.20s)
+=== RUN   TestPermissionEdgeProcess
+=== RUN   TestPermissionEdgeProcess/light
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=616.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1028.9
+=== RUN   TestPermissionEdgeProcess/dark
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=616.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1028.9
+--- PASS: TestPermissionEdgeProcess (0.40s)
+    --- PASS: TestPermissionEdgeProcess/light (0.20s)
+    --- PASS: TestPermissionEdgeProcess/dark (0.20s)
+=== RUN   TestPermissionEdgeClipboardRead
+=== RUN   TestPermissionEdgeClipboardRead/light
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=661.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1073.9
+=== RUN   TestPermissionEdgeClipboardRead/dark
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=661.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1073.9
+--- PASS: TestPermissionEdgeClipboardRead (0.41s)
+    --- PASS: TestPermissionEdgeClipboardRead/light (0.21s)
+    --- PASS: TestPermissionEdgeClipboardRead/dark (0.21s)
+=== RUN   TestPermissionEdgeClipboardWrite
+=== RUN   TestPermissionEdgeClipboardWrite/light
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=706.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1118.9
+=== RUN   TestPermissionEdgeClipboardWrite/dark
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=706.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1118.9
+--- PASS: TestPermissionEdgeClipboardWrite (0.45s)
+    --- PASS: TestPermissionEdgeClipboardWrite/light (0.22s)
+    --- PASS: TestPermissionEdgeClipboardWrite/dark (0.23s)
+=== RUN   TestPermissionEdgeEnvironment
+=== RUN   TestPermissionEdgeEnvironment/light
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=751.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1163.9
+=== RUN   TestPermissionEdgeEnvironment/dark
+    permissionedge_test.go:59: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=751.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1163.9
+--- PASS: TestPermissionEdgeEnvironment (0.47s)
+    --- PASS: TestPermissionEdgeEnvironment/light (0.24s)
+    --- PASS: TestPermissionEdgeEnvironment/dark (0.24s)
+=== RUN   TestScriptEditorEdge
+=== RUN   TestScriptEditorEdge/light
+    permissionedge_test.go:156: script target={X:201.8 Y:70.40004 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestScriptEditorEdge/dark
+    permissionedge_test.go:156: script target={X:201.8 Y:70.40004 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- PASS: TestScriptEditorEdge (0.16s)
+    --- PASS: TestScriptEditorEdge/light (0.09s)
+    --- PASS: TestScriptEditorEdge/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	3.140s

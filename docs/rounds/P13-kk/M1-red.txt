@@ -1,0 +1,115 @@
+=== RUN   TestPermissionEdgeFilesystemRead
+=== RUN   TestPermissionEdgeFilesystemRead/light
+    permissionedge_test.go:57: filesystem-read forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=462.30002
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=912.9
+    permissionedge_test.go:77: filesystem-read top ring missing at [659 49]: blue-red=1
+    permissionedge_test.go:83: filesystem-read ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestPermissionEdgeFilesystemRead/dark
+    permissionedge_test.go:57: filesystem-read forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=462.30002
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=912.9
+    permissionedge_test.go:77: filesystem-read top ring missing at [659 49]: blue-red=2
+    permissionedge_test.go:83: filesystem-read ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestPermissionEdgeFilesystemRead (0.57s)
+    --- FAIL: TestPermissionEdgeFilesystemRead/light (0.40s)
+    --- FAIL: TestPermissionEdgeFilesystemRead/dark (0.17s)
+=== RUN   TestPermissionEdgeFilesystemWrite
+=== RUN   TestPermissionEdgeFilesystemWrite/light
+    permissionedge_test.go:57: filesystem-write forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=507.30002
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=957.9
+    permissionedge_test.go:77: filesystem-write top ring missing at [659 49]: blue-red=1
+    permissionedge_test.go:83: filesystem-write ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestPermissionEdgeFilesystemWrite/dark
+    permissionedge_test.go:57: filesystem-write forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=507.30002
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=957.9
+    permissionedge_test.go:77: filesystem-write top ring missing at [659 49]: blue-red=2
+    permissionedge_test.go:83: filesystem-write ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestPermissionEdgeFilesystemWrite (0.34s)
+    --- FAIL: TestPermissionEdgeFilesystemWrite/light (0.18s)
+    --- FAIL: TestPermissionEdgeFilesystemWrite/dark (0.16s)
+=== RUN   TestPermissionEdgeNetwork
+=== RUN   TestPermissionEdgeNetwork/light
+    permissionedge_test.go:57: network-fetch forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:501.99994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=552.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1002.9
+    permissionedge_test.go:77: network-fetch top ring missing at [659 49]: blue-red=1
+    permissionedge_test.go:83: network-fetch ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestPermissionEdgeNetwork/dark
+    permissionedge_test.go:57: network-fetch forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:501.99994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=552.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1002.9
+    permissionedge_test.go:77: network-fetch top ring missing at [659 49]: blue-red=2
+    permissionedge_test.go:83: network-fetch ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestPermissionEdgeNetwork (0.32s)
+    --- FAIL: TestPermissionEdgeNetwork/light (0.17s)
+    --- FAIL: TestPermissionEdgeNetwork/dark (0.15s)
+=== RUN   TestPermissionEdgeProcess
+=== RUN   TestPermissionEdgeProcess/light
+    permissionedge_test.go:57: process-spawn forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=597.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1047.9
+    permissionedge_test.go:77: process-spawn top ring missing at [659 49]: blue-red=1
+    permissionedge_test.go:83: process-spawn ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestPermissionEdgeProcess/dark
+    permissionedge_test.go:57: process-spawn forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=597.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1047.9
+    permissionedge_test.go:77: process-spawn top ring missing at [659 49]: blue-red=2
+    permissionedge_test.go:83: process-spawn ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestPermissionEdgeProcess (0.33s)
+    --- FAIL: TestPermissionEdgeProcess/light (0.16s)
+    --- FAIL: TestPermissionEdgeProcess/dark (0.17s)
+=== RUN   TestPermissionEdgeClipboardRead
+=== RUN   TestPermissionEdgeClipboardRead/light
+    permissionedge_test.go:57: clipboard-read forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=642.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1092.9
+    permissionedge_test.go:77: clipboard-read top ring missing at [659 49]: blue-red=1
+    permissionedge_test.go:83: clipboard-read ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestPermissionEdgeClipboardRead/dark
+    permissionedge_test.go:57: clipboard-read forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=642.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1092.9
+    permissionedge_test.go:77: clipboard-read top ring missing at [659 49]: blue-red=2
+    permissionedge_test.go:83: clipboard-read ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestPermissionEdgeClipboardRead (0.33s)
+    --- FAIL: TestPermissionEdgeClipboardRead/light (0.17s)
+    --- FAIL: TestPermissionEdgeClipboardRead/dark (0.16s)
+=== RUN   TestPermissionEdgeClipboardWrite
+=== RUN   TestPermissionEdgeClipboardWrite/light
+    permissionedge_test.go:57: clipboard-write forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=687.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1137.9
+    permissionedge_test.go:77: clipboard-write top ring missing at [659 49]: blue-red=1
+    permissionedge_test.go:83: clipboard-write ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestPermissionEdgeClipboardWrite/dark
+    permissionedge_test.go:57: clipboard-write forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=687.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1137.9
+    permissionedge_test.go:77: clipboard-write top ring missing at [659 49]: blue-red=2
+    permissionedge_test.go:83: clipboard-write ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestPermissionEdgeClipboardWrite (0.35s)
+    --- FAIL: TestPermissionEdgeClipboardWrite/light (0.17s)
+    --- FAIL: TestPermissionEdgeClipboardWrite/dark (0.17s)
+=== RUN   TestPermissionEdgeEnvironment
+=== RUN   TestPermissionEdgeEnvironment/light
+    permissionedge_test.go:57: environment forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=732.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1182.9
+    permissionedge_test.go:77: environment top ring missing at [659 49]: blue-red=1
+    permissionedge_test.go:83: environment ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestPermissionEdgeEnvironment/dark
+    permissionedge_test.go:57: environment forward bottom ring missing: blue-red=0
+    permissionedge_test.go:59: first target={X:643.4 Y:502 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=732.30005
+    permissionedge_test.go:72: return target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1182.9
+    permissionedge_test.go:77: environment top ring missing at [659 49]: blue-red=2
+    permissionedge_test.go:83: environment ring intersects fade: target={X:643.4 Y:51.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestPermissionEdgeEnvironment (0.34s)
+    --- FAIL: TestPermissionEdgeEnvironment/light (0.17s)
+    --- FAIL: TestPermissionEdgeEnvironment/dark (0.17s)
+FAIL
+FAIL	floter/internal/settingsui	2.591s
+FAIL

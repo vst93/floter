@@ -1,0 +1,12 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.004s
+ok  	floter/internal/apps	0.228s
+ok  	floter/internal/browser	0.013s
+ok  	floter/internal/calc	0.003s
+ok  	floter/internal/calculator	0.015s
+ok  	floter/internal/ci	4.116s
+ok  	floter/internal/clipboard	0.034s
+ok  	floter/internal/control	0.232s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.004s
+ok  	floter/internal/drops	0.005s

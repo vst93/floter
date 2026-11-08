@@ -1,0 +1,1 @@
+ok  	floter/internal/settingsui	0.608s

@@ -1,0 +1,10 @@
+=== RUN   TestScriptEditorEdge
+=== RUN   TestScriptEditorEdge/light
+    permissionedge_test.go:156: script target={X:201.8 Y:70.40004 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestScriptEditorEdge/dark
+    permissionedge_test.go:156: script target={X:201.8 Y:70.40004 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- PASS: TestScriptEditorEdge (0.20s)
+    --- PASS: TestScriptEditorEdge/light (0.15s)
+    --- PASS: TestScriptEditorEdge/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.209s

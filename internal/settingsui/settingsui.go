@@ -6453,16 +6453,11 @@ func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
 		on := a.toolPermissions[permission]
 		label := i18n.PermissionLabel(a.settings().Language, permission)
 		labelClicked := a.row(c, label, "", func() {
-			var toggle ui.Element
-			draw := func() { toggle = a.switchControl(c, &on).Label(label) }
-			if permission != extensions.PermissionEnvironment {
-				outputFocusOutlet(c.Key("permission-outlet"), draw)
-			} else {
-				draw()
-			}
-			if toggle.Changed() {
-				a.toolPermissions[permission] = on
-			}
+			outputFocusOutlet(c.Key("permission-outlet"), func() {
+				if a.switchControl(c, &on).Label(label).Changed() {
+					a.toolPermissions[permission] = on
+				}
+			})
 		})
 		if labelClicked {
 			a.toolPermissions[permission] = !on
@@ -6497,9 +6492,11 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 	// mygo's code editor (line numbers, syntax highlighting) rather than a bare
 	// TextArea; scriptEditorView keeps its state across frames.
 	a.stackedRow(c.Key("local-script"), copy.LocalToolScript, copy.LocalToolScriptHint, func() {
-		a.rememberModeContent(c, true, a.scriptEditorView(c, copy, language, script).
-			Bind(&a.contentFocus(c, "script").source).
-			Bind(&a.contentFocus(c, "export").source))
+		outputFocusOutlet(c.Key("local-script-outlet"), func() {
+			a.rememberModeContent(c, true, a.scriptEditorView(c, copy, language, script).
+				Bind(&a.contentFocus(c, "script").source).
+				Bind(&a.contentFocus(c, "export").source))
+		})
 		a.toolIssueUnder(c, copy, issues, extensions.CustomFieldScript)
 	})
 }

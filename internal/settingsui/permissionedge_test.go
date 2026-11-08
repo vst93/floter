@@ -49,6 +49,13 @@ func checkPermissionEdge(t *testing.T, permission string) {
 			// same accessible label. The 32.4x18 switch follows the caption
 			// by the card's literal 12px gap, centered in its 26px control slot.
 			target := ui.Rect{X: caption.X + caption.W + 12, Y: caption.Y + 4, W: 32.4, H: 18}
+			// Forward Tab first lands at the bottom edge. Check that entry
+			// independently from the Shift+Tab return at the top edge.
+			bottomY := int(math.Round(float64(target.Y + target.H + 1)))
+			red, _, blue := rgbAt(tt.Image(), int(target.X+target.W/2), bottomY)
+			if blue-red < 60 {
+				t.Errorf("%s forward bottom ring missing: blue-red=%d", permission, blue-red)
+			}
 			t.Logf("first target=%+v viewport=%+v scroll=%v", target, viewport, a.Body.Y)
 			absoluteY := target.Y + a.Body.Y
 			tt.Key(0, ui.KeyTab)
@@ -109,7 +116,11 @@ func TestPermissionEdgeClipboardWrite(t *testing.T) {
 	checkPermissionEdge(t, extensions.PermissionClipboardWrite)
 }
 
-func checkScriptEditorEdge(t *testing.T) {
+func TestPermissionEdgeEnvironment(t *testing.T) {
+	checkPermissionEdge(t, extensions.PermissionEnvironment)
+}
+
+func TestScriptEditorEdge(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			a := declarationVisibilityApp(t, dark, 5)
@@ -148,6 +159,13 @@ func checkScriptEditorEdge(t *testing.T) {
 			}
 			if target.Y < viewport.Y+16 || target.Y+target.H > viewport.Y+viewport.H-16 {
 				t.Errorf("script first line intersects fade: target=%+v viewport=%+v", target, viewport)
+			}
+			if target.W != 487 || target.H != 64.8 {
+				t.Errorf("script layout changed: %+v", target)
+			}
+			caret, ok := tt.TextCaret()
+			if !ok || caret.Y < viewport.Y+16 || caret.Y+caret.H > viewport.Y+viewport.H-16 {
+				t.Errorf("script caret is not fully visible: %+v active=%v", caret, ok)
 			}
 			runVisibilityWheel(t, a, tt)
 			tt.Key(ui.Cmd, ui.KeyA)

@@ -1,0 +1,16 @@
+filesystem-read light: 62087 changed pixels
+filesystem-write light: 73743 changed pixels
+network-fetch light: 73991 changed pixels
+process-spawn light: 88263 changed pixels
+clipboard-read light: 101454 changed pixels
+clipboard-write light: 107121 changed pixels
+environment light: 114262 changed pixels
+script light: 79738 changed pixels
+filesystem-read dark: 61806 changed pixels
+filesystem-write dark: 73515 changed pixels
+network-fetch dark: 73814 changed pixels
+process-spawn dark: 88148 changed pixels
+clipboard-read dark: 101375 changed pixels
+clipboard-write dark: 107100 changed pixels
+environment dark: 114265 changed pixels
+script dark: 79913 changed pixels
