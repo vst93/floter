@@ -207,6 +207,17 @@ func TestAuditReflowConfigActions(t *testing.T) {
 	}
 }
 
+func TestAuditReflowConfigTransfers(t *testing.T) {
+	for _, kind := range []string{"copy", "export"} {
+		t.Run(kind, func(t *testing.T) { checkAuditReflow(t, "config-toolbar", kind) })
+	}
+}
+func TestAuditReflowConfigOpen(t *testing.T) {
+	for _, scenario := range []string{"config-open", "tool-open"} {
+		t.Run(scenario, func(t *testing.T) { checkAuditReflow(t, scenario, "") })
+	}
+}
+
 func TestAuditReflowRunEditors(t *testing.T) {
 	for _, kind := range []string{"text", "number", "path"} {
 		t.Run(kind, func(t *testing.T) { checkAuditReflow(t, "run-controls", kind) })
