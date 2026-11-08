@@ -1,0 +1,26 @@
+=== RUN   TestOutputRecoveryExpand
+=== RUN   TestOutputRecoveryExpand/light
+=== RUN   TestOutputRecoveryExpand/dark
+--- PASS: TestOutputRecoveryExpand (0.39s)
+    --- PASS: TestOutputRecoveryExpand/light (0.33s)
+    --- PASS: TestOutputRecoveryExpand/dark (0.06s)
+=== RUN   TestOutputRecoveryCollapse
+=== RUN   TestOutputRecoveryCollapse/light
+=== RUN   TestOutputRecoveryCollapse/dark
+--- PASS: TestOutputRecoveryCollapse (0.14s)
+    --- PASS: TestOutputRecoveryCollapse/light (0.06s)
+    --- PASS: TestOutputRecoveryCollapse/dark (0.07s)
+=== RUN   TestOutputRecoveryExternalFold
+=== RUN   TestOutputRecoveryExternalFold/light
+=== RUN   TestOutputRecoveryExternalFold/dark
+--- PASS: TestOutputRecoveryExternalFold (0.18s)
+    --- PASS: TestOutputRecoveryExternalFold/light (0.09s)
+    --- PASS: TestOutputRecoveryExternalFold/dark (0.09s)
+=== RUN   TestOutputRecoveryEmptyResult
+=== RUN   TestOutputRecoveryEmptyResult/light
+=== RUN   TestOutputRecoveryEmptyResult/dark
+--- PASS: TestOutputRecoveryEmptyResult (0.18s)
+    --- PASS: TestOutputRecoveryEmptyResult/light (0.09s)
+    --- PASS: TestOutputRecoveryEmptyResult/dark (0.08s)
+PASS
+ok  	floter/internal/settingsui	0.893s

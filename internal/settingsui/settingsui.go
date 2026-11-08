@@ -8206,6 +8206,7 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 	inset := a.rowInset(t)
 	ui.Column(c).FillWidth().Padding(0, inset, 0, inset).Children(func() {
 		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), t.Space(2)).
+			Bind(&a.noticeFocus(c, integration.ID, "output").panel).
 			// The block wears the reference's own surface: `.extension-row__output` is a
 			// `--surface-sunken` recess under a `--glass-control-edge` hairline with the
 			// `--ext-radius` corner — the same shell the run form's box wears, so the two
@@ -8259,11 +8260,16 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 					ui.Scroll(c.Key("settings.runoutput." + integration.ID)).TrackScroll(scrolled).
 						FillWidth().MaxHeight(t.Space(45)).Children(func() {
 						view := launcher.OutputView{Text: ansi.Plain(result.Text()), Spans: ansi.Parse(result.Text())}
+						reader := a.noticeFocus(c, integration.ID, "output-text")
 						if view.Text == "" {
+							if reader.panel.Focused(c) {
+								c.Resolve(a.noticeFocus(c, integration.ID, "output").confirm).Focus().ScrollIntoView()
+							}
 							a.runOutputAside(c, tokens, copy.RunNoOutput, false)
 							return
 						}
 						ui.RichText(c, view.TextSpans(tokens.Appearance, tokens.TextStrong, tokens.Caption)...).
+							Bind(&reader.panel).
 							Font(runOutputFont).FontSize(tokens.Caption).
 							TextColor(tokens.TextStrong).LineHeight(1.45).Wrap().Selectable()
 					})
@@ -8393,7 +8399,7 @@ func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
 		})
 		focus := a.noticeFocus(c, id, "output")
 		button.Bind(&focus.cancel)
-		if focus.confirm.Focused(c) {
+		if focus.confirm.Focused(c) || focus.panel.FocusWithin(c) {
 			button.Focus().ScrollIntoView()
 		}
 		if button.Clicked() {

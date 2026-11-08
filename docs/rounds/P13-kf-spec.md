@@ -31,4 +31,6 @@
 
 开盘函数3477，完整verbose基线进行中，完成后实数补录。每批定向事件、settingsui vet、gofmt空；最终一次全量普通/verbose、三平台vet/build与gofmt。统一LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4。
 
+基线已完成：6327 PASS / 0 FAIL / go test exit0，3477函数。
+
 至少M1撤回展开/收起恢复、M2撤回结果选区隔离；每批旧产品实红作为前图，正式mutation实跑，MD5逐字节还原、touch后-count=1复验。所有旧B断言零改；V/S如需重钉必须明确台账。

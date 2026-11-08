@@ -25,3 +25,10 @@
 2. 收起后查看入口失焦 → 收起键持焦时返还原查看入口并一次显现 → 深浅入口完整可见，Enter可立即重开。
 
 第一批定向6 PASS / 0 FAIL，settingsui vet净、gofmt空。M1撤回本批产品实红：`disclosure cannot reverse with keyboard`与`run outlet outside viewport: label="查看输出" focused=false`；MD5还原、touch复验6 PASS。V/B/S旧断言0/0/0。完整开盘门槛尚在运行，不填写未完成的全量数字。
+
+第一批87326334已推送。开盘完整日志最终6327 PASS / 0 FAIL，go test exit0，3477函数（包装命令末尾rg无FAIL匹配返回1，不是测试失败）。
+
+3. 阅读中的结果被外部折叠后丢失焦点 → 输出面记录现有阅读焦点，折叠时回到原查看入口 → 深浅入口完整可见、Enter重新展开，输出原字节不变。
+4. 正文被空结果替换后键盘落空 → 可选择正文退役时交接原收起键 → 深浅空态可退出；存储结果仍为空，不复制旧结果。
+
+第二批新增场景6 PASS，连同第一批12 PASS / 0 FAIL，settingsui vet净、gofmt空。前图实红均为`run outlet outside viewport`且focused=false。首次夹具没有滚到正文，只记夹具错误；补真实阅读位置后才计复现。V/B/S旧断言0/0/0。M1已实跑，第二个正式mutation留给结果选区隔离。

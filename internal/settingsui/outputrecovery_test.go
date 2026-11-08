@@ -71,3 +71,56 @@ func checkOutputDisclosureRecovery(t *testing.T, open bool) {
 
 func TestOutputRecoveryExpand(t *testing.T)   { checkOutputDisclosureRecovery(t, false) }
 func TestOutputRecoveryCollapse(t *testing.T) { checkOutputDisclosureRecovery(t, true) }
+
+func outputRecoveryRead(t *testing.T, a *App, in *Integration, tt *ui.Tester) string {
+	t.Helper()
+	optionExitFocus(t, tt, a.copy().RunHideOutput)
+	a.Body.Y += 180
+	tt.Frame()
+	result, _ := a.LastRun(in.ID)
+	text := result.Text()
+	r := mustFind(t, tt, text)
+	if r.W == 0 || r.H == 0 {
+		t.Fatal("output reader not visible")
+	}
+	tt.ClickAt(r.X+5, r.Y+5)
+	tt.Command("selectAll")
+	tt.Command("copy")
+	if tt.Clipboard() != text || !tt.Focused(text) {
+		t.Fatal("cannot focus and copy existing result")
+	}
+	return text
+}
+
+func checkOutputReaderRetirement(t *testing.T, empty bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, in, tt, viewport := outputRecoveryApp(t, dark, true)
+			old := outputRecoveryRead(t, a, in, tt)
+			name, want := "external-fold", a.copy().RunViewOutput
+			if empty {
+				name, want = "empty-result", a.copy().RunHideOutput
+				a.SetRunResult(in.ID, RunResult{Success: false})
+			} else {
+				a.setRunOutputOpen(in.ID, false)
+			}
+			tt.Frame()
+			tt.Frame()
+			outputRecoveryDump(t, tt, name, dark)
+			runVisible(t, a, tt, want, *viewport)
+			result, _ := a.LastRun(in.ID)
+			if empty && result.Text() != "" || !empty && result.Text() != old {
+				t.Fatal("retirement changed stored output")
+			}
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if a.outputOpen[in.ID] == empty {
+				t.Fatal("retired reader lost keyboard disclosure")
+			}
+		})
+	}
+}
+
+func TestOutputRecoveryExternalFold(t *testing.T) { checkOutputReaderRetirement(t, false) }
+func TestOutputRecoveryEmptyResult(t *testing.T)  { checkOutputReaderRetirement(t, true) }

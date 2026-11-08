@@ -1,0 +1,19 @@
+=== RUN   TestOutputRecoveryExternalFold
+=== RUN   TestOutputRecoveryExternalFold/light
+    outputrecovery_test.go:111: run outlet outside viewport: label="查看输出" focused=false rect={X:195.8 Y:303 W:499 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=220.5
+=== RUN   TestOutputRecoveryExternalFold/dark
+    outputrecovery_test.go:111: run outlet outside viewport: label="查看输出" focused=false rect={X:195.8 Y:303 W:499 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=220.5
+--- FAIL: TestOutputRecoveryExternalFold (0.38s)
+    --- FAIL: TestOutputRecoveryExternalFold/light (0.30s)
+    --- FAIL: TestOutputRecoveryExternalFold/dark (0.08s)
+=== RUN   TestOutputRecoveryEmptyResult
+=== RUN   TestOutputRecoveryEmptyResult/light
+    outputrecovery_test.go:111: run outlet outside viewport: label="收起输出" focused=false rect={X:655.8 Y:310 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=220.5
+=== RUN   TestOutputRecoveryEmptyResult/dark
+    outputrecovery_test.go:111: run outlet outside viewport: label="收起输出" focused=false rect={X:655.8 Y:310 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=220.5
+--- FAIL: TestOutputRecoveryEmptyResult (0.14s)
+    --- FAIL: TestOutputRecoveryEmptyResult/light (0.07s)
+    --- FAIL: TestOutputRecoveryEmptyResult/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.531s
+FAIL
