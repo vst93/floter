@@ -523,11 +523,12 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 }
 
 // Reveal the existing keyboard ink once on entry. The sheet's fade is 3u;
-// the native ring extends 3px, with 1px for fractional raster placement.
+// the native ring extends 3px, with 1px for fractional raster placement
+// and 1px for a bordered control's content inset.
 // An absolute, pointer-transparent envelope
 // preserves the field's layout and hit area, including wrapped options.
 func pluginFieldOutlet(c *ui.Context, field ui.Element) {
-	clearance := float32(math.Ceil(float64(c.Theme().Space(3)))) + 4
+	clearance := float32(math.Ceil(float64(c.Theme().Space(3)))) + 5
 	var envelope ui.Element
 	field.Children(func() {
 		envelope = ui.Box(c.Key("plugin-focus-envelope")).Absolute().
@@ -689,6 +690,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 				TextColor(t.TextMuted).SingleLine()
 		}
 	})
+	pluginFieldOutlet(c, slot)
 	return slot, changed
 }
 
@@ -730,6 +732,7 @@ func (a *App) sheetTextField(c *ui.Context, placeholder string, value *string) u
 	slot.Children(func() {
 		input = ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1)
 	})
+	pluginFieldOutlet(c, slot)
 	// Submitted and Label belong to the editor; input events do not bubble
 	// through the decorative slot.
 	return input

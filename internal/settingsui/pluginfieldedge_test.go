@@ -193,3 +193,6 @@ func TestPluginFieldEdgeRadio(t *testing.T) { checkPluginFieldEdge(t, plugincfg.
 func TestPluginFieldEdgeCheckboxes(t *testing.T) {
 	checkPluginFieldEdge(t, plugincfg.Checkboxes, "checkboxes")
 }
+
+func TestPluginFieldEdgeText(t *testing.T)   { checkPluginFieldEdge(t, plugincfg.Text, "text") }
+func TestPluginFieldEdgeNumber(t *testing.T) { checkPluginFieldEdge(t, plugincfg.Number, "number") }
