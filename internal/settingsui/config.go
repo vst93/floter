@@ -405,7 +405,7 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 		// second filled card, so the form read as a bordered box inside the
 		// integration card rather than the reference's flat grid.
 		a.configToolbar(c, copy, integration, draft)
-		feedback := a.permissionFeedback(integration) + approvalFeedback(integration)
+		feedback := a.integrationLead + a.permissionFeedback(integration) + approvalFeedback(integration)
 		for _, field := range integration.Config {
 			grid := a.configField(c, copy, integration, draft, field, strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+feedback)
 			a.rememberOperationFocus(c, integration.ID, "field", grid)

@@ -41,3 +41,13 @@ func TestLeadReflowRunCancel(t *testing.T) {
 func TestLeadReflowRunSubmit(t *testing.T) {
 	checkCatalogReflow(t, "run-submit", "text", "local", "recommended", "detected")
 }
+
+func TestLeadReflowConfigFields(t *testing.T) {
+	checkCatalogReflow(t, "config-fields", "text", "local", "recommended", "detected")
+}
+
+func TestLeadReflowConfigActions(t *testing.T) {
+	for _, scenario := range []string{"config-defaults", "config-save"} {
+		t.Run(scenario, func(t *testing.T) { checkCatalogReflow(t, scenario, "", "local", "recommended", "detected") })
+	}
+}
