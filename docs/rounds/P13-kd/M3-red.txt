@@ -1,0 +1,31 @@
+=== RUN   TestContentVisibilityExportRetired
+=== RUN   TestContentVisibilityExportRetired/withdraw/light
+    exportvisibility_test.go:64: editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestContentVisibilityExportRetired/withdraw/dark
+    exportvisibility_test.go:64: editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestContentVisibilityExportRetired/blank/light
+    exportvisibility_test.go:64: editing outlet outside viewport: rect={X:201.8 Y:-993.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1523.3003
+=== RUN   TestContentVisibilityExportRetired/blank/dark
+    exportvisibility_test.go:64: editing outlet outside viewport: rect={X:201.8 Y:-993.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1523.3003
+--- FAIL: TestContentVisibilityExportRetired (0.13s)
+    --- FAIL: TestContentVisibilityExportRetired/withdraw/light (0.07s)
+    --- FAIL: TestContentVisibilityExportRetired/withdraw/dark (0.02s)
+    --- FAIL: TestContentVisibilityExportRetired/blank/light (0.02s)
+    --- FAIL: TestContentVisibilityExportRetired/blank/dark (0.02s)
+=== RUN   TestContentVisibilityExportReturn
+=== RUN   TestContentVisibilityExportReturn/sync/light
+    exportvisibility_test.go:64: editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestContentVisibilityExportReturn/sync/dark
+    exportvisibility_test.go:64: editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestContentVisibilityExportReturn/async/light
+    exportvisibility_test.go:64: editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestContentVisibilityExportReturn/async/dark
+    exportvisibility_test.go:64: editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+--- FAIL: TestContentVisibilityExportReturn (0.08s)
+    --- FAIL: TestContentVisibilityExportReturn/sync/light (0.02s)
+    --- FAIL: TestContentVisibilityExportReturn/sync/dark (0.02s)
+    --- FAIL: TestContentVisibilityExportReturn/async/light (0.02s)
+    --- FAIL: TestContentVisibilityExportReturn/async/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.223s
+FAIL

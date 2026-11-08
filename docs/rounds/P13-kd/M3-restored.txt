@@ -1,0 +1,38 @@
+=== RUN   TestContentVisibilityExportRetired
+=== RUN   TestContentVisibilityExportRetired/withdraw/light
+=== RUN   TestContentVisibilityExportRetired/withdraw/dark
+=== RUN   TestContentVisibilityExportRetired/blank/light
+=== RUN   TestContentVisibilityExportRetired/blank/dark
+--- PASS: TestContentVisibilityExportRetired (0.43s)
+    --- PASS: TestContentVisibilityExportRetired/withdraw/light (0.23s)
+    --- PASS: TestContentVisibilityExportRetired/withdraw/dark (0.07s)
+    --- PASS: TestContentVisibilityExportRetired/blank/light (0.07s)
+    --- PASS: TestContentVisibilityExportRetired/blank/dark (0.07s)
+=== RUN   TestContentVisibilityExportReturn
+=== RUN   TestContentVisibilityExportReturn/sync/light
+=== RUN   TestContentVisibilityExportReturn/sync/dark
+=== RUN   TestContentVisibilityExportReturn/async/light
+=== RUN   TestContentVisibilityExportReturn/async/dark
+--- PASS: TestContentVisibilityExportReturn (0.24s)
+    --- PASS: TestContentVisibilityExportReturn/sync/light (0.06s)
+    --- PASS: TestContentVisibilityExportReturn/sync/dark (0.06s)
+    --- PASS: TestContentVisibilityExportReturn/async/light (0.06s)
+    --- PASS: TestContentVisibilityExportReturn/async/dark (0.06s)
+=== RUN   TestToolExportWaitAndRetry
+=== RUN   TestToolExportWaitAndRetry/light
+=== RUN   TestToolExportWaitAndRetry/dark
+--- PASS: TestToolExportWaitAndRetry (0.21s)
+    --- PASS: TestToolExportWaitAndRetry/light (0.11s)
+    --- PASS: TestToolExportWaitAndRetry/dark (0.09s)
+=== RUN   TestToolExportReturnsToScript
+=== RUN   TestToolExportReturnsToScript/light/editor
+=== RUN   TestToolExportReturnsToScript/light/moved
+=== RUN   TestToolExportReturnsToScript/dark/editor
+=== RUN   TestToolExportReturnsToScript/dark/moved
+--- PASS: TestToolExportReturnsToScript (0.36s)
+    --- PASS: TestToolExportReturnsToScript/light/editor (0.07s)
+    --- PASS: TestToolExportReturnsToScript/light/moved (0.10s)
+    --- PASS: TestToolExportReturnsToScript/dark/editor (0.08s)
+    --- PASS: TestToolExportReturnsToScript/dark/moved (0.11s)
+PASS
+ok  	floter/internal/settingsui	1.276s

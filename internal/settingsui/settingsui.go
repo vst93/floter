@@ -6193,7 +6193,7 @@ func (a *App) exportScriptAction(c *ui.Context, copy i18n.Settings, command, scr
 		}
 	}
 	if (a.Actions.ExportScript == nil && a.Actions.ExportScriptAsync == nil) || strings.TrimSpace(script) == "" {
-		focus.restore(c)
+		focus.restoreVisible(c)
 		return true
 	}
 	if a.toolExportDone != nil {
@@ -6218,7 +6218,7 @@ func (a *App) exportScriptAction(c *ui.Context, copy i18n.Settings, command, scr
 		}
 		current := a.toolCallbackState() == before
 		if current {
-			focus.restore(c)
+			focus.restoreVisible(c)
 		}
 		return current
 	}

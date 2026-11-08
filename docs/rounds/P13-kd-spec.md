@@ -29,6 +29,6 @@
 
 ## 验证与mutation
 
-开盘完整verbose基线正在实跑，数字完成后补录；旧B/V/S断言不改，函数不减少。每批定向事件、gofmt及settingsui vet；最终一次完整门槛：gofmt -l cmd internal；linux/windows/darwin go vet ./...；go test -count=1 ./...；go test -count=1 -v ./...与PASS计数；三平台go build ./...。统一LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。
+开盘完整verbose基线实测6243 PASS / 0 FAIL / exit0；开盘4330be43的cmd/internal测试函数3459（按开盘树计，不把测试运行期间新增函数混入基线）。旧B/V/S断言不改，函数不减少。每批定向事件、gofmt及settingsui vet；最终一次完整门槛：gofmt -l cmd internal；linux/windows/darwin go vet ./...；go test -count=1 ./...；go test -count=1 -v ./...与PASS计数；三平台go build ./...。统一LC_ALL=zh_CN.UTF-8、最终GOMAXPROCS=4。
 
 M1撤回失败/取消显现，M2撤回成功/能力撤回显现，M3撤回导出显现，M4撤回复制与链接显现。各组须真实红、逐文件MD5还原、touch后无缓存复验。每项深浅before/after PNG；严格像素包含、直接键入、派发次数及自由滚轮断言。额外验证非当前动作的刷新不抢焦点、不改偏移。

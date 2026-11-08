@@ -1,0 +1,31 @@
+=== RUN   TestContentVisibilityExportRetired
+=== RUN   TestContentVisibilityExportRetired/withdraw/light
+    exportvisibility_test.go:48: export setup did not reach its button
+=== RUN   TestContentVisibilityExportRetired/withdraw/dark
+    exportvisibility_test.go:48: export setup did not reach its button
+=== RUN   TestContentVisibilityExportRetired/blank/light
+    exportvisibility_test.go:48: export setup did not reach its button
+=== RUN   TestContentVisibilityExportRetired/blank/dark
+    exportvisibility_test.go:48: export setup did not reach its button
+--- FAIL: TestContentVisibilityExportRetired (0.15s)
+    --- FAIL: TestContentVisibilityExportRetired/withdraw/light (0.10s)
+    --- FAIL: TestContentVisibilityExportRetired/withdraw/dark (0.02s)
+    --- FAIL: TestContentVisibilityExportRetired/blank/light (0.02s)
+    --- FAIL: TestContentVisibilityExportRetired/blank/dark (0.02s)
+=== RUN   TestContentVisibilityExportReturn
+=== RUN   TestContentVisibilityExportReturn/sync/light
+    exportvisibility_test.go:48: export setup did not reach its button
+=== RUN   TestContentVisibilityExportReturn/sync/dark
+    exportvisibility_test.go:48: export setup did not reach its button
+=== RUN   TestContentVisibilityExportReturn/async/light
+    exportvisibility_test.go:48: export setup did not reach its button
+=== RUN   TestContentVisibilityExportReturn/async/dark
+    exportvisibility_test.go:48: export setup did not reach its button
+--- FAIL: TestContentVisibilityExportReturn (0.07s)
+    --- FAIL: TestContentVisibilityExportReturn/sync/light (0.02s)
+    --- FAIL: TestContentVisibilityExportReturn/sync/dark (0.02s)
+    --- FAIL: TestContentVisibilityExportReturn/async/light (0.02s)
+    --- FAIL: TestContentVisibilityExportReturn/async/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.230s
+FAIL
