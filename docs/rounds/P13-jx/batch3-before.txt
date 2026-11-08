@@ -1,0 +1,37 @@
+=== RUN   TestInstallFormRegistryKeyboard
+=== RUN   TestInstallFormRegistryKeyboard/light
+    installrecovery_test.go:109: waiting registry lost keyboard focus
+    installrecovery_test.go:114: waiting editor: name="" calls=1
+    installrecovery_test.go:119: completion stole editor focus
+    installrecovery_test.go:121: cannot Tab to Close settings
+=== RUN   TestInstallFormRegistryKeyboard/dark
+    installrecovery_test.go:109: waiting registry lost keyboard focus
+    installrecovery_test.go:114: waiting editor: name="" calls=1
+    installrecovery_test.go:119: completion stole editor focus
+    installrecovery_test.go:121: cannot Tab to Close settings
+--- FAIL: TestInstallFormRegistryKeyboard (0.49s)
+    --- FAIL: TestInstallFormRegistryKeyboard/light (0.33s)
+    --- FAIL: TestInstallFormRegistryKeyboard/dark (0.16s)
+=== RUN   TestInstallFormRecoveryKeepsNewDraft
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/name
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/version
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/cleared
+--- PASS: TestInstallFormRecoveryKeepsNewDraft (0.34s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/name (0.11s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/version (0.11s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/cleared (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.846s
+=== RUN   TestInstallRecoveryCommit
+=== RUN   TestInstallRecoveryCommit/light
+2026/11/08 11:44:40 floter: could not install review-current: extensions: no manifest
+    installrecovery_test.go:106: commit lost retry draft: "" / ""
+=== RUN   TestInstallRecoveryCommit/dark
+2026/11/08 11:44:41 floter: could not install review-current: extensions: no manifest
+    installrecovery_test.go:106: commit lost retry draft: "" / ""
+--- FAIL: TestInstallRecoveryCommit (1.31s)
+    --- FAIL: TestInstallRecoveryCommit/light (0.80s)
+    --- FAIL: TestInstallRecoveryCommit/dark (0.51s)
+FAIL
+FAIL	floter/internal/shell	1.317s
+FAIL

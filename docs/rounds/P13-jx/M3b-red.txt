@@ -1,0 +1,15 @@
+=== RUN   TestInstallFormRegistryKeyboard
+=== RUN   TestInstallFormRegistryKeyboard/light
+    installrecovery_test.go:110: waiting registry lost keyboard focus
+    installrecovery_test.go:115: waiting editor: name="" calls=1
+    installrecovery_test.go:120: completion stole editor focus
+=== RUN   TestInstallFormRegistryKeyboard/dark
+    installrecovery_test.go:110: waiting registry lost keyboard focus
+    installrecovery_test.go:115: waiting editor: name="" calls=1
+    installrecovery_test.go:120: completion stole editor focus
+--- FAIL: TestInstallFormRegistryKeyboard (0.36s)
+    --- FAIL: TestInstallFormRegistryKeyboard/light (0.29s)
+    --- FAIL: TestInstallFormRegistryKeyboard/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.375s
+FAIL

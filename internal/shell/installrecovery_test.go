@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -72,6 +73,20 @@ func checkInstallRecovery(t *testing.T, scenario string) {
 			} else {
 				f.a.Registry = installCurrentRegistry(t, f)
 				f.a.confirmPermissions = func(extensions.PermissionApproval) bool { return false }
+				if scenario == "commit" {
+					f.a.confirmPermissions = func(extensions.PermissionApproval) bool {
+						paths, err := filepath.Glob(filepath.Join(f.a.Paths.Root, ".download-*", "floter.extension.json"))
+						if err != nil || len(paths) != 1 {
+							t.Errorf("prepared manifest: %v / %v", paths, err)
+							return false
+						}
+						if err := os.Remove(paths[0]); err != nil {
+							t.Error(err)
+							return false
+						}
+						return true
+					}
+				}
 			}
 			tt := installCurrentFrame(f, dark)
 			installRecoveryInput(t, tt)
@@ -93,7 +108,7 @@ func checkInstallRecovery(t *testing.T, scenario string) {
 			if scenario == "cancel" && len(titles) != 0 {
 				t.Errorf("cancel published result: %q", titles)
 			}
-			if scenario == "download" && len(titles) != 1 {
+			if scenario != "cancel" && len(titles) != 1 {
 				t.Errorf("failure notices = %q", titles)
 			}
 		})
@@ -102,3 +117,4 @@ func checkInstallRecovery(t *testing.T, scenario string) {
 
 func TestInstallRecoveryDownload(t *testing.T) { checkInstallRecovery(t, "download") }
 func TestInstallRecoveryCancel(t *testing.T)   { checkInstallRecovery(t, "cancel") }
+func TestInstallRecoveryCommit(t *testing.T)   { checkInstallRecovery(t, "commit") }

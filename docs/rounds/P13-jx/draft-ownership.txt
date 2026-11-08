@@ -1,0 +1,10 @@
+=== RUN   TestInstallFormRecoveryKeepsNewDraft
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/name
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/version
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/cleared
+--- PASS: TestInstallFormRecoveryKeepsNewDraft (0.41s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/name (0.18s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/version (0.11s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/cleared (0.11s)
+PASS
+ok  	floter/internal/settingsui	0.420s

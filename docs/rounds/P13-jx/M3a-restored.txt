@@ -1,0 +1,10 @@
+=== RUN   TestInstallRecoveryCommit
+=== RUN   TestInstallRecoveryCommit/light
+2026/11/08 11:45:02 floter: could not install review-current: extensions: no manifest
+=== RUN   TestInstallRecoveryCommit/dark
+2026/11/08 11:45:03 floter: could not install review-current: extensions: no manifest
+--- PASS: TestInstallRecoveryCommit (1.59s)
+    --- PASS: TestInstallRecoveryCommit/light (0.93s)
+    --- PASS: TestInstallRecoveryCommit/dark (0.66s)
+PASS
+ok  	floter/internal/shell	1.600s

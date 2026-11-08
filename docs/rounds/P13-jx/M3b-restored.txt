@@ -1,0 +1,8 @@
+=== RUN   TestInstallFormRegistryKeyboard
+=== RUN   TestInstallFormRegistryKeyboard/light
+=== RUN   TestInstallFormRegistryKeyboard/dark
+--- PASS: TestInstallFormRegistryKeyboard (0.43s)
+    --- PASS: TestInstallFormRegistryKeyboard/light (0.34s)
+    --- PASS: TestInstallFormRegistryKeyboard/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	0.450s

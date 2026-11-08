@@ -908,6 +908,7 @@ func New(opts Options) *App {
 				}
 				entry, err := prepared.Commit(approved)
 				if err != nil {
+					a.onMain(recoverDraft)
 					if errors.Is(err, extensions.ErrPermissionApprovalRequired) {
 						log.Printf("floter: %s was not approved, so it was not installed", prepared.Name())
 						return

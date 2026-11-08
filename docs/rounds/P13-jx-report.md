@@ -34,3 +34,10 @@ M1实跑：撤回两条宿主恢复接线，两个场景深浅均红，原始串
 4. **空包名仍是Tab停靠点**：现象→空白包名的安装按钮看起来可用、能拿焦点，却无动作；改动→空白包名走disabledActionButton，输入有效包名即解锁；验证→Tab跳过、点击派发0次、填入后派发1次，深浅均验。
 
 M2将表单还原到上一批产品，实红`busy registry permits repeat: 1`与`blank install remains a keyboard stop`；MD5还原OK、touch后6 PASS。宿主恢复与旧取消回归9 PASS，相关vet净。第一批已推送e5c74f50；V/B/S旧断言修改仍0/0/0。
+
+### 第三批：提交失败与registry键盘
+
+5. **审核后提交失败**：现象→准备成功、审核批准，但manifest在落盘前消失，结果报错且两字段仍丢失；改动→提交阶段所有错误也走本次草稿恢复；验证→在真实权限回调移除下载目录manifest，看到`extensions: no manifest`，完成后重新点击派发原名/版本，只有一个失败通知，深浅均验。
+6. **registry等待丢键盘**：现象→Enter提交后焦点留在禁用按钮，继续输入无效；改动→只在原安装按钮持有焦点时，把键盘交回已有包名字段；验证→Enter提交、等待中直接输入`next-package`成功，完成不抢回焦点，焦点已在关闭按钮时也不抢。深浅均验。
+
+M3a撤回提交失败恢复，深浅均报`commit lost retry draft: "" / ""`，还原后3 PASS；M3b撤回焦点接线，深浅均报`waiting registry lost keyboard focus`，还原后3 PASS。两次都MD5核对、touch复跑。新草稿保护另有name/version/输入后清空三条真实编辑事件，共4 PASS；定向vet净。键盘夹具起初漏接Close回调，补上后负向不抢焦点也通过，旧B测试未动。

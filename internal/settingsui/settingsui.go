@@ -2299,16 +2299,18 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 	requested := false
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
 		Padding(0, 0, t.Space(1), 0).Children(func() {
-		a.textInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
+		field := a.textInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
 		a.textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
 		var install ui.Element
 		switch {
 		case a.packageInstallBusy["registry"]:
+			a.restoreNotice(c, "registry-install", "install", false, field)
 			install = a.busyActionButton(c, copy.IntegrationsInstall, "install.registry")
 		case strings.TrimSpace(name) == "":
 			install = a.disabledActionButton(c, copy.IntegrationsInstall)
 		default:
 			install = a.actionButton(c, copy.IntegrationsInstall)
+			a.rememberOperationFocus(c, "registry-install", "install", install)
 		}
 		if install.Clicked() {
 			requested = true

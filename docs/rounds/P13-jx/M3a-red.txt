@@ -1,0 +1,13 @@
+=== RUN   TestInstallRecoveryCommit
+=== RUN   TestInstallRecoveryCommit/light
+2026/11/08 11:44:53 floter: could not install review-current: extensions: no manifest
+    installrecovery_test.go:106: commit lost retry draft: "" / ""
+=== RUN   TestInstallRecoveryCommit/dark
+2026/11/08 11:44:53 floter: could not install review-current: extensions: no manifest
+    installrecovery_test.go:106: commit lost retry draft: "" / ""
+--- FAIL: TestInstallRecoveryCommit (1.24s)
+    --- FAIL: TestInstallRecoveryCommit/light (0.77s)
+    --- FAIL: TestInstallRecoveryCommit/dark (0.47s)
+FAIL
+FAIL	floter/internal/shell	1.249s
+FAIL
