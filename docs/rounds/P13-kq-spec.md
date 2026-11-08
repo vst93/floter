@@ -27,7 +27,7 @@
 
 深浅ui.Tester真实Tab、SetSize事件；当帧读取最终树，不补按键掩盖缩窗问题；同时验证草稿、命令次数、后续滚轮和失焦缩窗。输出/tmp/floter-P13-kq-<场景>-<dark|light>-<before|after>.png，归档前后图。
 
-门槛：中文locale，gofmt -l cmd internal空；linux/windows/darwin go vet ./...与go build ./...净；go test -count=1 ./...及独立verbose全量净。开盘全量正在实测，结果补入报告，旧报告6621不冒充本轮实测。测试函数数用git grep当前树核对。
+门槛：中文locale，gofmt -l cmd internal空；linux/windows/darwin go vet ./...与go build ./...净；go test -count=1 ./...及独立verbose全量净。开盘完整实测6621 PASS/0 FAIL、exit0，git grep HEAD核对3570个测试函数。
 
 Mutation M1：撤回第一批运行输入/开关的尺寸显现，TestFormViewportRunEditors/Toggle应因完整活动边越界变红。
 Mutation M2：撤回配置字段尺寸显现，TestFormViewportConfigFields应变红。每次保存源文件MD5，实红后逐字节还原、touch、count=1复验。

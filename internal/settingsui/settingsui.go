@@ -8005,7 +8005,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					}
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var picker ui.Element
-						outputFocusOutlet(c.Key("run-select-outlet"), func() {
+						a.formViewportOutlet(c.Key("run-select-outlet"), func() {
 							picker = a.segmentedControlKeyed(c, &index, param.Options, keys)
 							bindFocus(picker)
 						})
@@ -8056,7 +8056,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			// form keeps the user's in-progress edits — the reference's
 			// `runParamMemory`, session memory seeded only on a fresh open.
 			var cancel ui.Element
-			outputFocusOutlet(c.Key("run-cancel-outlet"), func() { cancel = a.actionButton(c, copy.RunCancel) })
+			a.formViewportOutlet(c.Key("run-cancel-outlet"), func() { cancel = a.actionButton(c, copy.RunCancel) })
 			if hadFieldFocus && !c.Resolve(*fieldFocus).Valid() {
 				cancel.Focus().ScrollIntoView()
 			}

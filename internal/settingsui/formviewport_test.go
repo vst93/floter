@@ -232,3 +232,6 @@ func TestFormViewportRunEditors(t *testing.T) {
 	}
 }
 func TestFormViewportRunToggle(t *testing.T) { checkFormViewport(t, "run-boolean") }
+
+func TestFormViewportRunSelect(t *testing.T) { checkFormViewport(t, "run-select") }
+func TestFormViewportRunCancel(t *testing.T) { checkFormViewport(t, "run-cancel") }
