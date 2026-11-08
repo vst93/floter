@@ -1,0 +1,4 @@
+error: patch failed: internal/theme/theme.go:615
+error: internal/theme/theme.go: patch does not apply
+error: patch failed: internal/settingsui/pluginsheet.go:3
+error: internal/settingsui/pluginsheet.go: patch does not apply

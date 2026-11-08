@@ -231,3 +231,6 @@ func TestCatalogReflowRunChoices(t *testing.T) {
 		t.Run(kind, func(t *testing.T) { checkCatalogReflow(t, "run-controls", kind) })
 	}
 }
+
+func TestCatalogReflowRunCancel(t *testing.T) { checkCatalogReflow(t, "run-controls", "cancel") }
+func TestCatalogReflowRunSubmit(t *testing.T) { checkCatalogReflow(t, "run-submit", "text") }

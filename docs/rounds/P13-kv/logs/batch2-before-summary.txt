@@ -1,0 +1,2 @@
+FAIL batch2-before    docs/rounds/P13-kv/logs/batch2-before.log | === RUN   TestCatalogReflowRunCancel === RUN   TestCatalogReflowRunCancel/approval === RUN   TestCatalogReflowRunCancel/approval/light 
+FOCUSED PASS=0 evidence=docs/rounds/P13-kv/logs/batch2-before.log

@@ -1,0 +1,30 @@
+=== RUN   TestCatalogReflowRunCancel
+=== RUN   TestCatalogReflowRunCancel/approval
+=== RUN   TestCatalogReflowRunCancel/approval/light
+=== RUN   TestCatalogReflowRunCancel/approval/dark
+=== RUN   TestCatalogReflowRunCancel/commands
+=== RUN   TestCatalogReflowRunCancel/commands/light
+=== RUN   TestCatalogReflowRunCancel/commands/dark
+--- PASS: TestCatalogReflowRunCancel (0.69s)
+    --- PASS: TestCatalogReflowRunCancel/approval (0.43s)
+        --- PASS: TestCatalogReflowRunCancel/approval/light (0.31s)
+        --- PASS: TestCatalogReflowRunCancel/approval/dark (0.13s)
+    --- PASS: TestCatalogReflowRunCancel/commands (0.26s)
+        --- PASS: TestCatalogReflowRunCancel/commands/light (0.14s)
+        --- PASS: TestCatalogReflowRunCancel/commands/dark (0.12s)
+=== RUN   TestCatalogReflowRunSubmit
+=== RUN   TestCatalogReflowRunSubmit/approval
+=== RUN   TestCatalogReflowRunSubmit/approval/light
+=== RUN   TestCatalogReflowRunSubmit/approval/dark
+=== RUN   TestCatalogReflowRunSubmit/commands
+=== RUN   TestCatalogReflowRunSubmit/commands/light
+=== RUN   TestCatalogReflowRunSubmit/commands/dark
+--- PASS: TestCatalogReflowRunSubmit (0.46s)
+    --- PASS: TestCatalogReflowRunSubmit/approval (0.24s)
+        --- PASS: TestCatalogReflowRunSubmit/approval/light (0.12s)
+        --- PASS: TestCatalogReflowRunSubmit/approval/dark (0.12s)
+    --- PASS: TestCatalogReflowRunSubmit/commands (0.23s)
+        --- PASS: TestCatalogReflowRunSubmit/commands/light (0.11s)
+        --- PASS: TestCatalogReflowRunSubmit/commands/dark (0.11s)
+PASS
+ok  	floter/internal/settingsui	1.163s

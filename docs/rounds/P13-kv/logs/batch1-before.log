@@ -1,0 +1,137 @@
+=== RUN   TestCatalogReflowRunEditors
+=== RUN   TestCatalogReflowRunEditors/text
+=== RUN   TestCatalogReflowRunEditors/text/approval
+=== RUN   TestCatalogReflowRunEditors/text/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:838.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/text/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:838.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/text/commands
+=== RUN   TestCatalogReflowRunEditors/text/commands/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/text/commands/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/number
+=== RUN   TestCatalogReflowRunEditors/number/approval
+=== RUN   TestCatalogReflowRunEditors/number/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:838.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/number/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:838.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/number/commands
+=== RUN   TestCatalogReflowRunEditors/number/commands/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/number/commands/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/path
+=== RUN   TestCatalogReflowRunEditors/path/approval
+=== RUN   TestCatalogReflowRunEditors/path/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:838.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/path/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:838.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/path/commands
+=== RUN   TestCatalogReflowRunEditors/path/commands/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunEditors/path/commands/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:650.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCatalogReflowRunEditors (0.70s)
+    --- FAIL: TestCatalogReflowRunEditors/text (0.33s)
+        --- FAIL: TestCatalogReflowRunEditors/text/approval (0.20s)
+            --- FAIL: TestCatalogReflowRunEditors/text/approval/light (0.15s)
+            --- FAIL: TestCatalogReflowRunEditors/text/approval/dark (0.05s)
+        --- FAIL: TestCatalogReflowRunEditors/text/commands (0.13s)
+            --- FAIL: TestCatalogReflowRunEditors/text/commands/light (0.07s)
+            --- FAIL: TestCatalogReflowRunEditors/text/commands/dark (0.06s)
+    --- FAIL: TestCatalogReflowRunEditors/number (0.19s)
+        --- FAIL: TestCatalogReflowRunEditors/number/approval (0.09s)
+            --- FAIL: TestCatalogReflowRunEditors/number/approval/light (0.05s)
+            --- FAIL: TestCatalogReflowRunEditors/number/approval/dark (0.05s)
+        --- FAIL: TestCatalogReflowRunEditors/number/commands (0.09s)
+            --- FAIL: TestCatalogReflowRunEditors/number/commands/light (0.05s)
+            --- FAIL: TestCatalogReflowRunEditors/number/commands/dark (0.05s)
+    --- FAIL: TestCatalogReflowRunEditors/path (0.18s)
+        --- FAIL: TestCatalogReflowRunEditors/path/approval (0.09s)
+            --- FAIL: TestCatalogReflowRunEditors/path/approval/light (0.05s)
+            --- FAIL: TestCatalogReflowRunEditors/path/approval/dark (0.05s)
+        --- FAIL: TestCatalogReflowRunEditors/path/commands (0.09s)
+            --- FAIL: TestCatalogReflowRunEditors/path/commands/light (0.05s)
+            --- FAIL: TestCatalogReflowRunEditors/path/commands/dark (0.05s)
+=== RUN   TestCatalogReflowRunChoices
+=== RUN   TestCatalogReflowRunChoices/boolean
+=== RUN   TestCatalogReflowRunChoices/boolean/approval
+=== RUN   TestCatalogReflowRunChoices/boolean/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:683.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:843.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:683.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunChoices/boolean/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:683.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:843.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:683.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunChoices/boolean/commands
+=== RUN   TestCatalogReflowRunChoices/boolean/commands/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:655.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:655.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:655.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunChoices/boolean/commands/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:655.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:655.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:655.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunChoices/select
+=== RUN   TestCatalogReflowRunChoices/select/approval
+=== RUN   TestCatalogReflowRunChoices/select/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:677.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:837.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:677.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunChoices/select/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:677.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:837.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:677.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunChoices/select/commands
+=== RUN   TestCatalogReflowRunChoices/select/commands/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:649.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:649.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:649.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunChoices/select/commands/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:649.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:649.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "北方": target={X:597.8 Y:649.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCatalogReflowRunChoices (0.39s)
+    --- FAIL: TestCatalogReflowRunChoices/boolean (0.18s)
+        --- FAIL: TestCatalogReflowRunChoices/boolean/approval (0.09s)
+            --- FAIL: TestCatalogReflowRunChoices/boolean/approval/light (0.05s)
+            --- FAIL: TestCatalogReflowRunChoices/boolean/approval/dark (0.05s)
+        --- FAIL: TestCatalogReflowRunChoices/boolean/commands (0.09s)
+            --- FAIL: TestCatalogReflowRunChoices/boolean/commands/light (0.05s)
+            --- FAIL: TestCatalogReflowRunChoices/boolean/commands/dark (0.04s)
+    --- FAIL: TestCatalogReflowRunChoices/select (0.20s)
+        --- FAIL: TestCatalogReflowRunChoices/select/approval (0.10s)
+            --- FAIL: TestCatalogReflowRunChoices/select/approval/light (0.05s)
+            --- FAIL: TestCatalogReflowRunChoices/select/approval/dark (0.05s)
+        --- FAIL: TestCatalogReflowRunChoices/select/commands (0.10s)
+            --- FAIL: TestCatalogReflowRunChoices/select/commands/light (0.05s)
+            --- FAIL: TestCatalogReflowRunChoices/select/commands/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	1.090s
+FAIL

@@ -1,0 +1,55 @@
+=== RUN   TestCatalogReflowRunCancel
+=== RUN   TestCatalogReflowRunCancel/approval
+=== RUN   TestCatalogReflowRunCancel/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:687.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:847.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:687.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunCancel/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:687.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:847.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:687.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunCancel/commands
+=== RUN   TestCatalogReflowRunCancel/commands/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunCancel/commands/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCatalogReflowRunCancel (1.39s)
+    --- FAIL: TestCatalogReflowRunCancel/approval (0.85s)
+        --- FAIL: TestCatalogReflowRunCancel/approval/light (0.57s)
+        --- FAIL: TestCatalogReflowRunCancel/approval/dark (0.28s)
+    --- FAIL: TestCatalogReflowRunCancel/commands (0.55s)
+        --- FAIL: TestCatalogReflowRunCancel/commands/light (0.27s)
+        --- FAIL: TestCatalogReflowRunCancel/commands/dark (0.28s)
+=== RUN   TestCatalogReflowRunSubmit
+=== RUN   TestCatalogReflowRunSubmit/approval
+=== RUN   TestCatalogReflowRunSubmit/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:687.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:847.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:687.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunSubmit/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:687.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:847.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:687.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunSubmit/commands
+=== RUN   TestCatalogReflowRunSubmit/commands/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowRunSubmit/commands/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:659.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCatalogReflowRunSubmit (1.14s)
+    --- FAIL: TestCatalogReflowRunSubmit/approval (0.60s)
+        --- FAIL: TestCatalogReflowRunSubmit/approval/light (0.27s)
+        --- FAIL: TestCatalogReflowRunSubmit/approval/dark (0.33s)
+    --- FAIL: TestCatalogReflowRunSubmit/commands (0.54s)
+        --- FAIL: TestCatalogReflowRunSubmit/commands/light (0.28s)
+        --- FAIL: TestCatalogReflowRunSubmit/commands/dark (0.26s)
+FAIL
+FAIL	floter/internal/settingsui	2.552s
+FAIL
