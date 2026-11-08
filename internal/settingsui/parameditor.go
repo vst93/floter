@@ -236,7 +236,9 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				})
 				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)
-					a.paramSelect(c, &kind, labels, copy.ParamsKind, paramKinds).Bind(&optionsFocus.source).Bind(&placeholderFocus.source)
+					outputFocusOutlet(c.Key("param-kind-outlet"), func() {
+						a.paramSelect(c, &kind, labels, copy.ParamsKind, paramKinds).Bind(&optionsFocus.source).Bind(&placeholderFocus.source)
+					})
 				})
 				// The reference hides the placeholder field for a boolean: its
 				// value is its flag, so a field hint means nothing.
@@ -260,7 +262,9 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		// start and the remove key at the end (`:1880`).
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 			Gap(t.Space(2)).Children(func() {
-			a.paramRequiredToggle(c, copy, &required)
+			outputFocusOutlet(c.Key("param-required-outlet"), func() {
+				a.paramRequiredToggle(c, copy, &required)
+			})
 			var remove ui.Element
 			outputFocusOutlet(c.Key("param-remove-outlet"), func() {
 				remove = a.paramIconButton(c, "close", copy.ParamsRemove)

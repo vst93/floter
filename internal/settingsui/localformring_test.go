@@ -28,13 +28,6 @@ func checkLocalFormRing(t *testing.T, name string) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			a := declarationVisibilityApp(t, dark, 5)
-			if name == "mode" || name == "choose" {
-				// Existing integrations can place the entire form below the
-				// first viewport; mode must work there as well as on an empty page.
-				a.Integrations = func() []Integration {
-					return []Integration{{ID: "clock", Name: "时间工具", Enabled: true, RuntimeAvailable: true}, {ID: "notes", Name: "便条工具", Enabled: true, RuntimeAvailable: true}}
-				}
-			}
 			copy := a.copy()
 			label := map[string]string{
 				"add": copy.ParamsAdd, "remove": copy.ParamsRemove,
@@ -47,7 +40,20 @@ func checkLocalFormRing(t *testing.T, name string) {
 			if name == "choose" {
 				a.Actions.ChooseProgram = func() (string, error) { calls++; return "/usr/bin/forecast", nil }
 			}
-			tt := toolVisibilityFrame(t, a, dark)
+			var modeBox ui.Rect
+			tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) {
+				modeBox = c.Resolve(a.contentFocus(c, "mode-program").source).Bounds()
+			})
+			if name == "mode" {
+				// A current input can be withdrawn while its owner is offscreen.
+				optionExitFocus(t, tt, copy.LocalToolProgram)
+				a.Body.Y = a.Body.MaxY
+				tt.Frame()
+				a.toolMode = routeScript
+				tt.Frame()
+				tt.Frame()
+				label = copy.LocalToolMode
+			}
 			for i := 0; i < 100 && !tt.Focused(label); i++ {
 				tt.Key(0, ui.KeyTab)
 				tt.Frame()
@@ -57,6 +63,9 @@ func checkLocalFormRing(t *testing.T, name string) {
 			}
 			localFormRingDump(t, tt, name, dark)
 			r := mustFind(t, tt, label)
+			if name == "mode" {
+				r = modeBox
+			}
 			if name == "kind" {
 				// The repeated field caption is not the select's box. Its
 				// current value is centered in the existing 30px control.
@@ -128,9 +137,10 @@ func checkLocalFormRing(t *testing.T, name string) {
 					t.Fatal("program picker lost result or keyboard outlet")
 				}
 			case "mode":
-				tt.Key(0, ui.KeyRight)
+				tt.Key(0, ui.KeyTab)
+				tt.Key(0, ui.KeySpace)
 				tt.Frame()
-				if a.toolMode != routeScript {
+				if a.toolMode != "" {
 					t.Fatal("mode keyboard choice failed")
 				}
 			case "output":
@@ -146,3 +156,6 @@ func checkLocalFormRing(t *testing.T, name string) {
 
 func TestLocalFormRingAdd(t *testing.T)    { checkLocalFormRing(t, "add") }
 func TestLocalFormRingRemove(t *testing.T) { checkLocalFormRing(t, "remove") }
+
+func TestLocalFormRingRequired(t *testing.T) { checkLocalFormRing(t, "required") }
+func TestLocalFormRingKind(t *testing.T)     { checkLocalFormRing(t, "kind") }

@@ -29,3 +29,12 @@
 相关 44 PASS/0 FAIL，定向 vet 净。M1 撤回两条接线，深浅分别实红 `add bottom ring missing at [689 521]: blue-red=0`、`remove bottom ring missing at [680 521]: blue-red=0`；MD5 还原、touch 后 6 PASS。旧 V/B/S 0/0/0。
 
 首轮像素夹具发现类型/高级标题与控件同名，Find 首个命中是标题，不能当控件；类型改读取当前值中心对应的30px框，不放宽阈值。初次高级探针不作正式证据。模式与选择器的首次Tab路径正常，不计修复，继续检查已存在的返回路径。
+
+### 第二批：必填与类型
+
+3. 必填：现象→14px复选格的焦点环下沿落到 y=521；改动→原复选控件包裹19px净空；验证→深浅上/下环均出现，Space只改第一条Required，其他记录不变，随后滚轮可离开。
+4. 类型：现象→30px下拉的下环在视口外；改动→只在类型控件进入焦点时显现原环；验证→读取真实选中值的中心光栅，深浅通过，Down/End/Enter选择原列表末项，原条件字段恢复测试继续通过。
+
+相关56 PASS/0 FAIL、vet净；旧V/B/S仍0/0/0。真实before失败分别为 `required bottom ring missing at [214 521]: blue-red=0`、`kind bottom ring missing at [552 521]: blue-red=0`。第一批已推送5f6caf89。
+
+中文全量开盘实测6389 PASS/0 FAIL/3495函数，exit0；C locale误跑结果不算基线。
