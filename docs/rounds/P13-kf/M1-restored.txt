@@ -1,0 +1,14 @@
+=== RUN   TestOutputRecoveryExpand
+=== RUN   TestOutputRecoveryExpand/light
+=== RUN   TestOutputRecoveryExpand/dark
+--- PASS: TestOutputRecoveryExpand (0.35s)
+    --- PASS: TestOutputRecoveryExpand/light (0.29s)
+    --- PASS: TestOutputRecoveryExpand/dark (0.05s)
+=== RUN   TestOutputRecoveryCollapse
+=== RUN   TestOutputRecoveryCollapse/light
+=== RUN   TestOutputRecoveryCollapse/dark
+--- PASS: TestOutputRecoveryCollapse (0.11s)
+    --- PASS: TestOutputRecoveryCollapse/light (0.05s)
+    --- PASS: TestOutputRecoveryCollapse/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.472s

@@ -1,0 +1,19 @@
+=== RUN   TestOutputRecoveryExpand
+=== RUN   TestOutputRecoveryExpand/light
+    outputrecovery_test.go:66: disclosure cannot reverse with keyboard
+=== RUN   TestOutputRecoveryExpand/dark
+    outputrecovery_test.go:66: disclosure cannot reverse with keyboard
+--- FAIL: TestOutputRecoveryExpand (0.29s)
+    --- FAIL: TestOutputRecoveryExpand/light (0.25s)
+    --- FAIL: TestOutputRecoveryExpand/dark (0.04s)
+=== RUN   TestOutputRecoveryCollapse
+=== RUN   TestOutputRecoveryCollapse/light
+    outputrecovery_test.go:62: run outlet outside viewport: label="查看输出" focused=false rect={X:195.8 Y:483 W:499 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=40.5
+=== RUN   TestOutputRecoveryCollapse/dark
+    outputrecovery_test.go:62: run outlet outside viewport: label="查看输出" focused=false rect={X:195.8 Y:483 W:499 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=40.5
+--- FAIL: TestOutputRecoveryCollapse (0.10s)
+    --- FAIL: TestOutputRecoveryCollapse/light (0.04s)
+    --- FAIL: TestOutputRecoveryCollapse/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.409s
+FAIL

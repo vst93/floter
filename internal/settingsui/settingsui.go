@@ -8223,7 +8223,13 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 							TextColor(tokens.TextTertiary)
 					}
 					ui.Row(c).Grow(1)
-					if a.extensionIconButton(c, "chevron-down", copy.RunHideOutput, false).Clicked() {
+					close := a.extensionIconButton(c, "chevron-down", copy.RunHideOutput, false)
+					focus := a.noticeFocus(c, integration.ID, "output")
+					close.Bind(&focus.confirm)
+					if focus.cancel.Focused(c) {
+						close.Focus().ScrollIntoView()
+					}
+					if close.Clicked() {
 						a.setRunOutputOpen(integration.ID, false)
 					}
 				})
@@ -8344,7 +8350,7 @@ func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
 	inset := a.rowInset(t)
 	ui.Column(c).FillWidth().Padding(0, inset, 0, inset).Children(func() {
 		ink := tokens.TextTertiary
-		button := ui.ButtonBase(c).Label(copy.RunViewOutput).FillWidth().
+		button := ui.ButtonBase(c.Key("run-output-toggle")).Label(copy.RunViewOutput).FillWidth().
 			MinHeight(t.Space(7)).Gap(t.Space(1)).Padding(0, t.Space(2)).
 			AlignItems(ui.Center).Justify(ui.Start).
 			Border(0, ui.Transparent).Radius(tokens.RadiusXS).
@@ -8385,6 +8391,11 @@ func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
 			ui.Icon(c, mustGlyph("chevron-right")).Size(t.Space(3), t.Space(3)).TextColor(ink)
 			ui.Text(c, copy.RunViewOutput).FontSize(tokens.Caption).TextColor(ink)
 		})
+		focus := a.noticeFocus(c, id, "output")
+		button.Bind(&focus.cancel)
+		if focus.confirm.Focused(c) {
+			button.Focus().ScrollIntoView()
+		}
 		if button.Clicked() {
 			a.setRunOutputOpen(id, true)
 		}
