@@ -5942,7 +5942,10 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					for i, platform := range customPlatforms {
 						i, platform := i, platform
 						checked := ticked[i]
-						choice := ui.Checkbox(c, &checked, platform.Label)
+						var choice ui.Element
+						outputFocusOutlet(c.Key(platform.ID), func() {
+							choice = ui.Checkbox(c, &checked, platform.Label)
+						})
 						if i == 0 {
 							choice.Bind(&a.contentFocus(c, "platforms").source)
 						}
@@ -5970,7 +5973,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// open the section and edit them.
 			var advanced ui.Element
 			opened := a.row(c.Key("local-advanced"), copy.LocalToolAdvanced, copy.LocalToolAdvancedPermissions, func() {
-				advanced = a.actionButton(c, copy.LocalToolAdvanced)
+				outputFocusOutlet(c.Key("local-advanced-outlet"), func() {
+					advanced = a.actionButton(c, copy.LocalToolAdvanced)
+				})
 				if advanced.Clicked() {
 					a.toolAdvanced = !a.toolAdvanced
 				}

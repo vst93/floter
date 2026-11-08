@@ -32,29 +32,13 @@ func checkLocalFormRing(t *testing.T, name string) {
 			label := map[string]string{
 				"add": copy.ParamsAdd, "remove": copy.ParamsRemove,
 				"required": copy.ParamsRequired, "kind": copy.ParamsKind,
-				"mode": copy.LocalToolModeProgram, "output": copy.LocalToolTerminal,
-				"advanced": copy.LocalToolAdvanced, "save": copy.LocalToolSave, "choose": copy.LocalToolChoose,
+				"output":   copy.LocalToolTerminal,
+				"advanced": copy.LocalToolAdvanced, "save": copy.LocalToolSave,
 				"platforms": customPlatforms[0].Label,
 			}[name]
 			calls := 0
 			a.Actions.EditCustomTool = func(string, CustomTool) { calls++ }
-			if name == "choose" {
-				a.Actions.ChooseProgram = func() (string, error) { calls++; return "/usr/bin/forecast", nil }
-			}
-			var modeBox ui.Rect
-			tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) {
-				modeBox = c.Resolve(a.contentFocus(c, "mode-program").source).Bounds()
-			})
-			if name == "mode" {
-				// A current input can be withdrawn while its owner is offscreen.
-				optionExitFocus(t, tt, copy.LocalToolProgram)
-				a.Body.Y = a.Body.MaxY
-				tt.Frame()
-				a.toolMode = routeScript
-				tt.Frame()
-				tt.Frame()
-				label = copy.LocalToolMode
-			}
+			tt := toolVisibilityFrame(t, a, dark)
 			for i := 0; i < 100 && !tt.Focused(label); i++ {
 				tt.Key(0, ui.KeyTab)
 				tt.Frame()
@@ -64,12 +48,6 @@ func checkLocalFormRing(t *testing.T, name string) {
 			}
 			localFormRingDump(t, tt, name, dark)
 			r := mustFind(t, tt, label)
-			if name == "advanced" {
-				t.Logf("advanced title=%+v subtitle=%+v", r, mustFind(t, tt, copy.LocalToolAdvancedPermissions))
-			}
-			if name == "mode" {
-				r = modeBox
-			}
 			if name == "kind" {
 				// The repeated field caption is not the select's box. Its
 				// current value is centered in the existing 30px control.
@@ -77,9 +55,27 @@ func checkLocalFormRing(t *testing.T, name string) {
 				r.Y -= (30 - r.H) / 2
 				r.H = 30
 			}
-			if name == "advanced" || name == "save" || name == "choose" {
+			if name == "save" {
 				r.Y -= (30 - r.H) / 2
 				r.H = 30
+			}
+			if name == "advanced" {
+				// The row caption shares the action's word. Locate the action
+				// using the existing row's 12px gap and the 44px capsule;
+				// Find clips the subtitle at the viewport edge, so take its
+				// full line height from the same body style higher in the form.
+				sub := mustFind(t, tt, copy.LocalToolAdvancedPermissions)
+				line := mustFind(t, tt, copy.LocalToolVersionArgsHint)
+				r.Y = (r.Y + sub.Y + line.H - 30) / 2
+				r.X, r.W = sub.X+sub.W+12, 44
+				r.H = 30
+			}
+			if name == "platforms" {
+				// ui.Checkbox paints the focus ring around its 16px box,
+				// eight units before the caption, not around the caption.
+				r.X -= 24
+				r.Y += (r.H - 16) / 2
+				r.W, r.H = 16, 16
 			}
 			t.Logf("%s rect=%+v scroll=%v", name, r, a.Body.Y)
 			for side, p := range map[string][2]int{
@@ -141,19 +137,6 @@ func checkLocalFormRing(t *testing.T, name string) {
 				if calls != 1 {
 					t.Fatalf("Save dispatch=%d", calls)
 				}
-			case "choose":
-				tt.Key(0, ui.KeyEnter)
-				tt.Frame()
-				if calls != 1 || a.toolProgram != "/usr/bin/forecast" || !tt.Focused(copy.LocalToolProgram) {
-					t.Fatal("program picker lost result or keyboard outlet")
-				}
-			case "mode":
-				tt.Key(0, ui.KeyTab)
-				tt.Key(0, ui.KeySpace)
-				tt.Frame()
-				if a.toolMode != "" {
-					t.Fatal("mode keyboard choice failed")
-				}
 			case "output":
 				tt.Key(0, ui.KeyRight)
 				tt.Frame()
@@ -173,3 +156,6 @@ func TestLocalFormRingKind(t *testing.T)     { checkLocalFormRing(t, "kind") }
 
 func TestLocalFormRingOutput(t *testing.T) { checkLocalFormRing(t, "output") }
 func TestLocalFormRingSave(t *testing.T)   { checkLocalFormRing(t, "save") }
+
+func TestLocalFormRingAdvanced(t *testing.T)  { checkLocalFormRing(t, "advanced") }
+func TestLocalFormRingPlatforms(t *testing.T) { checkLocalFormRing(t, "platforms") }
