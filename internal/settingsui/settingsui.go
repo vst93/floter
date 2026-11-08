@@ -6012,24 +6012,24 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				// validation while the user is editing another field.
 				switch issues[0].Field {
 				case extensions.CustomFieldName:
-						c.Resolve(a.contentFocus(c, "name").source).Focus().ScrollIntoView()
+					c.Resolve(a.contentFocus(c, "name").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldCommand:
-						c.Resolve(a.contentFocus(c, "command").source).Focus().ScrollIntoView()
+					c.Resolve(a.contentFocus(c, "command").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldVersion:
-						c.Resolve(a.contentFocus(c, "version").source).Focus().ScrollIntoView()
+					c.Resolve(a.contentFocus(c, "version").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldScript:
-						c.Resolve(a.contentFocus(c, "script").source).Focus().ScrollIntoView()
+					c.Resolve(a.contentFocus(c, "script").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldPlatforms:
-						c.Resolve(a.contentFocus(c, "platforms").source).Focus().ScrollIntoView()
+					c.Resolve(a.contentFocus(c, "platforms").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldMode, extensions.CustomFieldLanguage:
-						c.Resolve(a.contentFocus(c, "mode-program").source).Focus().ScrollIntoView()
+					c.Resolve(a.contentFocus(c, "mode-program").source).Focus().ScrollIntoView()
 				}
 				return
 			}
 			// The program row has no localization key of its own: it refuses
 			// silently, the same way the old form disabled its submit button.
 			if tool.Mode != routeScript && tool.Program == "" {
-					c.Resolve(a.contentFocus(c, "plan").source).Focus().ScrollIntoView()
+				c.Resolve(a.contentFocus(c, "plan").source).Focus().ScrollIntoView()
 				return
 			}
 			// A missing toolchain does not block the save — the user may install

@@ -15,7 +15,7 @@
 | 5 脚本 | settingsui.go:6016 | 只 Focus → 露出代码编辑器 |
 | 6 平台 | settingsui.go:6018 | 只 Focus → 拒绝时最小滚动露出平台 |
 | 7 参数声明 | parameditor.go:87 | Focus 无 reveal → 当前错误行的 ID/选项/flag/default 露出 |
-| 8 权限折叠 | settingsui.go:5962/6389 | 条件分支卸载 switch → 仅退还被卸载焦点到高级入口 |
+| 8 权限折叠 | settingsui.go:5962/6389 | 点击高级行文字收起switch后无键盘出口 → 该行文字路径聚焦原披露按钮 |
 
 以上先由真实 ui.Tester 事件复现，未成立不计修复。六基本字段跨输入/代码/平台组件，另外覆盖参数声明及权限组件。高度链、键盘遍历规则、会话管理、保存写回、3 秒窗口、i18n、命令接线均不改。mode/language 同源目标若确实可达，一并补齐但不额外计数。
 
@@ -23,7 +23,7 @@
 
 720×520 完整设置页（必要时同表单的独立可滚动夹具）点击真实提交，检查目标焦点和完整可见矩形、直接键入修复、再提交一次。自动定位一次后滚轮仍自由。深浅 before/after PNG 导出 /tmp/floter-P13-kb-* 并入仓。权限折叠检查保留声明与 Space 重开。
 
-开盘全量基线正在实跑；以报告实际结果为准。每 1–2 项定向测试及 vet 通过后 commit/push。最终一组：gofmt -l cmd internal（空）；linux/windows/darwin go vet ./...、go build ./...；普通和 verbose go test -count=1 ./...。中文 locale，GOMAXPROCS=4。旧 V/B/S 断言零改，函数数量不减少，不新增 Skip。
+开盘实测基线6161 PASS / 0 FAIL / exit0、3441函数。每 1–2 项定向测试及 vet 通过后 commit/push。最终一组：gofmt -l cmd internal（空）；linux/windows/darwin go vet ./...、go build ./...；普通和 verbose go test -count=1 ./...。中文 locale，GOMAXPROCS=4。旧 V/B/S 断言零改，函数数量不减少，不新增 Skip。
 
 M1 名称/命令、M2 版本/程序、M3 脚本/平台、M4 参数/折叠：分别撤回产品修复，看到目标可见性或键盘出口断言实红，MD5 逐字节恢复，touch 后复跑。原始日志入仓。
 

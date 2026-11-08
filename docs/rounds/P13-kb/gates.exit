@@ -1,0 +1,10 @@
+gofmt 1
+linux-vet 0
+linux-build 0
+windows-vet 0
+windows-build 0
+darwin-vet 0
+darwin-build 0
+gofmt-restored 0
+full-test 0
+full-verbose 0

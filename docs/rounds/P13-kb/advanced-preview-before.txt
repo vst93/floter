@@ -1,0 +1,11 @@
+=== RUN   TestKBAdvancedKeyboardCapture
+=== RUN   TestKBAdvancedKeyboardCapture/light
+    kbpreview_test.go:27: Space did not reopen existing permissions
+=== RUN   TestKBAdvancedKeyboardCapture/dark
+    kbpreview_test.go:27: Space did not reopen existing permissions
+--- FAIL: TestKBAdvancedKeyboardCapture (0.74s)
+    --- FAIL: TestKBAdvancedKeyboardCapture/light (0.52s)
+    --- FAIL: TestKBAdvancedKeyboardCapture/dark (0.22s)
+FAIL
+FAIL	floter/internal/settingsui	0.755s
+FAIL

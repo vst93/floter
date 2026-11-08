@@ -1,0 +1,354 @@
+[
+  {
+    "name": "advanced-collapse-dark",
+    "changed_pixels": 0,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "advanced-collapse-light",
+    "changed_pixels": 0,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "advanced-reopen-dark",
+    "changed_pixels": 249479,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "advanced-reopen-light",
+    "changed_pixels": 249478,
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "command-connect-dark",
+    "changed_pixels": 191872,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "command-connect-light",
+    "changed_pixels": 191794,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "command-edit-dark",
+    "changed_pixels": 191817,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "command-edit-light",
+    "changed_pixels": 191741,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "name-connect-dark",
+    "changed_pixels": 189097,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "name-connect-light",
+    "changed_pixels": 189096,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "name-edit-dark",
+    "changed_pixels": 189031,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "name-edit-light",
+    "changed_pixels": 189031,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-badflag-dark",
+    "changed_pixels": 115721,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-badflag-light",
+    "changed_pixels": 115321,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-boolean-dark",
+    "changed_pixels": 115913,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-boolean-light",
+    "changed_pixels": 115513,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-duplicate-dark",
+    "changed_pixels": 125550,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-duplicate-light",
+    "changed_pixels": 125149,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-flag-dark",
+    "changed_pixels": 115887,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-flag-light",
+    "changed_pixels": 115487,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-id-dark",
+    "changed_pixels": 125736,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-id-light",
+    "changed_pixels": 125335,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-number-dark",
+    "changed_pixels": 115534,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-number-light",
+    "changed_pixels": 115134,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-options-dark",
+    "changed_pixels": 122551,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-options-light",
+    "changed_pixels": 122151,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-select-dark",
+    "changed_pixels": 146924,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "parameter-select-light",
+    "changed_pixels": 146922,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "platform-connect-dark",
+    "changed_pixels": 153621,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "platform-connect-light",
+    "changed_pixels": 153617,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "platform-edit-dark",
+    "changed_pixels": 153575,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "platform-edit-light",
+    "changed_pixels": 153572,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "program-connect-dark",
+    "changed_pixels": 207979,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "program-connect-light",
+    "changed_pixels": 207990,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "program-edit-dark",
+    "changed_pixels": 207949,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "program-edit-light",
+    "changed_pixels": 207962,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "script-connect-dark",
+    "changed_pixels": 148960,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "script-connect-light",
+    "changed_pixels": 148810,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "script-edit-dark",
+    "changed_pixels": 148910,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "script-edit-light",
+    "changed_pixels": 148760,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "version-connect-dark",
+    "changed_pixels": 181218,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "version-connect-light",
+    "changed_pixels": 181207,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "version-edit-dark",
+    "changed_pixels": 181301,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "name": "version-edit-light",
+    "changed_pixels": 181293,
+    "size": [
+      720,
+      520
+    ]
+  }
+]

@@ -1,0 +1,8 @@
+=== RUN   TestKBAdvancedKeyboardCapture
+=== RUN   TestKBAdvancedKeyboardCapture/light
+=== RUN   TestKBAdvancedKeyboardCapture/dark
+--- PASS: TestKBAdvancedKeyboardCapture (0.83s)
+    --- PASS: TestKBAdvancedKeyboardCapture/light (0.59s)
+    --- PASS: TestKBAdvancedKeyboardCapture/dark (0.24s)
+PASS
+ok  	floter/internal/settingsui	0.843s

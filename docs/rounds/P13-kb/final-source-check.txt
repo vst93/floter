@@ -1,0 +1,2 @@
+internal/settingsui/settingsui.go: OK
+internal/settingsui/parameditor.go: OK

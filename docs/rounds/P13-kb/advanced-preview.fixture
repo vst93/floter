@@ -1,0 +1,30 @@
+package settingsui
+
+import (
+ "testing"
+ "floter/internal/extensions"
+ "floter/internal/i18n"
+ "github.com/egoist/mygo/ui"
+)
+
+// This overlay-only capture does not alter the repository test census.
+func TestKBAdvancedKeyboardCapture(t *testing.T) {
+ for _, dark := range []bool{false,true} {
+  t.Run(appearanceName(dark),func(t *testing.T) {
+   a:=copyLifecycleApp(t,dark)
+   a.beginEdit("",callbackTool("weather"))
+   a.toolAdvanced=true
+   tt:=toolRecoveryFrame(t,a,dark)
+   label:=i18n.PermissionLabel("zh",extensions.AllPermissions[0])
+   optionExitFocus(t,tt,label)
+   tt.Key(0,ui.KeySpace)
+   b:=mustFind(t,tt,a.copy().LocalToolAdvanced)
+   tt.ClickAt(45,b.Y+b.H/2)
+   tt.Frame()
+   tt.Key(0,ui.KeySpace)
+   tt.Frame()
+   toolVisibilityDump(t,tt,"advanced-reopen",dark)
+   if !a.toolAdvanced {t.Error("Space did not reopen existing permissions")}
+  })
+ }
+}
