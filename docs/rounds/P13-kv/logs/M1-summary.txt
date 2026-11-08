@@ -1,0 +1,4 @@
+FAIL M1-red           docs/rounds/P13-kv/logs/M1-red.log | === RUN   TestCatalogReflowRunEditors === RUN   TestCatalogReflowRunEditors/text === RUN   TestCatalogReflowRunEditors/text/approval 
+FOCUSED PASS=0 evidence=docs/rounds/P13-kv/logs/M1-red.log
+PASS M1-restored      docs/rounds/P13-kv/logs/M1-restored.log
+FOCUSED PASS=37 evidence=docs/rounds/P13-kv/logs/M1-restored.log

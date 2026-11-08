@@ -3643,6 +3643,21 @@ func (a *App) permissionFeedback(integration Integration) string {
 	return fmt.Sprintf("%t:%#v:%#v", a.auditOpen[integration.ID], integration.Permissions, integration.Enforced)
 }
 
+// The approval block precedes both forms. Compare its displayed contents,
+// including in-place record updates, rather than the record's address.
+func approvalFeedback(integration Integration) string {
+	if integration.Orphan {
+		return ""
+	}
+	return fmt.Sprintf("%#v", integration.Approval)
+}
+
+// Only declared commands appear above the run form. Synthesized editor
+// commands must not reclaim a user's scroll when the visible list is stable.
+func catalogFeedback(integration Integration) string {
+	return approvalFeedback(integration) + fmt.Sprintf("%#v", declaredCommands(integration.Commands))
+}
+
 // permissionAudit draws the per-permission explanation under a row: what each
 // permission allows, and whether the host itself decides it. The list is folded
 // away until the user asks for it, so a row stays a row.
@@ -8010,7 +8025,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					on := truthyValue(values[param.ID])
 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var sw ui.Element
-						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback+healthFeedback+a.permissionFeedback(integration), func() {
+						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() {
 							sw = a.switchControl(c, &on).Label(label)
 							bindFocus(sw)
 						})
@@ -8039,7 +8054,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					}
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var picker ui.Element
-						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback+healthFeedback+a.permissionFeedback(integration), func() {
+						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() {
 							picker = a.segmentedControlKeyed(c, &index, param.Options, keys)
 							bindFocus(picker)
 						})
@@ -8061,7 +8076,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 								lockedControl(input.TextColor(a.tokens(c).Disabled))
 							}
 						}
-						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback+healthFeedback+a.permissionFeedback(integration), draw)
+						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), draw)
 					}, below...)
 					if !locked {
 						values[param.ID] = value
