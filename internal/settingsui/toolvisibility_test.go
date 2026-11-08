@@ -140,7 +140,9 @@ func checkToolRefusalVisibility(t *testing.T, field string) {
 	}
 }
 
-func TestToolRefusalVisibilityName(t *testing.T)    { checkToolRefusalVisibility(t, "name") }
-func TestToolRefusalVisibilityCommand(t *testing.T) { checkToolRefusalVisibility(t, "command") }
-func TestToolRefusalVisibilityVersion(t *testing.T) { checkToolRefusalVisibility(t, "version") }
-func TestToolRefusalVisibilityProgram(t *testing.T) { checkToolRefusalVisibility(t, "program") }
+func TestToolRefusalVisibilityName(t *testing.T)     { checkToolRefusalVisibility(t, "name") }
+func TestToolRefusalVisibilityCommand(t *testing.T)  { checkToolRefusalVisibility(t, "command") }
+func TestToolRefusalVisibilityVersion(t *testing.T)  { checkToolRefusalVisibility(t, "version") }
+func TestToolRefusalVisibilityProgram(t *testing.T)  { checkToolRefusalVisibility(t, "program") }
+func TestToolRefusalVisibilityScript(t *testing.T)   { checkToolRefusalVisibility(t, "script") }
+func TestToolRefusalVisibilityPlatform(t *testing.T) { checkToolRefusalVisibility(t, "platform") }
