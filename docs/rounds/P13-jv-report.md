@@ -29,3 +29,21 @@
 旧V/B/S断言0/0/0，新Skip0。定向test/vet通过后立即提交推送，计数见提交正文。
 
 第一批过程偏差：84825694在定向测试exit1后被错误继续提交推送，正文中的vet净不成立（test失败后vet未执行）。新增两项测试通过，但旧PendingOutletRepairOrphan/ToggleOrphan断言抓到“已安装→孤包”转换后的旧行忙态阻断新出口。补修将孤包门控限定为孤包自身操作，使用既有disabledActionButton熄灭冠线；新夹具改为真正的孤包等待态。旧B断言不改。后续提交命令由同一shell的test && vet && commit && push严格串联。
+
+72ac1237补修已推送，相关57 PASS、settingsui/shell vet净。开盘完整基线5950 PASS/0 FAIL，3385测试函数。
+
+## 第二批：权限回答的声明归属
+
+3. 现象：权限窗口等待时manifest新增clipboard-read，旧回答仍登记并批准新权限。改动：仅PrepareAdopt产物在Commit复核当前manifest摘要。验证：实际接管Click→权限门控→磁盘修改→回答，仓库字节不变、无成功/失败旧通知、原行可重试。M2原始红串 `obsolete permissions adoption rewrote current repository`。
+4. 现象：package.json转向新的current.json，旧回答仍接管旧声明。改动：复核当前解析路径、包名与版本。验证：同样真实事件中保留当前包和仓库，不派发过期结果，接管入口恢复。M2红串 `obsolete package adoption rewrote current repository`。
+
+事件夹具最初点到推荐工具的同名接管按钮，失败 `orphan click dispatched to ""` 不算产品证据；移除夹具推荐区后才进行有效before/after。M2正式注入保护缺失后两场景深浅实红，MD5还原并touch后6 PASS；扩展审批回归和vet净。
+
+M2第一次夹具运行时不可用，只复现过期失败通知，脚本因未观察到写盘红串拒收；将fixture runtime名称设为真实测试程序路径后重跑，不改产品语义或断言。
+
+## 第三批：孤包身份刷新
+
+5. 现象：权限确认期间另一来源登记了同ID，旧接管仍能重写其记录。改动：仅接管Commit再次核对当前仓库中确实无该ID。验证：当前disabled记录逐字节保留，结束后显示已安装行，无旧接管通知。
+6. 现象：权限确认期间包目录消失，旧回答报安装失败且孤包卡仍在。改动：提交前复核目录存在，ErrNoOrphan作为失效问题退出并刷新列表。验证：深浅目标行消失、仓库不改、旧失败通知0条。
+
+真实Click→确认门控→磁盘变化→答案返回；第三批红串、MD5还原、touch复验见M3原始日志。普通安装重复ID规则未变。

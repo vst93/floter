@@ -1004,6 +1004,10 @@ func New(opts Options) *App {
 					approved = a.confirmInstallPermissions(prepared.Approval)
 				}
 				entry, err := prepared.Commit(approved)
+				if errors.Is(err, extensions.ErrAdoptChanged) || errors.Is(err, extensions.ErrNotOrphan) || errors.Is(err, extensions.ErrNoOrphan) {
+					a.RefreshIntegrations(context.Background())
+					return
+				}
 				if err != nil {
 					log.Printf("floter: could not adopt %s: %v", id, err)
 					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })

@@ -47,6 +47,9 @@ type Prepared struct {
 	paths   Paths
 	spec    installSpec
 	cleanup func()
+	// adopting narrows Commit to the orphan and declaration that was reviewed;
+	// ordinary installs keep their existing replacement semantics.
+	adopting bool
 	// Manifest is the package's manifest.
 	Manifest Manifest
 	// Approval is what the user must approve (its Added list is empty when
@@ -195,6 +198,19 @@ func (p Prepared) Name() string { return p.Manifest.Name }
 func (p Prepared) Commit(approved bool) (Entry, error) {
 	if p.cleanup != nil {
 		defer p.cleanup()
+	}
+	if p.adopting {
+		if _, err := orphanDir(p.paths, p.Manifest.ID); err != nil {
+			return Entry{}, err
+		}
+		current, err := PrepareLocal(p.paths, p.spec.PackageDir)
+		if err != nil {
+			return Entry{}, err
+		}
+		if current.Digest != p.Digest || current.spec.ManifestPath != p.spec.ManifestPath ||
+			current.spec.PackageName != p.spec.PackageName || current.spec.Version != p.spec.Version {
+			return Entry{}, ErrAdoptChanged
+		}
 	}
 	spec := p.spec
 	spec.Approved = approved
