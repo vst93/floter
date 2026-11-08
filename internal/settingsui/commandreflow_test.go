@@ -15,6 +15,9 @@ import (
 func TestCommandAliasApprovalReflow(t *testing.T)  { checkCommandReflow(t, "alias", "approval") }
 func TestCommandSwitchApprovalReflow(t *testing.T) { checkCommandReflow(t, "switch", "approval") }
 
+func TestCommandAliasPermissionReflow(t *testing.T)  { checkCommandReflow(t, "alias", "permissions") }
+func TestCommandSwitchPermissionReflow(t *testing.T) { checkCommandReflow(t, "switch", "permissions") }
+
 func checkCommandReflow(t *testing.T, control, source string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {

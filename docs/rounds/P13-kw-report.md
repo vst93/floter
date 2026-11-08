@@ -14,3 +14,6 @@ Codex独立执行。统一入口已存在，复用；开盘12af1657，pull同步
 
 5. 审批记录插入/原位更新/移除挤走别名输入 → 传递已有approvalFeedback内容标记 → 四次变化后焦点和草稿保持，单次原ID写回。
 6. 审批记录变化挤走启用开关 → 同一标记接入身份行显现 → 四次变化后Space切换原命令；同值换指针不夺滚动。两项原红均为`feedback reflow hides active outlet`，本批6 PASS。
+
+7. 展开权限清单增长/收缩后别名输入离开视口 → 接入已有permissionFeedback → 深浅四次清单切换后继续保留草稿与原ID写回。
+8. 展开权限清单变化后启用开关离开视口 → 身份行观察同一权限布局 → 深浅四次切换后可见、Space派发一次。原红同为`feedback reflow hides active outlet`；八项累计24 PASS。
