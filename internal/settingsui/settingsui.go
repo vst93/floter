@@ -5887,10 +5887,14 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			})
 			if mode != routeScript {
 				a.row(c, copy.LocalToolArgs, copy.LocalToolArgsHint, func() {
-					a.rememberModeContent(c, false, a.extensionField(c, &args, customFieldMetrics).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter"))
+					outputFocusOutlet(c.Key("local-args-outlet"), func() {
+						a.rememberModeContent(c, false, a.extensionField(c, &args, customFieldMetrics).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter"))
+					})
 				})
 				a.row(c, copy.LocalToolVersionArgs, copy.LocalToolVersionArgsHint, func() {
-					a.rememberModeContent(c, false, a.extensionField(c, &versionArgs, customFieldMetrics).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version"))
+					outputFocusOutlet(c.Key("local-versionargs-outlet"), func() {
+						a.rememberModeContent(c, false, a.extensionField(c, &versionArgs, customFieldMetrics).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version"))
+					})
 				})
 			}
 			a.row(c.Key("local-version"), copy.LocalToolVersion, copy.LocalToolVersionHint, func() {

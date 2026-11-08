@@ -137,3 +137,6 @@ func checkToolFieldEdge(t *testing.T, name string) {
 
 func TestToolFieldEdgeName(t *testing.T)    { checkToolFieldEdge(t, "name") }
 func TestToolFieldEdgeProgram(t *testing.T) { checkToolFieldEdge(t, "program") }
+
+func TestToolFieldEdgeArgs(t *testing.T)        { checkToolFieldEdge(t, "args") }
+func TestToolFieldEdgeVersionArgs(t *testing.T) { checkToolFieldEdge(t, "versionargs") }
