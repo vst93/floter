@@ -1,0 +1,86 @@
+=== RUN   TestLeadReflowConfigTransfers
+=== RUN   TestLeadReflowConfigTransfers/copy
+=== RUN   TestLeadReflowConfigTransfers/copy/local
+=== RUN   TestLeadReflowConfigTransfers/copy/local/light
+=== RUN   TestLeadReflowConfigTransfers/copy/local/dark
+=== RUN   TestLeadReflowConfigTransfers/copy/recommended
+=== RUN   TestLeadReflowConfigTransfers/copy/recommended/light
+=== RUN   TestLeadReflowConfigTransfers/copy/recommended/dark
+=== RUN   TestLeadReflowConfigTransfers/copy/detected
+=== RUN   TestLeadReflowConfigTransfers/copy/detected/light
+=== RUN   TestLeadReflowConfigTransfers/copy/detected/dark
+=== RUN   TestLeadReflowConfigTransfers/export
+=== RUN   TestLeadReflowConfigTransfers/export/local
+=== RUN   TestLeadReflowConfigTransfers/export/local/light
+=== RUN   TestLeadReflowConfigTransfers/export/local/dark
+=== RUN   TestLeadReflowConfigTransfers/export/recommended
+=== RUN   TestLeadReflowConfigTransfers/export/recommended/light
+=== RUN   TestLeadReflowConfigTransfers/export/recommended/dark
+=== RUN   TestLeadReflowConfigTransfers/export/detected
+=== RUN   TestLeadReflowConfigTransfers/export/detected/light
+=== RUN   TestLeadReflowConfigTransfers/export/detected/dark
+--- PASS: TestLeadReflowConfigTransfers (0.70s)
+    --- PASS: TestLeadReflowConfigTransfers/copy (0.43s)
+        --- PASS: TestLeadReflowConfigTransfers/copy/local (0.23s)
+            --- PASS: TestLeadReflowConfigTransfers/copy/local/light (0.17s)
+            --- PASS: TestLeadReflowConfigTransfers/copy/local/dark (0.06s)
+        --- PASS: TestLeadReflowConfigTransfers/copy/recommended (0.11s)
+            --- PASS: TestLeadReflowConfigTransfers/copy/recommended/light (0.06s)
+            --- PASS: TestLeadReflowConfigTransfers/copy/recommended/dark (0.05s)
+        --- PASS: TestLeadReflowConfigTransfers/copy/detected (0.10s)
+            --- PASS: TestLeadReflowConfigTransfers/copy/detected/light (0.05s)
+            --- PASS: TestLeadReflowConfigTransfers/copy/detected/dark (0.05s)
+    --- PASS: TestLeadReflowConfigTransfers/export (0.27s)
+        --- PASS: TestLeadReflowConfigTransfers/export/local (0.09s)
+            --- PASS: TestLeadReflowConfigTransfers/export/local/light (0.05s)
+            --- PASS: TestLeadReflowConfigTransfers/export/local/dark (0.05s)
+        --- PASS: TestLeadReflowConfigTransfers/export/recommended (0.09s)
+            --- PASS: TestLeadReflowConfigTransfers/export/recommended/light (0.04s)
+            --- PASS: TestLeadReflowConfigTransfers/export/recommended/dark (0.05s)
+        --- PASS: TestLeadReflowConfigTransfers/export/detected (0.09s)
+            --- PASS: TestLeadReflowConfigTransfers/export/detected/light (0.04s)
+            --- PASS: TestLeadReflowConfigTransfers/export/detected/dark (0.04s)
+=== RUN   TestLeadReflowConfigOpen
+=== RUN   TestLeadReflowConfigOpen/config-open
+=== RUN   TestLeadReflowConfigOpen/config-open/local
+=== RUN   TestLeadReflowConfigOpen/config-open/local/light
+=== RUN   TestLeadReflowConfigOpen/config-open/local/dark
+=== RUN   TestLeadReflowConfigOpen/config-open/recommended
+=== RUN   TestLeadReflowConfigOpen/config-open/recommended/light
+=== RUN   TestLeadReflowConfigOpen/config-open/recommended/dark
+=== RUN   TestLeadReflowConfigOpen/config-open/detected
+=== RUN   TestLeadReflowConfigOpen/config-open/detected/light
+=== RUN   TestLeadReflowConfigOpen/config-open/detected/dark
+=== RUN   TestLeadReflowConfigOpen/tool-open
+=== RUN   TestLeadReflowConfigOpen/tool-open/local
+=== RUN   TestLeadReflowConfigOpen/tool-open/local/light
+=== RUN   TestLeadReflowConfigOpen/tool-open/local/dark
+=== RUN   TestLeadReflowConfigOpen/tool-open/recommended
+=== RUN   TestLeadReflowConfigOpen/tool-open/recommended/light
+=== RUN   TestLeadReflowConfigOpen/tool-open/recommended/dark
+=== RUN   TestLeadReflowConfigOpen/tool-open/detected
+=== RUN   TestLeadReflowConfigOpen/tool-open/detected/light
+=== RUN   TestLeadReflowConfigOpen/tool-open/detected/dark
+--- PASS: TestLeadReflowConfigOpen (0.44s)
+    --- PASS: TestLeadReflowConfigOpen/config-open (0.23s)
+        --- PASS: TestLeadReflowConfigOpen/config-open/local (0.07s)
+            --- PASS: TestLeadReflowConfigOpen/config-open/local/light (0.04s)
+            --- PASS: TestLeadReflowConfigOpen/config-open/local/dark (0.04s)
+        --- PASS: TestLeadReflowConfigOpen/config-open/recommended (0.07s)
+            --- PASS: TestLeadReflowConfigOpen/config-open/recommended/light (0.04s)
+            --- PASS: TestLeadReflowConfigOpen/config-open/recommended/dark (0.04s)
+        --- PASS: TestLeadReflowConfigOpen/config-open/detected (0.09s)
+            --- PASS: TestLeadReflowConfigOpen/config-open/detected/light (0.05s)
+            --- PASS: TestLeadReflowConfigOpen/config-open/detected/dark (0.04s)
+    --- PASS: TestLeadReflowConfigOpen/tool-open (0.20s)
+        --- PASS: TestLeadReflowConfigOpen/tool-open/local (0.07s)
+            --- PASS: TestLeadReflowConfigOpen/tool-open/local/light (0.04s)
+            --- PASS: TestLeadReflowConfigOpen/tool-open/local/dark (0.03s)
+        --- PASS: TestLeadReflowConfigOpen/tool-open/recommended (0.07s)
+            --- PASS: TestLeadReflowConfigOpen/tool-open/recommended/light (0.03s)
+            --- PASS: TestLeadReflowConfigOpen/tool-open/recommended/dark (0.03s)
+        --- PASS: TestLeadReflowConfigOpen/tool-open/detected (0.07s)
+            --- PASS: TestLeadReflowConfigOpen/tool-open/detected/light (0.03s)
+            --- PASS: TestLeadReflowConfigOpen/tool-open/detected/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	1.149s

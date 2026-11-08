@@ -1,0 +1,119 @@
+=== RUN   TestLeadReflowConfigFields
+=== RUN   TestLeadReflowConfigFields/local
+=== RUN   TestLeadReflowConfigFields/local/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:588.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:588.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:588.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigFields/local/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:588.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:588.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:588.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigFields/recommended
+=== RUN   TestLeadReflowConfigFields/recommended/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:614.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:614.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:614.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigFields/recommended/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:614.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:614.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:614.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigFields/detected
+=== RUN   TestLeadReflowConfigFields/detected/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:667.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:667.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:667.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigFields/detected/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:667.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:667.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:667.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLeadReflowConfigFields (0.62s)
+    --- FAIL: TestLeadReflowConfigFields/local (0.33s)
+        --- FAIL: TestLeadReflowConfigFields/local/light (0.25s)
+        --- FAIL: TestLeadReflowConfigFields/local/dark (0.07s)
+    --- FAIL: TestLeadReflowConfigFields/recommended (0.15s)
+        --- FAIL: TestLeadReflowConfigFields/recommended/light (0.08s)
+        --- FAIL: TestLeadReflowConfigFields/recommended/dark (0.07s)
+    --- FAIL: TestLeadReflowConfigFields/detected (0.14s)
+        --- FAIL: TestLeadReflowConfigFields/detected/light (0.07s)
+        --- FAIL: TestLeadReflowConfigFields/detected/dark (0.07s)
+=== RUN   TestLeadReflowConfigActions
+=== RUN   TestLeadReflowConfigActions/config-defaults
+=== RUN   TestLeadReflowConfigActions/config-defaults/local
+=== RUN   TestLeadReflowConfigActions/config-defaults/local/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-defaults/local/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-defaults/recommended
+=== RUN   TestLeadReflowConfigActions/config-defaults/recommended/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-defaults/recommended/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-defaults/detected
+=== RUN   TestLeadReflowConfigActions/config-defaults/detected/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-defaults/detected/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-save
+=== RUN   TestLeadReflowConfigActions/config-save/local
+=== RUN   TestLeadReflowConfigActions/config-save/local/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-save/local/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:587.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-save/recommended
+=== RUN   TestLeadReflowConfigActions/config-save/recommended/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-save/recommended/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:613.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-save/detected
+=== RUN   TestLeadReflowConfigActions/config-save/detected/light
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLeadReflowConfigActions/config-save/detected/dark
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:172: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:666.2999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLeadReflowConfigActions (1.25s)
+    --- FAIL: TestLeadReflowConfigActions/config-defaults (0.54s)
+        --- FAIL: TestLeadReflowConfigActions/config-defaults/local (0.18s)
+            --- FAIL: TestLeadReflowConfigActions/config-defaults/local/light (0.09s)
+            --- FAIL: TestLeadReflowConfigActions/config-defaults/local/dark (0.09s)
+        --- FAIL: TestLeadReflowConfigActions/config-defaults/recommended (0.18s)
+            --- FAIL: TestLeadReflowConfigActions/config-defaults/recommended/light (0.09s)
+            --- FAIL: TestLeadReflowConfigActions/config-defaults/recommended/dark (0.09s)
+        --- FAIL: TestLeadReflowConfigActions/config-defaults/detected (0.18s)
+            --- FAIL: TestLeadReflowConfigActions/config-defaults/detected/light (0.09s)
+            --- FAIL: TestLeadReflowConfigActions/config-defaults/detected/dark (0.09s)
+    --- FAIL: TestLeadReflowConfigActions/config-save (0.70s)
+        --- FAIL: TestLeadReflowConfigActions/config-save/local (0.22s)
+            --- FAIL: TestLeadReflowConfigActions/config-save/local/light (0.10s)
+            --- FAIL: TestLeadReflowConfigActions/config-save/local/dark (0.12s)
+        --- FAIL: TestLeadReflowConfigActions/config-save/recommended (0.23s)
+            --- FAIL: TestLeadReflowConfigActions/config-save/recommended/light (0.11s)
+            --- FAIL: TestLeadReflowConfigActions/config-save/recommended/dark (0.11s)
+        --- FAIL: TestLeadReflowConfigActions/config-save/detected (0.26s)
+            --- FAIL: TestLeadReflowConfigActions/config-save/detected/light (0.14s)
+            --- FAIL: TestLeadReflowConfigActions/config-save/detected/dark (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	1.874s
+FAIL

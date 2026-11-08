@@ -1,0 +1,42 @@
+=== RUN   TestLeadReflowRunCancel
+=== RUN   TestLeadReflowRunCancel/local
+=== RUN   TestLeadReflowRunCancel/local/light
+=== RUN   TestLeadReflowRunCancel/local/dark
+=== RUN   TestLeadReflowRunCancel/recommended
+=== RUN   TestLeadReflowRunCancel/recommended/light
+=== RUN   TestLeadReflowRunCancel/recommended/dark
+=== RUN   TestLeadReflowRunCancel/detected
+=== RUN   TestLeadReflowRunCancel/detected/light
+=== RUN   TestLeadReflowRunCancel/detected/dark
+--- PASS: TestLeadReflowRunCancel (0.87s)
+    --- PASS: TestLeadReflowRunCancel/local (0.40s)
+        --- PASS: TestLeadReflowRunCancel/local/light (0.28s)
+        --- PASS: TestLeadReflowRunCancel/local/dark (0.12s)
+    --- PASS: TestLeadReflowRunCancel/recommended (0.24s)
+        --- PASS: TestLeadReflowRunCancel/recommended/light (0.13s)
+        --- PASS: TestLeadReflowRunCancel/recommended/dark (0.11s)
+    --- PASS: TestLeadReflowRunCancel/detected (0.23s)
+        --- PASS: TestLeadReflowRunCancel/detected/light (0.11s)
+        --- PASS: TestLeadReflowRunCancel/detected/dark (0.11s)
+=== RUN   TestLeadReflowRunSubmit
+=== RUN   TestLeadReflowRunSubmit/local
+=== RUN   TestLeadReflowRunSubmit/local/light
+=== RUN   TestLeadReflowRunSubmit/local/dark
+=== RUN   TestLeadReflowRunSubmit/recommended
+=== RUN   TestLeadReflowRunSubmit/recommended/light
+=== RUN   TestLeadReflowRunSubmit/recommended/dark
+=== RUN   TestLeadReflowRunSubmit/detected
+=== RUN   TestLeadReflowRunSubmit/detected/light
+=== RUN   TestLeadReflowRunSubmit/detected/dark
+--- PASS: TestLeadReflowRunSubmit (0.71s)
+    --- PASS: TestLeadReflowRunSubmit/local (0.23s)
+        --- PASS: TestLeadReflowRunSubmit/local/light (0.11s)
+        --- PASS: TestLeadReflowRunSubmit/local/dark (0.11s)
+    --- PASS: TestLeadReflowRunSubmit/recommended (0.24s)
+        --- PASS: TestLeadReflowRunSubmit/recommended/light (0.11s)
+        --- PASS: TestLeadReflowRunSubmit/recommended/dark (0.13s)
+    --- PASS: TestLeadReflowRunSubmit/detected (0.25s)
+        --- PASS: TestLeadReflowRunSubmit/detected/light (0.12s)
+        --- PASS: TestLeadReflowRunSubmit/detected/dark (0.13s)
+PASS
+ok  	floter/internal/settingsui	1.582s

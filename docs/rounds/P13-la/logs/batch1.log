@@ -1,0 +1,106 @@
+=== RUN   TestLeadReflowRunEditors
+=== RUN   TestLeadReflowRunEditors/text
+=== RUN   TestLeadReflowRunEditors/text/local
+=== RUN   TestLeadReflowRunEditors/text/local/light
+=== RUN   TestLeadReflowRunEditors/text/local/dark
+=== RUN   TestLeadReflowRunEditors/text/recommended
+=== RUN   TestLeadReflowRunEditors/text/recommended/light
+=== RUN   TestLeadReflowRunEditors/text/recommended/dark
+=== RUN   TestLeadReflowRunEditors/text/detected
+=== RUN   TestLeadReflowRunEditors/text/detected/light
+=== RUN   TestLeadReflowRunEditors/text/detected/dark
+=== RUN   TestLeadReflowRunEditors/number
+=== RUN   TestLeadReflowRunEditors/number/local
+=== RUN   TestLeadReflowRunEditors/number/local/light
+=== RUN   TestLeadReflowRunEditors/number/local/dark
+=== RUN   TestLeadReflowRunEditors/number/recommended
+=== RUN   TestLeadReflowRunEditors/number/recommended/light
+=== RUN   TestLeadReflowRunEditors/number/recommended/dark
+=== RUN   TestLeadReflowRunEditors/number/detected
+=== RUN   TestLeadReflowRunEditors/number/detected/light
+=== RUN   TestLeadReflowRunEditors/number/detected/dark
+=== RUN   TestLeadReflowRunEditors/path
+=== RUN   TestLeadReflowRunEditors/path/local
+=== RUN   TestLeadReflowRunEditors/path/local/light
+=== RUN   TestLeadReflowRunEditors/path/local/dark
+=== RUN   TestLeadReflowRunEditors/path/recommended
+=== RUN   TestLeadReflowRunEditors/path/recommended/light
+=== RUN   TestLeadReflowRunEditors/path/recommended/dark
+=== RUN   TestLeadReflowRunEditors/path/detected
+=== RUN   TestLeadReflowRunEditors/path/detected/light
+=== RUN   TestLeadReflowRunEditors/path/detected/dark
+--- PASS: TestLeadReflowRunEditors (1.48s)
+    --- PASS: TestLeadReflowRunEditors/text (0.65s)
+        --- PASS: TestLeadReflowRunEditors/text/local (0.31s)
+            --- PASS: TestLeadReflowRunEditors/text/local/light (0.23s)
+            --- PASS: TestLeadReflowRunEditors/text/local/dark (0.08s)
+        --- PASS: TestLeadReflowRunEditors/text/recommended (0.20s)
+            --- PASS: TestLeadReflowRunEditors/text/recommended/light (0.11s)
+            --- PASS: TestLeadReflowRunEditors/text/recommended/dark (0.09s)
+        --- PASS: TestLeadReflowRunEditors/text/detected (0.14s)
+            --- PASS: TestLeadReflowRunEditors/text/detected/light (0.07s)
+            --- PASS: TestLeadReflowRunEditors/text/detected/dark (0.07s)
+    --- PASS: TestLeadReflowRunEditors/number (0.41s)
+        --- PASS: TestLeadReflowRunEditors/number/local (0.13s)
+            --- PASS: TestLeadReflowRunEditors/number/local/light (0.07s)
+            --- PASS: TestLeadReflowRunEditors/number/local/dark (0.07s)
+        --- PASS: TestLeadReflowRunEditors/number/recommended (0.13s)
+            --- PASS: TestLeadReflowRunEditors/number/recommended/light (0.07s)
+            --- PASS: TestLeadReflowRunEditors/number/recommended/dark (0.07s)
+        --- PASS: TestLeadReflowRunEditors/number/detected (0.14s)
+            --- PASS: TestLeadReflowRunEditors/number/detected/light (0.07s)
+            --- PASS: TestLeadReflowRunEditors/number/detected/dark (0.07s)
+    --- PASS: TestLeadReflowRunEditors/path (0.43s)
+        --- PASS: TestLeadReflowRunEditors/path/local (0.16s)
+            --- PASS: TestLeadReflowRunEditors/path/local/light (0.08s)
+            --- PASS: TestLeadReflowRunEditors/path/local/dark (0.08s)
+        --- PASS: TestLeadReflowRunEditors/path/recommended (0.14s)
+            --- PASS: TestLeadReflowRunEditors/path/recommended/light (0.07s)
+            --- PASS: TestLeadReflowRunEditors/path/recommended/dark (0.07s)
+        --- PASS: TestLeadReflowRunEditors/path/detected (0.13s)
+            --- PASS: TestLeadReflowRunEditors/path/detected/light (0.07s)
+            --- PASS: TestLeadReflowRunEditors/path/detected/dark (0.07s)
+=== RUN   TestLeadReflowRunChoices
+=== RUN   TestLeadReflowRunChoices/boolean
+=== RUN   TestLeadReflowRunChoices/boolean/local
+=== RUN   TestLeadReflowRunChoices/boolean/local/light
+=== RUN   TestLeadReflowRunChoices/boolean/local/dark
+=== RUN   TestLeadReflowRunChoices/boolean/recommended
+=== RUN   TestLeadReflowRunChoices/boolean/recommended/light
+=== RUN   TestLeadReflowRunChoices/boolean/recommended/dark
+=== RUN   TestLeadReflowRunChoices/boolean/detected
+=== RUN   TestLeadReflowRunChoices/boolean/detected/light
+=== RUN   TestLeadReflowRunChoices/boolean/detected/dark
+=== RUN   TestLeadReflowRunChoices/select
+=== RUN   TestLeadReflowRunChoices/select/local
+=== RUN   TestLeadReflowRunChoices/select/local/light
+=== RUN   TestLeadReflowRunChoices/select/local/dark
+=== RUN   TestLeadReflowRunChoices/select/recommended
+=== RUN   TestLeadReflowRunChoices/select/recommended/light
+=== RUN   TestLeadReflowRunChoices/select/recommended/dark
+=== RUN   TestLeadReflowRunChoices/select/detected
+=== RUN   TestLeadReflowRunChoices/select/detected/light
+=== RUN   TestLeadReflowRunChoices/select/detected/dark
+--- PASS: TestLeadReflowRunChoices (0.76s)
+    --- PASS: TestLeadReflowRunChoices/boolean (0.38s)
+        --- PASS: TestLeadReflowRunChoices/boolean/local (0.13s)
+            --- PASS: TestLeadReflowRunChoices/boolean/local/light (0.06s)
+            --- PASS: TestLeadReflowRunChoices/boolean/local/dark (0.06s)
+        --- PASS: TestLeadReflowRunChoices/boolean/recommended (0.13s)
+            --- PASS: TestLeadReflowRunChoices/boolean/recommended/light (0.06s)
+            --- PASS: TestLeadReflowRunChoices/boolean/recommended/dark (0.06s)
+        --- PASS: TestLeadReflowRunChoices/boolean/detected (0.12s)
+            --- PASS: TestLeadReflowRunChoices/boolean/detected/light (0.06s)
+            --- PASS: TestLeadReflowRunChoices/boolean/detected/dark (0.06s)
+    --- PASS: TestLeadReflowRunChoices/select (0.38s)
+        --- PASS: TestLeadReflowRunChoices/select/local (0.13s)
+            --- PASS: TestLeadReflowRunChoices/select/local/light (0.06s)
+            --- PASS: TestLeadReflowRunChoices/select/local/dark (0.06s)
+        --- PASS: TestLeadReflowRunChoices/select/recommended (0.13s)
+            --- PASS: TestLeadReflowRunChoices/select/recommended/light (0.06s)
+            --- PASS: TestLeadReflowRunChoices/select/recommended/dark (0.06s)
+        --- PASS: TestLeadReflowRunChoices/select/detected (0.12s)
+            --- PASS: TestLeadReflowRunChoices/select/detected/light (0.06s)
+            --- PASS: TestLeadReflowRunChoices/select/detected/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	2.254s

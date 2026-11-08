@@ -1,0 +1,64 @@
+=== RUN   TestLeadReflowConfigFields
+=== RUN   TestLeadReflowConfigFields/local
+=== RUN   TestLeadReflowConfigFields/local/light
+=== RUN   TestLeadReflowConfigFields/local/dark
+=== RUN   TestLeadReflowConfigFields/recommended
+=== RUN   TestLeadReflowConfigFields/recommended/light
+=== RUN   TestLeadReflowConfigFields/recommended/dark
+=== RUN   TestLeadReflowConfigFields/detected
+=== RUN   TestLeadReflowConfigFields/detected/light
+=== RUN   TestLeadReflowConfigFields/detected/dark
+--- PASS: TestLeadReflowConfigFields (0.58s)
+    --- PASS: TestLeadReflowConfigFields/local (0.30s)
+        --- PASS: TestLeadReflowConfigFields/local/light (0.24s)
+        --- PASS: TestLeadReflowConfigFields/local/dark (0.07s)
+    --- PASS: TestLeadReflowConfigFields/recommended (0.14s)
+        --- PASS: TestLeadReflowConfigFields/recommended/light (0.07s)
+        --- PASS: TestLeadReflowConfigFields/recommended/dark (0.07s)
+    --- PASS: TestLeadReflowConfigFields/detected (0.13s)
+        --- PASS: TestLeadReflowConfigFields/detected/light (0.07s)
+        --- PASS: TestLeadReflowConfigFields/detected/dark (0.06s)
+=== RUN   TestLeadReflowConfigActions
+=== RUN   TestLeadReflowConfigActions/config-defaults
+=== RUN   TestLeadReflowConfigActions/config-defaults/local
+=== RUN   TestLeadReflowConfigActions/config-defaults/local/light
+=== RUN   TestLeadReflowConfigActions/config-defaults/local/dark
+=== RUN   TestLeadReflowConfigActions/config-defaults/recommended
+=== RUN   TestLeadReflowConfigActions/config-defaults/recommended/light
+=== RUN   TestLeadReflowConfigActions/config-defaults/recommended/dark
+=== RUN   TestLeadReflowConfigActions/config-defaults/detected
+=== RUN   TestLeadReflowConfigActions/config-defaults/detected/light
+=== RUN   TestLeadReflowConfigActions/config-defaults/detected/dark
+=== RUN   TestLeadReflowConfigActions/config-save
+=== RUN   TestLeadReflowConfigActions/config-save/local
+=== RUN   TestLeadReflowConfigActions/config-save/local/light
+=== RUN   TestLeadReflowConfigActions/config-save/local/dark
+=== RUN   TestLeadReflowConfigActions/config-save/recommended
+=== RUN   TestLeadReflowConfigActions/config-save/recommended/light
+=== RUN   TestLeadReflowConfigActions/config-save/recommended/dark
+=== RUN   TestLeadReflowConfigActions/config-save/detected
+=== RUN   TestLeadReflowConfigActions/config-save/detected/light
+=== RUN   TestLeadReflowConfigActions/config-save/detected/dark
+--- PASS: TestLeadReflowConfigActions (1.06s)
+    --- PASS: TestLeadReflowConfigActions/config-defaults (0.53s)
+        --- PASS: TestLeadReflowConfigActions/config-defaults/local (0.18s)
+            --- PASS: TestLeadReflowConfigActions/config-defaults/local/light (0.09s)
+            --- PASS: TestLeadReflowConfigActions/config-defaults/local/dark (0.09s)
+        --- PASS: TestLeadReflowConfigActions/config-defaults/recommended (0.17s)
+            --- PASS: TestLeadReflowConfigActions/config-defaults/recommended/light (0.09s)
+            --- PASS: TestLeadReflowConfigActions/config-defaults/recommended/dark (0.09s)
+        --- PASS: TestLeadReflowConfigActions/config-defaults/detected (0.17s)
+            --- PASS: TestLeadReflowConfigActions/config-defaults/detected/light (0.09s)
+            --- PASS: TestLeadReflowConfigActions/config-defaults/detected/dark (0.09s)
+    --- PASS: TestLeadReflowConfigActions/config-save (0.53s)
+        --- PASS: TestLeadReflowConfigActions/config-save/local (0.18s)
+            --- PASS: TestLeadReflowConfigActions/config-save/local/light (0.09s)
+            --- PASS: TestLeadReflowConfigActions/config-save/local/dark (0.09s)
+        --- PASS: TestLeadReflowConfigActions/config-save/recommended (0.17s)
+            --- PASS: TestLeadReflowConfigActions/config-save/recommended/light (0.09s)
+            --- PASS: TestLeadReflowConfigActions/config-save/recommended/dark (0.09s)
+        --- PASS: TestLeadReflowConfigActions/config-save/detected (0.17s)
+            --- PASS: TestLeadReflowConfigActions/config-save/detected/light (0.09s)
+            --- PASS: TestLeadReflowConfigActions/config-save/detected/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	1.641s
