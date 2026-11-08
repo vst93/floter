@@ -1,0 +1,38 @@
+=== RUN   TestOutputRecoveryExpand
+=== RUN   TestOutputRecoveryExpand/light
+=== RUN   TestOutputRecoveryExpand/dark
+--- PASS: TestOutputRecoveryExpand (0.24s)
+    --- PASS: TestOutputRecoveryExpand/light (0.18s)
+    --- PASS: TestOutputRecoveryExpand/dark (0.05s)
+=== RUN   TestOutputRecoveryCollapse
+=== RUN   TestOutputRecoveryCollapse/light
+=== RUN   TestOutputRecoveryCollapse/dark
+--- PASS: TestOutputRecoveryCollapse (0.10s)
+    --- PASS: TestOutputRecoveryCollapse/light (0.05s)
+    --- PASS: TestOutputRecoveryCollapse/dark (0.05s)
+=== RUN   TestOutputRecoveryExternalFold
+=== RUN   TestOutputRecoveryExternalFold/light
+=== RUN   TestOutputRecoveryExternalFold/dark
+--- PASS: TestOutputRecoveryExternalFold (0.13s)
+    --- PASS: TestOutputRecoveryExternalFold/light (0.07s)
+    --- PASS: TestOutputRecoveryExternalFold/dark (0.06s)
+=== RUN   TestOutputRecoveryEmptyResult
+=== RUN   TestOutputRecoveryEmptyResult/light
+=== RUN   TestOutputRecoveryEmptyResult/dark
+--- PASS: TestOutputRecoveryEmptyResult (0.12s)
+    --- PASS: TestOutputRecoveryEmptyResult/light (0.06s)
+    --- PASS: TestOutputRecoveryEmptyResult/dark (0.06s)
+=== RUN   TestOutputRecoveryOrphan
+=== RUN   TestOutputRecoveryOrphan/light
+=== RUN   TestOutputRecoveryOrphan/dark
+--- PASS: TestOutputRecoveryOrphan (0.14s)
+    --- PASS: TestOutputRecoveryOrphan/light (0.07s)
+    --- PASS: TestOutputRecoveryOrphan/dark (0.06s)
+=== RUN   TestOutputRecoveryRemoved
+=== RUN   TestOutputRecoveryRemoved/light
+=== RUN   TestOutputRecoveryRemoved/dark
+--- PASS: TestOutputRecoveryRemoved (0.11s)
+    --- PASS: TestOutputRecoveryRemoved/light (0.05s)
+    --- PASS: TestOutputRecoveryRemoved/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.833s

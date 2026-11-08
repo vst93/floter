@@ -1,0 +1,19 @@
+=== RUN   TestOutputRecoveryOrphan
+=== RUN   TestOutputRecoveryOrphan/light
+    outputrecovery_test.go:148: retired output lost page keyboard exit
+=== RUN   TestOutputRecoveryOrphan/dark
+    outputrecovery_test.go:148: retired output lost page keyboard exit
+--- FAIL: TestOutputRecoveryOrphan (0.21s)
+    --- FAIL: TestOutputRecoveryOrphan/light (0.18s)
+    --- FAIL: TestOutputRecoveryOrphan/dark (0.03s)
+=== RUN   TestOutputRecoveryRemoved
+=== RUN   TestOutputRecoveryRemoved/light
+    outputrecovery_test.go:148: retired output lost page keyboard exit
+=== RUN   TestOutputRecoveryRemoved/dark
+    outputrecovery_test.go:148: retired output lost page keyboard exit
+--- FAIL: TestOutputRecoveryRemoved (0.06s)
+    --- FAIL: TestOutputRecoveryRemoved/light (0.03s)
+    --- FAIL: TestOutputRecoveryRemoved/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.284s
+FAIL

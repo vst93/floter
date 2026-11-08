@@ -124,3 +124,48 @@ func checkOutputReaderRetirement(t *testing.T, empty bool) {
 
 func TestOutputRecoveryExternalFold(t *testing.T) { checkOutputReaderRetirement(t, false) }
 func TestOutputRecoveryEmptyResult(t *testing.T)  { checkOutputReaderRetirement(t, true) }
+
+func checkOutputOwnerRetirement(t *testing.T, removed bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, in, tt, _ := outputRecoveryApp(t, dark, true)
+			closed := 0
+			a.Actions.Close = func() { closed++ }
+			tt.Frame()
+			old := outputRecoveryRead(t, a, in, tt)
+			name := "orphan"
+			if removed {
+				name = "removed"
+				a.Integrations = func() []Integration { return nil }
+			} else {
+				in.Orphan = true
+			}
+			tt.Frame()
+			tt.Frame()
+			outputRecoveryDump(t, tt, name, dark)
+			if !tt.Focused(a.copy().Close) {
+				t.Fatal("retired output lost page keyboard exit")
+			}
+			r := mustFind(t, tt, a.copy().Close)
+			if r.W <= 0 || r.H <= 0 {
+				t.Fatal("page keyboard exit is clipped")
+			}
+			if tt.HasText(old) {
+				t.Fatal("retired output remained visible")
+			}
+			result, ok := a.LastRun(in.ID)
+			if !ok || result.Text() != old {
+				t.Fatal("view retirement erased stored result")
+			}
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if closed != 1 {
+				t.Fatal("page keyboard exit cannot close")
+			}
+		})
+	}
+}
+
+func TestOutputRecoveryOrphan(t *testing.T)  { checkOutputOwnerRetirement(t, false) }
+func TestOutputRecoveryRemoved(t *testing.T) { checkOutputOwnerRetirement(t, true) }

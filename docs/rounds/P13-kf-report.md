@@ -32,3 +32,10 @@
 4. 正文被空结果替换后键盘落空 → 可选择正文退役时交接原收起键 → 深浅空态可退出；存储结果仍为空，不复制旧结果。
 
 第二批新增场景6 PASS，连同第一批12 PASS / 0 FAIL，settingsui vet净、gofmt空。前图实红均为`run outlet outside viewport`且focused=false。首次夹具没有滚到正文，只记夹具错误；补真实阅读位置后才计复现。V/B/S旧断言0/0/0。M1已实跑，第二个正式mutation留给结果选区隔离。
+
+第二批41da540a已推送。
+
+5. 正在阅读的集成变为孤立包，结果面退役但焦点落空 → 按现有退役规则回到页面退出入口 → 深浅Close持焦且可见，Enter恰好关闭一次，历史字节保留。
+6. 正在阅读的集成从列表移除，输出未登记退出路径 → 纳入现有missing-notice恢复登记 → 深浅Close持焦可用，原结果记录不删除。
+
+第三批累计18 PASS / 0 FAIL，settingsui vet净。首次夹具漏接Actions.Close，不作为产品证据；接回真实页面出口后M2回注第二批产品，四场景实红`retired output lost page keyboard exit`，两产品文件MD5还原、touch后18 PASS。V/B/S旧断言0/0/0。

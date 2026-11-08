@@ -8182,6 +8182,7 @@ func runOutputEdgeFace(tokens theme.Tokens, t *ui.Theme) ui.Color {
 func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integration) {
 	result, ok := a.runOutputs[integration.ID]
 	if !ok || integration.Orphan {
+		a.noticeFocus(c, integration.ID, "output").restore(c, false, c.Resolve(*noticeExit(c)))
 		return
 	}
 	if !a.outputOpen[integration.ID] {
