@@ -1,0 +1,20 @@
+=== RUN   TestDeclarationVisibilityRemoveNext
+=== RUN   TestDeclarationVisibilityRemoveNext/light
+=== RUN   TestDeclarationVisibilityRemoveNext/dark
+--- PASS: TestDeclarationVisibilityRemoveNext (0.34s)
+    --- PASS: TestDeclarationVisibilityRemoveNext/light (0.27s)
+    --- PASS: TestDeclarationVisibilityRemoveNext/dark (0.07s)
+=== RUN   TestDeclarationVisibilityRemoveTail
+=== RUN   TestDeclarationVisibilityRemoveTail/light
+=== RUN   TestDeclarationVisibilityRemoveTail/dark
+--- PASS: TestDeclarationVisibilityRemoveTail (0.16s)
+    --- PASS: TestDeclarationVisibilityRemoveTail/light (0.07s)
+    --- PASS: TestDeclarationVisibilityRemoveTail/dark (0.09s)
+=== RUN   TestDeclarationVisibilityRemoveOnly
+=== RUN   TestDeclarationVisibilityRemoveOnly/light
+=== RUN   TestDeclarationVisibilityRemoveOnly/dark
+--- PASS: TestDeclarationVisibilityRemoveOnly (0.17s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/light (0.09s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/dark (0.08s)
+PASS
+ok  	floter/internal/settingsui	0.684s

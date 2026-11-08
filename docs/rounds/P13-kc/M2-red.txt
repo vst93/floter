@@ -1,0 +1,25 @@
+=== RUN   TestDeclarationVisibilityRemoveNext
+=== RUN   TestDeclarationVisibilityRemoveNext/light
+    declarationvisibility_test.go:145: editing outlet outside viewport: rect={X:364.8 Y:-1348.2002 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2901.3
+=== RUN   TestDeclarationVisibilityRemoveNext/dark
+    declarationvisibility_test.go:145: editing outlet outside viewport: rect={X:364.8 Y:-1348.2002 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2901.3
+--- FAIL: TestDeclarationVisibilityRemoveNext (0.34s)
+    --- FAIL: TestDeclarationVisibilityRemoveNext/light (0.27s)
+    --- FAIL: TestDeclarationVisibilityRemoveNext/dark (0.07s)
+=== RUN   TestDeclarationVisibilityRemoveTail
+=== RUN   TestDeclarationVisibilityRemoveTail/light
+    declarationvisibility_test.go:145: editing outlet outside viewport: rect={X:364.8 Y:-134.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2761.4998
+=== RUN   TestDeclarationVisibilityRemoveTail/dark
+    declarationvisibility_test.go:145: editing outlet outside viewport: rect={X:364.8 Y:-134.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2761.4998
+--- FAIL: TestDeclarationVisibilityRemoveTail (0.13s)
+    --- FAIL: TestDeclarationVisibilityRemoveTail/light (0.06s)
+    --- FAIL: TestDeclarationVisibilityRemoveTail/dark (0.06s)
+=== RUN   TestDeclarationVisibilityRemoveOnly
+=== RUN   TestDeclarationVisibilityRemoveOnly/light
+=== RUN   TestDeclarationVisibilityRemoveOnly/dark
+--- PASS: TestDeclarationVisibilityRemoveOnly (0.12s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/light (0.06s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.586s
+FAIL

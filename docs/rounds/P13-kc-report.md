@@ -26,3 +26,10 @@
 1. 新增：5条已有声明后新增，焦点留在Add，新行ID位于Y1290、视口底520，键入无效 → 新声明显示名接住键盘，整组字段一次滚入视口 → 深浅真实Tab/Enter、直接输入、后续自由滚轮。先只滚label时其同行ID计算到520.00006，严格像素包含pin红；改为显示整组字段，让标题与上下文一起可见，不加容差。
 
 第一批定向 **3 PASS / 0 FAIL / exit0**，gofmt空、settingsui vet净。M1用HEAD旧产品注入，两个外观实红：`editing outlet lost focus: 显示名`、`editing outlet outside viewport`；MD5逐字节还原成功，touch后3 PASS。完整基线6211通过，最终全量门槛在全部产品完成后运行。
+
+第一批 **354323db** 已推送。浅色图目视：新记录显示名的蓝环和插入点进入正文，标题可见；第二排字段仍可继续向下滚，不宣称整张参数板都可见。
+
+2. 删除中项：Remove聚焦后滚到页尾再Enter，后继记录ID留在Y−1348.2002 → 沿原规则返焦后继，同时一次reveal其字段组 → 深浅按键删除、后继键入、自由滚轮通过。
+3. 删除尾项：含20个城市选项的长声明删尾后，前驱ID留在Y−134.80005 → 前驱字段组一次reveal → 深浅删尾、前驱继续编辑通过。删除唯一声明另作回归，原来与现在都通过，不计修复。
+
+第二批定向 **9 PASS / 0 FAIL / exit0**，gofmt空、settingsui vet净。M2四个深浅场景实红 `editing outlet outside viewport`；MD5还原成功，touch后9 PASS。旧V/B/S断言0/0/0。

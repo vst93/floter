@@ -191,6 +191,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 				next = removed - 1
 			}
 			c.Resolve(labels[next]).Focus()
+			c.Resolve(fields[next]).ScrollIntoView()
 		}
 		a.toolParams = append(a.toolParams[:removed], a.toolParams[removed+1:]...)
 	}
