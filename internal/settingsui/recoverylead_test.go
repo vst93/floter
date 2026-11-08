@@ -13,6 +13,8 @@ import (
 
 func TestRecoveryLeadRecheck(t *testing.T)   { checkRecoveryLead(t, "recheck") }
 func TestRecoveryLeadReconnect(t *testing.T) { checkRecoveryLead(t, "reconnect") }
+func TestRecoveryLeadHomepage(t *testing.T)  { checkRecoveryLead(t, "homepage") }
+func TestRecoveryLeadHealth(t *testing.T)    { checkRecoveryLead(t, "health") }
 
 // Exercise actual focus and activation, including pointer press/release. A
 // layout refresh must reveal the same owner without stealing later scrolling.

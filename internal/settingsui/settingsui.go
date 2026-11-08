@@ -3038,7 +3038,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					// authorize another run. Keep the report if that outlet retires.
 					if a.Actions.ReprobeHealth != nil && integration.HealthReport != nil && !integration.HealthReprobeUnavailable {
 						label := copy.IntegrationsHealthReprobe
-						if a.extensionIconButton(c, "refresh", label, a.rowBusy(integration.ID)).Clicked() {
+						var reprobe ui.Element
+						a.formFeedbackOutlet(c.Key("health-reprobe-outlet"), a.integrationLead, func() {
+							reprobe = a.extensionIconButton(c, "refresh", label, a.rowBusy(integration.ID))
+						}, func() bool { return reprobe.FocusVisible() })
+						if reprobe.Clicked() {
 							a.Actions.ReprobeHealth(integration.ID)
 						}
 					}
@@ -3331,7 +3335,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				case repairHomepage:
 					if a.Actions.OpenHomepage != nil {
-						if tokens.Tip(c, rowAction(integration.repairLabel(copy)), integration.repairTooltip(copy)).Clicked() {
+						var homepage ui.Element
+						a.formFeedbackOutlet(c.Key("row-homepage-outlet"), a.integrationLead+outputFeedback, func() {
+							homepage = tokens.Tip(c, rowAction(integration.repairLabel(copy)), integration.repairTooltip(copy))
+						}, func() bool { return homepage.FocusVisible() })
+						if homepage.Clicked() {
 							a.Actions.OpenHomepage(integration.Homepage)
 						}
 					}
