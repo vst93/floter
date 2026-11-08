@@ -2200,7 +2200,7 @@ func (a *App) reconnectIntegration(id string, done func(error)) {
 		// did before its toast: a reconnect may have rewritten the entry (a new
 		// executable path, or a cleared binding failure), and the notice must
 		// not announce a state the page has not caught up with yet.
-		a.Integrations.Refresh(context.Background())
+		a.RefreshIntegrations(context.Background())
 		switch {
 		case err != nil:
 			log.Printf("floter: could not reconnect %s: %v", id, err)
@@ -2236,7 +2236,7 @@ func (a *App) repairIntegration(id string, done func(error)) {
 		// The list is re-read before the notice, as `refreshAfterMutation` did
 		// in the reference: a repair may have rewritten the entry, and the
 		// notice must not announce a state the page has not caught up with.
-		a.Integrations.Refresh(context.Background())
+		a.RefreshIntegrations(context.Background())
 		switch {
 		case err != nil:
 			log.Printf("floter: could not re-check %s: %v", id, err)
