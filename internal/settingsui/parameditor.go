@@ -229,10 +229,14 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		ui.Row(c).Bind(fieldsFocus).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(paramEditorPlateGap)).
 			Children(func() {
 				a.paramField(c, "label", copy.ParamsLabel, func() {
-					a.extensionField(c, &label, customFieldMetrics).Bind(labelFocus).Label(copy.ParamsLabel)
+					outputFocusOutlet(c.Key("param-label-outlet"), func() {
+						a.extensionField(c, &label, customFieldMetrics).Bind(labelFocus).Label(copy.ParamsLabel)
+					})
 				})
 				a.paramField(c, "id", copy.ParamsID, func() {
-					a.extensionField(c, &id, customFieldMetrics).Bind(&refusal.id).Label(copy.ParamsID).Placeholder("target")
+					outputFocusOutlet(c.Key("param-id-outlet"), func() {
+						a.extensionField(c, &id, customFieldMetrics).Bind(&refusal.id).Label(copy.ParamsID).Placeholder("target")
+					})
 				})
 				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)

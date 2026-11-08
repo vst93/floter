@@ -1,0 +1,98 @@
+=== RUN   TestEditorRingLabel
+=== RUN   TestEditorRingLabel/light
+    editorring_test.go:72: label rect={X:195.79999 Y:51.400024 W:161 H:30} scroll=964.89996
+    editorring_test.go:78: label bottom RGB spread=160
+    editorring_test.go:78: label top RGB spread=30
+=== RUN   TestEditorRingLabel/dark
+    editorring_test.go:72: label rect={X:195.79999 Y:51.400024 W:161 H:30} scroll=964.89996
+    editorring_test.go:78: label top RGB spread=21
+    editorring_test.go:78: label bottom RGB spread=112
+--- PASS: TestEditorRingLabel (0.54s)
+    --- PASS: TestEditorRingLabel/light (0.37s)
+    --- PASS: TestEditorRingLabel/dark (0.17s)
+=== RUN   TestEditorRingID
+=== RUN   TestEditorRingID/light
+    editorring_test.go:72: id rect={X:364.8 Y:51.400024 W:161 H:30} scroll=964.89996
+    editorring_test.go:78: id top RGB spread=30
+    editorring_test.go:78: id bottom RGB spread=160
+=== RUN   TestEditorRingID/dark
+    editorring_test.go:72: id rect={X:364.8 Y:51.400024 W:161 H:30} scroll=964.89996
+    editorring_test.go:78: id top RGB spread=21
+    editorring_test.go:78: id bottom RGB spread=112
+--- PASS: TestEditorRingID (0.35s)
+    --- PASS: TestEditorRingID/light (0.17s)
+    --- PASS: TestEditorRingID/dark (0.18s)
+=== RUN   TestEditorRingPlaceholder
+=== RUN   TestEditorRingPlaceholder/light
+    editorring_test.go:72: placeholder rect={X:195.79999 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:78: placeholder top RGB spread=30
+    editorring_test.go:78: placeholder bottom RGB spread=160
+=== RUN   TestEditorRingPlaceholder/dark
+    editorring_test.go:72: placeholder rect={X:195.79999 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:78: placeholder top RGB spread=21
+    editorring_test.go:78: placeholder bottom RGB spread=112
+--- PASS: TestEditorRingPlaceholder (0.35s)
+    --- PASS: TestEditorRingPlaceholder/light (0.18s)
+    --- PASS: TestEditorRingPlaceholder/dark (0.17s)
+=== RUN   TestEditorRingDefault
+=== RUN   TestEditorRingDefault/light
+    editorring_test.go:72: default rect={X:364.8 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:78: default top RGB spread=30
+    editorring_test.go:78: default bottom RGB spread=160
+=== RUN   TestEditorRingDefault/dark
+    editorring_test.go:72: default rect={X:364.8 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:78: default top RGB spread=21
+    editorring_test.go:78: default bottom RGB spread=112
+--- PASS: TestEditorRingDefault (0.34s)
+    --- PASS: TestEditorRingDefault/light (0.18s)
+    --- PASS: TestEditorRingDefault/dark (0.17s)
+=== RUN   TestEditorRingFlag
+=== RUN   TestEditorRingFlag/light
+    editorring_test.go:72: flag rect={X:533.8 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:78: flag top RGB spread=30
+    editorring_test.go:78: flag bottom RGB spread=160
+=== RUN   TestEditorRingFlag/dark
+    editorring_test.go:72: flag rect={X:533.8 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:78: flag top RGB spread=21
+    editorring_test.go:78: flag bottom RGB spread=112
+--- PASS: TestEditorRingFlag (0.35s)
+    --- PASS: TestEditorRingFlag/light (0.17s)
+    --- PASS: TestEditorRingFlag/dark (0.18s)
+=== RUN   TestEditorRingOptions
+=== RUN   TestEditorRingOptions/light
+    editorring_test.go:72: options rect={X:195.8 Y:51.399963 W:499 H:64} scroll=1106.9
+    editorring_test.go:78: options top RGB spread=30
+    editorring_test.go:78: options bottom RGB spread=160
+=== RUN   TestEditorRingOptions/dark
+    editorring_test.go:72: options rect={X:195.8 Y:51.399963 W:499 H:64} scroll=1106.9
+    editorring_test.go:78: options top RGB spread=21
+    editorring_test.go:78: options bottom RGB spread=112
+--- PASS: TestEditorRingOptions (0.39s)
+    --- PASS: TestEditorRingOptions/light (0.20s)
+    --- PASS: TestEditorRingOptions/dark (0.19s)
+=== RUN   TestEditorRingCommand
+=== RUN   TestEditorRingCommand/light
+    editorring_test.go:72: command rect={X:529.8 Y:51.40001 W:160 H:30} scroll=405.69998
+    editorring_test.go:78: command top RGB spread=30
+    editorring_test.go:78: command bottom RGB spread=160
+=== RUN   TestEditorRingCommand/dark
+    editorring_test.go:72: command rect={X:529.8 Y:51.40001 W:160 H:30} scroll=405.69998
+    editorring_test.go:78: command top RGB spread=21
+    editorring_test.go:78: command bottom RGB spread=112
+--- PASS: TestEditorRingCommand (0.16s)
+    --- PASS: TestEditorRingCommand/light (0.08s)
+    --- PASS: TestEditorRingCommand/dark (0.08s)
+=== RUN   TestEditorRingVersion
+=== RUN   TestEditorRingVersion/light
+    editorring_test.go:72: version rect={X:569.8 Y:51.400024 W:120 H:30} scroll=570.7
+    editorring_test.go:78: version top RGB spread=30
+    editorring_test.go:78: version bottom RGB spread=160
+=== RUN   TestEditorRingVersion/dark
+    editorring_test.go:72: version rect={X:569.8 Y:51.400024 W:120 H:30} scroll=570.7
+    editorring_test.go:78: version top RGB spread=21
+    editorring_test.go:78: version bottom RGB spread=112
+--- PASS: TestEditorRingVersion (0.20s)
+    --- PASS: TestEditorRingVersion/light (0.10s)
+    --- PASS: TestEditorRingVersion/dark (0.10s)
+PASS
+ok  	floter/internal/settingsui	2.694s

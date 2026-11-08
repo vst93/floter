@@ -1,0 +1,66 @@
+=== RUN   TestEditorRingLabel
+=== RUN   TestEditorRingLabel/light
+    editorring_test.go:61: label rect={X:195.79999 Y:490 W:161 H:30} scroll=526.2999
+=== RUN   TestEditorRingLabel/dark
+    editorring_test.go:61: label rect={X:195.79999 Y:490 W:161 H:30} scroll=526.2999
+--- PASS: TestEditorRingLabel (0.63s)
+    --- PASS: TestEditorRingLabel/light (0.42s)
+    --- PASS: TestEditorRingLabel/dark (0.21s)
+=== RUN   TestEditorRingID
+=== RUN   TestEditorRingID/light
+    editorring_test.go:61: id rect={X:364.8 Y:490 W:161 H:30} scroll=526.2999
+=== RUN   TestEditorRingID/dark
+    editorring_test.go:61: id rect={X:364.8 Y:490 W:161 H:30} scroll=526.2999
+--- PASS: TestEditorRingID (0.40s)
+    --- PASS: TestEditorRingID/light (0.21s)
+    --- PASS: TestEditorRingID/dark (0.19s)
+=== RUN   TestEditorRingPlaceholder
+=== RUN   TestEditorRingPlaceholder/light
+    editorring_test.go:61: placeholder rect={X:195.79999 Y:490.00006 W:161 H:30} scroll=580.2999
+=== RUN   TestEditorRingPlaceholder/dark
+    editorring_test.go:61: placeholder rect={X:195.79999 Y:490.00006 W:161 H:30} scroll=580.2999
+--- PASS: TestEditorRingPlaceholder (0.41s)
+    --- PASS: TestEditorRingPlaceholder/light (0.20s)
+    --- PASS: TestEditorRingPlaceholder/dark (0.21s)
+=== RUN   TestEditorRingDefault
+=== RUN   TestEditorRingDefault/light
+    editorring_test.go:61: default rect={X:364.8 Y:490.00006 W:161 H:30} scroll=580.2999
+=== RUN   TestEditorRingDefault/dark
+    editorring_test.go:61: default rect={X:364.8 Y:490.00006 W:161 H:30} scroll=580.2999
+--- PASS: TestEditorRingDefault (0.40s)
+    --- PASS: TestEditorRingDefault/light (0.19s)
+    --- PASS: TestEditorRingDefault/dark (0.21s)
+=== RUN   TestEditorRingFlag
+=== RUN   TestEditorRingFlag/light
+    editorring_test.go:61: flag rect={X:533.8 Y:490.00006 W:161 H:30} scroll=580.2999
+=== RUN   TestEditorRingFlag/dark
+    editorring_test.go:61: flag rect={X:533.8 Y:490.00006 W:161 H:30} scroll=580.2999
+--- PASS: TestEditorRingFlag (0.41s)
+    --- PASS: TestEditorRingFlag/light (0.23s)
+    --- PASS: TestEditorRingFlag/dark (0.19s)
+=== RUN   TestEditorRingOptions
+=== RUN   TestEditorRingOptions/light
+    editorring_test.go:61: options rect={X:195.8 Y:455.99994 W:499 H:64} scroll=702.30005
+=== RUN   TestEditorRingOptions/dark
+    editorring_test.go:61: options rect={X:195.8 Y:455.99994 W:499 H:64} scroll=702.30005
+--- PASS: TestEditorRingOptions (0.47s)
+    --- PASS: TestEditorRingOptions/light (0.23s)
+    --- PASS: TestEditorRingOptions/dark (0.24s)
+=== RUN   TestEditorRingCommand
+=== RUN   TestEditorRingCommand/light
+    editorring_test.go:61: command rect={X:529.8 Y:457.09998 W:160 H:30} scroll=0
+=== RUN   TestEditorRingCommand/dark
+    editorring_test.go:61: command rect={X:529.8 Y:457.09998 W:160 H:30} scroll=0
+--- PASS: TestEditorRingCommand (0.13s)
+    --- PASS: TestEditorRingCommand/light (0.07s)
+    --- PASS: TestEditorRingCommand/dark (0.07s)
+=== RUN   TestEditorRingVersion
+=== RUN   TestEditorRingVersion/light
+    editorring_test.go:61: version rect={X:569.8 Y:490 W:120 H:30} scroll=132.1
+=== RUN   TestEditorRingVersion/dark
+    editorring_test.go:61: version rect={X:569.8 Y:490 W:120 H:30} scroll=132.1
+--- PASS: TestEditorRingVersion (0.23s)
+    --- PASS: TestEditorRingVersion/light (0.13s)
+    --- PASS: TestEditorRingVersion/dark (0.10s)
+PASS
+ok  	floter/internal/settingsui	3.089s

@@ -1,0 +1,131 @@
+=== RUN   TestEditorRingLabel
+=== RUN   TestEditorRingLabel/light
+    editorring_test.go:78: label rect={X:195.79999 Y:51.400024 W:161 H:30} scroll=964.89996
+    editorring_test.go:84: label top RGB spread=30
+    editorring_test.go:86: label top ring missing at [276 51]: blue-red=30
+    editorring_test.go:84: label bottom RGB spread=160
+    editorring_test.go:91: label active border intersects 16px fade: rect={X:195.79999 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingLabel/dark
+    editorring_test.go:78: label rect={X:195.79999 Y:51.400024 W:161 H:30} scroll=964.89996
+    editorring_test.go:84: label top RGB spread=21
+    editorring_test.go:86: label top ring missing at [276 51]: blue-red=21
+    editorring_test.go:84: label bottom RGB spread=112
+    editorring_test.go:91: label active border intersects 16px fade: rect={X:195.79999 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingLabel (0.24s)
+    --- FAIL: TestEditorRingLabel/light (0.16s)
+    --- FAIL: TestEditorRingLabel/dark (0.08s)
+=== RUN   TestEditorRingID
+=== RUN   TestEditorRingID/light
+    editorring_test.go:78: id rect={X:364.8 Y:51.400024 W:161 H:30} scroll=964.89996
+    editorring_test.go:84: id top RGB spread=30
+    editorring_test.go:86: id top ring missing at [445 51]: blue-red=30
+    editorring_test.go:84: id bottom RGB spread=160
+    editorring_test.go:91: id active border intersects 16px fade: rect={X:364.8 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingID/dark
+    editorring_test.go:78: id rect={X:364.8 Y:51.400024 W:161 H:30} scroll=964.89996
+    editorring_test.go:84: id top RGB spread=21
+    editorring_test.go:86: id top ring missing at [445 51]: blue-red=21
+    editorring_test.go:84: id bottom RGB spread=112
+    editorring_test.go:91: id active border intersects 16px fade: rect={X:364.8 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingID (0.16s)
+    --- FAIL: TestEditorRingID/light (0.08s)
+    --- FAIL: TestEditorRingID/dark (0.08s)
+=== RUN   TestEditorRingPlaceholder
+=== RUN   TestEditorRingPlaceholder/light
+    editorring_test.go:78: placeholder rect={X:195.79999 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:84: placeholder top RGB spread=30
+    editorring_test.go:86: placeholder top ring missing at [276 51]: blue-red=30
+    editorring_test.go:84: placeholder bottom RGB spread=160
+    editorring_test.go:91: placeholder active border intersects 16px fade: rect={X:195.79999 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingPlaceholder/dark
+    editorring_test.go:78: placeholder rect={X:195.79999 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:84: placeholder top RGB spread=21
+    editorring_test.go:86: placeholder top ring missing at [276 51]: blue-red=21
+    editorring_test.go:84: placeholder bottom RGB spread=112
+    editorring_test.go:91: placeholder active border intersects 16px fade: rect={X:195.79999 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingPlaceholder (0.18s)
+    --- FAIL: TestEditorRingPlaceholder/light (0.09s)
+    --- FAIL: TestEditorRingPlaceholder/dark (0.09s)
+=== RUN   TestEditorRingDefault
+=== RUN   TestEditorRingDefault/light
+    editorring_test.go:78: default rect={X:364.8 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:84: default top RGB spread=30
+    editorring_test.go:86: default top ring missing at [445 51]: blue-red=30
+    editorring_test.go:84: default bottom RGB spread=160
+    editorring_test.go:91: default active border intersects 16px fade: rect={X:364.8 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingDefault/dark
+    editorring_test.go:78: default rect={X:364.8 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:84: default bottom RGB spread=112
+    editorring_test.go:84: default top RGB spread=21
+    editorring_test.go:86: default top ring missing at [445 51]: blue-red=21
+    editorring_test.go:91: default active border intersects 16px fade: rect={X:364.8 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingDefault (0.18s)
+    --- FAIL: TestEditorRingDefault/light (0.09s)
+    --- FAIL: TestEditorRingDefault/dark (0.09s)
+=== RUN   TestEditorRingFlag
+=== RUN   TestEditorRingFlag/light
+    editorring_test.go:78: flag rect={X:533.8 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:84: flag top RGB spread=30
+    editorring_test.go:86: flag top ring missing at [614 51]: blue-red=30
+    editorring_test.go:84: flag bottom RGB spread=160
+    editorring_test.go:91: flag active border intersects 16px fade: rect={X:533.8 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingFlag/dark
+    editorring_test.go:78: flag rect={X:533.8 Y:51.400024 W:161 H:30} scroll=1018.89996
+    editorring_test.go:84: flag top RGB spread=21
+    editorring_test.go:86: flag top ring missing at [614 51]: blue-red=21
+    editorring_test.go:84: flag bottom RGB spread=112
+    editorring_test.go:91: flag active border intersects 16px fade: rect={X:533.8 Y:51.400024 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingFlag (0.18s)
+    --- FAIL: TestEditorRingFlag/light (0.09s)
+    --- FAIL: TestEditorRingFlag/dark (0.09s)
+=== RUN   TestEditorRingOptions
+=== RUN   TestEditorRingOptions/light
+    editorring_test.go:78: options rect={X:195.8 Y:51.399963 W:499 H:64} scroll=1106.9
+    editorring_test.go:84: options bottom RGB spread=160
+    editorring_test.go:84: options top RGB spread=30
+    editorring_test.go:86: options top ring missing at [445 51]: blue-red=30
+    editorring_test.go:91: options active border intersects 16px fade: rect={X:195.8 Y:51.399963 W:499 H:64} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingOptions/dark
+    editorring_test.go:78: options rect={X:195.8 Y:51.399963 W:499 H:64} scroll=1106.9
+    editorring_test.go:84: options top RGB spread=21
+    editorring_test.go:86: options top ring missing at [445 51]: blue-red=21
+    editorring_test.go:84: options bottom RGB spread=112
+    editorring_test.go:91: options active border intersects 16px fade: rect={X:195.8 Y:51.399963 W:499 H:64} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingOptions (0.21s)
+    --- FAIL: TestEditorRingOptions/light (0.10s)
+    --- FAIL: TestEditorRingOptions/dark (0.11s)
+=== RUN   TestEditorRingCommand
+=== RUN   TestEditorRingCommand/light
+    editorring_test.go:78: command rect={X:529.8 Y:51.40001 W:160 H:30} scroll=405.69998
+    editorring_test.go:84: command bottom RGB spread=160
+    editorring_test.go:84: command top RGB spread=30
+    editorring_test.go:86: command top ring missing at [609 51]: blue-red=30
+    editorring_test.go:91: command active border intersects 16px fade: rect={X:529.8 Y:51.40001 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingCommand/dark
+    editorring_test.go:78: command rect={X:529.8 Y:51.40001 W:160 H:30} scroll=405.69998
+    editorring_test.go:84: command top RGB spread=21
+    editorring_test.go:86: command top ring missing at [609 51]: blue-red=21
+    editorring_test.go:84: command bottom RGB spread=112
+    editorring_test.go:91: command active border intersects 16px fade: rect={X:529.8 Y:51.40001 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingCommand (0.09s)
+    --- FAIL: TestEditorRingCommand/light (0.05s)
+    --- FAIL: TestEditorRingCommand/dark (0.05s)
+=== RUN   TestEditorRingVersion
+=== RUN   TestEditorRingVersion/light
+    editorring_test.go:78: version rect={X:569.8 Y:51.400024 W:120 H:30} scroll=570.7
+    editorring_test.go:84: version top RGB spread=30
+    editorring_test.go:86: version top ring missing at [629 51]: blue-red=30
+    editorring_test.go:84: version bottom RGB spread=160
+    editorring_test.go:91: version active border intersects 16px fade: rect={X:569.8 Y:51.400024 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestEditorRingVersion/dark
+    editorring_test.go:78: version rect={X:569.8 Y:51.400024 W:120 H:30} scroll=570.7
+    editorring_test.go:84: version top RGB spread=21
+    editorring_test.go:86: version top ring missing at [629 51]: blue-red=21
+    editorring_test.go:84: version bottom RGB spread=112
+    editorring_test.go:91: version active border intersects 16px fade: rect={X:569.8 Y:51.400024 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestEditorRingVersion (0.11s)
+    --- FAIL: TestEditorRingVersion/light (0.06s)
+    --- FAIL: TestEditorRingVersion/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	1.356s
+FAIL

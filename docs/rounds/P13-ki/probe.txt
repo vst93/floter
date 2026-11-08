@@ -1,0 +1,99 @@
+=== RUN   TestEditorRingLabel
+=== RUN   TestEditorRingLabel/light
+    editorring_test.go:58: label rect={X:195.79999 Y:490 W:161 H:30} scroll=526.2999
+    editorring_test.go:63: label top ring missing at [276 488]: blue-red=2
+    editorring_test.go:63: label bottom ring missing at [276 521]: blue-red=0
+=== RUN   TestEditorRingLabel/dark
+    editorring_test.go:58: label rect={X:195.79999 Y:490 W:161 H:30} scroll=526.2999
+    editorring_test.go:63: label top ring missing at [276 488]: blue-red=2
+    editorring_test.go:63: label bottom ring missing at [276 521]: blue-red=0
+--- FAIL: TestEditorRingLabel (0.59s)
+    --- FAIL: TestEditorRingLabel/light (0.41s)
+    --- FAIL: TestEditorRingLabel/dark (0.18s)
+=== RUN   TestEditorRingID
+=== RUN   TestEditorRingID/light
+    editorring_test.go:58: id rect={X:364.8 Y:490 W:161 H:30} scroll=526.2999
+    editorring_test.go:63: id top ring missing at [445 488]: blue-red=2
+    editorring_test.go:63: id bottom ring missing at [445 521]: blue-red=0
+=== RUN   TestEditorRingID/dark
+    editorring_test.go:58: id rect={X:364.8 Y:490 W:161 H:30} scroll=526.2999
+    editorring_test.go:63: id top ring missing at [445 488]: blue-red=2
+    editorring_test.go:63: id bottom ring missing at [445 521]: blue-red=0
+--- FAIL: TestEditorRingID (0.44s)
+    --- FAIL: TestEditorRingID/light (0.22s)
+    --- FAIL: TestEditorRingID/dark (0.22s)
+=== RUN   TestEditorRingPlaceholder
+=== RUN   TestEditorRingPlaceholder/light
+    editorring_test.go:58: placeholder rect={X:364.8 Y:490.00006 W:161 H:30} scroll=580.2999
+    editorring_test.go:63: placeholder top ring missing at [445 488]: blue-red=2
+    editorring_test.go:63: placeholder bottom ring missing at [445 521]: blue-red=0
+=== RUN   TestEditorRingPlaceholder/dark
+    editorring_test.go:58: placeholder rect={X:364.8 Y:490.00006 W:161 H:30} scroll=580.2999
+    editorring_test.go:63: placeholder top ring missing at [445 488]: blue-red=2
+    editorring_test.go:63: placeholder bottom ring missing at [445 521]: blue-red=0
+--- FAIL: TestEditorRingPlaceholder (0.47s)
+    --- FAIL: TestEditorRingPlaceholder/light (0.26s)
+    --- FAIL: TestEditorRingPlaceholder/dark (0.21s)
+=== RUN   TestEditorRingDefault
+=== RUN   TestEditorRingDefault/light
+    editorring_test.go:58: default rect={X:364.8 Y:490.00006 W:161 H:30} scroll=580.2999
+    editorring_test.go:63: default top ring missing at [445 488]: blue-red=2
+    editorring_test.go:63: default bottom ring missing at [445 521]: blue-red=0
+=== RUN   TestEditorRingDefault/dark
+    editorring_test.go:58: default rect={X:364.8 Y:490.00006 W:161 H:30} scroll=580.2999
+    editorring_test.go:63: default top ring missing at [445 488]: blue-red=2
+    editorring_test.go:63: default bottom ring missing at [445 521]: blue-red=0
+--- FAIL: TestEditorRingDefault (0.41s)
+    --- FAIL: TestEditorRingDefault/light (0.20s)
+    --- FAIL: TestEditorRingDefault/dark (0.21s)
+=== RUN   TestEditorRingFlag
+=== RUN   TestEditorRingFlag/light
+    editorring_test.go:58: flag rect={X:533.8 Y:490.00006 W:161 H:30} scroll=580.2999
+    editorring_test.go:63: flag top ring missing at [614 488]: blue-red=2
+    editorring_test.go:63: flag bottom ring missing at [614 521]: blue-red=0
+=== RUN   TestEditorRingFlag/dark
+    editorring_test.go:58: flag rect={X:533.8 Y:490.00006 W:161 H:30} scroll=580.2999
+    editorring_test.go:63: flag bottom ring missing at [614 521]: blue-red=0
+    editorring_test.go:63: flag top ring missing at [614 488]: blue-red=2
+--- FAIL: TestEditorRingFlag (0.41s)
+    --- FAIL: TestEditorRingFlag/light (0.18s)
+    --- FAIL: TestEditorRingFlag/dark (0.23s)
+=== RUN   TestEditorRingOptions
+=== RUN   TestEditorRingOptions/light
+    editorring_test.go:58: options rect={X:195.8 Y:455.99994 W:499 H:64} scroll=702.30005
+    editorring_test.go:63: options top ring missing at [445 454]: blue-red=2
+    editorring_test.go:63: options bottom ring missing at [445 521]: blue-red=0
+=== RUN   TestEditorRingOptions/dark
+    editorring_test.go:58: options rect={X:195.8 Y:455.99994 W:499 H:64} scroll=702.30005
+    editorring_test.go:63: options top ring missing at [445 454]: blue-red=2
+    editorring_test.go:63: options bottom ring missing at [445 521]: blue-red=0
+--- FAIL: TestEditorRingOptions (0.45s)
+    --- FAIL: TestEditorRingOptions/light (0.22s)
+    --- FAIL: TestEditorRingOptions/dark (0.23s)
+=== RUN   TestEditorRingCommand
+=== RUN   TestEditorRingCommand/light
+    editorring_test.go:58: command rect={X:529.8 Y:457.09998 W:160 H:30} scroll=0
+    editorring_test.go:63: command bottom ring missing at [609 488]: blue-red=1
+    editorring_test.go:63: command top ring missing at [609 455]: blue-red=1
+=== RUN   TestEditorRingCommand/dark
+    editorring_test.go:58: command rect={X:529.8 Y:457.09998 W:160 H:30} scroll=0
+    editorring_test.go:63: command top ring missing at [609 455]: blue-red=2
+    editorring_test.go:63: command bottom ring missing at [609 488]: blue-red=2
+--- FAIL: TestEditorRingCommand (0.14s)
+    --- FAIL: TestEditorRingCommand/light (0.07s)
+    --- FAIL: TestEditorRingCommand/dark (0.07s)
+=== RUN   TestEditorRingVersion
+=== RUN   TestEditorRingVersion/light
+    editorring_test.go:58: version rect={X:569.8 Y:490 W:120 H:30} scroll=132.1
+    editorring_test.go:63: version bottom ring missing at [629 521]: blue-red=0
+    editorring_test.go:63: version top ring missing at [629 488]: blue-red=1
+=== RUN   TestEditorRingVersion/dark
+    editorring_test.go:58: version rect={X:569.8 Y:490 W:120 H:30} scroll=132.1
+    editorring_test.go:63: version bottom ring missing at [629 521]: blue-red=0
+    editorring_test.go:63: version top ring missing at [629 488]: blue-red=2
+--- FAIL: TestEditorRingVersion (0.19s)
+    --- FAIL: TestEditorRingVersion/light (0.09s)
+    --- FAIL: TestEditorRingVersion/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	3.115s
+FAIL
