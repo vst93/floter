@@ -5959,13 +5959,18 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// connect time — so folding changes nothing about what is
 			// submitted, and an author who already declared permissions can
 			// open the section and edit them.
+			var advanced ui.Element
 			opened := a.row(c.Key("local-advanced"), copy.LocalToolAdvanced, copy.LocalToolAdvancedPermissions, func() {
-				if a.actionButton(c, copy.LocalToolAdvanced).Clicked() {
+				advanced = a.actionButton(c, copy.LocalToolAdvanced)
+				if advanced.Clicked() {
 					a.toolAdvanced = !a.toolAdvanced
 				}
 			}, func() { a.toolPermissionFields(c, copy) })
 			if opened {
 				a.toolAdvanced = !a.toolAdvanced
+				// The row label activates the same disclosure as its button.
+				// Keep a keyboard outlet when its permission controls disappear.
+				advanced.Focus()
 			}
 		})
 		// A native picker or content callback may have opened another tool

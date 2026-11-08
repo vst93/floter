@@ -1,0 +1,95 @@
+=== RUN   TestToolRefusalExitParameter
+=== RUN   TestToolRefusalExitParameter/id/light
+=== RUN   TestToolRefusalExitParameter/id/dark
+=== RUN   TestToolRefusalExitParameter/duplicate/light
+=== RUN   TestToolRefusalExitParameter/duplicate/dark
+=== RUN   TestToolRefusalExitParameter/options/light
+=== RUN   TestToolRefusalExitParameter/options/dark
+=== RUN   TestToolRefusalExitParameter/flag/light
+=== RUN   TestToolRefusalExitParameter/flag/dark
+=== RUN   TestToolRefusalExitParameter/badflag/light
+=== RUN   TestToolRefusalExitParameter/badflag/dark
+=== RUN   TestToolRefusalExitParameter/number/light
+=== RUN   TestToolRefusalExitParameter/number/dark
+=== RUN   TestToolRefusalExitParameter/boolean/light
+=== RUN   TestToolRefusalExitParameter/boolean/dark
+=== RUN   TestToolRefusalExitParameter/select/light
+=== RUN   TestToolRefusalExitParameter/select/dark
+--- PASS: TestToolRefusalExitParameter (2.02s)
+    --- PASS: TestToolRefusalExitParameter/id/light (0.32s)
+    --- PASS: TestToolRefusalExitParameter/id/dark (0.13s)
+    --- PASS: TestToolRefusalExitParameter/duplicate/light (0.12s)
+    --- PASS: TestToolRefusalExitParameter/duplicate/dark (0.12s)
+    --- PASS: TestToolRefusalExitParameter/options/light (0.12s)
+    --- PASS: TestToolRefusalExitParameter/options/dark (0.12s)
+    --- PASS: TestToolRefusalExitParameter/flag/light (0.11s)
+    --- PASS: TestToolRefusalExitParameter/flag/dark (0.11s)
+    --- PASS: TestToolRefusalExitParameter/badflag/light (0.11s)
+    --- PASS: TestToolRefusalExitParameter/badflag/dark (0.11s)
+    --- PASS: TestToolRefusalExitParameter/number/light (0.12s)
+    --- PASS: TestToolRefusalExitParameter/number/dark (0.11s)
+    --- PASS: TestToolRefusalExitParameter/boolean/light (0.10s)
+    --- PASS: TestToolRefusalExitParameter/boolean/dark (0.11s)
+    --- PASS: TestToolRefusalExitParameter/select/light (0.11s)
+    --- PASS: TestToolRefusalExitParameter/select/dark (0.11s)
+=== RUN   TestToolRefusalVisibilityParameter
+=== RUN   TestToolRefusalVisibilityParameter/id/light
+    paramvisibility_test.go:75: parameter id refusal remains outside viewport: rect={X:364.8 Y:-398.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/id/dark
+    paramvisibility_test.go:75: parameter id refusal remains outside viewport: rect={X:364.8 Y:-398.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/duplicate/light
+    paramvisibility_test.go:75: parameter duplicate refusal remains outside viewport: rect={X:364.8 Y:-398.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/duplicate/dark
+    paramvisibility_test.go:75: parameter duplicate refusal remains outside viewport: rect={X:364.8 Y:-398.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/options/light
+    paramvisibility_test.go:75: parameter options refusal remains outside viewport: rect={X:195.8 Y:-344.80017 W:499 H:64} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/options/dark
+    paramvisibility_test.go:75: parameter options refusal remains outside viewport: rect={X:195.8 Y:-344.80017 W:499 H:64} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/flag/light
+    paramvisibility_test.go:75: parameter flag refusal remains outside viewport: rect={X:449.3 Y:-344.80017 W:245.5 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/flag/dark
+    paramvisibility_test.go:75: parameter flag refusal remains outside viewport: rect={X:449.3 Y:-344.80017 W:245.5 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/badflag/light
+    paramvisibility_test.go:75: parameter badflag refusal remains outside viewport: rect={X:533.8 Y:-344.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/badflag/dark
+    paramvisibility_test.go:75: parameter badflag refusal remains outside viewport: rect={X:533.8 Y:-344.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/number/light
+    paramvisibility_test.go:75: parameter number refusal remains outside viewport: rect={X:364.8 Y:-344.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/number/dark
+    paramvisibility_test.go:75: parameter number refusal remains outside viewport: rect={X:364.8 Y:-344.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/boolean/light
+    paramvisibility_test.go:75: parameter boolean refusal remains outside viewport: rect={X:195.8 Y:-344.80017 W:245.5 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/boolean/dark
+    paramvisibility_test.go:75: parameter boolean refusal remains outside viewport: rect={X:195.8 Y:-344.80017 W:245.5 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/select/light
+    paramvisibility_test.go:75: parameter select refusal remains outside viewport: rect={X:364.8 Y:-432.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolRefusalVisibilityParameter/select/dark
+    paramvisibility_test.go:75: parameter select refusal remains outside viewport: rect={X:364.8 Y:-432.80017 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestToolRefusalVisibilityParameter (1.00s)
+    --- FAIL: TestToolRefusalVisibilityParameter/id/light (0.08s)
+    --- FAIL: TestToolRefusalVisibilityParameter/id/dark (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/duplicate/light (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/duplicate/dark (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/options/light (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/options/dark (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/flag/light (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/flag/dark (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/badflag/light (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/badflag/dark (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/number/light (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/number/dark (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/boolean/light (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/boolean/dark (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/select/light (0.06s)
+    --- FAIL: TestToolRefusalVisibilityParameter/select/dark (0.06s)
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/light
+    paramvisibility_test.go:120: collapsed permission lost keyboard outlet
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/dark
+    paramvisibility_test.go:120: collapsed permission lost keyboard outlet
+--- FAIL: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet (0.17s)
+    --- FAIL: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/light (0.09s)
+    --- FAIL: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	3.196s
+FAIL

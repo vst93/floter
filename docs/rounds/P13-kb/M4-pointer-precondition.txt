@@ -1,0 +1,79 @@
+=== RUN   TestToolRefusalExitParameter
+=== RUN   TestToolRefusalExitParameter/id/light
+=== RUN   TestToolRefusalExitParameter/id/dark
+=== RUN   TestToolRefusalExitParameter/duplicate/light
+=== RUN   TestToolRefusalExitParameter/duplicate/dark
+=== RUN   TestToolRefusalExitParameter/options/light
+=== RUN   TestToolRefusalExitParameter/options/dark
+=== RUN   TestToolRefusalExitParameter/flag/light
+=== RUN   TestToolRefusalExitParameter/flag/dark
+=== RUN   TestToolRefusalExitParameter/badflag/light
+=== RUN   TestToolRefusalExitParameter/badflag/dark
+=== RUN   TestToolRefusalExitParameter/number/light
+=== RUN   TestToolRefusalExitParameter/number/dark
+=== RUN   TestToolRefusalExitParameter/boolean/light
+=== RUN   TestToolRefusalExitParameter/boolean/dark
+=== RUN   TestToolRefusalExitParameter/select/light
+=== RUN   TestToolRefusalExitParameter/select/dark
+--- PASS: TestToolRefusalExitParameter (2.07s)
+    --- PASS: TestToolRefusalExitParameter/id/light (0.25s)
+    --- PASS: TestToolRefusalExitParameter/id/dark (0.13s)
+    --- PASS: TestToolRefusalExitParameter/duplicate/light (0.12s)
+    --- PASS: TestToolRefusalExitParameter/duplicate/dark (0.12s)
+    --- PASS: TestToolRefusalExitParameter/options/light (0.12s)
+    --- PASS: TestToolRefusalExitParameter/options/dark (0.12s)
+    --- PASS: TestToolRefusalExitParameter/flag/light (0.12s)
+    --- PASS: TestToolRefusalExitParameter/flag/dark (0.11s)
+    --- PASS: TestToolRefusalExitParameter/badflag/light (0.11s)
+    --- PASS: TestToolRefusalExitParameter/badflag/dark (0.11s)
+    --- PASS: TestToolRefusalExitParameter/number/light (0.12s)
+    --- PASS: TestToolRefusalExitParameter/number/dark (0.12s)
+    --- PASS: TestToolRefusalExitParameter/boolean/light (0.12s)
+    --- PASS: TestToolRefusalExitParameter/boolean/dark (0.13s)
+    --- PASS: TestToolRefusalExitParameter/select/light (0.13s)
+    --- PASS: TestToolRefusalExitParameter/select/dark (0.13s)
+=== RUN   TestToolRefusalVisibilityParameter
+=== RUN   TestToolRefusalVisibilityParameter/id/light
+=== RUN   TestToolRefusalVisibilityParameter/id/dark
+=== RUN   TestToolRefusalVisibilityParameter/duplicate/light
+=== RUN   TestToolRefusalVisibilityParameter/duplicate/dark
+=== RUN   TestToolRefusalVisibilityParameter/options/light
+=== RUN   TestToolRefusalVisibilityParameter/options/dark
+=== RUN   TestToolRefusalVisibilityParameter/flag/light
+=== RUN   TestToolRefusalVisibilityParameter/flag/dark
+=== RUN   TestToolRefusalVisibilityParameter/badflag/light
+=== RUN   TestToolRefusalVisibilityParameter/badflag/dark
+=== RUN   TestToolRefusalVisibilityParameter/number/light
+=== RUN   TestToolRefusalVisibilityParameter/number/dark
+=== RUN   TestToolRefusalVisibilityParameter/boolean/light
+=== RUN   TestToolRefusalVisibilityParameter/boolean/dark
+=== RUN   TestToolRefusalVisibilityParameter/select/light
+=== RUN   TestToolRefusalVisibilityParameter/select/dark
+--- PASS: TestToolRefusalVisibilityParameter (2.18s)
+    --- PASS: TestToolRefusalVisibilityParameter/id/light (0.15s)
+    --- PASS: TestToolRefusalVisibilityParameter/id/dark (0.14s)
+    --- PASS: TestToolRefusalVisibilityParameter/duplicate/light (0.14s)
+    --- PASS: TestToolRefusalVisibilityParameter/duplicate/dark (0.14s)
+    --- PASS: TestToolRefusalVisibilityParameter/options/light (0.14s)
+    --- PASS: TestToolRefusalVisibilityParameter/options/dark (0.13s)
+    --- PASS: TestToolRefusalVisibilityParameter/flag/light (0.13s)
+    --- PASS: TestToolRefusalVisibilityParameter/flag/dark (0.13s)
+    --- PASS: TestToolRefusalVisibilityParameter/badflag/light (0.13s)
+    --- PASS: TestToolRefusalVisibilityParameter/badflag/dark (0.13s)
+    --- PASS: TestToolRefusalVisibilityParameter/number/light (0.14s)
+    --- PASS: TestToolRefusalVisibilityParameter/number/dark (0.14s)
+    --- PASS: TestToolRefusalVisibilityParameter/boolean/light (0.13s)
+    --- PASS: TestToolRefusalVisibilityParameter/boolean/dark (0.13s)
+    --- PASS: TestToolRefusalVisibilityParameter/select/light (0.13s)
+    --- PASS: TestToolRefusalVisibilityParameter/select/dark (0.13s)
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/light
+    paramvisibility_test.go:108: permission did not take focus
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/dark
+    paramvisibility_test.go:108: permission did not take focus
+--- FAIL: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet (0.05s)
+    --- FAIL: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/light (0.03s)
+    --- FAIL: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	4.305s
+FAIL

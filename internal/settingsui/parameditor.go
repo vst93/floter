@@ -84,7 +84,7 @@ func (a *App) focusParamRefusal(c *ui.Context, issues map[int]extensions.ParamRo
 		case extensions.ParamIssueDefault:
 			target = targets.defaultValue
 		}
-		c.Resolve(target).Focus()
+		c.Resolve(target).Focus().ScrollIntoView()
 		return
 	}
 }
