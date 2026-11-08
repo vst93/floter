@@ -1,0 +1,2 @@
+233	0	internal/settingsui/installrecovery_test.go
+140	0	internal/shell/installrecovery_test.go

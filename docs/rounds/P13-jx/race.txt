@@ -1,0 +1,70 @@
+=== RUN   TestInstallFormRegistryBusy
+=== RUN   TestInstallFormRegistryBusy/light
+=== RUN   TestInstallFormRegistryBusy/dark
+--- PASS: TestInstallFormRegistryBusy (4.72s)
+    --- PASS: TestInstallFormRegistryBusy/light (2.67s)
+    --- PASS: TestInstallFormRegistryBusy/dark (2.05s)
+=== RUN   TestInstallFormBlankPackage
+=== RUN   TestInstallFormBlankPackage/light
+=== RUN   TestInstallFormBlankPackage/dark
+--- PASS: TestInstallFormBlankPackage (3.89s)
+    --- PASS: TestInstallFormBlankPackage/light (1.80s)
+    --- PASS: TestInstallFormBlankPackage/dark (2.09s)
+=== RUN   TestInstallFormRegistryKeyboard
+=== RUN   TestInstallFormRegistryKeyboard/light
+=== RUN   TestInstallFormRegistryKeyboard/dark
+--- PASS: TestInstallFormRegistryKeyboard (1.87s)
+    --- PASS: TestInstallFormRegistryKeyboard/light (0.81s)
+    --- PASS: TestInstallFormRegistryKeyboard/dark (1.06s)
+=== RUN   TestInstallFormRecoveryKeepsNewDraft
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/name
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/version
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/cleared
+--- PASS: TestInstallFormRecoveryKeepsNewDraft (11.88s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/name (3.22s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/version (3.97s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/cleared (4.70s)
+=== RUN   TestInstallFormFolderKeyboard
+=== RUN   TestInstallFormFolderKeyboard/light
+=== RUN   TestInstallFormFolderKeyboard/dark
+--- PASS: TestInstallFormFolderKeyboard (0.85s)
+    --- PASS: TestInstallFormFolderKeyboard/light (0.43s)
+    --- PASS: TestInstallFormFolderKeyboard/dark (0.42s)
+=== RUN   TestInstallFormFolderError
+=== RUN   TestInstallFormFolderError/light
+=== RUN   TestInstallFormFolderError/dark
+--- PASS: TestInstallFormFolderError (0.60s)
+    --- PASS: TestInstallFormFolderError/light (0.31s)
+    --- PASS: TestInstallFormFolderError/dark (0.28s)
+PASS
+ok  	floter/internal/settingsui	24.925s
+=== RUN   TestInstallRecoveryDownload
+=== RUN   TestInstallRecoveryDownload/light
+2026/11/08 11:50:19 floter: could not install review-current: extensions: the registry answered 503 Service Unavailable for review-current
+=== RUN   TestInstallRecoveryDownload/dark
+2026/11/08 11:50:28 floter: could not install review-current: extensions: the registry answered 503 Service Unavailable for review-current
+--- PASS: TestInstallRecoveryDownload (17.81s)
+    --- PASS: TestInstallRecoveryDownload/light (9.39s)
+    --- PASS: TestInstallRecoveryDownload/dark (8.42s)
+=== RUN   TestInstallRecoveryCancel
+=== RUN   TestInstallRecoveryCancel/light
+=== RUN   TestInstallRecoveryCancel/dark
+--- PASS: TestInstallRecoveryCancel (13.71s)
+    --- PASS: TestInstallRecoveryCancel/light (7.66s)
+    --- PASS: TestInstallRecoveryCancel/dark (6.04s)
+=== RUN   TestInstallRecoveryCommit
+=== RUN   TestInstallRecoveryCommit/light
+2026/11/08 11:50:49 floter: could not install review-current: extensions: no manifest
+=== RUN   TestInstallRecoveryCommit/dark
+2026/11/08 11:50:55 floter: could not install review-current: extensions: no manifest
+--- PASS: TestInstallRecoveryCommit (12.40s)
+    --- PASS: TestInstallRecoveryCommit/light (6.80s)
+    --- PASS: TestInstallRecoveryCommit/dark (5.60s)
+=== RUN   TestInstallRecoveryPickerError
+=== RUN   TestInstallRecoveryPickerError/light
+=== RUN   TestInstallRecoveryPickerError/dark
+--- PASS: TestInstallRecoveryPickerError (4.80s)
+    --- PASS: TestInstallRecoveryPickerError/light (2.40s)
+    --- PASS: TestInstallRecoveryPickerError/dark (2.40s)
+PASS
+ok  	floter/internal/shell	49.875s
