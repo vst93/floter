@@ -1,0 +1,6 @@
+# floter/internal/settingsui [floter/internal/settingsui.test]
+internal/settingsui/reportreflow_test.go:146:37: cannot use func(id string) {…} (value of type func(id string)) as func(id string, name string, kind string, done func(error)) value in assignment
+internal/settingsui/reportreflow_test.go:147:38: cannot use func(id string, enabled bool) {…} (value of type func(id string, enabled bool)) as func(id string, enabled bool, done func(error)) value in assignment
+internal/settingsui/reportreflow_test.go:148:151: a.copy().IntegrationsEnabled undefined (type "floter/internal/i18n".Settings has no field or method IntegrationsEnabled)
+FAIL	floter/internal/settingsui [build failed]
+FAIL

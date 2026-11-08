@@ -1,0 +1,36 @@
+=== RUN   TestHealthReflowEditors
+=== RUN   TestHealthReflowEditors/text
+=== RUN   TestHealthReflowEditors/text/light
+=== RUN   TestHealthReflowEditors/text/dark
+=== RUN   TestHealthReflowEditors/number
+=== RUN   TestHealthReflowEditors/number/light
+=== RUN   TestHealthReflowEditors/number/dark
+=== RUN   TestHealthReflowEditors/path
+=== RUN   TestHealthReflowEditors/path/light
+=== RUN   TestHealthReflowEditors/path/dark
+--- PASS: TestHealthReflowEditors (0.31s)
+    --- PASS: TestHealthReflowEditors/text (0.13s)
+        --- PASS: TestHealthReflowEditors/text/light (0.09s)
+        --- PASS: TestHealthReflowEditors/text/dark (0.04s)
+    --- PASS: TestHealthReflowEditors/number (0.09s)
+        --- PASS: TestHealthReflowEditors/number/light (0.04s)
+        --- PASS: TestHealthReflowEditors/number/dark (0.04s)
+    --- PASS: TestHealthReflowEditors/path (0.09s)
+        --- PASS: TestHealthReflowEditors/path/light (0.04s)
+        --- PASS: TestHealthReflowEditors/path/dark (0.04s)
+=== RUN   TestHealthReflowChoices
+=== RUN   TestHealthReflowChoices/boolean
+=== RUN   TestHealthReflowChoices/boolean/light
+=== RUN   TestHealthReflowChoices/boolean/dark
+=== RUN   TestHealthReflowChoices/select
+=== RUN   TestHealthReflowChoices/select/light
+=== RUN   TestHealthReflowChoices/select/dark
+--- PASS: TestHealthReflowChoices (0.17s)
+    --- PASS: TestHealthReflowChoices/boolean (0.09s)
+        --- PASS: TestHealthReflowChoices/boolean/light (0.04s)
+        --- PASS: TestHealthReflowChoices/boolean/dark (0.04s)
+    --- PASS: TestHealthReflowChoices/select (0.09s)
+        --- PASS: TestHealthReflowChoices/select/light (0.04s)
+        --- PASS: TestHealthReflowChoices/select/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.486s

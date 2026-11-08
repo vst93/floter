@@ -1,0 +1,26 @@
+=== RUN   TestFormFeedbackRunCancel
+=== RUN   TestFormFeedbackRunCancel/light
+=== RUN   TestFormFeedbackRunCancel/dark
+--- PASS: TestFormFeedbackRunCancel (0.24s)
+    --- PASS: TestFormFeedbackRunCancel/light (0.15s)
+    --- PASS: TestFormFeedbackRunCancel/dark (0.09s)
+=== RUN   TestFormPrefixRunSubmit
+=== RUN   TestFormPrefixRunSubmit/light
+=== RUN   TestFormPrefixRunSubmit/dark
+--- PASS: TestFormPrefixRunSubmit (0.16s)
+    --- PASS: TestFormPrefixRunSubmit/light (0.08s)
+    --- PASS: TestFormPrefixRunSubmit/dark (0.08s)
+=== RUN   TestHealthReflowCancel
+=== RUN   TestHealthReflowCancel/light
+=== RUN   TestHealthReflowCancel/dark
+--- PASS: TestHealthReflowCancel (0.18s)
+    --- PASS: TestHealthReflowCancel/light (0.09s)
+    --- PASS: TestHealthReflowCancel/dark (0.09s)
+=== RUN   TestHealthReflowSubmit
+=== RUN   TestHealthReflowSubmit/light
+=== RUN   TestHealthReflowSubmit/dark
+--- PASS: TestHealthReflowSubmit (0.17s)
+    --- PASS: TestHealthReflowSubmit/light (0.09s)
+    --- PASS: TestHealthReflowSubmit/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	0.761s

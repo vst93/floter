@@ -1,0 +1,57 @@
+=== RUN   TestHealthReflowEditors
+=== RUN   TestHealthReflowEditors/text
+=== RUN   TestHealthReflowEditors/text/light
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestHealthReflowEditors/text/dark
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestHealthReflowEditors/number
+=== RUN   TestHealthReflowEditors/number/light
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestHealthReflowEditors/number/dark
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestHealthReflowEditors/path
+=== RUN   TestHealthReflowEditors/path/light
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestHealthReflowEditors/path/dark
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:763.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestHealthReflowEditors (0.38s)
+    --- FAIL: TestHealthReflowEditors/text (0.22s)
+        --- FAIL: TestHealthReflowEditors/text/light (0.18s)
+        --- FAIL: TestHealthReflowEditors/text/dark (0.04s)
+    --- FAIL: TestHealthReflowEditors/number (0.08s)
+        --- FAIL: TestHealthReflowEditors/number/light (0.04s)
+        --- FAIL: TestHealthReflowEditors/number/dark (0.04s)
+    --- FAIL: TestHealthReflowEditors/path (0.08s)
+        --- FAIL: TestHealthReflowEditors/path/light (0.04s)
+        --- FAIL: TestHealthReflowEditors/path/dark (0.04s)
+=== RUN   TestHealthReflowChoices
+=== RUN   TestHealthReflowChoices/boolean
+=== RUN   TestHealthReflowChoices/boolean/light
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:768.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:768.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestHealthReflowChoices/boolean/dark
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:768.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:768.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestHealthReflowChoices/select
+=== RUN   TestHealthReflowChoices/select/light
+    reportreflow_test.go:63: feedback reflow hides active outlet "北方": target={X:597.8 Y:762.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "北方": target={X:597.8 Y:762.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestHealthReflowChoices/select/dark
+    reportreflow_test.go:63: feedback reflow hides active outlet "北方": target={X:597.8 Y:762.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    reportreflow_test.go:63: feedback reflow hides active outlet "北方": target={X:597.8 Y:762.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestHealthReflowChoices (0.17s)
+    --- FAIL: TestHealthReflowChoices/boolean (0.08s)
+        --- FAIL: TestHealthReflowChoices/boolean/light (0.04s)
+        --- FAIL: TestHealthReflowChoices/boolean/dark (0.04s)
+    --- FAIL: TestHealthReflowChoices/select (0.09s)
+        --- FAIL: TestHealthReflowChoices/select/light (0.05s)
+        --- FAIL: TestHealthReflowChoices/select/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.550s
+FAIL

@@ -120,6 +120,9 @@ func TestHealthReflowChoices(t *testing.T) {
 	}
 }
 
+func TestHealthReflowCancel(t *testing.T) { checkHealthReflow(t, "cancel") }
+func TestHealthReflowSubmit(t *testing.T) { checkHealthReflow(t, "submit") }
+
 func checkResultReflow(t *testing.T, action string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {

@@ -1,0 +1,112 @@
+=== RUN   TestFormFeedbackRunEditors
+=== RUN   TestFormFeedbackRunEditors/text
+=== RUN   TestFormFeedbackRunEditors/text/light
+=== RUN   TestFormFeedbackRunEditors/text/dark
+=== RUN   TestFormFeedbackRunEditors/number
+=== RUN   TestFormFeedbackRunEditors/number/light
+=== RUN   TestFormFeedbackRunEditors/number/dark
+=== RUN   TestFormFeedbackRunEditors/path
+=== RUN   TestFormFeedbackRunEditors/path/light
+=== RUN   TestFormFeedbackRunEditors/path/dark
+--- PASS: TestFormFeedbackRunEditors (0.34s)
+    --- PASS: TestFormFeedbackRunEditors/text (0.15s)
+        --- PASS: TestFormFeedbackRunEditors/text/light (0.11s)
+        --- PASS: TestFormFeedbackRunEditors/text/dark (0.04s)
+    --- PASS: TestFormFeedbackRunEditors/number (0.10s)
+        --- PASS: TestFormFeedbackRunEditors/number/light (0.05s)
+        --- PASS: TestFormFeedbackRunEditors/number/dark (0.05s)
+    --- PASS: TestFormFeedbackRunEditors/path (0.09s)
+        --- PASS: TestFormFeedbackRunEditors/path/light (0.04s)
+        --- PASS: TestFormFeedbackRunEditors/path/dark (0.05s)
+=== RUN   TestFormFeedbackRunToggle
+=== RUN   TestFormFeedbackRunToggle/light
+=== RUN   TestFormFeedbackRunToggle/dark
+--- PASS: TestFormFeedbackRunToggle (0.08s)
+    --- PASS: TestFormFeedbackRunToggle/light (0.04s)
+    --- PASS: TestFormFeedbackRunToggle/dark (0.04s)
+=== RUN   TestFormFeedbackRunSelect
+=== RUN   TestFormFeedbackRunSelect/light
+=== RUN   TestFormFeedbackRunSelect/dark
+--- PASS: TestFormFeedbackRunSelect (0.09s)
+    --- PASS: TestFormFeedbackRunSelect/light (0.04s)
+    --- PASS: TestFormFeedbackRunSelect/dark (0.04s)
+=== RUN   TestFormFeedbackRunCancel
+=== RUN   TestFormFeedbackRunCancel/light
+=== RUN   TestFormFeedbackRunCancel/dark
+--- PASS: TestFormFeedbackRunCancel (0.15s)
+    --- PASS: TestFormFeedbackRunCancel/light (0.08s)
+    --- PASS: TestFormFeedbackRunCancel/dark (0.08s)
+=== RUN   TestFormPrefixRunControls
+=== RUN   TestFormPrefixRunControls/text
+=== RUN   TestFormPrefixRunControls/text/light
+=== RUN   TestFormPrefixRunControls/text/dark
+=== RUN   TestFormPrefixRunControls/number
+=== RUN   TestFormPrefixRunControls/number/light
+=== RUN   TestFormPrefixRunControls/number/dark
+=== RUN   TestFormPrefixRunControls/path
+=== RUN   TestFormPrefixRunControls/path/light
+=== RUN   TestFormPrefixRunControls/path/dark
+=== RUN   TestFormPrefixRunControls/boolean
+=== RUN   TestFormPrefixRunControls/boolean/light
+=== RUN   TestFormPrefixRunControls/boolean/dark
+=== RUN   TestFormPrefixRunControls/select
+=== RUN   TestFormPrefixRunControls/select/light
+=== RUN   TestFormPrefixRunControls/select/dark
+=== RUN   TestFormPrefixRunControls/cancel
+=== RUN   TestFormPrefixRunControls/cancel/light
+=== RUN   TestFormPrefixRunControls/cancel/dark
+--- PASS: TestFormPrefixRunControls (0.59s)
+    --- PASS: TestFormPrefixRunControls/text (0.10s)
+        --- PASS: TestFormPrefixRunControls/text/light (0.06s)
+        --- PASS: TestFormPrefixRunControls/text/dark (0.04s)
+    --- PASS: TestFormPrefixRunControls/number (0.09s)
+        --- PASS: TestFormPrefixRunControls/number/light (0.04s)
+        --- PASS: TestFormPrefixRunControls/number/dark (0.04s)
+    --- PASS: TestFormPrefixRunControls/path (0.09s)
+        --- PASS: TestFormPrefixRunControls/path/light (0.04s)
+        --- PASS: TestFormPrefixRunControls/path/dark (0.04s)
+    --- PASS: TestFormPrefixRunControls/boolean (0.08s)
+        --- PASS: TestFormPrefixRunControls/boolean/light (0.04s)
+        --- PASS: TestFormPrefixRunControls/boolean/dark (0.04s)
+    --- PASS: TestFormPrefixRunControls/select (0.08s)
+        --- PASS: TestFormPrefixRunControls/select/light (0.04s)
+        --- PASS: TestFormPrefixRunControls/select/dark (0.04s)
+    --- PASS: TestFormPrefixRunControls/cancel (0.15s)
+        --- PASS: TestFormPrefixRunControls/cancel/light (0.07s)
+        --- PASS: TestFormPrefixRunControls/cancel/dark (0.08s)
+=== RUN   TestHealthReflowEditors
+=== RUN   TestHealthReflowEditors/text
+=== RUN   TestHealthReflowEditors/text/light
+=== RUN   TestHealthReflowEditors/text/dark
+=== RUN   TestHealthReflowEditors/number
+=== RUN   TestHealthReflowEditors/number/light
+=== RUN   TestHealthReflowEditors/number/dark
+=== RUN   TestHealthReflowEditors/path
+=== RUN   TestHealthReflowEditors/path/light
+=== RUN   TestHealthReflowEditors/path/dark
+--- PASS: TestHealthReflowEditors (0.32s)
+    --- PASS: TestHealthReflowEditors/text (0.11s)
+        --- PASS: TestHealthReflowEditors/text/light (0.06s)
+        --- PASS: TestHealthReflowEditors/text/dark (0.05s)
+    --- PASS: TestHealthReflowEditors/number (0.11s)
+        --- PASS: TestHealthReflowEditors/number/light (0.05s)
+        --- PASS: TestHealthReflowEditors/number/dark (0.05s)
+    --- PASS: TestHealthReflowEditors/path (0.10s)
+        --- PASS: TestHealthReflowEditors/path/light (0.05s)
+        --- PASS: TestHealthReflowEditors/path/dark (0.05s)
+=== RUN   TestHealthReflowChoices
+=== RUN   TestHealthReflowChoices/boolean
+=== RUN   TestHealthReflowChoices/boolean/light
+=== RUN   TestHealthReflowChoices/boolean/dark
+=== RUN   TestHealthReflowChoices/select
+=== RUN   TestHealthReflowChoices/select/light
+=== RUN   TestHealthReflowChoices/select/dark
+--- PASS: TestHealthReflowChoices (0.21s)
+    --- PASS: TestHealthReflowChoices/boolean (0.10s)
+        --- PASS: TestHealthReflowChoices/boolean/light (0.05s)
+        --- PASS: TestHealthReflowChoices/boolean/dark (0.05s)
+    --- PASS: TestHealthReflowChoices/select (0.11s)
+        --- PASS: TestHealthReflowChoices/select/light (0.05s)
+        --- PASS: TestHealthReflowChoices/select/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	1.807s
