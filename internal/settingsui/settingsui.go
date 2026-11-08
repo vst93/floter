@@ -3570,10 +3570,13 @@ func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration I
 	var opener ui.Element
 	// P13-go: the row and its only control share availability. A disabled
 	// outlet keeps the card's plane; it must not lift or sink under the pointer.
-	a.rowAligned(c, ui.Center, nil, rowFace{Inert: !openable}, copy.ConfigSection, nil, "", func() {
+	a.rowAligned(c.Key("tool-config-row"), ui.Center, nil, rowFace{Inert: !openable}, copy.ConfigSection, nil, "", func() {
 		// P13-s（§6.2b-6）：禁用的面不跟着字一起淡——`openable` 直接进面。
-		button := a.extensionGlyphActionButton(c, "link", copy.ConfigOpenConfiguration,
-			a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body, !openable)
+		var button ui.Element
+		a.formFeedbackOutlet(c.Key("tool-config-outlet"), strconv.Quote(integration.Error)+strconv.Quote(integration.Description), func() {
+			button = a.extensionGlyphActionButton(c, "link", copy.ConfigOpenConfiguration,
+				a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body, !openable)
+		})
 		a.rememberOperationFocus(c, integration.ID, "editor", button)
 		if !openable {
 			button = button.Disabled(true).Cursor(ui.CursorDefault)

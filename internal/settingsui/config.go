@@ -387,7 +387,7 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 		a.configToolbar(c, copy, integration, draft)
 		feedback := ""
 		for _, field := range integration.Config {
-			grid := a.configField(c, copy, integration, draft, field, feedback)
+			grid := a.configField(c, copy, integration, draft, field, strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+feedback)
 			a.rememberOperationFocus(c, integration.ID, "field", grid)
 			feedback += strconv.Quote(field.Label) + strconv.Quote(field.Description) +
 				strconv.Quote(configProblemText(a.configFieldProblem(integration, field), copy))

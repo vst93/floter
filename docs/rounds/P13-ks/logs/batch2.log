@@ -1,0 +1,98 @@
+=== RUN   TestFormFeedbackConfigFields
+=== RUN   TestFormFeedbackConfigFields/text
+=== RUN   TestFormFeedbackConfigFields/text/light
+=== RUN   TestFormFeedbackConfigFields/text/dark
+=== RUN   TestFormFeedbackConfigFields/password
+=== RUN   TestFormFeedbackConfigFields/password/light
+=== RUN   TestFormFeedbackConfigFields/password/dark
+=== RUN   TestFormFeedbackConfigFields/path
+=== RUN   TestFormFeedbackConfigFields/path/light
+=== RUN   TestFormFeedbackConfigFields/path/dark
+=== RUN   TestFormFeedbackConfigFields/number
+=== RUN   TestFormFeedbackConfigFields/number/light
+=== RUN   TestFormFeedbackConfigFields/number/dark
+=== RUN   TestFormFeedbackConfigFields/boolean
+=== RUN   TestFormFeedbackConfigFields/boolean/light
+=== RUN   TestFormFeedbackConfigFields/boolean/dark
+=== RUN   TestFormFeedbackConfigFields/select
+=== RUN   TestFormFeedbackConfigFields/select/light
+=== RUN   TestFormFeedbackConfigFields/select/dark
+=== RUN   TestFormFeedbackConfigFields/multiselect
+=== RUN   TestFormFeedbackConfigFields/multiselect/light
+=== RUN   TestFormFeedbackConfigFields/multiselect/dark
+--- PASS: TestFormFeedbackConfigFields (0.93s)
+    --- PASS: TestFormFeedbackConfigFields/text (0.25s)
+        --- PASS: TestFormFeedbackConfigFields/text/light (0.19s)
+        --- PASS: TestFormFeedbackConfigFields/text/dark (0.05s)
+    --- PASS: TestFormFeedbackConfigFields/password (0.11s)
+        --- PASS: TestFormFeedbackConfigFields/password/light (0.05s)
+        --- PASS: TestFormFeedbackConfigFields/password/dark (0.06s)
+    --- PASS: TestFormFeedbackConfigFields/path (0.11s)
+        --- PASS: TestFormFeedbackConfigFields/path/light (0.06s)
+        --- PASS: TestFormFeedbackConfigFields/path/dark (0.06s)
+    --- PASS: TestFormFeedbackConfigFields/number (0.12s)
+        --- PASS: TestFormFeedbackConfigFields/number/light (0.06s)
+        --- PASS: TestFormFeedbackConfigFields/number/dark (0.06s)
+    --- PASS: TestFormFeedbackConfigFields/boolean (0.10s)
+        --- PASS: TestFormFeedbackConfigFields/boolean/light (0.05s)
+        --- PASS: TestFormFeedbackConfigFields/boolean/dark (0.05s)
+    --- PASS: TestFormFeedbackConfigFields/select (0.12s)
+        --- PASS: TestFormFeedbackConfigFields/select/light (0.06s)
+        --- PASS: TestFormFeedbackConfigFields/select/dark (0.06s)
+    --- PASS: TestFormFeedbackConfigFields/multiselect (0.12s)
+        --- PASS: TestFormFeedbackConfigFields/multiselect/light (0.06s)
+        --- PASS: TestFormFeedbackConfigFields/multiselect/dark (0.05s)
+=== RUN   TestFormOutletToolCommand
+=== RUN   TestFormOutletToolCommand/light/entry
+=== RUN   TestFormOutletToolCommand/light/elsewhere
+=== RUN   TestFormOutletToolCommand/dark/entry
+=== RUN   TestFormOutletToolCommand/dark/elsewhere
+--- PASS: TestFormOutletToolCommand (0.47s)
+    --- PASS: TestFormOutletToolCommand/light/entry (0.11s)
+    --- PASS: TestFormOutletToolCommand/light/elsewhere (0.13s)
+    --- PASS: TestFormOutletToolCommand/dark/entry (0.11s)
+    --- PASS: TestFormOutletToolCommand/dark/elsewhere (0.13s)
+=== RUN   TestFormOutletToolAction
+=== RUN   TestFormOutletToolAction/light/entry
+=== RUN   TestFormOutletToolAction/light/elsewhere
+=== RUN   TestFormOutletToolAction/dark/entry
+=== RUN   TestFormOutletToolAction/dark/elsewhere
+--- PASS: TestFormOutletToolAction (0.47s)
+    --- PASS: TestFormOutletToolAction/light/entry (0.11s)
+    --- PASS: TestFormOutletToolAction/light/elsewhere (0.13s)
+    --- PASS: TestFormOutletToolAction/dark/entry (0.11s)
+    --- PASS: TestFormOutletToolAction/dark/elsewhere (0.13s)
+=== RUN   TestFormOutletToolNoCheck
+=== RUN   TestFormOutletToolNoCheck/light/entry
+=== RUN   TestFormOutletToolNoCheck/light/elsewhere
+=== RUN   TestFormOutletToolNoCheck/dark/entry
+=== RUN   TestFormOutletToolNoCheck/dark/elsewhere
+--- PASS: TestFormOutletToolNoCheck (0.48s)
+    --- PASS: TestFormOutletToolNoCheck/light/entry (0.11s)
+    --- PASS: TestFormOutletToolNoCheck/light/elsewhere (0.13s)
+    --- PASS: TestFormOutletToolNoCheck/dark/entry (0.11s)
+    --- PASS: TestFormOutletToolNoCheck/dark/elsewhere (0.13s)
+=== RUN   TestFormOutletToolOwner
+=== RUN   TestFormOutletToolOwner/light/entry
+=== RUN   TestFormOutletToolOwner/light/elsewhere
+=== RUN   TestFormOutletToolOwner/dark/entry
+=== RUN   TestFormOutletToolOwner/dark/elsewhere
+--- PASS: TestFormOutletToolOwner (0.48s)
+    --- PASS: TestFormOutletToolOwner/light/entry (0.10s)
+    --- PASS: TestFormOutletToolOwner/light/elsewhere (0.13s)
+    --- PASS: TestFormOutletToolOwner/dark/entry (0.11s)
+    --- PASS: TestFormOutletToolOwner/dark/elsewhere (0.14s)
+=== RUN   TestFormPrefixToolOpen
+=== RUN   TestFormPrefixToolOpen/light
+=== RUN   TestFormPrefixToolOpen/dark
+--- PASS: TestFormPrefixToolOpen (0.07s)
+    --- PASS: TestFormPrefixToolOpen/light (0.04s)
+    --- PASS: TestFormPrefixToolOpen/dark (0.03s)
+=== RUN   TestFormPrefixConfigFields
+=== RUN   TestFormPrefixConfigFields/light
+=== RUN   TestFormPrefixConfigFields/dark
+--- PASS: TestFormPrefixConfigFields (0.12s)
+    --- PASS: TestFormPrefixConfigFields/light (0.06s)
+    --- PASS: TestFormPrefixConfigFields/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	3.065s

@@ -1,0 +1,15 @@
+=== RUN   TestFormPrefixToolOpen
+=== RUN   TestFormPrefixToolOpen/light
+    formprefix_test.go:120: feedback reflow hides active outlet "Open configuration": target={X:581.8 Y:467.7 W:103 H:14} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formprefix_test.go:120: feedback reflow hides active outlet "Open configuration": target={X:581.8 Y:467.7 W:103 H:14} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formprefix_test.go:177: action dispatched 0 times
+=== RUN   TestFormPrefixToolOpen/dark
+    formprefix_test.go:120: feedback reflow hides active outlet "Open configuration": target={X:581.8 Y:467.7 W:103 H:14} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formprefix_test.go:120: feedback reflow hides active outlet "Open configuration": target={X:581.8 Y:467.7 W:103 H:14} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formprefix_test.go:177: action dispatched 0 times
+--- FAIL: TestFormPrefixToolOpen (0.12s)
+    --- FAIL: TestFormPrefixToolOpen/light (0.10s)
+    --- FAIL: TestFormPrefixToolOpen/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.123s
+FAIL

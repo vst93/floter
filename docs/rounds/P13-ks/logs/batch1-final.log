@@ -1,0 +1,46 @@
+=== RUN   TestFormPrefixRunSubmit
+=== RUN   TestFormPrefixRunSubmit/light
+=== RUN   TestFormPrefixRunSubmit/dark
+--- PASS: TestFormPrefixRunSubmit (0.26s)
+    --- PASS: TestFormPrefixRunSubmit/light (0.17s)
+    --- PASS: TestFormPrefixRunSubmit/dark (0.09s)
+=== RUN   TestFormPrefixRunControls
+=== RUN   TestFormPrefixRunControls/text
+=== RUN   TestFormPrefixRunControls/text/light
+=== RUN   TestFormPrefixRunControls/text/dark
+=== RUN   TestFormPrefixRunControls/number
+=== RUN   TestFormPrefixRunControls/number/light
+=== RUN   TestFormPrefixRunControls/number/dark
+=== RUN   TestFormPrefixRunControls/path
+=== RUN   TestFormPrefixRunControls/path/light
+=== RUN   TestFormPrefixRunControls/path/dark
+=== RUN   TestFormPrefixRunControls/boolean
+=== RUN   TestFormPrefixRunControls/boolean/light
+=== RUN   TestFormPrefixRunControls/boolean/dark
+=== RUN   TestFormPrefixRunControls/select
+=== RUN   TestFormPrefixRunControls/select/light
+=== RUN   TestFormPrefixRunControls/select/dark
+=== RUN   TestFormPrefixRunControls/cancel
+=== RUN   TestFormPrefixRunControls/cancel/light
+=== RUN   TestFormPrefixRunControls/cancel/dark
+--- PASS: TestFormPrefixRunControls (0.71s)
+    --- PASS: TestFormPrefixRunControls/text (0.12s)
+        --- PASS: TestFormPrefixRunControls/text/light (0.06s)
+        --- PASS: TestFormPrefixRunControls/text/dark (0.05s)
+    --- PASS: TestFormPrefixRunControls/number (0.11s)
+        --- PASS: TestFormPrefixRunControls/number/light (0.05s)
+        --- PASS: TestFormPrefixRunControls/number/dark (0.05s)
+    --- PASS: TestFormPrefixRunControls/path (0.11s)
+        --- PASS: TestFormPrefixRunControls/path/light (0.05s)
+        --- PASS: TestFormPrefixRunControls/path/dark (0.05s)
+    --- PASS: TestFormPrefixRunControls/boolean (0.10s)
+        --- PASS: TestFormPrefixRunControls/boolean/light (0.05s)
+        --- PASS: TestFormPrefixRunControls/boolean/dark (0.05s)
+    --- PASS: TestFormPrefixRunControls/select (0.11s)
+        --- PASS: TestFormPrefixRunControls/select/light (0.05s)
+        --- PASS: TestFormPrefixRunControls/select/dark (0.05s)
+    --- PASS: TestFormPrefixRunControls/cancel (0.17s)
+        --- PASS: TestFormPrefixRunControls/cancel/light (0.09s)
+        --- PASS: TestFormPrefixRunControls/cancel/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	0.981s

@@ -1,0 +1,14 @@
+=== RUN   TestFormPrefixRunSubmit
+=== RUN   TestFormPrefixRunSubmit/light
+=== RUN   TestFormPrefixRunSubmit/dark
+--- PASS: TestFormPrefixRunSubmit (0.28s)
+    --- PASS: TestFormPrefixRunSubmit/light (0.19s)
+    --- PASS: TestFormPrefixRunSubmit/dark (0.09s)
+=== RUN   TestFormPrefixConfigOpen
+=== RUN   TestFormPrefixConfigOpen/light
+=== RUN   TestFormPrefixConfigOpen/dark
+--- PASS: TestFormPrefixConfigOpen (0.09s)
+    --- PASS: TestFormPrefixConfigOpen/light (0.05s)
+    --- PASS: TestFormPrefixConfigOpen/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.370s

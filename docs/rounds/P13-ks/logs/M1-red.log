@@ -1,0 +1,19 @@
+=== RUN   TestFormPrefixRunSubmit
+=== RUN   TestFormPrefixRunSubmit/light
+    formprefix_test.go:120: feedback reflow hides active outlet "Run with these values": target={X:567.8 Y:745.9999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:120: feedback reflow hides active outlet "Run with these values": target={X:567.8 Y:745.9999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormPrefixRunSubmit/dark
+    formprefix_test.go:120: feedback reflow hides active outlet "Run with these values": target={X:567.8 Y:745.9999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formprefix_test.go:120: feedback reflow hides active outlet "Run with these values": target={X:567.8 Y:745.9999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormPrefixRunSubmit (0.26s)
+    --- FAIL: TestFormPrefixRunSubmit/light (0.19s)
+    --- FAIL: TestFormPrefixRunSubmit/dark (0.08s)
+=== RUN   TestFormPrefixConfigOpen
+=== RUN   TestFormPrefixConfigOpen/light
+=== RUN   TestFormPrefixConfigOpen/dark
+--- PASS: TestFormPrefixConfigOpen (0.07s)
+    --- PASS: TestFormPrefixConfigOpen/light (0.05s)
+    --- PASS: TestFormPrefixConfigOpen/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.343s
+FAIL

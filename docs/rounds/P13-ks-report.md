@@ -23,3 +23,10 @@
 
 1. 运行提交：现象→标签增长后按钮Y638、W/H=0但焦点仍在；改动→监听前方标签及提示，复用19px显现包络；验证→深浅增/删/再增，Enter按原ID和12个值派发一次。M1撤回接线实红，原始错误`feedback reflow hides active outlet "Run with these values": target={X:567.8 Y:745.9999 W:0 H:0}`；MD5还原、touch后相关186 PASS。该次15行压力用例也证明宿主开合候选正常，最终截图统一9行以匹配before。
 2. 运行控件组：现象→宿主诊断把输入Y525.49994挤到视口外；改动→前置反馈包含宿主Error/Description；验证→文字/数字/路径、开关、选择、取消逐个深浅事件验证，答案归属和取消保留语义不变。
+
+第一批78ae91d6已推送，最终定向22 PASS/exit0；旧V/B/S断言0/0/0。
+
+3. 工具配置入口：现象→诊断行插入后focused=false且Enter派发0次；改动→固定工具配置行的身份、19px原包络监听诊断/描述；验证→深浅插入/移除/再插入仍聚焦，Enter仅执行原ID的settings命令一次。
+4. 配置字段：现象→诊断行挤掉配置5，仍有焦点却W/H=0；改动→字段前置反馈纳入诊断/描述；验证→深浅继续输入continued仅写c4，c0的dirty草稿保留。相关48 PASS/exit0。浅色对照中配置5由屏外回到完整蓝环编辑槽，底部淡边未盖住输入。
+
+M2撤回工具配置行身份及包络，实红`feedback reflow hides active outlet "Open configuration" ... focused=false`和`action dispatched 0 times`；MD5还原、touch后3 PASS/exit0。M1/M2原始错误与MD5核对日志在logs，未修改旧B断言。
