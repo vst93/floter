@@ -102,6 +102,13 @@ func TestPermissionEdgeNetwork(t *testing.T) {
 func TestPermissionEdgeProcess(t *testing.T) {
 	checkPermissionEdge(t, extensions.PermissionProcessSpawn)
 }
+func TestPermissionEdgeClipboardRead(t *testing.T) {
+	checkPermissionEdge(t, extensions.PermissionClipboardRead)
+}
+func TestPermissionEdgeClipboardWrite(t *testing.T) {
+	checkPermissionEdge(t, extensions.PermissionClipboardWrite)
+}
+
 func checkScriptEditorEdge(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
