@@ -19,6 +19,13 @@
 
 ## 增量记录
 
+### 第四批：选择成功与提交后的键盘出口
+
+7. **选择成功后不能立即修订路径**：现象→新路径已写入但焦点仍在选择按钮；改动→成功选择也返回程序输入；验证→键盘选择后路径为/usr/bin/forecast，直接全选键入得到/usr/bin/retry；新旧表单归属继续由已有回调测试守住。
+8. **提交收起表单后键盘悬空**：现象→原提交按钮退场后没有可操作的焦点；改动→仅本次连接提交把焦点交给同表单收起后的添加入口，token变化则退役；验证→普通提交和等待提交两种、深浅两套，Enter直接打开下一份空草稿，完成等待不抢焦点。
+
+定向59 PASS/0 FAIL/exit0、vet净。M4撤掉成功选择返焦点和提交返焦点，实红`picked picker did not return program focus`、`picked picker lost immediate keyboard edit: "/usr/bin/forecast"`、`submitted form lost keyboard exit: calls=1 open=false addFocus=false`；MD5还原并touch后59 PASS。旧V/B/S断言0/0/0、新增Skip0。
+
 ### 第三批：选择器错误与取消出口
 
 5. **选择程序失败无反馈**：现象→原生选择器返回错误却被吞掉；改动→向已有宿主警告出口发LocalToolFailed，保留原路径，旧表单退出后不再发过期警告；验证→真实按钮回调返回os.ErrPermission，警告恰1条，完整宿主ui.Tester可见错误浮层；新编辑器替换后的错误不警告、不覆盖。

@@ -792,9 +792,10 @@ type App struct {
 	// survives the rebuild, and it is cleared once the tool is connected.
 	toolOpen bool
 	// Each editing session owns the toolkit's field histories and selections.
-	toolFormKey    *int
-	toolRecover    func()
-	toolDisclosure uint64
+	toolFormKey     *int
+	toolRecover     func()
+	toolDisclosure  uint64
+	toolReturnToAdd *int
 	// toolAdvanced is whether the form's declaration/audit switches are
 	// unfolded: they sit behind a default-closed Advanced disclosure (R161),
 	// so a brand-new integration does not open on a list of permission rows.
@@ -5739,6 +5740,12 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.busyActionButton(c, copy.LocalToolConnect, "connect.custom")
 			}
 		})
+		if a.toolReturnToAdd != nil {
+			if a.toolReturnToAdd == a.toolFormKey {
+				add.Focus()
+			}
+			a.toolReturnToAdd = nil
+		}
 		if add.Clicked() {
 			a.toolOpen = !a.toolOpen
 			a.toolDisclosure++
@@ -5836,6 +5843,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 								}
 							} else if picked != "" {
 								program = picked
+								pickerFocus.restore(c)
 							} else {
 								pickerFocus.restore(c)
 							}
@@ -6008,6 +6016,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			a.endEdit()
 			if retired != nil {
 				a.toolFormKey = retired
+				if submit.FocusWithin() {
+					a.toolReturnToAdd = retired
+				}
 			}
 		}
 	})

@@ -1,0 +1,31 @@
+=== RUN   TestToolPickerRecoveryPicked
+=== RUN   TestToolPickerRecoveryPicked/light
+    toolpickerrecovery_test.go:52: picked picker did not return program focus
+    toolpickerrecovery_test.go:65: picked picker lost immediate keyboard edit: "/usr/bin/forecast"
+=== RUN   TestToolPickerRecoveryPicked/dark
+    toolpickerrecovery_test.go:52: picked picker did not return program focus
+    toolpickerrecovery_test.go:65: picked picker lost immediate keyboard edit: "/usr/bin/forecast"
+--- FAIL: TestToolPickerRecoveryPicked (0.28s)
+    --- FAIL: TestToolPickerRecoveryPicked/light (0.22s)
+    --- FAIL: TestToolPickerRecoveryPicked/dark (0.06s)
+=== RUN   TestToolRecoverySubmitKeyboard
+=== RUN   TestToolRecoverySubmitKeyboard/submit-keyboardlight
+    toolrecovery_test.go:204: submitted form lost keyboard exit: calls=1 open=false addFocus=false
+    toolrecovery_test.go:213: keyboard could not open next draft: open=false name="" calls=1
+=== RUN   TestToolRecoverySubmitKeyboard/submit-keyboarddark
+    toolrecovery_test.go:204: submitted form lost keyboard exit: calls=1 open=false addFocus=false
+    toolrecovery_test.go:213: keyboard could not open next draft: open=false name="" calls=1
+=== RUN   TestToolRecoverySubmitKeyboard/submit-wait-keyboardlight
+    toolrecovery_test.go:204: submitted form lost keyboard exit: calls=1 open=false addFocus=false
+    toolrecovery_test.go:213: keyboard could not open next draft: open=false name="" calls=1
+=== RUN   TestToolRecoverySubmitKeyboard/submit-wait-keyboarddark
+    toolrecovery_test.go:204: submitted form lost keyboard exit: calls=1 open=false addFocus=false
+    toolrecovery_test.go:213: keyboard could not open next draft: open=false name="" calls=1
+--- FAIL: TestToolRecoverySubmitKeyboard (0.27s)
+    --- FAIL: TestToolRecoverySubmitKeyboard/submit-keyboardlight (0.07s)
+    --- FAIL: TestToolRecoverySubmitKeyboard/submit-keyboarddark (0.07s)
+    --- FAIL: TestToolRecoverySubmitKeyboard/submit-wait-keyboardlight (0.07s)
+    --- FAIL: TestToolRecoverySubmitKeyboard/submit-wait-keyboarddark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.567s
+FAIL

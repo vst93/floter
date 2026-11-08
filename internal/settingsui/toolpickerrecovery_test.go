@@ -71,6 +71,8 @@ func checkToolPickerRecovery(t *testing.T, scenario string) {
 func TestToolPickerRecoveryError(t *testing.T)  { checkToolPickerRecovery(t, "error") }
 func TestToolPickerRecoveryCancel(t *testing.T) { checkToolPickerRecovery(t, "cancel") }
 
+func TestToolPickerRecoveryPicked(t *testing.T) { checkToolPickerRecovery(t, "picked") }
+
 func TestToolPickerRecoveryStaleError(t *testing.T) {
 	a := localDraftApp()
 	a.beginEdit("", callbackTool("weather"))

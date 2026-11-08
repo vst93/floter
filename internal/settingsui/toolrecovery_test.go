@@ -176,3 +176,43 @@ func TestToolRecoveryBusyConnection(t *testing.T) {
 		})
 	}
 }
+
+func TestToolRecoverySubmitKeyboard(t *testing.T) {
+	for _, waiting := range []bool{false, true} {
+		for _, dark := range []bool{false, true} {
+			name := "submit-keyboard"
+			if waiting {
+				name = "submit-wait-keyboard"
+			}
+			t.Run(name+appearanceName(dark), func(t *testing.T) {
+				a := localDraftApp()
+				a.beginEdit("", callbackTool("weather"))
+				calls := 0
+				a.Actions.ConnectLocalTool = func(CustomTool) {
+					calls++
+					if waiting {
+						a.BeginPackageInstall("custom")
+					}
+				}
+				tt := toolRecoveryFrame(t, a, dark)
+				optionExitFocus(t, tt, a.copy().LocalToolConnect)
+				tt.Key(0, ui.KeyEnter)
+				tt.Frame()
+				tt.Frame()
+				toolRecoveryDump(t, tt, name, dark)
+				if calls != 1 || a.toolOpen || !tt.Focused(a.copy().LocalToolAdd) {
+					t.Errorf("submitted form lost keyboard exit: calls=%d open=%v addFocus=%v", calls, a.toolOpen, tt.Focused(a.copy().LocalToolAdd))
+				}
+				if waiting {
+					a.FinishPackageInstall("custom")
+					tt.Frame()
+				}
+				tt.Key(0, ui.KeyEnter)
+				tt.Frame()
+				if !a.toolOpen || a.toolName != "" || calls != 1 {
+					t.Errorf("keyboard could not open next draft: open=%v name=%q calls=%d", a.toolOpen, a.toolName, calls)
+				}
+			})
+		}
+	}
+}
