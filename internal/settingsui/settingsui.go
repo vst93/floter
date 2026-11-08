@@ -5826,8 +5826,18 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 						Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source))
 					if a.Actions.ChooseProgram != nil {
 						if a.rememberModeContent(c, false, a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button)).Clicked() {
-							if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {
+							picked, err := a.Actions.ChooseProgram()
+							if a.toolFormKey != form || !a.toolOpen {
+								return
+							}
+							if err != nil {
+								if a.Actions.NotifyWarning != nil {
+									a.Actions.NotifyWarning(copy.LocalToolFailed)
+								}
+							} else if picked != "" {
 								program = picked
+							} else {
+								pickerFocus.restore(c)
 							}
 						}
 					} else {

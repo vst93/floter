@@ -1,0 +1,31 @@
+=== RUN   TestToolPickerRecoveryError
+=== RUN   TestToolPickerRecoveryError/light
+    toolpickerrecovery_test.go:41: program picker error warnings=[]
+=== RUN   TestToolPickerRecoveryError/dark
+    toolpickerrecovery_test.go:41: program picker error warnings=[]
+--- FAIL: TestToolPickerRecoveryError (0.26s)
+    --- FAIL: TestToolPickerRecoveryError/light (0.21s)
+    --- FAIL: TestToolPickerRecoveryError/dark (0.04s)
+=== RUN   TestToolPickerRecoveryCancel
+=== RUN   TestToolPickerRecoveryCancel/light
+    toolpickerrecovery_test.go:52: cancel picker did not return program focus
+    toolpickerrecovery_test.go:65: cancel picker lost immediate keyboard edit: "/usr/bin/weather"
+=== RUN   TestToolPickerRecoveryCancel/dark
+    toolpickerrecovery_test.go:52: cancel picker did not return program focus
+    toolpickerrecovery_test.go:65: cancel picker lost immediate keyboard edit: "/usr/bin/weather"
+--- FAIL: TestToolPickerRecoveryCancel (0.21s)
+    --- FAIL: TestToolPickerRecoveryCancel/light (0.12s)
+    --- FAIL: TestToolPickerRecoveryCancel/dark (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	0.492s
+=== RUN   TestToolConnectionPickerFailure
+=== RUN   TestToolConnectionPickerFailure/light
+    toolrecovery_test.go:192: program picker failure never reached host notice
+=== RUN   TestToolConnectionPickerFailure/dark
+    toolrecovery_test.go:192: program picker failure never reached host notice
+--- FAIL: TestToolConnectionPickerFailure (1.26s)
+    --- FAIL: TestToolConnectionPickerFailure/light (0.76s)
+    --- FAIL: TestToolConnectionPickerFailure/dark (0.50s)
+FAIL
+FAIL	floter/internal/shell	1.280s
+FAIL

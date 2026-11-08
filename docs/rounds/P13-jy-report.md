@@ -19,6 +19,13 @@
 
 ## 增量记录
 
+### 第三批：选择器错误与取消出口
+
+5. **选择程序失败无反馈**：现象→原生选择器返回错误却被吞掉；改动→向已有宿主警告出口发LocalToolFailed，保留原路径，旧表单退出后不再发过期警告；验证→真实按钮回调返回os.ErrPermission，警告恰1条，完整宿主ui.Tester可见错误浮层；新编辑器替换后的错误不警告、不覆盖。
+6. **取消选择后键盘留在按钮**：现象→取消后直接输入无法修订程序路径；改动→空选择返回程序字段；验证→Tab/Enter打开选择器、取消后直接全选输入，字段变为/usr/bin/retry，取消无警告。
+
+定向51 PASS/0 FAIL/exit0，vet净。M3实红`program picker error warnings=[]`、`cancel picker did not return program focus`、`cancel picker lost immediate keyboard edit: "/usr/bin/weather"`及`program picker failure never reached host notice`；MD5还原、touch后51 PASS。旧V/B/S0/0/0、新增Skip0。第二批08f2e09f已推送。
+
 中文基线完整完成：6029 PASS/0 FAIL/exit0、3413函数。第一批0ff958a2已推送。
 
 ### 第二批：提交失败与等待互斥

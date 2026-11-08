@@ -1,0 +1,110 @@
+=== RUN   TestLocalDraftNewConnectionDefaultsToTerminal
+--- PASS: TestLocalDraftNewConnectionDefaultsToTerminal (0.20s)
+=== RUN   TestToolCallbackPickerKeepsNewDraft
+=== RUN   TestToolCallbackPickerKeepsNewDraft/light
+=== RUN   TestToolCallbackPickerKeepsNewDraft/dark
+--- PASS: TestToolCallbackPickerKeepsNewDraft (0.15s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/light (0.08s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/dark (0.06s)
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/light
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/dark
+--- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty (0.17s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.08s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.09s)
+=== RUN   TestToolCallbackSaveKeepsNewEditor
+=== RUN   TestToolCallbackSaveKeepsNewEditor/light
+=== RUN   TestToolCallbackSaveKeepsNewEditor/dark
+--- PASS: TestToolCallbackSaveKeepsNewEditor (0.15s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/light (0.07s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/dark (0.08s)
+=== RUN   TestToolCallbackConnectKeepsNewEditor
+=== RUN   TestToolCallbackConnectKeepsNewEditor/light
+=== RUN   TestToolCallbackConnectKeepsNewEditor/dark
+--- PASS: TestToolCallbackConnectKeepsNewEditor (0.14s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/light (0.07s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/dark (0.07s)
+=== RUN   TestToolCallbackLookupKeepsNewEditor
+=== RUN   TestToolCallbackLookupKeepsNewEditor/light
+=== RUN   TestToolCallbackLookupKeepsNewEditor/dark
+--- PASS: TestToolCallbackLookupKeepsNewEditor (0.20s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/light (0.10s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/dark (0.11s)
+=== RUN   TestToolCallbackLookupRechecksEligibility
+=== RUN   TestToolCallbackLookupRechecksEligibility/light
+=== RUN   TestToolCallbackLookupRechecksEligibility/dark
+--- PASS: TestToolCallbackLookupRechecksEligibility (0.14s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/light (0.07s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/dark (0.07s)
+=== RUN   TestToolPickerRecoveryError
+=== RUN   TestToolPickerRecoveryError/light
+=== RUN   TestToolPickerRecoveryError/dark
+--- PASS: TestToolPickerRecoveryError (0.09s)
+    --- PASS: TestToolPickerRecoveryError/light (0.04s)
+    --- PASS: TestToolPickerRecoveryError/dark (0.05s)
+=== RUN   TestToolPickerRecoveryCancel
+=== RUN   TestToolPickerRecoveryCancel/light
+=== RUN   TestToolPickerRecoveryCancel/dark
+--- PASS: TestToolPickerRecoveryCancel (0.19s)
+    --- PASS: TestToolPickerRecoveryCancel/light (0.10s)
+    --- PASS: TestToolPickerRecoveryCancel/dark (0.09s)
+=== RUN   TestToolPickerRecoveryStaleError
+--- PASS: TestToolPickerRecoveryStaleError (0.04s)
+=== RUN   TestToolRecoveryRestoresCompleteDraft
+=== RUN   TestToolRecoveryRestoresCompleteDraft/light
+=== RUN   TestToolRecoveryRestoresCompleteDraft/dark
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptlight
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptdark
+--- PASS: TestToolRecoveryRestoresCompleteDraft (0.79s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/light (0.20s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/dark (0.18s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/scriptlight (0.20s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/scriptdark (0.20s)
+=== RUN   TestToolRecoveryKeepsNewerForm
+=== RUN   TestToolRecoveryKeepsNewerForm/typed
+=== RUN   TestToolRecoveryKeepsNewerForm/cleared
+=== RUN   TestToolRecoveryKeepsNewerForm/folded
+=== RUN   TestToolRecoveryKeepsNewerForm/edit
+--- PASS: TestToolRecoveryKeepsNewerForm (0.68s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/typed (0.18s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/cleared (0.24s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/folded (0.18s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/edit (0.08s)
+=== RUN   TestToolRecoveryBusyConnection
+=== RUN   TestToolRecoveryBusyConnection/light
+=== RUN   TestToolRecoveryBusyConnection/dark
+--- PASS: TestToolRecoveryBusyConnection (0.62s)
+    --- PASS: TestToolRecoveryBusyConnection/light (0.27s)
+    --- PASS: TestToolRecoveryBusyConnection/dark (0.34s)
+PASS
+ok  	floter/internal/settingsui	3.614s
+=== RUN   TestToolConnectionPrepareRecovery
+=== RUN   TestToolConnectionPrepareRecovery/light
+2026/11/08 12:25:15 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverylight4189930043/003/missing-program cannot be run
+=== RUN   TestToolConnectionPrepareRecovery/dark
+2026/11/08 12:25:18 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverydark1896812103/003/missing-program cannot be run
+--- PASS: TestToolConnectionPrepareRecovery (6.71s)
+    --- PASS: TestToolConnectionPrepareRecovery/light (4.01s)
+    --- PASS: TestToolConnectionPrepareRecovery/dark (2.70s)
+=== RUN   TestToolConnectionCancelRecovery
+=== RUN   TestToolConnectionCancelRecovery/light
+=== RUN   TestToolConnectionCancelRecovery/dark
+--- PASS: TestToolConnectionCancelRecovery (5.30s)
+    --- PASS: TestToolConnectionCancelRecovery/light (2.67s)
+    --- PASS: TestToolConnectionCancelRecovery/dark (2.62s)
+=== RUN   TestToolConnectionCommitRecovery
+=== RUN   TestToolConnectionCommitRecovery/light
+2026/11/08 12:25:26 floter: could not connect 工作区工具: extensions: no manifest
+=== RUN   TestToolConnectionCommitRecovery/dark
+2026/11/08 12:25:29 floter: could not connect 工作区工具: extensions: no manifest
+--- PASS: TestToolConnectionCommitRecovery (5.34s)
+    --- PASS: TestToolConnectionCommitRecovery/light (2.74s)
+    --- PASS: TestToolConnectionCommitRecovery/dark (2.60s)
+=== RUN   TestToolConnectionPickerFailure
+=== RUN   TestToolConnectionPickerFailure/light
+=== RUN   TestToolConnectionPickerFailure/dark
+--- PASS: TestToolConnectionPickerFailure (0.92s)
+    --- PASS: TestToolConnectionPickerFailure/light (0.46s)
+    --- PASS: TestToolConnectionPickerFailure/dark (0.45s)
+PASS
+ok  	floter/internal/shell	18.286s

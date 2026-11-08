@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
+	"time"
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
@@ -155,3 +156,41 @@ func TestToolConnectionPrepareRecovery(t *testing.T) { checkToolConnectionRecove
 func TestToolConnectionCancelRecovery(t *testing.T)  { checkToolConnectionRecovery(t, "cancel") }
 
 func TestToolConnectionCommitRecovery(t *testing.T) { checkToolConnectionRecovery(t, "commit") }
+
+func TestToolConnectionPickerFailure(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := newInstallCurrentFixture(t, dark)
+			copy := i18n.For("zh").Settings
+			f.a.Settings.Actions.ChooseProgram = func() (string, error) { return "", os.ErrPermission }
+			tt := ui.NewTester(f.a.View, 960, 2400)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			tt.Frame()
+			if err := tt.Click(copy.LocalToolAdd); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if err := tt.Click(copy.LocalToolChoose); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Advance(200 * time.Millisecond)
+			tt.Frame()
+			if tag := os.Getenv("FLOTER_P13JY_DUMP"); tag != "" {
+				file, err := os.Create("/tmp/floter-P13-jy-picker-error-" + map[bool]string{false: "light", true: "dark"}[dark] + "-" + tag + ".png")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := png.Encode(file, tt.Image()); err != nil {
+					t.Fatal(err)
+				}
+				file.Close()
+			}
+			if !tt.HasText(copy.LocalToolFailed) {
+				t.Error("program picker failure never reached host notice")
+			}
+		})
+	}
+}
