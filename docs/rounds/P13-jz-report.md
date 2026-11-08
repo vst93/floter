@@ -45,3 +45,12 @@ M1撤回两处保护后实红`picker rewound newer mode`、`picker rewound newer
 6. **折叠重开后复活旧复制确认**：现象→折叠已清确认，晚回的复制重新显示已复制；改动→相同代次保护覆盖内容操作；验证→真实折叠往返后确认为空，显式重新复制才点亮，深浅均通过。
 
 第三批新旧回归94 PASS / 0 FAIL / exit0，vet exit0。M3将代次固定为0后实红`picker fold accepted departed result`、`copy revived after fold departure`；MD5还原、touch后6 PASS / exit0。旧V/B/S断言修改0/0/0、新增Skip0。
+
+第三批ea3a2950已推送。
+
+### 第四批
+
+7. **跨页返回后接收旧选择**：现象→选择器等待期间离开集成页又回来，旧选择写入当前表单；改动→只在离开集成页时推进内容回调的页面代次，与连接失败恢复代次独立；验证→真实侧栏一般页/集成页往返，旧路径不落地，重新选择正常；重选当前页不退役有效操作。
+8. **跨页返回后复制确认复活**：现象→导航清除的已复制状态被旧回调重新点亮；改动→内容操作也验证页面代次；验证→真实侧栏往返后无旧确认，新的复制恰一次成功，两套外观通过。
+
+第四批新旧定向回归100 PASS / 0 FAIL / exit0、vet exit0。M4固定页面代次为0，实红`picker page accepted departed result`与`copy revived after page departure`；MD5还原并touch后6 PASS / exit0。八项已分别复现，不将夹具错误计为缺陷；旧V/B/S断言修改0/0/0、新增Skip0。

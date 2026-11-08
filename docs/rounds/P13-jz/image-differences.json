@@ -1,0 +1,338 @@
+[
+  {
+    "name": "copy-command-dark",
+    "changed_pixels": 1746,
+    "bounds": [
+      46,
+      113,
+      577,
+      553
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-command-light",
+    "changed_pixels": 1748,
+    "bounds": [
+      46,
+      113,
+      577,
+      553
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-fold-dark",
+    "changed_pixels": 532,
+    "bounds": [
+      46,
+      540,
+      101,
+      553
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-fold-light",
+    "changed_pixels": 533,
+    "bounds": [
+      46,
+      540,
+      101,
+      553
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-page-dark",
+    "changed_pixels": 532,
+    "bounds": [
+      46,
+      540,
+      101,
+      553
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-page-light",
+    "changed_pixels": 533,
+    "bounds": [
+      46,
+      540,
+      101,
+      553
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-plan-dark",
+    "changed_pixels": 1952,
+    "bounds": [
+      127,
+      113,
+      577,
+      553
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-plan-light",
+    "changed_pixels": 1951,
+    "bounds": [
+      127,
+      113,
+      577,
+      553
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-script-dark",
+    "changed_pixels": 21986,
+    "bounds": [
+      47,
+      113,
+      685,
+      552
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "copy-script-light",
+    "changed_pixels": 22004,
+    "bounds": [
+      47,
+      113,
+      685,
+      552
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "export-draft-dark",
+    "changed_pixels": 20849,
+    "bounds": [
+      53,
+      339,
+      685,
+      444
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "export-draft-light",
+    "changed_pixels": 20867,
+    "bounds": [
+      53,
+      339,
+      685,
+      444
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-clear-dark",
+    "changed_pixels": 6662,
+    "bounds": [
+      35,
+      212,
+      623,
+      562
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-clear-light",
+    "changed_pixels": 6655,
+    "bounds": [
+      35,
+      212,
+      623,
+      562
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-error-dark",
+    "changed_pixels": 7465,
+    "bounds": [
+      35,
+      209,
+      689,
+      562
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-error-light",
+    "changed_pixels": 7430,
+    "bounds": [
+      35,
+      209,
+      689,
+      562
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-fields-dark",
+    "changed_pixels": 7891,
+    "bounds": [
+      35,
+      113,
+      623,
+      562
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-fields-light",
+    "changed_pixels": 7884,
+    "bounds": [
+      35,
+      113,
+      623,
+      562
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-fold-dark",
+    "changed_pixels": 982,
+    "bounds": [
+      383,
+      212,
+      623,
+      242
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-fold-light",
+    "changed_pixels": 982,
+    "bounds": [
+      383,
+      212,
+      623,
+      242
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-mode-dark",
+    "changed_pixels": 112631,
+    "bounds": [
+      20,
+      157,
+      700,
+      895
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-mode-light",
+    "changed_pixels": 111523,
+    "bounds": [
+      20,
+      157,
+      700,
+      895
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-page-dark",
+    "changed_pixels": 982,
+    "bounds": [
+      383,
+      212,
+      623,
+      242
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  },
+  {
+    "name": "picker-page-light",
+    "changed_pixels": 982,
+    "bounds": [
+      383,
+      212,
+      623,
+      242
+    ],
+    "size": [
+      720,
+      1500
+    ]
+  }
+]

@@ -7,6 +7,7 @@ type toolCallbackState struct {
 	form       *int
 	open       bool
 	disclosure uint64
+	pageEpoch  uint64
 	fields     [11]string
 }
 
@@ -15,6 +16,7 @@ func (a *App) toolCallbackState() toolCallbackState {
 		form:       a.toolFormKey,
 		open:       a.toolOpen,
 		disclosure: a.toolDisclosure,
+		pageEpoch:  a.toolPageEpoch,
 		fields: [11]string{a.toolEditing, a.toolName, a.toolProgram, a.toolCommand,
 			a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription,
 			a.toolMode, a.toolLanguage, a.toolScript},

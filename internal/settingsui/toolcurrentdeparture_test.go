@@ -69,3 +69,6 @@ func checkToolCurrentDeparture(t *testing.T, action, departure string) {
 
 func TestToolCurrentPickerFold(t *testing.T) { checkToolCurrentDeparture(t, "picker", "fold") }
 func TestToolCurrentCopyFold(t *testing.T)   { checkToolCurrentDeparture(t, "copy", "fold") }
+
+func TestToolCurrentPickerPage(t *testing.T) { checkToolCurrentDeparture(t, "picker", "page") }
+func TestToolCurrentCopyPage(t *testing.T)   { checkToolCurrentDeparture(t, "copy", "page") }

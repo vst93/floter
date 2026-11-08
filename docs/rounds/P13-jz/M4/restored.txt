@@ -1,0 +1,14 @@
+=== RUN   TestToolCurrentPickerPage
+=== RUN   TestToolCurrentPickerPage/light
+=== RUN   TestToolCurrentPickerPage/dark
+--- PASS: TestToolCurrentPickerPage (0.41s)
+    --- PASS: TestToolCurrentPickerPage/light (0.25s)
+    --- PASS: TestToolCurrentPickerPage/dark (0.16s)
+=== RUN   TestToolCurrentCopyPage
+=== RUN   TestToolCurrentCopyPage/light
+=== RUN   TestToolCurrentCopyPage/dark
+--- PASS: TestToolCurrentCopyPage (0.33s)
+    --- PASS: TestToolCurrentCopyPage/light (0.16s)
+    --- PASS: TestToolCurrentCopyPage/dark (0.17s)
+PASS
+ok  	floter/internal/settingsui	0.742s

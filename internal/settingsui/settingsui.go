@@ -796,6 +796,9 @@ type App struct {
 	toolRecover     func()
 	toolDisclosure  uint64
 	toolReturnToAdd *int
+	// Leaving integrations retires content callbacks, independently of the
+	// connection recovery and the editable draft that survive navigation.
+	toolPageEpoch uint64
 	// toolAdvanced is whether the form's declaration/audit switches are
 	// unfolded: they sit behind a default-closed Advanced disclosure (R161),
 	// so a brand-new integration does not open on a list of permission rows.
@@ -1630,6 +1633,7 @@ func (a *App) selectPage(page int) {
 	if page != a.Page {
 		a.Body.Y = 0
 		if a.Page == PageIntegrations {
+			a.toolPageEpoch++
 			a.copiedContent, a.copiedContentValue = "", ""
 			a.copiedContentUntil = time.Time{}
 		}

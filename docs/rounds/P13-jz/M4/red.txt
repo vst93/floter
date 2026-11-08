@@ -1,0 +1,21 @@
+=== RUN   TestToolCurrentPickerPage
+=== RUN   TestToolCurrentPickerPage/light
+    toolcurrentdeparture_test.go:50: picker page accepted departed result: calls=1 open=true program="/usr/bin/old-selection"
+=== RUN   TestToolCurrentPickerPage/dark
+    toolcurrentdeparture_test.go:50: picker page accepted departed result: calls=1 open=true program="/usr/bin/old-selection"
+--- FAIL: TestToolCurrentPickerPage (0.59s)
+    --- FAIL: TestToolCurrentPickerPage/light (0.41s)
+    --- FAIL: TestToolCurrentPickerPage/dark (0.18s)
+=== RUN   TestToolCurrentCopyPage
+=== RUN   TestToolCurrentCopyPage/light
+    toolcurrentdeparture_test.go:53: copy revived after page departure
+    toolcurrentdeparture_test.go:60: ui: no element shows "复制命令"
+=== RUN   TestToolCurrentCopyPage/dark
+    toolcurrentdeparture_test.go:53: copy revived after page departure
+    toolcurrentdeparture_test.go:60: ui: no element shows "复制命令"
+--- FAIL: TestToolCurrentCopyPage (0.30s)
+    --- FAIL: TestToolCurrentCopyPage/light (0.16s)
+    --- FAIL: TestToolCurrentCopyPage/dark (0.14s)
+FAIL
+FAIL	floter/internal/settingsui	0.904s
+FAIL
