@@ -38,3 +38,10 @@
 相关56 PASS/0 FAIL、vet净；旧V/B/S仍0/0/0。真实before失败分别为 `required bottom ring missing at [214 521]: blue-red=0`、`kind bottom ring missing at [552 521]: blue-red=0`。第一批已推送5f6caf89。
 
 中文全量开盘实测6389 PASS/0 FAIL/3495函数，exit0；C locale误跑结果不算基线。
+
+### 第三批：输出方式与提交
+
+5. 输出方式：现象→终端/后台分段选择的焦点下沿在y=521被裁；改动→原分段控件外显现19px净空；验证→深浅闭环可见，Right切换仍写原routeBackground，滚轮不被锁住。
+6. 保存/连接：现象→Tab到末端提交键时只剩三边环；改动→忙态与可用态共用原位置的净空；验证→深浅上下环完整，Enter只派发一次原保存回调，校验拒绝/程序选择恢复旧测试继续绿。
+
+相关133 PASS/0 FAIL，vet净；before两项均 `bottom ring missing ... blue-red=0`，旧V/B/S0/0/0。第二批已推送0ffedc63。

@@ -34,6 +34,7 @@ func checkLocalFormRing(t *testing.T, name string) {
 				"required": copy.ParamsRequired, "kind": copy.ParamsKind,
 				"mode": copy.LocalToolModeProgram, "output": copy.LocalToolTerminal,
 				"advanced": copy.LocalToolAdvanced, "save": copy.LocalToolSave, "choose": copy.LocalToolChoose,
+				"platforms": customPlatforms[0].Label,
 			}[name]
 			calls := 0
 			a.Actions.EditCustomTool = func(string, CustomTool) { calls++ }
@@ -63,6 +64,9 @@ func checkLocalFormRing(t *testing.T, name string) {
 			}
 			localFormRingDump(t, tt, name, dark)
 			r := mustFind(t, tt, label)
+			if name == "advanced" {
+				t.Logf("advanced title=%+v subtitle=%+v", r, mustFind(t, tt, copy.LocalToolAdvancedPermissions))
+			}
 			if name == "mode" {
 				r = modeBox
 			}
@@ -124,6 +128,13 @@ func checkLocalFormRing(t *testing.T, name string) {
 				if !a.toolAdvanced {
 					t.Fatal("Advanced keyboard disclosure failed")
 				}
+			case "platforms":
+				before := a.toolPlatforms[customPlatforms[0].ID]
+				tt.Key(0, ui.KeySpace)
+				tt.Frame()
+				if a.toolPlatforms[customPlatforms[0].ID] == before {
+					t.Fatal("platform checkbox did not toggle")
+				}
 			case "save":
 				tt.Key(0, ui.KeyEnter)
 				tt.Frame()
@@ -159,3 +170,6 @@ func TestLocalFormRingRemove(t *testing.T) { checkLocalFormRing(t, "remove") }
 
 func TestLocalFormRingRequired(t *testing.T) { checkLocalFormRing(t, "required") }
 func TestLocalFormRingKind(t *testing.T)     { checkLocalFormRing(t, "kind") }
+
+func TestLocalFormRingOutput(t *testing.T) { checkLocalFormRing(t, "output") }
+func TestLocalFormRingSave(t *testing.T)   { checkLocalFormRing(t, "save") }

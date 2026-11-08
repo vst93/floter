@@ -5916,7 +5916,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				if a.toolOutput == routeBackground {
 					index = 1
 				}
-				if a.segmentedControl(c, &index, copy.LocalToolTerminal, copy.LocalToolBackground).Changed() {
+				var output ui.Element
+				outputFocusOutlet(c.Key("local-output-outlet"), func() {
+					output = a.segmentedControl(c, &index, copy.LocalToolTerminal, copy.LocalToolBackground)
+				})
+				if output.Changed() {
 					if index == 0 {
 						a.toolOutput = ""
 					} else {
@@ -5989,11 +5993,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			action = copy.LocalToolSave
 		}
 		var submit ui.Element
-		if a.toolEditing == "" && a.packageInstallBusy["custom"] {
-			submit = a.busyActionButton(c, action, "connect.custom")
-		} else {
-			submit = a.actionButton(c, action)
-		}
+		outputFocusOutlet(c.Key("local-submit-outlet"), func() {
+			if a.toolEditing == "" && a.packageInstallBusy["custom"] {
+				submit = a.busyActionButton(c, action, "connect.custom")
+			} else {
+				submit = a.actionButton(c, action)
+			}
+		})
 		requested := submit.Clicked()
 		a.toolName, a.toolProgram, a.toolCommand = name, program, command
 		a.toolArgs, a.toolVersionArgs, a.toolVersion = args, versionArgs, version
