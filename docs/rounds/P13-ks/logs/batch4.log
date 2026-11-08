@@ -1,0 +1,28 @@
+=== RUN   TestFormFeedbackConfigTransfer
+=== RUN   TestFormFeedbackConfigTransfer/copy
+=== RUN   TestFormFeedbackConfigTransfer/copy/light
+=== RUN   TestFormFeedbackConfigTransfer/copy/dark
+=== RUN   TestFormFeedbackConfigTransfer/export
+=== RUN   TestFormFeedbackConfigTransfer/export/light
+=== RUN   TestFormFeedbackConfigTransfer/export/dark
+--- PASS: TestFormFeedbackConfigTransfer (0.26s)
+    --- PASS: TestFormFeedbackConfigTransfer/copy (0.18s)
+        --- PASS: TestFormFeedbackConfigTransfer/copy/light (0.14s)
+        --- PASS: TestFormFeedbackConfigTransfer/copy/dark (0.04s)
+    --- PASS: TestFormFeedbackConfigTransfer/export (0.08s)
+        --- PASS: TestFormFeedbackConfigTransfer/export/light (0.04s)
+        --- PASS: TestFormFeedbackConfigTransfer/export/dark (0.04s)
+=== RUN   TestFormPrefixConfigCopy
+=== RUN   TestFormPrefixConfigCopy/light
+=== RUN   TestFormPrefixConfigCopy/dark
+--- PASS: TestFormPrefixConfigCopy (0.09s)
+    --- PASS: TestFormPrefixConfigCopy/light (0.04s)
+    --- PASS: TestFormPrefixConfigCopy/dark (0.04s)
+=== RUN   TestFormPrefixConfigExport
+=== RUN   TestFormPrefixConfigExport/light
+=== RUN   TestFormPrefixConfigExport/dark
+--- PASS: TestFormPrefixConfigExport (0.08s)
+    --- PASS: TestFormPrefixConfigExport/light (0.04s)
+    --- PASS: TestFormPrefixConfigExport/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.450s
