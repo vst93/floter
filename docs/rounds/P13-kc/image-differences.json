@@ -1,0 +1,146 @@
+[
+  {
+    "surface": "conditional-options-dark",
+    "changed_pixels": 140570,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "conditional-options-light",
+    "changed_pixels": 140557,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "conditional-placeholder-dark",
+    "changed_pixels": 122551,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "conditional-placeholder-light",
+    "changed_pixels": 122557,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-add-dark",
+    "changed_pixels": 153603,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-add-light",
+    "changed_pixels": 153644,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-next-dark",
+    "changed_pixels": 175863,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-next-light",
+    "changed_pixels": 175882,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-only-dark",
+    "changed_pixels": 0,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-only-light",
+    "changed_pixels": 0,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-tail-dark",
+    "changed_pixels": 112988,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-tail-light",
+    "changed_pixels": 113059,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-withdraw-dark",
+    "changed_pixels": 101563,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "list-withdraw-light",
+    "changed_pixels": 101572,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "mode-program-dark",
+    "changed_pixels": 205023,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "mode-program-light",
+    "changed_pixels": 205032,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "mode-script-dark",
+    "changed_pixels": 200870,
+    "size": [
+      720,
+      520
+    ]
+  },
+  {
+    "surface": "mode-script-light",
+    "changed_pixels": 200907,
+    "size": [
+      720,
+      520
+    ]
+  }
+]

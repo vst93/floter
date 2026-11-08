@@ -1,0 +1,51 @@
+=== RUN   TestDeclarationVisibilityAdd
+=== RUN   TestDeclarationVisibilityAdd/light
+    declarationvisibility_test.go:141: editing outlet lost focus: 显示名
+    declarationvisibility_test.go:141: editing outlet outside viewport: rect={X:364.8 Y:1290 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.2999
+    declarationvisibility_test.go:146: wrong declaration receives edit: [{key:0x3832d0a4c910 ID:field0 Label:字段0 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0a4c940 ID:field1 Label:字段1 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0a4c970 ID:field2 Label:字段2 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0a4c9a0 ID:field3 Label:字段3 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0a4c9d0 ID:field4 Label:字段4 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0cba620 ID: Label: Kind:text Placeholder: Default: Flag: Required:false Options:}]
+=== RUN   TestDeclarationVisibilityAdd/dark
+    declarationvisibility_test.go:141: editing outlet lost focus: 显示名
+    declarationvisibility_test.go:141: editing outlet outside viewport: rect={X:364.8 Y:1290 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.2999
+    declarationvisibility_test.go:146: wrong declaration receives edit: [{key:0x3832d0acb278 ID:field0 Label:字段0 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0acb2a8 ID:field1 Label:字段1 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0acb2d8 ID:field2 Label:字段2 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0acb308 ID:field3 Label:字段3 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d0acb338 ID:field4 Label:字段4 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x3832d090cd80 ID: Label: Kind:text Placeholder: Default: Flag: Required:false Options:}]
+--- FAIL: TestDeclarationVisibilityAdd (0.54s)
+    --- FAIL: TestDeclarationVisibilityAdd/light (0.44s)
+    --- FAIL: TestDeclarationVisibilityAdd/dark (0.10s)
+=== RUN   TestDeclarationVisibilityRemoveNeighbor
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next/light
+    declarationvisibility_test.go:141: outlet reveal trapped wheel scrolling
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next/dark
+    declarationvisibility_test.go:141: outlet reveal trapped wheel scrolling
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail/light
+    declarationvisibility_test.go:141: editing outlet outside viewport: rect={X:364.8 Y:-134.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2761.4998
+    declarationvisibility_test.go:141: outlet reveal trapped wheel scrolling
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail/dark
+    declarationvisibility_test.go:141: editing outlet outside viewport: rect={X:364.8 Y:-134.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2761.4998
+    declarationvisibility_test.go:141: outlet reveal trapped wheel scrolling
+--- FAIL: TestDeclarationVisibilityRemoveNeighbor (0.61s)
+    --- FAIL: TestDeclarationVisibilityRemoveNeighbor/next (0.31s)
+        --- FAIL: TestDeclarationVisibilityRemoveNeighbor/next/light (0.16s)
+        --- FAIL: TestDeclarationVisibilityRemoveNeighbor/next/dark (0.15s)
+    --- FAIL: TestDeclarationVisibilityRemoveNeighbor/tail (0.30s)
+        --- FAIL: TestDeclarationVisibilityRemoveNeighbor/tail/light (0.15s)
+        --- FAIL: TestDeclarationVisibilityRemoveNeighbor/tail/dark (0.15s)
+=== RUN   TestDeclarationVisibilityRemoveOnly
+=== RUN   TestDeclarationVisibilityRemoveOnly/light
+=== RUN   TestDeclarationVisibilityRemoveOnly/dark
+--- PASS: TestDeclarationVisibilityRemoveOnly (0.44s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/light (0.24s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/dark (0.20s)
+=== RUN   TestDeclarationVisibilityWithdraw
+=== RUN   TestDeclarationVisibilityWithdraw/light
+    declarationvisibility_test.go:133: editing outlet outside viewport: rect={X:675.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2136.6997
+    declarationvisibility_test.go:133: outlet reveal trapped wheel scrolling
+=== RUN   TestDeclarationVisibilityWithdraw/dark
+    declarationvisibility_test.go:133: editing outlet outside viewport: rect={X:675.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2136.6997
+    declarationvisibility_test.go:133: outlet reveal trapped wheel scrolling
+--- FAIL: TestDeclarationVisibilityWithdraw (0.20s)
+    --- FAIL: TestDeclarationVisibilityWithdraw/light (0.10s)
+    --- FAIL: TestDeclarationVisibilityWithdraw/dark (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	1.803s
+FAIL

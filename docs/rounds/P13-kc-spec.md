@@ -31,4 +31,4 @@
 
 基线全量verbose实测6211 PASS / 0 FAIL / exit0，函数3449。每批一至两项定向事件+gofmt+vet，红线旧B测试零改，再commit/push；最终完整门槛一次：gofmt -l cmd internal；三平台go vet ./...；go test -count=1 ./...；go test -count=1 -v ./...统计PASS；三平台go build ./...。统一LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。删除唯一声明原实现已通过，不计修复，保留回归场景。
 
-至少两组mutation：M1撤回新增/删除定位，目标焦点或像素包含断言须红；M2撤回撤回/空表出口定位须红；M3撤回条件字段定位须红；M4撤回模式定位须红。源码备份、md5sum -c、touch后无缓存复验。每项深浅ui.Tester PNG，完整设置页短窗口，目视复核。
+最终分为五组mutation：M1撤回新增定位，目标焦点或像素包含断言须红；M2撤回中项/尾项删除定位；M3撤回活跃声明消失后的Add定位；M4撤回条件字段定位；M5撤回模式定位。源码备份、md5sum -c、touch后无缓存复验。每项深浅ui.Tester PNG，完整设置页短窗口，目视复核。空表删除原实现已绿，仅作回归。

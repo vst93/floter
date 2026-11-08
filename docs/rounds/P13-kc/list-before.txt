@@ -1,0 +1,59 @@
+=== RUN   TestDeclarationVisibilityAdd
+=== RUN   TestDeclarationVisibilityAdd/light
+    declarationvisibility_test.go:139: editing outlet lost focus: 显示名
+    declarationvisibility_test.go:139: editing outlet outside viewport: rect={X:364.8 Y:1290 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.2999
+    declarationvisibility_test.go:144: wrong declaration receives edit: [{key:0x16253fda9ab0 ID:field0 Label:字段0 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fda9ae0 ID:field1 Label:字段1 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fda9b10 ID:field2 Label:字段2 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fda9b40 ID:field3 Label:字段3 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fda9b70 ID:field4 Label:字段4 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fc53920 ID: Label: Kind:text Placeholder: Default: Flag: Required:false Options:}]
+=== RUN   TestDeclarationVisibilityAdd/dark
+    declarationvisibility_test.go:139: editing outlet lost focus: 显示名
+    declarationvisibility_test.go:139: editing outlet outside viewport: rect={X:364.8 Y:1290 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.2999
+    declarationvisibility_test.go:144: wrong declaration receives edit: [{key:0x16253fc53ad8 ID:field0 Label:字段0 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fc53b08 ID:field1 Label:字段1 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fc53b38 ID:field2 Label:字段2 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fc53b78 ID:field3 Label:字段3 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253fc53bb8 ID:field4 Label:字段4 Kind:text Placeholder: Default: Flag: Required:false Options:} {key:0x16253ff84870 ID: Label: Kind:text Placeholder: Default: Flag: Required:false Options:}]
+--- FAIL: TestDeclarationVisibilityAdd (0.69s)
+    --- FAIL: TestDeclarationVisibilityAdd/light (0.52s)
+    --- FAIL: TestDeclarationVisibilityAdd/dark (0.17s)
+=== RUN   TestDeclarationVisibilityRemoveNeighbor
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next/light
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/next/dark
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail/light
+=== RUN   TestDeclarationVisibilityRemoveNeighbor/tail/dark
+--- PASS: TestDeclarationVisibilityRemoveNeighbor (0.85s)
+    --- PASS: TestDeclarationVisibilityRemoveNeighbor/next (0.39s)
+        --- PASS: TestDeclarationVisibilityRemoveNeighbor/next/light (0.22s)
+        --- PASS: TestDeclarationVisibilityRemoveNeighbor/next/dark (0.17s)
+    --- PASS: TestDeclarationVisibilityRemoveNeighbor/tail (0.45s)
+        --- PASS: TestDeclarationVisibilityRemoveNeighbor/tail/light (0.26s)
+        --- PASS: TestDeclarationVisibilityRemoveNeighbor/tail/dark (0.20s)
+=== RUN   TestDeclarationVisibilityRemoveOnly
+=== RUN   TestDeclarationVisibilityRemoveOnly/light
+--- FAIL: TestDeclarationVisibilityRemoveOnly (0.12s)
+    --- FAIL: TestDeclarationVisibilityRemoveOnly/light (0.12s)
+panic: runtime error: index out of range [-1] [recovered, repanicked]
+
+goroutine 54 [running]:
+testing.tRunner.func1.2({0x167dc70, 0x16253ff86288})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x167dc70?, 0x16253ff86288?})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+floter/internal/settingsui.checkDeclarationListVisibility.func1.1(0x16253ff44070)
+	/home/tar/workspace/floter/internal/settingsui/declarationvisibility_test.go:83 +0x10d
+floter/internal/settingsui.toolVisibilityFrame.func1(0x16253ff44070)
+	/home/tar/workspace/floter/internal/settingsui/toolvisibility_test.go:43 +0xa2
+github.com/egoist/mygo/ui.NewTester.func1(0x162540691138?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0x162540691008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0x67a
+github.com/egoist/mygo/ui.(*Tester).settle(0x16253fcc0460)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.(*Tester).Frame(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:448
+floter/internal/settingsui.checkDeclarationListVisibility.func1(0x16253fe2c248)
+	/home/tar/workspace/floter/internal/settingsui/declarationvisibility_test.go:123 +0x8d3
+testing.tRunner(0x16253fe2c248, 0x16253fd7e000)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 19
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	floter/internal/settingsui	1.694s
+FAIL
