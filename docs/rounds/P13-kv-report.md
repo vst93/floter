@@ -34,6 +34,14 @@
 
 第四批修改前0 PASS，修改后18 PASS。M2将approvalFeedback撤为空串，31个配置检查实红；MD5核对settingsui.go与config.go后touch，全部本轮82 PASS。原始错误含 `feedback reflow hides active outlet "配置 5"` 与 `feedback reflow hides active outlet "Copy configuration"`。M1/M2均未放宽任何旧断言。
 
+两条独立变异的首条原始错误如下（完整日志保留）：
+```
+M1 FAIL=37
+catalogreflow_test.go:142: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:678.9998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+M2 FAIL=31
+catalogreflow_test.go:142: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:688.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+```
+
 ## 视觉复核与偷了什么
 
 8原始PNG、4张深浅对照。配置对照左图仅见审批历史和工具栏，配置5已出屏；右图配置5焦点环完整，配置1的dirty仍可见。运行对照右图参数5重新位于底部淡边之上；两个组件保持原行高、命中区、面与边。
@@ -72,3 +80,27 @@ A2网页四方向、新增五种装饰不适用此原生缺陷修复；用户已
 | stash@{7} | 7a9f6e13 | 旧main版本/阴影WIP | 保留 |
 
 完整SHA、原patch和reverse错误见P13-kv/logs。不drop独有工作，也不将未合入写成已完成。
+
+## 提交与证据
+
+四批每两项已推送：a39d8d7b / 9c2ad0b4 / 1e79865f / 8421917c。第四批之后仅归档门槛与交接。
+
+[运行浅色对照](P13-kv/images/light-run-compare.png)、[运行深色对照](P13-kv/images/dark-run-compare.png)、[配置浅色对照](P13-kv/images/light-config-compare.png)、[配置深色对照](P13-kv/images/dark-config-compare.png)。左为修复前，右为修复后；每个状态只有一张原图，合成对照不再截图。
+
+[第一批](P13-kv/logs/batch1-after-summary.txt)、[第二批](P13-kv/logs/batch2-after-summary.txt)、[第三批](P13-kv/logs/batch3-after-summary.txt)、[第四批](P13-kv/logs/batch4-after-summary.txt)、[M1](P13-kv/logs/M1-summary.txt)、[M2](P13-kv/logs/M2-summary.txt)。对应before.log保留原始事件复现，M1/M2-red.log保留独立注入后的红灯。
+
+## 仍待
+
+1. 本轮八项完成。下一轮先事件复现已有命令卡自身的别名编辑/启用开关在目录刷新、排序和描述更新后的可见性与身份保持；未复现不计bug，不改变别名/命令策略，不重复本轮运行及配置表单。
+2. 字号/行盒、accent禁用、未知多选、保存期间草稿、输出首尾键/选区、字段删除改型焦点、终端S1b/S1c/S2尾仍需拍板；3秒窗口、保存与会话语义均未改。
+3. Linux ui.Tester事件与深浅图已验；Windows/macOS只交叉vet/build，未做原生真机交互。八条历史独有stash逐条保留，历史接入账未完成。
+
+## 最终门槛
+
+完整统一入口exit0：**6929 PASS / 0 FAIL / 3618测试函数**。相对上轮归档6847/3610增加82 PASS、8函数。旧测试文件改动0、旧V/B/S断言修改0/0/0、新增Skip0。
+
+gofmt输出空；linux/windows/darwin的vet/build均exit0；普通、verbose全量各一次且完整exit0，无补跑。标准全量的设置界面测试比前轮耗时更长，进程正常完成，没有将等待称作失败或另启一轮。
+
+[统一门槛摘要](P13-kv/logs/verify-summary.txt)、[普通全量](P13-kv/logs/test.log)、[verbose全量](P13-kv/logs/verbose.log)、[统一退出码](P13-kv/logs/verify.exit)。其余平台逐项日志与exit文件同目录。报告与当前进度最终以此次实测更新，产品四批代码不再变化。
+
+执行偏差：开盘部分资料读取未先限幅，终端输出超过4KB；随后为读取加入限幅。统一完整验证只运行一轮；后半阶段仅等待该门槛、归档和推送，没有为凑轮次时长扩展任务。
