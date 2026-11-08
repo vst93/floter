@@ -1,0 +1,10 @@
+ internal/i18n/copy.go                | 15 ++------
+ internal/i18n/i18n.go                |  3 +-
+ internal/settings/shortcutmap.go     | 31 +++++++++++++++
+ internal/settingsui/custom.go        | 11 ++++--
+ internal/settingsui/settingsui.go    | 12 ++++++
+ internal/settingsui/view_test.go     |  4 +-
+ internal/shell/custom.go             | 73 +++++++++++++++++++++++++-----------
+ internal/shortcuts/shortcuts.go      | 20 ++++++++++
+ internal/shortcuts/shortcuts_test.go | 23 ++++++++++++
+ 9 files changed, 153 insertions(+), 39 deletions(-)

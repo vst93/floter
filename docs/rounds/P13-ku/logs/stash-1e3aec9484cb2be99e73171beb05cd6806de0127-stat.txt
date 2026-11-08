@@ -1,0 +1,3 @@
+ internal/settingsui/pluginsheet.go | 107 ++++++++++++++++++++++++++++++-------
+ internal/theme/theme.go            |  22 ++++++++
+ 2 files changed, 109 insertions(+), 20 deletions(-)

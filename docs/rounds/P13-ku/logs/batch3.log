@@ -1,0 +1,22 @@
+=== RUN   TestAuditReflowConfigFields
+=== RUN   TestAuditReflowConfigFields/light
+=== RUN   TestAuditReflowConfigFields/dark
+--- PASS: TestAuditReflowConfigFields (0.41s)
+    --- PASS: TestAuditReflowConfigFields/light (0.29s)
+    --- PASS: TestAuditReflowConfigFields/dark (0.12s)
+=== RUN   TestAuditReflowConfigActions
+=== RUN   TestAuditReflowConfigActions/config-defaults
+=== RUN   TestAuditReflowConfigActions/config-defaults/light
+=== RUN   TestAuditReflowConfigActions/config-defaults/dark
+=== RUN   TestAuditReflowConfigActions/config-save
+=== RUN   TestAuditReflowConfigActions/config-save/light
+=== RUN   TestAuditReflowConfigActions/config-save/dark
+--- PASS: TestAuditReflowConfigActions (0.58s)
+    --- PASS: TestAuditReflowConfigActions/config-defaults (0.28s)
+        --- PASS: TestAuditReflowConfigActions/config-defaults/light (0.14s)
+        --- PASS: TestAuditReflowConfigActions/config-defaults/dark (0.14s)
+    --- PASS: TestAuditReflowConfigActions/config-save (0.30s)
+        --- PASS: TestAuditReflowConfigActions/config-save/light (0.15s)
+        --- PASS: TestAuditReflowConfigActions/config-save/dark (0.15s)
+PASS
+ok  	floter/internal/settingsui	0.997s

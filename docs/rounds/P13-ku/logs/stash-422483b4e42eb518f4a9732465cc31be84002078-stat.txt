@@ -1,0 +1,4 @@
+ internal/launcher/glyphs.go   |  15 ++-
+ internal/launcher/launcher.go | 217 +++++++++++++++++++++-----------
+ internal/theme/theme.go       | 282 +++++++++++++++++++++++++++---------------
+ 3 files changed, 337 insertions(+), 177 deletions(-)

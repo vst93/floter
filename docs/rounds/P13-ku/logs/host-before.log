@@ -1,0 +1,19 @@
+=== RUN   TestAuditReflowConfigOpen
+=== RUN   TestAuditReflowConfigOpen/config-open
+=== RUN   TestAuditReflowConfigOpen/config-open/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Configure": target={X:631.8 Y:826.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Configure": target={X:631.8 Y:496.49994 W:53 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Configure": target={X:631.8 Y:826.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Configure": target={X:631.8 Y:892.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowConfigOpen/config-open/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Configure": target={X:631.8 Y:826.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Configure": target={X:631.8 Y:496.49994 W:53 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Configure": target={X:631.8 Y:826.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Configure": target={X:631.8 Y:892.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowConfigOpen (0.36s)
+    --- FAIL: TestAuditReflowConfigOpen/config-open (0.36s)
+        --- FAIL: TestAuditReflowConfigOpen/config-open/light (0.28s)
+        --- FAIL: TestAuditReflowConfigOpen/config-open/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	0.367s
+FAIL

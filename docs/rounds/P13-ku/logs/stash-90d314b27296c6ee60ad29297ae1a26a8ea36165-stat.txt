@@ -1,0 +1,4 @@
+ internal/launcher/actionbar.go |  11 +++-
+ internal/launcher/launcher.go  | 121 ++++++++++++++++++++++++++++++++++++-----
+ internal/launcher/search.go    |  13 +++--
+ 3 files changed, 124 insertions(+), 21 deletions(-)

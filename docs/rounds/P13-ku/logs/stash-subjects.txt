@@ -1,0 +1,8 @@
+stash@{0} 422483b4 On mygo-rewrite: WIP: raycast keycap slice (P7-lg pending, 4 launcher tests red)
+stash@{1} 8af94a07 On mygo-rewrite: wip(settings rows/slider): row padding 9u + literal 16px scroll edge + sidebar hover + slider height; tests not yet pinned (preserved before P7-hd segmented-alignment round)
+stash@{2} 7e4aa710 On mygo-rewrite: unrelated WIP preserved by P7-gv number/slider round: uninstall dialog metrics + debug scratch test
+stash@{3} 1e3aec94 On mygo-rewrite: wip(P7-gv number-field R59): unrelated incomplete plugin number-field work, preserved before confirm-bar commit
+stash@{4} 363f5a42 WIP on mygo-rewrite: 0eb6622 fix(plugin-config): Text 字段回到原版 R59 的 28u 玻璃槽，Action 控件补测试与文档（P7-gv/P7-gu）
+stash@{5} 9b8ce23c WIP on mygo-rewrite: 2ea8e5c feat(shortcuts): 自定义快捷键的键读写时补上原版的形状校验（P7-fj / 待办第 1 条；原版 src-tauri/src/commands/config.rs:1385-1404 normalize_custom_shortcuts、:1408-1434 normalize_shortcut）
+stash@{6} 90d314b2 On mygo-rewrite: wip launcher: action bar always present for a non-empty query (tests not updated)
+stash@{7} 7a9f6e13 WIP on main: ad47ac0 feat: version management, shadow tuning, focus fix, divider cleanup

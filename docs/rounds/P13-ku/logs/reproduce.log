@@ -1,0 +1,167 @@
+=== RUN   TestAuditReflowRunEditors
+=== RUN   TestAuditReflowRunEditors/text
+=== RUN   TestAuditReflowRunEditors/text/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:864.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunEditors/text/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:864.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunEditors/number
+=== RUN   TestAuditReflowRunEditors/number/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:864.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunEditors/number/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:864.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunEditors/path
+=== RUN   TestAuditReflowRunEditors/path/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:864.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunEditors/path/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:798.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:864.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowRunEditors (1.42s)
+    --- FAIL: TestAuditReflowRunEditors/text (0.59s)
+        --- FAIL: TestAuditReflowRunEditors/text/light (0.40s)
+        --- FAIL: TestAuditReflowRunEditors/text/dark (0.19s)
+    --- FAIL: TestAuditReflowRunEditors/number (0.41s)
+        --- FAIL: TestAuditReflowRunEditors/number/light (0.21s)
+        --- FAIL: TestAuditReflowRunEditors/number/dark (0.20s)
+    --- FAIL: TestAuditReflowRunEditors/path (0.42s)
+        --- FAIL: TestAuditReflowRunEditors/path/light (0.21s)
+        --- FAIL: TestAuditReflowRunEditors/path/dark (0.21s)
+=== RUN   TestAuditReflowRunChoices
+=== RUN   TestAuditReflowRunChoices/boolean
+=== RUN   TestAuditReflowRunChoices/boolean/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:803.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:803.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:869.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunChoices/boolean/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:803.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:803.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:869.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunChoices/select
+=== RUN   TestAuditReflowRunChoices/select/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "北方": target={X:597.8 Y:797.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "北方": target={X:597.8 Y:797.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "北方": target={X:597.8 Y:863.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunChoices/select/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "北方": target={X:597.8 Y:797.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "北方": target={X:597.8 Y:797.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "北方": target={X:597.8 Y:863.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowRunChoices (0.83s)
+    --- FAIL: TestAuditReflowRunChoices/boolean (0.40s)
+        --- FAIL: TestAuditReflowRunChoices/boolean/light (0.20s)
+        --- FAIL: TestAuditReflowRunChoices/boolean/dark (0.21s)
+    --- FAIL: TestAuditReflowRunChoices/select (0.43s)
+        --- FAIL: TestAuditReflowRunChoices/select/light (0.20s)
+        --- FAIL: TestAuditReflowRunChoices/select/dark (0.22s)
+=== RUN   TestAuditReflowRunCancel
+=== RUN   TestAuditReflowRunCancel/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunCancel/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowRunCancel (0.59s)
+    --- FAIL: TestAuditReflowRunCancel/light (0.29s)
+    --- FAIL: TestAuditReflowRunCancel/dark (0.30s)
+=== RUN   TestAuditReflowRunSubmit
+=== RUN   TestAuditReflowRunSubmit/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunSubmit/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowRunSubmit (0.57s)
+    --- FAIL: TestAuditReflowRunSubmit/light (0.28s)
+    --- FAIL: TestAuditReflowRunSubmit/dark (0.29s)
+=== RUN   TestAuditReflowConfigFields
+=== RUN   TestAuditReflowConfigFields/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:808.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:808.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:874.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowConfigFields/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:808.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:808.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:874.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowConfigFields (0.45s)
+    --- FAIL: TestAuditReflowConfigFields/light (0.21s)
+    --- FAIL: TestAuditReflowConfigFields/dark (0.23s)
+=== RUN   TestAuditReflowConfigActions
+=== RUN   TestAuditReflowConfigActions/config-defaults
+=== RUN   TestAuditReflowConfigActions/config-defaults/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:807.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:807.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:873.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowConfigActions/config-defaults/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:807.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:807.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:873.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowConfigActions/config-save
+=== RUN   TestAuditReflowConfigActions/config-save/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:807.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:807.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:873.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowConfigActions/config-save/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:807.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:807.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:873.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowConfigActions (1.04s)
+    --- FAIL: TestAuditReflowConfigActions/config-defaults (0.52s)
+        --- FAIL: TestAuditReflowConfigActions/config-defaults/light (0.25s)
+        --- FAIL: TestAuditReflowConfigActions/config-defaults/dark (0.27s)
+    --- FAIL: TestAuditReflowConfigActions/config-save (0.52s)
+        --- FAIL: TestAuditReflowConfigActions/config-save/light (0.26s)
+        --- FAIL: TestAuditReflowConfigActions/config-save/dark (0.26s)
+=== RUN   TestAuditReflowConfigTransfers
+=== RUN   TestAuditReflowConfigTransfers/copy
+=== RUN   TestAuditReflowConfigTransfers/copy/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:800.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:800.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:866.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowConfigTransfers/copy/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:800.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:800.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:866.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowConfigTransfers/export
+=== RUN   TestAuditReflowConfigTransfers/export/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:800.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:800.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:866.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowConfigTransfers/export/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:800.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:800.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:866.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowConfigTransfers (0.59s)
+    --- FAIL: TestAuditReflowConfigTransfers/copy (0.27s)
+        --- FAIL: TestAuditReflowConfigTransfers/copy/light (0.14s)
+        --- FAIL: TestAuditReflowConfigTransfers/copy/dark (0.14s)
+    --- FAIL: TestAuditReflowConfigTransfers/export (0.31s)
+        --- FAIL: TestAuditReflowConfigTransfers/export/light (0.16s)
+        --- FAIL: TestAuditReflowConfigTransfers/export/dark (0.15s)
+=== RUN   TestAuditReflowToolOpen
+=== RUN   TestAuditReflowToolOpen/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowToolOpen/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowToolOpen (0.24s)
+    --- FAIL: TestAuditReflowToolOpen/light (0.12s)
+    --- FAIL: TestAuditReflowToolOpen/dark (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	5.733s
+FAIL

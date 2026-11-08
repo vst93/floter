@@ -1,0 +1,27 @@
+=== RUN   TestAuditReflowRunCancel
+=== RUN   TestAuditReflowRunCancel/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunCancel/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowRunCancel (0.58s)
+    --- FAIL: TestAuditReflowRunCancel/light (0.38s)
+    --- FAIL: TestAuditReflowRunCancel/dark (0.19s)
+=== RUN   TestAuditReflowRunSubmit
+=== RUN   TestAuditReflowRunSubmit/light
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestAuditReflowRunSubmit/dark
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:807.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    auditreflow_test.go:129: feedback reflow hides active outlet "Run with these values": target={X:566.8 Y:873.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestAuditReflowRunSubmit (0.39s)
+    --- FAIL: TestAuditReflowRunSubmit/light (0.19s)
+    --- FAIL: TestAuditReflowRunSubmit/dark (0.19s)
+FAIL
+FAIL	floter/internal/settingsui	0.974s
+FAIL

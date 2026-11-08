@@ -1,0 +1,36 @@
+=== RUN   TestAuditReflowRunEditors
+=== RUN   TestAuditReflowRunEditors/text
+=== RUN   TestAuditReflowRunEditors/text/light
+=== RUN   TestAuditReflowRunEditors/text/dark
+=== RUN   TestAuditReflowRunEditors/number
+=== RUN   TestAuditReflowRunEditors/number/light
+=== RUN   TestAuditReflowRunEditors/number/dark
+=== RUN   TestAuditReflowRunEditors/path
+=== RUN   TestAuditReflowRunEditors/path/light
+=== RUN   TestAuditReflowRunEditors/path/dark
+--- PASS: TestAuditReflowRunEditors (1.55s)
+    --- PASS: TestAuditReflowRunEditors/text (0.70s)
+        --- PASS: TestAuditReflowRunEditors/text/light (0.48s)
+        --- PASS: TestAuditReflowRunEditors/text/dark (0.22s)
+    --- PASS: TestAuditReflowRunEditors/number (0.44s)
+        --- PASS: TestAuditReflowRunEditors/number/light (0.22s)
+        --- PASS: TestAuditReflowRunEditors/number/dark (0.22s)
+    --- PASS: TestAuditReflowRunEditors/path (0.41s)
+        --- PASS: TestAuditReflowRunEditors/path/light (0.20s)
+        --- PASS: TestAuditReflowRunEditors/path/dark (0.21s)
+=== RUN   TestAuditReflowRunChoices
+=== RUN   TestAuditReflowRunChoices/boolean
+=== RUN   TestAuditReflowRunChoices/boolean/light
+=== RUN   TestAuditReflowRunChoices/boolean/dark
+=== RUN   TestAuditReflowRunChoices/select
+=== RUN   TestAuditReflowRunChoices/select/light
+=== RUN   TestAuditReflowRunChoices/select/dark
+--- PASS: TestAuditReflowRunChoices (0.83s)
+    --- PASS: TestAuditReflowRunChoices/boolean (0.41s)
+        --- PASS: TestAuditReflowRunChoices/boolean/light (0.20s)
+        --- PASS: TestAuditReflowRunChoices/boolean/dark (0.21s)
+    --- PASS: TestAuditReflowRunChoices/select (0.42s)
+        --- PASS: TestAuditReflowRunChoices/select/light (0.23s)
+        --- PASS: TestAuditReflowRunChoices/select/dark (0.20s)
+PASS
+ok  	floter/internal/settingsui	2.394s

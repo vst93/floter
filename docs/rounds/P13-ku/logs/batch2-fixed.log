@@ -1,0 +1,14 @@
+=== RUN   TestAuditReflowRunCancel
+=== RUN   TestAuditReflowRunCancel/light
+=== RUN   TestAuditReflowRunCancel/dark
+--- PASS: TestAuditReflowRunCancel (0.53s)
+    --- PASS: TestAuditReflowRunCancel/light (0.33s)
+    --- PASS: TestAuditReflowRunCancel/dark (0.20s)
+=== RUN   TestAuditReflowRunSubmit
+=== RUN   TestAuditReflowRunSubmit/light
+=== RUN   TestAuditReflowRunSubmit/dark
+--- PASS: TestAuditReflowRunSubmit (0.40s)
+    --- PASS: TestAuditReflowRunSubmit/light (0.20s)
+    --- PASS: TestAuditReflowRunSubmit/dark (0.20s)
+PASS
+ok  	floter/internal/settingsui	0.943s

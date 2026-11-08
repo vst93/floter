@@ -1,0 +1,30 @@
+=== RUN   TestAuditReflowConfigTransfers
+=== RUN   TestAuditReflowConfigTransfers/copy
+=== RUN   TestAuditReflowConfigTransfers/copy/light
+=== RUN   TestAuditReflowConfigTransfers/copy/dark
+=== RUN   TestAuditReflowConfigTransfers/export
+=== RUN   TestAuditReflowConfigTransfers/export/light
+=== RUN   TestAuditReflowConfigTransfers/export/dark
+--- PASS: TestAuditReflowConfigTransfers (0.60s)
+    --- PASS: TestAuditReflowConfigTransfers/copy (0.40s)
+        --- PASS: TestAuditReflowConfigTransfers/copy/light (0.30s)
+        --- PASS: TestAuditReflowConfigTransfers/copy/dark (0.11s)
+    --- PASS: TestAuditReflowConfigTransfers/export (0.19s)
+        --- PASS: TestAuditReflowConfigTransfers/export/light (0.10s)
+        --- PASS: TestAuditReflowConfigTransfers/export/dark (0.09s)
+=== RUN   TestAuditReflowConfigOpen
+=== RUN   TestAuditReflowConfigOpen/config-open
+=== RUN   TestAuditReflowConfigOpen/config-open/light
+=== RUN   TestAuditReflowConfigOpen/config-open/dark
+=== RUN   TestAuditReflowConfigOpen/tool-open
+=== RUN   TestAuditReflowConfigOpen/tool-open/light
+=== RUN   TestAuditReflowConfigOpen/tool-open/dark
+--- PASS: TestAuditReflowConfigOpen (0.28s)
+    --- PASS: TestAuditReflowConfigOpen/config-open (0.15s)
+        --- PASS: TestAuditReflowConfigOpen/config-open/light (0.08s)
+        --- PASS: TestAuditReflowConfigOpen/config-open/dark (0.07s)
+    --- PASS: TestAuditReflowConfigOpen/tool-open (0.13s)
+        --- PASS: TestAuditReflowConfigOpen/tool-open/light (0.07s)
+        --- PASS: TestAuditReflowConfigOpen/tool-open/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.891s

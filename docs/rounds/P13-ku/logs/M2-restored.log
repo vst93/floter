@@ -1,0 +1,96 @@
+=== RUN   TestAuditReflowConfigFields
+=== RUN   TestAuditReflowConfigFields/light
+=== RUN   TestAuditReflowConfigFields/dark
+--- PASS: TestAuditReflowConfigFields (0.32s)
+    --- PASS: TestAuditReflowConfigFields/light (0.21s)
+    --- PASS: TestAuditReflowConfigFields/dark (0.12s)
+=== RUN   TestAuditReflowConfigActions
+=== RUN   TestAuditReflowConfigActions/config-defaults
+=== RUN   TestAuditReflowConfigActions/config-defaults/light
+=== RUN   TestAuditReflowConfigActions/config-defaults/dark
+=== RUN   TestAuditReflowConfigActions/config-save
+=== RUN   TestAuditReflowConfigActions/config-save/light
+=== RUN   TestAuditReflowConfigActions/config-save/dark
+--- PASS: TestAuditReflowConfigActions (0.67s)
+    --- PASS: TestAuditReflowConfigActions/config-defaults (0.33s)
+        --- PASS: TestAuditReflowConfigActions/config-defaults/light (0.16s)
+        --- PASS: TestAuditReflowConfigActions/config-defaults/dark (0.17s)
+    --- PASS: TestAuditReflowConfigActions/config-save (0.34s)
+        --- PASS: TestAuditReflowConfigActions/config-save/light (0.17s)
+        --- PASS: TestAuditReflowConfigActions/config-save/dark (0.17s)
+=== RUN   TestAuditReflowConfigTransfers
+=== RUN   TestAuditReflowConfigTransfers/copy
+=== RUN   TestAuditReflowConfigTransfers/copy/light
+=== RUN   TestAuditReflowConfigTransfers/copy/dark
+=== RUN   TestAuditReflowConfigTransfers/export
+=== RUN   TestAuditReflowConfigTransfers/export/light
+=== RUN   TestAuditReflowConfigTransfers/export/dark
+--- PASS: TestAuditReflowConfigTransfers (0.33s)
+    --- PASS: TestAuditReflowConfigTransfers/copy (0.16s)
+        --- PASS: TestAuditReflowConfigTransfers/copy/light (0.08s)
+        --- PASS: TestAuditReflowConfigTransfers/copy/dark (0.08s)
+    --- PASS: TestAuditReflowConfigTransfers/export (0.16s)
+        --- PASS: TestAuditReflowConfigTransfers/export/light (0.08s)
+        --- PASS: TestAuditReflowConfigTransfers/export/dark (0.08s)
+=== RUN   TestAuditReflowConfigOpen
+=== RUN   TestAuditReflowConfigOpen/config-open
+=== RUN   TestAuditReflowConfigOpen/config-open/light
+=== RUN   TestAuditReflowConfigOpen/config-open/dark
+=== RUN   TestAuditReflowConfigOpen/tool-open
+=== RUN   TestAuditReflowConfigOpen/tool-open/light
+=== RUN   TestAuditReflowConfigOpen/tool-open/dark
+--- PASS: TestAuditReflowConfigOpen (0.26s)
+    --- PASS: TestAuditReflowConfigOpen/config-open (0.14s)
+        --- PASS: TestAuditReflowConfigOpen/config-open/light (0.07s)
+        --- PASS: TestAuditReflowConfigOpen/config-open/dark (0.07s)
+    --- PASS: TestAuditReflowConfigOpen/tool-open (0.12s)
+        --- PASS: TestAuditReflowConfigOpen/tool-open/light (0.06s)
+        --- PASS: TestAuditReflowConfigOpen/tool-open/dark (0.06s)
+=== RUN   TestAuditReflowRunEditors
+=== RUN   TestAuditReflowRunEditors/text
+=== RUN   TestAuditReflowRunEditors/text/light
+=== RUN   TestAuditReflowRunEditors/text/dark
+=== RUN   TestAuditReflowRunEditors/number
+=== RUN   TestAuditReflowRunEditors/number/light
+=== RUN   TestAuditReflowRunEditors/number/dark
+=== RUN   TestAuditReflowRunEditors/path
+=== RUN   TestAuditReflowRunEditors/path/light
+=== RUN   TestAuditReflowRunEditors/path/dark
+--- PASS: TestAuditReflowRunEditors (0.66s)
+    --- PASS: TestAuditReflowRunEditors/text (0.23s)
+        --- PASS: TestAuditReflowRunEditors/text/light (0.12s)
+        --- PASS: TestAuditReflowRunEditors/text/dark (0.11s)
+    --- PASS: TestAuditReflowRunEditors/number (0.22s)
+        --- PASS: TestAuditReflowRunEditors/number/light (0.11s)
+        --- PASS: TestAuditReflowRunEditors/number/dark (0.11s)
+    --- PASS: TestAuditReflowRunEditors/path (0.21s)
+        --- PASS: TestAuditReflowRunEditors/path/light (0.11s)
+        --- PASS: TestAuditReflowRunEditors/path/dark (0.10s)
+=== RUN   TestAuditReflowRunChoices
+=== RUN   TestAuditReflowRunChoices/boolean
+=== RUN   TestAuditReflowRunChoices/boolean/light
+=== RUN   TestAuditReflowRunChoices/boolean/dark
+=== RUN   TestAuditReflowRunChoices/select
+=== RUN   TestAuditReflowRunChoices/select/light
+=== RUN   TestAuditReflowRunChoices/select/dark
+--- PASS: TestAuditReflowRunChoices (0.42s)
+    --- PASS: TestAuditReflowRunChoices/boolean (0.20s)
+        --- PASS: TestAuditReflowRunChoices/boolean/light (0.10s)
+        --- PASS: TestAuditReflowRunChoices/boolean/dark (0.10s)
+    --- PASS: TestAuditReflowRunChoices/select (0.22s)
+        --- PASS: TestAuditReflowRunChoices/select/light (0.11s)
+        --- PASS: TestAuditReflowRunChoices/select/dark (0.11s)
+=== RUN   TestAuditReflowRunCancel
+=== RUN   TestAuditReflowRunCancel/light
+=== RUN   TestAuditReflowRunCancel/dark
+--- PASS: TestAuditReflowRunCancel (0.34s)
+    --- PASS: TestAuditReflowRunCancel/light (0.17s)
+    --- PASS: TestAuditReflowRunCancel/dark (0.16s)
+=== RUN   TestAuditReflowRunSubmit
+=== RUN   TestAuditReflowRunSubmit/light
+=== RUN   TestAuditReflowRunSubmit/dark
+--- PASS: TestAuditReflowRunSubmit (0.34s)
+    --- PASS: TestAuditReflowRunSubmit/light (0.17s)
+    --- PASS: TestAuditReflowRunSubmit/dark (0.17s)
+PASS
+ok  	floter/internal/settingsui	3.344s

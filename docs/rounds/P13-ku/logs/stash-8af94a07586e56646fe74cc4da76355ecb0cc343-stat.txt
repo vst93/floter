@@ -1,0 +1,4 @@
+ internal/settingsui/rows.go               |   4 +-
+ internal/settingsui/settingspanel_test.go | 143 ++++++++++++++++++++++++++++++
+ internal/settingsui/settingsui.go         |  12 ++-
+ 3 files changed, 154 insertions(+), 5 deletions(-)

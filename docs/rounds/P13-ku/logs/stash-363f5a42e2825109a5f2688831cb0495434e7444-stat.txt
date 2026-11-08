@@ -1,0 +1,3 @@
+ internal/settingsui/disablebar_test.go | 111 ++++++++++++++++++++++++++++++
+ internal/settingsui/settingsui.go      | 120 +++++++++++++++++++++++++++++----
+ 2 files changed, 217 insertions(+), 14 deletions(-)
