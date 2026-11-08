@@ -1,0 +1,14 @@
+[
+  {
+    "name": "full-test.txt",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0
+  },
+  {
+    "name": "verbose-test.txt",
+    "exit": 0,
+    "passed": 5926,
+    "failed": 0
+  }
+]

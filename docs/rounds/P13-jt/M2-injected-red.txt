@@ -1,0 +1,27 @@
+=== RUN   TestCommandReprobeKeepsCurrentManifest
+=== RUN   TestCommandReprobeKeepsCurrentManifest/light
+2026/11/08 09:26:03 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:71: late command reprobe overwrote current manifest descriptor
+    commandreprobecurrent_test.go:74: obsolete manifest probe wrote a freshness record
+=== RUN   TestCommandReprobeKeepsCurrentManifest/dark
+2026/11/08 09:26:03 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:71: late command reprobe overwrote current manifest descriptor
+    commandreprobecurrent_test.go:74: obsolete manifest probe wrote a freshness record
+--- FAIL: TestCommandReprobeKeepsCurrentManifest (0.91s)
+    --- FAIL: TestCommandReprobeKeepsCurrentManifest/light (0.55s)
+    --- FAIL: TestCommandReprobeKeepsCurrentManifest/dark (0.36s)
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/light
+2026/11/08 09:26:04 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:71: late command reprobe overwrote current descriptor descriptor
+    commandreprobecurrent_test.go:74: obsolete descriptor probe wrote a freshness record
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/dark
+2026/11/08 09:26:04 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:71: late command reprobe overwrote current descriptor descriptor
+    commandreprobecurrent_test.go:74: obsolete descriptor probe wrote a freshness record
+--- FAIL: TestCommandReprobeKeepsCurrentDescriptor (0.70s)
+    --- FAIL: TestCommandReprobeKeepsCurrentDescriptor/light (0.35s)
+    --- FAIL: TestCommandReprobeKeepsCurrentDescriptor/dark (0.35s)
+FAIL
+FAIL	floter/internal/shell	1.614s
+FAIL

@@ -1,0 +1,14 @@
+=== RUN   TestCommandReprobeKeepsCurrentPublisher
+=== RUN   TestCommandReprobeKeepsCurrentPublisher/light
+=== RUN   TestCommandReprobeKeepsCurrentPublisher/dark
+--- PASS: TestCommandReprobeKeepsCurrentPublisher (0.77s)
+    --- PASS: TestCommandReprobeKeepsCurrentPublisher/light (0.44s)
+    --- PASS: TestCommandReprobeKeepsCurrentPublisher/dark (0.32s)
+=== RUN   TestCommandReprobeKeepsCurrentRuntime
+=== RUN   TestCommandReprobeKeepsCurrentRuntime/light
+=== RUN   TestCommandReprobeKeepsCurrentRuntime/dark
+--- PASS: TestCommandReprobeKeepsCurrentRuntime (0.59s)
+    --- PASS: TestCommandReprobeKeepsCurrentRuntime/light (0.29s)
+    --- PASS: TestCommandReprobeKeepsCurrentRuntime/dark (0.30s)
+PASS
+ok  	floter/internal/shell	1.361s

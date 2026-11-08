@@ -1,0 +1,58 @@
+=== RUN   TestCommandReprobeRejectsRepeatedClick
+=== RUN   TestCommandReprobeRejectsRepeatedClick/light
+2026/11/08 09:27:24 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRejectsRepeatedClick/dark
+2026/11/08 09:27:24 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeRejectsRepeatedClick (1.02s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/light (0.55s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/dark (0.47s)
+=== RUN   TestCommandReprobeLocksCompetingActions
+=== RUN   TestCommandReprobeLocksCompetingActions/light
+2026/11/08 09:27:25 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeLocksCompetingActions/dark
+2026/11/08 09:27:25 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeLocksCompetingActions (1.62s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/light (0.63s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/dark (0.99s)
+=== RUN   TestCommandReprobeKeepsCurrentManifest
+=== RUN   TestCommandReprobeKeepsCurrentManifest/light
+=== RUN   TestCommandReprobeKeepsCurrentManifest/dark
+--- PASS: TestCommandReprobeKeepsCurrentManifest (1.31s)
+    --- PASS: TestCommandReprobeKeepsCurrentManifest/light (0.72s)
+    --- PASS: TestCommandReprobeKeepsCurrentManifest/dark (0.59s)
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/light
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/dark
+--- PASS: TestCommandReprobeKeepsCurrentDescriptor (0.97s)
+    --- PASS: TestCommandReprobeKeepsCurrentDescriptor/light (0.54s)
+    --- PASS: TestCommandReprobeKeepsCurrentDescriptor/dark (0.43s)
+=== RUN   TestCommandReprobeKeepsCurrentPublisher
+=== RUN   TestCommandReprobeKeepsCurrentPublisher/light
+=== RUN   TestCommandReprobeKeepsCurrentPublisher/dark
+--- PASS: TestCommandReprobeKeepsCurrentPublisher (0.82s)
+    --- PASS: TestCommandReprobeKeepsCurrentPublisher/light (0.42s)
+    --- PASS: TestCommandReprobeKeepsCurrentPublisher/dark (0.40s)
+=== RUN   TestCommandReprobeKeepsCurrentRuntime
+=== RUN   TestCommandReprobeKeepsCurrentRuntime/light
+=== RUN   TestCommandReprobeKeepsCurrentRuntime/dark
+--- PASS: TestCommandReprobeKeepsCurrentRuntime (0.75s)
+    --- PASS: TestCommandReprobeKeepsCurrentRuntime/light (0.38s)
+    --- PASS: TestCommandReprobeKeepsCurrentRuntime/dark (0.37s)
+=== RUN   TestCommandReprobeRepositoryStartFailure
+=== RUN   TestCommandReprobeRepositoryStartFailure/light
+2026/11/08 09:27:30 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRepositoryStartFailure/dark
+2026/11/08 09:27:31 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeRepositoryStartFailure (1.49s)
+    --- PASS: TestCommandReprobeRepositoryStartFailure/light (0.76s)
+    --- PASS: TestCommandReprobeRepositoryStartFailure/dark (0.73s)
+=== RUN   TestCommandReprobeRepositoryCompletionFailure
+=== RUN   TestCommandReprobeRepositoryCompletionFailure/light
+2026/11/08 09:27:32 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRepositoryCompletionFailure/dark
+2026/11/08 09:27:33 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeRepositoryCompletionFailure (1.91s)
+    --- PASS: TestCommandReprobeRepositoryCompletionFailure/light (0.78s)
+    --- PASS: TestCommandReprobeRepositoryCompletionFailure/dark (1.13s)
+PASS
+ok  	floter/internal/shell	9.892s

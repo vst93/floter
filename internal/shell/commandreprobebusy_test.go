@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -132,6 +133,14 @@ func checkCommandReprobeBusy(t *testing.T, competing bool) {
 			tt := healthRefreshFrame(t, f, "unused", dark)
 			settled := make(chan struct{}, 16)
 			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
+			// A real window queues completion behind UI events. Keep the store
+			// refresh in flight until these events finish, even if instrumented
+			// rendering outlasts the tool's unchanged three-second help timeout.
+			completion := make(chan struct{})
+			resume := sync.OnceFunc(func() { close(completion) })
+			defer resume()
+			unsubscribe := f.a.Integrations.OnChange(func() { <-completion })
+			defer unsubscribe()
 			commandReprobeClick(t, f, tt)
 			commandReprobeStarted(t, f)
 			copy := i18n.For("zh").Settings
@@ -167,6 +176,7 @@ func checkCommandReprobeBusy(t *testing.T, competing bool) {
 			tt.Frame()
 			dumpCommandReprobe(t, tt, scenario, dark)
 			commandReprobeRelease(t, f)
+			resume()
 			for i := 0; i < 2; i++ {
 				select {
 				case <-settled:

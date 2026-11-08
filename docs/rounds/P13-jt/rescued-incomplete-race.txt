@@ -1,0 +1,45 @@
+=== RUN   TestCommandReprobeRejectsRepeatedClick
+=== RUN   TestCommandReprobeRejectsRepeatedClick/light
+2026/11/08 07:48:26 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRejectsRepeatedClick/dark
+2026/11/08 07:48:34 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- PASS: TestCommandReprobeRejectsRepeatedClick (15.44s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/light (7.99s)
+    --- PASS: TestCommandReprobeRejectsRepeatedClick/dark (7.45s)
+=== RUN   TestCommandReprobeLocksCompetingActions
+=== RUN   TestCommandReprobeLocksCompetingActions/light
+2026/11/08 07:48:41 floter: could not re-probe dev.floter.check: extensions: the tool did not produce usable help output
+=== RUN   TestCommandReprobeLocksCompetingActions/dark
+2026/11/08 07:48:56 floter: could not re-probe dev.floter.check: extensions: the tool did not produce usable help output
+    commandreprobebusy_test.go:152: pending command reprobe permits competing actions: 1
+    commandreprobebusy_test.go:186: completed command reprobe cannot be retried: calls=2
+--- FAIL: TestCommandReprobeLocksCompetingActions (41.69s)
+    --- PASS: TestCommandReprobeLocksCompetingActions/light (9.41s)
+    --- FAIL: TestCommandReprobeLocksCompetingActions/dark (32.28s)
+=== RUN   TestCommandReprobeKeepsCurrentManifest
+=== RUN   TestCommandReprobeKeepsCurrentManifest/light
+=== RUN   TestCommandReprobeKeepsCurrentManifest/dark
+--- PASS: TestCommandReprobeKeepsCurrentManifest (35.11s)
+    --- PASS: TestCommandReprobeKeepsCurrentManifest/light (20.99s)
+    --- PASS: TestCommandReprobeKeepsCurrentManifest/dark (14.12s)
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/light
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/dark
+--- PASS: TestCommandReprobeKeepsCurrentDescriptor (27.67s)
+    --- PASS: TestCommandReprobeKeepsCurrentDescriptor/light (13.58s)
+    --- PASS: TestCommandReprobeKeepsCurrentDescriptor/dark (14.09s)
+=== RUN   TestCommandReprobeKeepsCurrentPublisher
+=== RUN   TestCommandReprobeKeepsCurrentPublisher/light
+=== RUN   TestCommandReprobeKeepsCurrentPublisher/dark
+--- PASS: TestCommandReprobeKeepsCurrentPublisher (21.93s)
+    --- PASS: TestCommandReprobeKeepsCurrentPublisher/light (11.52s)
+    --- PASS: TestCommandReprobeKeepsCurrentPublisher/dark (10.40s)
+=== RUN   TestCommandReprobeKeepsCurrentRuntime
+=== RUN   TestCommandReprobeKeepsCurrentRuntime/light
+=== RUN   TestCommandReprobeKeepsCurrentRuntime/dark
+--- PASS: TestCommandReprobeKeepsCurrentRuntime (20.44s)
+    --- PASS: TestCommandReprobeKeepsCurrentRuntime/light (10.57s)
+    --- PASS: TestCommandReprobeKeepsCurrentRuntime/dark (9.87s)
+=== RUN   TestCommandReprobeRepositoryStartFailure
+=== RUN   TestCommandReprobeRepositoryStartFailure/light
+2026/11/08 07:51:17 floter: re-probed dev.floter.check (commands=2, was <nil>)

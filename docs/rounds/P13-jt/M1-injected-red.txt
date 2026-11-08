@@ -1,0 +1,29 @@
+=== RUN   TestCommandReprobeRejectsRepeatedClick
+=== RUN   TestCommandReprobeRejectsRepeatedClick/light
+    commandreprobebusy_test.go:173: pending command reprobe starts repeatedly: epoch=3
+2026/11/08 09:25:43 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/08 09:25:43 floter: re-probed dev.floter.check (commands=2, was 0x6462f689770)
+2026/11/08 09:25:43 floter: re-probed dev.floter.check (commands=2, was 0x6462f703640)
+=== RUN   TestCommandReprobeRejectsRepeatedClick/dark
+    commandreprobebusy_test.go:173: pending command reprobe starts repeatedly: epoch=3
+2026/11/08 09:25:43 floter: re-probed dev.floter.check (commands=2, was <nil>)
+2026/11/08 09:25:43 floter: re-probed dev.floter.check (commands=2, was 0x6462f84f8d0)
+2026/11/08 09:25:43 floter: re-probed dev.floter.check (commands=2, was 0x6462f577830)
+--- FAIL: TestCommandReprobeRejectsRepeatedClick (1.07s)
+    --- FAIL: TestCommandReprobeRejectsRepeatedClick/light (0.62s)
+    --- FAIL: TestCommandReprobeRejectsRepeatedClick/dark (0.45s)
+=== RUN   TestCommandReprobeLocksCompetingActions
+=== RUN   TestCommandReprobeLocksCompetingActions/light
+    commandreprobebusy_test.go:161: pending command reprobe permits competing actions: 2
+2026/11/08 09:25:44 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobebusy_test.go:184: command reprobe never entered and settled its row busy state
+=== RUN   TestCommandReprobeLocksCompetingActions/dark
+    commandreprobebusy_test.go:161: pending command reprobe permits competing actions: 2
+2026/11/08 09:25:48 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobebusy_test.go:184: command reprobe never entered and settled its row busy state
+--- FAIL: TestCommandReprobeLocksCompetingActions (8.76s)
+    --- FAIL: TestCommandReprobeLocksCompetingActions/light (4.38s)
+    --- FAIL: TestCommandReprobeLocksCompetingActions/dark (4.38s)
+FAIL
+FAIL	floter/internal/shell	9.842s
+FAIL

@@ -1,0 +1,27 @@
+=== RUN   TestCommandReprobeKeepsCurrentPublisher
+=== RUN   TestCommandReprobeKeepsCurrentPublisher/light
+2026/11/08 09:26:12 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:71: late command reprobe overwrote current publisher descriptor
+    commandreprobecurrent_test.go:74: obsolete publisher probe wrote a freshness record
+=== RUN   TestCommandReprobeKeepsCurrentPublisher/dark
+2026/11/08 09:26:13 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:71: late command reprobe overwrote current publisher descriptor
+    commandreprobecurrent_test.go:74: obsolete publisher probe wrote a freshness record
+--- FAIL: TestCommandReprobeKeepsCurrentPublisher (0.85s)
+    --- FAIL: TestCommandReprobeKeepsCurrentPublisher/light (0.50s)
+    --- FAIL: TestCommandReprobeKeepsCurrentPublisher/dark (0.35s)
+=== RUN   TestCommandReprobeKeepsCurrentRuntime
+=== RUN   TestCommandReprobeKeepsCurrentRuntime/light
+2026/11/08 09:26:13 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:71: late command reprobe overwrote current runtime descriptor
+    commandreprobecurrent_test.go:74: obsolete runtime probe wrote a freshness record
+=== RUN   TestCommandReprobeKeepsCurrentRuntime/dark
+2026/11/08 09:26:13 floter: re-probed dev.floter.check (commands=2, was <nil>)
+    commandreprobecurrent_test.go:71: late command reprobe overwrote current runtime descriptor
+    commandreprobecurrent_test.go:74: obsolete runtime probe wrote a freshness record
+--- FAIL: TestCommandReprobeKeepsCurrentRuntime (0.67s)
+    --- FAIL: TestCommandReprobeKeepsCurrentRuntime/light (0.34s)
+    --- FAIL: TestCommandReprobeKeepsCurrentRuntime/dark (0.33s)
+FAIL
+FAIL	floter/internal/shell	1.533s
+FAIL

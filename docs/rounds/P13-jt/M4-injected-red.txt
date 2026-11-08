@@ -1,0 +1,27 @@
+=== RUN   TestCommandReprobeRepositoryStartFailure
+=== RUN   TestCommandReprobeRepositoryStartFailure/light
+2026/11/08 09:26:21 floter: could not re-probe dev.floter.check: extensions: invalid repository /tmp/TestCommandReprobeRepositoryStartFailurelight2547108636/001/extension-repository.json: unexpected end of JSON input
+    commandreprobecurrent_test.go:79: command reprobe repository-start read failure is silent: {ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+2026/11/08 09:26:21 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRepositoryStartFailure/dark
+2026/11/08 09:26:21 floter: could not re-probe dev.floter.check: extensions: invalid repository /tmp/TestCommandReprobeRepositoryStartFailuredark3665341581/001/extension-repository.json: unexpected end of JSON input
+    commandreprobecurrent_test.go:79: command reprobe repository-start read failure is silent: {ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+2026/11/08 09:26:22 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- FAIL: TestCommandReprobeRepositoryStartFailure (1.33s)
+    --- FAIL: TestCommandReprobeRepositoryStartFailure/light (0.69s)
+    --- FAIL: TestCommandReprobeRepositoryStartFailure/dark (0.63s)
+=== RUN   TestCommandReprobeRepositoryCompletionFailure
+=== RUN   TestCommandReprobeRepositoryCompletionFailure/light
+2026/11/08 09:26:22 floter: could not re-probe dev.floter.check: extensions: invalid repository /tmp/TestCommandReprobeRepositoryCompletionFailurelight268500333/001/extension-repository.json: unexpected end of JSON input
+    commandreprobecurrent_test.go:79: command reprobe repository-completion read failure is silent: {ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+2026/11/08 09:26:22 floter: re-probed dev.floter.check (commands=2, was <nil>)
+=== RUN   TestCommandReprobeRepositoryCompletionFailure/dark
+2026/11/08 09:26:22 floter: could not re-probe dev.floter.check: extensions: invalid repository /tmp/TestCommandReprobeRepositoryCompletionFailuredark1291631352/001/extension-repository.json: unexpected end of JSON input
+    commandreprobecurrent_test.go:79: command reprobe repository-completion read failure is silent: {ID: Title: Description: Type: Timeout:0s Action: OnAction:<nil> OnClose:<nil> Data:<nil>}
+2026/11/08 09:26:23 floter: re-probed dev.floter.check (commands=2, was <nil>)
+--- FAIL: TestCommandReprobeRepositoryCompletionFailure (1.11s)
+    --- FAIL: TestCommandReprobeRepositoryCompletionFailure/light (0.57s)
+    --- FAIL: TestCommandReprobeRepositoryCompletionFailure/dark (0.55s)
+FAIL
+FAIL	floter/internal/shell	2.445s
+FAIL

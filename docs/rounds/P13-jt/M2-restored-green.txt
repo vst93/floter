@@ -1,0 +1,14 @@
+=== RUN   TestCommandReprobeKeepsCurrentManifest
+=== RUN   TestCommandReprobeKeepsCurrentManifest/light
+=== RUN   TestCommandReprobeKeepsCurrentManifest/dark
+--- PASS: TestCommandReprobeKeepsCurrentManifest (0.76s)
+    --- PASS: TestCommandReprobeKeepsCurrentManifest/light (0.45s)
+    --- PASS: TestCommandReprobeKeepsCurrentManifest/dark (0.31s)
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/light
+=== RUN   TestCommandReprobeKeepsCurrentDescriptor/dark
+--- PASS: TestCommandReprobeKeepsCurrentDescriptor (0.60s)
+    --- PASS: TestCommandReprobeKeepsCurrentDescriptor/light (0.30s)
+    --- PASS: TestCommandReprobeKeepsCurrentDescriptor/dark (0.29s)
+PASS
+ok  	floter/internal/shell	1.360s
