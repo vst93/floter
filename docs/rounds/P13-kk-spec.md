@@ -6,7 +6,7 @@
 
 ## 八项候选与开盘证据
 
-`internal/settingsui/settingsui.go:6442`的权限循环直接画switch，未留16px淡区与3px外扩环净空；七项在`internal/extensions/permissions.go:19`有独立ID。`:6488`脚本编辑器直接放在stackedRow，需验证返回时首行和光标的可见性。
+`internal/settingsui/settingsui.go:6451`的权限循环直接画switch（调用在6456），未留16px淡区与3px外扩环净空；七项在`internal/extensions/permissions.go:19`有独立ID。`:6493`脚本编辑器直接放在stackedRow，需验证返回时首行和光标的可见性。
 
 | 项 | 位置 / 现状 → 应改成 |
 | --- | --- |

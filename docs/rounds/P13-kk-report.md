@@ -56,3 +56,81 @@ git stash list是权威；八条早期独立WIP SHA与交接相同，逐条rever
 补强后八项定向24 PASS。M1撤掉权限净空，七项深浅实红：`filesystem-read forward bottom ring missing: blue-red=0`、`filesystem-read top ring missing at [659 49]: blue-red=1`；MD5还原OK，touch后21 PASS/exit0。M2撤掉脚本净空，两主题实红：`script first line intersects fade: target={X:201.8 Y:51.400036 W:487 H:64.8}`、`script caret is not fully visible: {X:250.8 Y:51.400036 W:1 H:17} active=true`；MD5还原OK，touch后3 PASS/exit0。
 
 静息程序/脚本×深浅×上中下12组，PNG与全部文本几何共24对逐字节一致。32张原始深浅图、16对照、2总览与6张4×局部已生成；4×仅最近邻放大，不冒充高DPI。原生权限/选择对话框、Windows/macOS真机未验。
+
+第四批 **acc02b1d** 已推送；四批均为两项。一次后台提交启动退出过早留下0字节index.lock，经ps及fuser确认没有持有者后移除，重新前台提交成功，没有改写历史。三平台vet/build已经全部exit0、gofmt空；普通与verbose最终全量仍在跑，计数只在完成后补录。
+
+## 偷了什么
+
+- craft-loop工艺密度菜单 **#3 品牌focus环**：保持原3px外扩蓝环，逐个验证上下环蓝红差≥60；不画第二圈。原色深#8FB7FF/浅#064AA6。
+- **#4 签名交互**：原outputFocusOutlet提供 **19px=16px淡区+3px环** 的一次显现；只在焦点进入时发生，新增动画 **0ms**，之后滚轮自由。
+- **#12 材质细节**：沿用原槽面、1px边与原阴影职责；新增玻璃面 **0层**、新增阴影 **0层**，12组静息PNG逐字节不变。
+
+Linear供体的三层中性面#0f1011/#191a1b、单一交互accent、0.05–0.08弱边映射本仓现有近黑底/Control、蓝色状态墨与ControlEdge深0.07/浅0.06；没有搬字体或品牌色。用户要求修已有功能优先，不为凑五项菜单加装饰。
+
+**为什么更轻、更有空间感**：原活动边与脚本首行离开视口淡区，拥有19px呼吸空间；当前操作位置完整可读，静息密度和层数不增加。
+
+## 两轮图像复核
+
+第一轮四视角：艺术总监看到顶部半圈蓝边像残缺装饰；工程师发现标签与控件同名导致探针误定位；任务用户无法立即辨认当前权限；读者看到脚本首行与光标淡得像只读内容。第二轮复核四处：七开关完整环、真实开关盒、Space仅改对应声明、脚本首行与光标完整。像素测试补查正向Tab下沿；误读caption的探针日志标为修正前证据，不计mutation。
+
+浅色读取文件4×图：左图上半圈被抹去，右图蓝环闭合。深色环境变量4×图：原白色滑块上方发黑，修后白色滑块与蓝环完整。脚本深浅原尺寸对照：首行从紧贴标题带变成独立可读的一行，语言内容和编辑盒宽高相同。八项16组均有真实像素变化，最少61806像素（整页随19px显现移动，不能把差值全部解释成环面积）。
+
+| 项 | 浅色对照 | 深色对照 |
+| --- | --- | --- |
+| 1 文件读取 | [图](P13-kk/filesystem-read-light-comparison.png) | [图](P13-kk/filesystem-read-dark-comparison.png) |
+| 2 文件写入 | [图](P13-kk/filesystem-write-light-comparison.png) | [图](P13-kk/filesystem-write-dark-comparison.png) |
+| 3 网络访问 | [图](P13-kk/network-fetch-light-comparison.png) | [图](P13-kk/network-fetch-dark-comparison.png) |
+| 4 子进程 | [图](P13-kk/process-spawn-light-comparison.png) | [图](P13-kk/process-spawn-dark-comparison.png) |
+| 5 剪贴板读取 | [图](P13-kk/clipboard-read-light-comparison.png) | [图](P13-kk/clipboard-read-dark-comparison.png) |
+| 6 剪贴板写入 | [图](P13-kk/clipboard-write-light-comparison.png) | [图](P13-kk/clipboard-write-dark-comparison.png) |
+| 7 环境变量 | [图](P13-kk/environment-light-comparison.png) | [图](P13-kk/environment-dark-comparison.png) |
+| 8 脚本首行 | [图](P13-kk/script-light-comparison.png) | [图](P13-kk/script-dark-comparison.png) |
+
+## Preflight A / B / C / D2
+
+| 项 | 结论 |
+| --- | --- |
+| A1 渐变/纯黑/霓虹/渐变字 | 无新增；沿用既有深浅主题，编辑器原面色不改 |
+| A2 非默认字体 | 中文系统字体规则优先，字体不改 |
+| A3 斜体 | 无新增；不改变代码高亮语法主题 |
+| A4 Hero | 不适用，原生表单 |
+| A5 三等分/万能卡片 | 无新增卡片 |
+| A6 假数据 | 产品无假指标，测试为隔离天气脚本夹具 |
+| A7 空词 | i18n零改 |
+| A8 眉批 | 无新增 |
+| A9 标题行数 | 页头完整可见 |
+| A10 Bento | 不适用 |
+| A11 左侧竖线 | 无新增装饰 |
+| B1 读取/拨盘 | 3/2/7与已有紧凑原生表单一致 |
+| B2 主题 | 每个Tester明确深/浅，无混合 |
+| B3 记忆点 | 当前权限或脚本首行完整呈现 |
+| B4 动效气质 | 一次即时显现，后续滚轮自由 |
+| C1 目的/频率 | 高频键盘显现新增动画0ms |
+| C2 all/ease-in/scale(0)/fade | 无新增 |
+| C3 时长/按压 | 原开关140ms与按压保留；新显现0ms |
+| C4 出现原点 | 无新增浮层，既有触发器不改 |
+| C5 reduced-motion | 事件截图ReduceMotion=true，原降级保留 |
+| C6 hover查询 | Go自绘无CSS；原指针路由不改 |
+| C7 布局动画 | 无新增布局动画，静息几何逐字节相同 |
+| C8 keyframes | 无新增重播 |
+| C9 手势 | 未涉及拖拽/弹簧/sheet |
+| C10 Framer | 不适用Go自绘 |
+| C11 慢放 | 无新动效，复核确定帧；不声称真机慢放 |
+| D2-1 字体 | 系统中文/原等宽，无webfont |
+| D2-2 字号/行高/字重 | 既有Caption9.9/正文10.8不满足通用≥14px，仍需拍板；脚本原17px行高保留 |
+| D2-3 混排空格 | 无新增产品文案，i18n零改 |
+| D2-4 标点/对比 | 标点与原墨不改；不声称所有次要墨达到7:1 |
+
+已知字号限制依照用户红线保留；修复规范沉淀到§6.264与事件pin，未把局部任务升级为全局skill偏好。浏览器/移动viewport不适用原生Go窗口，实测720×520 Linux自绘，其他平台只编译。
+
+## 仍待
+
+1. 下一轮先复现现有registry包名/版本、集成配置字段在滚动上下边缘的活动边完整度。安装失败恢复本身已有P13-jx，不重做；先真实事件，正常项不计修复。
+2. 字号/行盒、accent禁用、未知多选、保存期草稿、输出首尾键/选区、终端S1b/S1c/S2尾继续需拍板；3秒窗口、保存与会话语义不改。
+3. 八条旧WIP原件保留；没有新增抢救稿。原生Windows/macOS交互与文件选择弹窗未验。
+
+## 最终门槛
+
+接续复核（2026-11-08）：两份抢救对象031f454f53/8a268ffae9的独有文档与日志已接回。旧verbose日志只有1637 PASS、计数文件为空，即使exit记录为0也不能作为完整证据。产品MD5一致，本次重新实跑完整verbose：**6485 PASS / 0 FAIL / exit0，3527函数**，相对开盘+24 PASS/+8函数。完整日志与exit另存resume-baseline，旧残缺证据保留。
+
+普通测试原完整35包日志exit0、三平台vet/build/gofmt的原始记录均保留。接续只补文档，文档CI再验；旧V/B/S零改、新Skip零，mutation沿用已提交M1/M2实红与MD5恢复证据。
