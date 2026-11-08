@@ -1,0 +1,45 @@
+=== RUN   TestToolRefusalExitVersion
+=== RUN   TestToolRefusalExitVersion/light/connect
+=== RUN   TestToolRefusalExitVersion/light/edit
+=== RUN   TestToolRefusalExitVersion/dark/connect
+=== RUN   TestToolRefusalExitVersion/dark/edit
+--- PASS: TestToolRefusalExitVersion (0.95s)
+    --- PASS: TestToolRefusalExitVersion/light/connect (0.41s)
+    --- PASS: TestToolRefusalExitVersion/light/edit (0.17s)
+    --- PASS: TestToolRefusalExitVersion/dark/connect (0.20s)
+    --- PASS: TestToolRefusalExitVersion/dark/edit (0.17s)
+=== RUN   TestToolRefusalExitProgram
+=== RUN   TestToolRefusalExitProgram/light/connect
+=== RUN   TestToolRefusalExitProgram/light/edit
+=== RUN   TestToolRefusalExitProgram/dark/connect
+=== RUN   TestToolRefusalExitProgram/dark/edit
+--- PASS: TestToolRefusalExitProgram (0.73s)
+    --- PASS: TestToolRefusalExitProgram/light/connect (0.20s)
+    --- PASS: TestToolRefusalExitProgram/light/edit (0.19s)
+    --- PASS: TestToolRefusalExitProgram/dark/connect (0.19s)
+    --- PASS: TestToolRefusalExitProgram/dark/edit (0.17s)
+=== RUN   TestToolRefusalVisibilityVersion
+=== RUN   TestToolRefusalVisibilityVersion/light/connect
+    toolvisibility_test.go:103: version refusal remains outside viewport: rect={X:569.8 Y:51.399963 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=525.7
+=== RUN   TestToolRefusalVisibilityVersion/light/edit
+=== RUN   TestToolRefusalVisibilityVersion/dark/connect
+    toolvisibility_test.go:103: version refusal remains outside viewport: rect={X:569.8 Y:51.399963 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=525.7
+=== RUN   TestToolRefusalVisibilityVersion/dark/edit
+--- FAIL: TestToolRefusalVisibilityVersion (0.62s)
+    --- FAIL: TestToolRefusalVisibilityVersion/light/connect (0.14s)
+    --- PASS: TestToolRefusalVisibilityVersion/light/edit (0.19s)
+    --- FAIL: TestToolRefusalVisibilityVersion/dark/connect (0.10s)
+    --- PASS: TestToolRefusalVisibilityVersion/dark/edit (0.19s)
+=== RUN   TestToolRefusalVisibilityProgram
+=== RUN   TestToolRefusalVisibilityProgram/light/connect
+=== RUN   TestToolRefusalVisibilityProgram/light/edit
+=== RUN   TestToolRefusalVisibilityProgram/dark/connect
+=== RUN   TestToolRefusalVisibilityProgram/dark/edit
+--- PASS: TestToolRefusalVisibilityProgram (0.70s)
+    --- PASS: TestToolRefusalVisibilityProgram/light/connect (0.18s)
+    --- PASS: TestToolRefusalVisibilityProgram/light/edit (0.17s)
+    --- PASS: TestToolRefusalVisibilityProgram/dark/connect (0.17s)
+    --- PASS: TestToolRefusalVisibilityProgram/dark/edit (0.17s)
+FAIL
+FAIL	floter/internal/settingsui	3.016s
+FAIL

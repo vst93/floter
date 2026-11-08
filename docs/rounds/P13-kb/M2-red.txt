@@ -1,0 +1,51 @@
+=== RUN   TestToolRefusalExitVersion
+=== RUN   TestToolRefusalExitVersion/light/connect
+=== RUN   TestToolRefusalExitVersion/light/edit
+=== RUN   TestToolRefusalExitVersion/dark/connect
+=== RUN   TestToolRefusalExitVersion/dark/edit
+--- PASS: TestToolRefusalExitVersion (0.76s)
+    --- PASS: TestToolRefusalExitVersion/light/connect (0.33s)
+    --- PASS: TestToolRefusalExitVersion/light/edit (0.15s)
+    --- PASS: TestToolRefusalExitVersion/dark/connect (0.16s)
+    --- PASS: TestToolRefusalExitVersion/dark/edit (0.13s)
+=== RUN   TestToolRefusalExitProgram
+=== RUN   TestToolRefusalExitProgram/light/connect
+=== RUN   TestToolRefusalExitProgram/light/edit
+=== RUN   TestToolRefusalExitProgram/dark/connect
+=== RUN   TestToolRefusalExitProgram/dark/edit
+--- PASS: TestToolRefusalExitProgram (0.54s)
+    --- PASS: TestToolRefusalExitProgram/light/connect (0.15s)
+    --- PASS: TestToolRefusalExitProgram/light/edit (0.13s)
+    --- PASS: TestToolRefusalExitProgram/dark/connect (0.14s)
+    --- PASS: TestToolRefusalExitProgram/dark/edit (0.12s)
+=== RUN   TestToolRefusalVisibilityVersion
+=== RUN   TestToolRefusalVisibilityVersion/light/connect
+    toolvisibility_test.go:112: version refusal remains outside viewport: rect={X:569.8 Y:-612.0001 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1189.1002
+=== RUN   TestToolRefusalVisibilityVersion/light/edit
+    toolvisibility_test.go:112: version refusal remains outside viewport: rect={X:569.8 Y:-612.0001 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1234.1002
+=== RUN   TestToolRefusalVisibilityVersion/dark/connect
+    toolvisibility_test.go:112: version refusal remains outside viewport: rect={X:569.8 Y:-612.0001 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1189.1002
+=== RUN   TestToolRefusalVisibilityVersion/dark/edit
+    toolvisibility_test.go:112: version refusal remains outside viewport: rect={X:569.8 Y:-612.0001 W:120 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1234.1002
+--- FAIL: TestToolRefusalVisibilityVersion (0.33s)
+    --- FAIL: TestToolRefusalVisibilityVersion/light/connect (0.09s)
+    --- FAIL: TestToolRefusalVisibilityVersion/light/edit (0.08s)
+    --- FAIL: TestToolRefusalVisibilityVersion/dark/connect (0.08s)
+    --- FAIL: TestToolRefusalVisibilityVersion/dark/edit (0.08s)
+=== RUN   TestToolRefusalVisibilityProgram
+=== RUN   TestToolRefusalVisibilityProgram/light/connect
+    toolvisibility_test.go:112: program refusal remains outside viewport: rect={X:449.8 Y:-832.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1189.1002
+=== RUN   TestToolRefusalVisibilityProgram/light/edit
+    toolvisibility_test.go:112: program refusal remains outside viewport: rect={X:449.8 Y:-832.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1234.1002
+=== RUN   TestToolRefusalVisibilityProgram/dark/connect
+    toolvisibility_test.go:112: program refusal remains outside viewport: rect={X:449.8 Y:-832.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1189.1002
+=== RUN   TestToolRefusalVisibilityProgram/dark/edit
+    toolvisibility_test.go:112: program refusal remains outside viewport: rect={X:449.8 Y:-832.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1234.1002
+--- FAIL: TestToolRefusalVisibilityProgram (0.31s)
+    --- FAIL: TestToolRefusalVisibilityProgram/light/connect (0.08s)
+    --- FAIL: TestToolRefusalVisibilityProgram/light/edit (0.08s)
+    --- FAIL: TestToolRefusalVisibilityProgram/dark/connect (0.08s)
+    --- FAIL: TestToolRefusalVisibilityProgram/dark/edit (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	1.954s
+FAIL

@@ -1,0 +1,42 @@
+=== RUN   TestToolRefusalExitVersion
+=== RUN   TestToolRefusalExitVersion/light/connect
+=== RUN   TestToolRefusalExitVersion/light/edit
+=== RUN   TestToolRefusalExitVersion/dark/connect
+=== RUN   TestToolRefusalExitVersion/dark/edit
+--- PASS: TestToolRefusalExitVersion (0.76s)
+    --- PASS: TestToolRefusalExitVersion/light/connect (0.34s)
+    --- PASS: TestToolRefusalExitVersion/light/edit (0.14s)
+    --- PASS: TestToolRefusalExitVersion/dark/connect (0.15s)
+    --- PASS: TestToolRefusalExitVersion/dark/edit (0.13s)
+=== RUN   TestToolRefusalExitProgram
+=== RUN   TestToolRefusalExitProgram/light/connect
+=== RUN   TestToolRefusalExitProgram/light/edit
+=== RUN   TestToolRefusalExitProgram/dark/connect
+=== RUN   TestToolRefusalExitProgram/dark/edit
+--- PASS: TestToolRefusalExitProgram (0.56s)
+    --- PASS: TestToolRefusalExitProgram/light/connect (0.14s)
+    --- PASS: TestToolRefusalExitProgram/light/edit (0.13s)
+    --- PASS: TestToolRefusalExitProgram/dark/connect (0.15s)
+    --- PASS: TestToolRefusalExitProgram/dark/edit (0.14s)
+=== RUN   TestToolRefusalVisibilityVersion
+=== RUN   TestToolRefusalVisibilityVersion/light/connect
+=== RUN   TestToolRefusalVisibilityVersion/light/edit
+=== RUN   TestToolRefusalVisibilityVersion/dark/connect
+=== RUN   TestToolRefusalVisibilityVersion/dark/edit
+--- PASS: TestToolRefusalVisibilityVersion (0.67s)
+    --- PASS: TestToolRefusalVisibilityVersion/light/connect (0.18s)
+    --- PASS: TestToolRefusalVisibilityVersion/light/edit (0.16s)
+    --- PASS: TestToolRefusalVisibilityVersion/dark/connect (0.16s)
+    --- PASS: TestToolRefusalVisibilityVersion/dark/edit (0.16s)
+=== RUN   TestToolRefusalVisibilityProgram
+=== RUN   TestToolRefusalVisibilityProgram/light/connect
+=== RUN   TestToolRefusalVisibilityProgram/light/edit
+=== RUN   TestToolRefusalVisibilityProgram/dark/connect
+=== RUN   TestToolRefusalVisibilityProgram/dark/edit
+--- PASS: TestToolRefusalVisibilityProgram (0.68s)
+    --- PASS: TestToolRefusalVisibilityProgram/light/connect (0.17s)
+    --- PASS: TestToolRefusalVisibilityProgram/light/edit (0.17s)
+    --- PASS: TestToolRefusalVisibilityProgram/dark/connect (0.17s)
+    --- PASS: TestToolRefusalVisibilityProgram/dark/edit (0.16s)
+PASS
+ok  	floter/internal/settingsui	2.669s

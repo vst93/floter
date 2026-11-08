@@ -6011,7 +6011,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				case extensions.CustomFieldCommand:
 						c.Resolve(a.contentFocus(c, "command").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldVersion:
-					c.Resolve(a.contentFocus(c, "version").source).Focus()
+						c.Resolve(a.contentFocus(c, "version").source).Focus().ScrollIntoView()
 				case extensions.CustomFieldScript:
 					c.Resolve(a.contentFocus(c, "script").source).Focus()
 				case extensions.CustomFieldPlatforms:
@@ -6024,7 +6024,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// The program row has no localization key of its own: it refuses
 			// silently, the same way the old form disabled its submit button.
 			if tool.Mode != routeScript && tool.Program == "" {
-				c.Resolve(a.contentFocus(c, "plan").source).Focus()
+					c.Resolve(a.contentFocus(c, "plan").source).Focus().ScrollIntoView()
 				return
 			}
 			// A missing toolchain does not block the save — the user may install
