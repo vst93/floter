@@ -3091,11 +3091,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				if a.Actions.AdoptIntegration != nil {
 					if a.orphanOperation[integration.ID] == "adopt" {
 						adoptOpener = a.busyActionButton(c, copy.IntegrationsAdopt, "orphan.adopt")
+					} else if a.orphanOperation[integration.ID] != "" {
+						adoptOpener = a.disabledActionButton(c, copy.IntegrationsAdopt)
 					} else {
 						adoptOpener = a.actionButton(c, copy.IntegrationsAdopt)
-						if a.rowBusy(integration.ID) {
-							adoptOpener = lockedControl(adoptOpener)
-						}
 					}
 					if adoptOpener.Clicked() {
 						a.Actions.AdoptIntegration(integration.ID)
@@ -3105,11 +3104,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					var remove ui.Element
 					if a.orphanOperation[integration.ID] == "delete" {
 						remove = a.busyActionButton(c, copy.IntegrationsDeleteOrphan, "orphan.delete")
+					} else if a.orphanOperation[integration.ID] != "" {
+						remove = a.disabledActionButton(c, copy.IntegrationsDeleteOrphan)
 					} else {
 						remove = a.actionButton(c, copy.IntegrationsDeleteOrphan)
-						if a.rowBusy(integration.ID) {
-							remove = lockedControl(remove)
-						}
 					}
 					if remove.Clicked() {
 						a.Actions.DeleteOrphan(integration.ID)
@@ -4138,7 +4136,9 @@ func (a *App) rowBusyExceptRepair(id string) bool {
 // BeginOrphanOperation and FinishOrphanOperation keep the package row locked
 // through permission review and refresh, including failure and cancellation.
 func (a *App) BeginOrphanOperation(id, operation string) bool {
-	if a.rowBusy(id) {
+	// A former installed row can become an orphan while its old callback
+	// is outstanding. Only an operation on this package owns its new outlet.
+	if a.orphanOperation[id] != "" {
 		return false
 	}
 	if a.orphanOperation == nil {

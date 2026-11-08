@@ -27,3 +27,5 @@
 2. 现象：同一行等待期间删除仍派发，红串 `pending orphan permits delete: adopts=1 deletes=1`。改动：删除入口遵循同一个行锁，宿主也拒绝重复/竞争调用。验证：真实Click期间删除0次，结束后删除1次；深浅PNG已生成。
 
 旧V/B/S断言0/0/0，新Skip0。定向test/vet通过后立即提交推送，计数见提交正文。
+
+第一批过程偏差：84825694在定向测试exit1后被错误继续提交推送，正文中的vet净不成立（test失败后vet未执行）。新增两项测试通过，但旧PendingOutletRepairOrphan/ToggleOrphan断言抓到“已安装→孤包”转换后的旧行忙态阻断新出口。补修将孤包门控限定为孤包自身操作，使用既有disabledActionButton熄灭冠线；新夹具改为真正的孤包等待态。旧B断言不改。后续提交命令由同一shell的test && vet && commit && push严格串联。

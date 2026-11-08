@@ -17,7 +17,7 @@ func checkOrphanBusy(t *testing.T, deleting bool) {
 			a.Page = PageIntegrations
 			a.Integrations = func() []Integration { return []Integration{{ID: "orphan", Name: "待接管工具", Orphan: true}} }
 			adopts, deletes := 0, 0
-			a.Actions.AdoptIntegration = func(id string) { adopts++; a.BeginDiagnosis(id) }
+			a.Actions.AdoptIntegration = func(id string) { adopts++; a.BeginOrphanOperation(id, "adopt") }
 			a.Actions.DeleteOrphan = func(string) { deletes++ }
 			tt := ui.NewTester(a.View, 760, 700)
 			tt.SetDark(dark)
@@ -49,7 +49,7 @@ func checkOrphanBusy(t *testing.T, deleting bool) {
 			if adopts != 1 || deletes != 0 {
 				t.Errorf("pending orphan permits %s: adopts=%d deletes=%d", scenario, adopts, deletes)
 			}
-			a.FinishDiagnosis("orphan")
+			a.FinishOrphanOperation("orphan")
 			tt.Frame()
 			if err := tt.Click(label); err != nil {
 				t.Fatal(err)
