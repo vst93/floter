@@ -7995,7 +7995,8 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			// `customRunCancel`). The answers stay in `runValues`, so reopening the
 			// form keeps the user's in-progress edits — the reference's
 			// `runParamMemory`, session memory seeded only on a fresh open.
-			cancel := a.actionButton(c, copy.RunCancel)
+			var cancel ui.Element
+			outputFocusOutlet(c.Key("run-cancel-outlet"), func() { cancel = a.actionButton(c, copy.RunCancel) })
 			if hadFieldFocus && !c.Resolve(*fieldFocus).Valid() {
 				cancel.Focus().ScrollIntoView()
 			}
@@ -8004,7 +8005,8 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				delete(a.runError, integration.ID)
 			}
 			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
-			run := a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus)
+			var run ui.Element
+			outputFocusOutlet(c.Key("run-submit-outlet"), func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
 			if runDisabled && hadSubmitFocus {
 				cancel.Focus().ScrollIntoView()
 			}
