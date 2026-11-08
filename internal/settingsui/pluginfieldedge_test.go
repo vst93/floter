@@ -196,3 +196,6 @@ func TestPluginFieldEdgeCheckboxes(t *testing.T) {
 
 func TestPluginFieldEdgeText(t *testing.T)   { checkPluginFieldEdge(t, plugincfg.Text, "text") }
 func TestPluginFieldEdgeNumber(t *testing.T) { checkPluginFieldEdge(t, plugincfg.Number, "number") }
+
+func TestPluginFieldEdgeToggle(t *testing.T) { checkPluginFieldEdge(t, plugincfg.Toggle, "toggle") }
+func TestPluginFieldEdgeSelect(t *testing.T) { checkPluginFieldEdge(t, plugincfg.Select, "select") }
