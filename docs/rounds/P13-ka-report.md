@@ -38,3 +38,12 @@
 6. **空程序拒绝没有出口**：现象 → 空程序提交静默返回，输入仍落在按钮；改动 → 返回已有程序字段，不增加文案或改空值规则；验证 → 四组直接输入 /usr/bin/weather，再提交一次。
 
 M2 撤回两个目标，实红 `version refusal lost editable keyboard exit` / `program refusal lost editable keyboard exit`；还原 MD5、touch 后累计 **20 PASS / exit0**，settingsui vet exit0，旧 V/B/S 0/0/0。
+
+第二批 93b2a4ad 已推送，但发生提交时序错误：图片汇总后才运行的 git add 尚未结束，就开始第三批修改，导致该提交误带第三批的两个新测试及尚未还原的空焦点分支。版本/程序两项自身已过门槛；整份第二批树不满足新脚本/平台测试，不能声称其全绿。第三批立即补回两个焦点目标并验证，不重写远端历史。后续所有提交明确等待完成才改源码。
+
+### 第三批：脚本与平台
+
+7. **空脚本拒绝无法直接补写**：现象 → 空脚本拒绝后输入未进入代码编辑器；改动 → 返回原编辑器焦点，保留已有缓冲；验证 → 四组直接输入 print('sunny') 后提交一次。
+8. **平台全清后没有键盘选择出口**：现象 → 提交后 Space 仍按提交按钮；改动 → 聚焦平台行第一个既有复选框；验证 → 四组 Space 补选平台后提交一次，不自动选择、不更改平台限制。
+
+M3 撤回脚本/平台目标后实红 `script refusal lost editable keyboard exit` / `platform refusal lost editable keyboard exit`；MD5 还原、touch 后累计 **30 PASS / exit0**，settingsui vet exit0。旧 V/B/S 0/0/0。

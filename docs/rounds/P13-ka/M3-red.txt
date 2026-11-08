@@ -1,0 +1,39 @@
+=== RUN   TestToolRefusalExitScript
+=== RUN   TestToolRefusalExitScript/light/connect
+    toolrefusalexit_test.go:75: script refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: script refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitScript/light/edit
+    toolrefusalexit_test.go:75: script refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: script refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitScript/dark/connect
+    toolrefusalexit_test.go:75: script refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: script refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitScript/dark/edit
+    toolrefusalexit_test.go:75: script refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: script refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitScript (1.34s)
+    --- FAIL: TestToolRefusalExitScript/light/connect (0.52s)
+    --- FAIL: TestToolRefusalExitScript/light/edit (0.31s)
+    --- FAIL: TestToolRefusalExitScript/dark/connect (0.25s)
+    --- FAIL: TestToolRefusalExitScript/dark/edit (0.26s)
+=== RUN   TestToolRefusalExitPlatform
+=== RUN   TestToolRefusalExitPlatform/light/connect
+    toolrefusalexit_test.go:75: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/light/edit
+    toolrefusalexit_test.go:75: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/dark/connect
+    toolrefusalexit_test.go:75: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/dark/edit
+    toolrefusalexit_test.go:75: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: platform refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitPlatform (1.08s)
+    --- FAIL: TestToolRefusalExitPlatform/light/connect (0.27s)
+    --- FAIL: TestToolRefusalExitPlatform/light/edit (0.28s)
+    --- FAIL: TestToolRefusalExitPlatform/dark/connect (0.28s)
+    --- FAIL: TestToolRefusalExitPlatform/dark/edit (0.25s)
+FAIL
+FAIL	floter/internal/settingsui	2.430s
+FAIL

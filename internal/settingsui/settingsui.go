@@ -6004,7 +6004,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				case extensions.CustomFieldVersion:
 					c.Resolve(a.contentFocus(c, "version").source).Focus()
 				case extensions.CustomFieldScript:
+					c.Resolve(a.contentFocus(c, "script").source).Focus()
 				case extensions.CustomFieldPlatforms:
+					c.Resolve(a.contentFocus(c, "platforms").source).Focus()
 				case extensions.CustomFieldMode, extensions.CustomFieldLanguage:
 					c.Resolve(a.contentFocus(c, "mode-program").source).Focus()
 				}

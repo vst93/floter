@@ -80,6 +80,26 @@
     ]
   },
   {
+    "name": "refusal-platform-connect-dark",
+    "changed_pixels": 0,
+    "bbox": null
+  },
+  {
+    "name": "refusal-platform-connect-light",
+    "changed_pixels": 0,
+    "bbox": null
+  },
+  {
+    "name": "refusal-platform-edit-dark",
+    "changed_pixels": 0,
+    "bbox": null
+  },
+  {
+    "name": "refusal-platform-edit-light",
+    "changed_pixels": 0,
+    "bbox": null
+  },
+  {
     "name": "refusal-program-connect-dark",
     "changed_pixels": 617,
     "bbox": [
@@ -117,6 +137,46 @@
       257,
       686,
       287
+    ]
+  },
+  {
+    "name": "refusal-script-connect-dark",
+    "changed_pixels": 34,
+    "bbox": [
+      83,
+      339,
+      85,
+      356
+    ]
+  },
+  {
+    "name": "refusal-script-connect-light",
+    "changed_pixels": 34,
+    "bbox": [
+      83,
+      339,
+      85,
+      356
+    ]
+  },
+  {
+    "name": "refusal-script-edit-dark",
+    "changed_pixels": 34,
+    "bbox": [
+      83,
+      384,
+      85,
+      401
+    ]
+  },
+  {
+    "name": "refusal-script-edit-light",
+    "changed_pixels": 34,
+    "bbox": [
+      83,
+      384,
+      85,
+      401
     ]
   },
   {
