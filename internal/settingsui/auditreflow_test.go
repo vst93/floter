@@ -210,3 +210,5 @@ func TestAuditReflowRunChoices(t *testing.T) {
 		t.Run(kind, func(t *testing.T) { checkAuditReflow(t, "run-controls", kind) })
 	}
 }
+func TestAuditReflowRunCancel(t *testing.T) { checkAuditReflow(t, "run-controls", "cancel") }
+func TestAuditReflowRunSubmit(t *testing.T) { checkAuditReflow(t, "run-submit", "text") }
