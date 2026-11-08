@@ -57,7 +57,7 @@ func checkFormViewport(t *testing.T, scenario string) {
 				case "select":
 					field.Default = "北方"
 				case "multiselect":
-					field.Default = []string{"北方"}
+					field.Default = []any{"北方"}
 				case "defaults", "save":
 					field.Type = "text"
 				}
@@ -177,7 +177,7 @@ func checkFormViewport(t *testing.T, scenario string) {
 				case "select":
 					want = "南方"
 				case "multiselect":
-					want = []string{}
+					want = []any(nil)
 				case "defaults", "save":
 					want = "stored"
 				}
@@ -235,3 +235,10 @@ func TestFormViewportRunToggle(t *testing.T) { checkFormViewport(t, "run-boolean
 
 func TestFormViewportRunSelect(t *testing.T) { checkFormViewport(t, "run-select") }
 func TestFormViewportRunCancel(t *testing.T) { checkFormViewport(t, "run-cancel") }
+
+func TestFormViewportRunSubmit(t *testing.T) { checkFormViewport(t, "run-submit") }
+func TestFormViewportConfigFields(t *testing.T) {
+	for _, kind := range []string{"text", "password", "path", "number", "boolean", "select", "multiselect"} {
+		t.Run(kind, func(t *testing.T) { checkFormViewport(t, "config-"+kind) })
+	}
+}

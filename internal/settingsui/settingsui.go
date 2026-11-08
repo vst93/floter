@@ -8066,7 +8066,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			}
 			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
 			var run ui.Element
-			outputFocusOutlet(c.Key("run-submit-outlet"), func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
+			a.formViewportOutlet(c.Key("run-submit-outlet"), func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
 			if runDisabled && hadSubmitFocus {
 				cancel.Focus().ScrollIntoView()
 			}

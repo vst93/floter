@@ -721,7 +721,7 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 		ui.Column(c).ColumnStart(2).MinWidth(0).Children(func() {
 			// Reveal the field beyond the page fade on entry. A list keeps its
 			// separate inner scroll position while its whole box becomes visible.
-			outputFocusOutlet(c.Key("config-control-outlet"), func() { control() })
+			a.formViewportOutlet(c.Key("config-control-outlet"), func() { control() })
 		})
 		if field.Description != "" {
 			ui.Text(c, field.Description).FontSize(tokens.Caption).FontWeight(500).
