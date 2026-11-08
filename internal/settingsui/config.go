@@ -447,7 +447,7 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 		ui.Row(c).AlignItems(ui.Center).Gap(t.Space(0.5)).Children(func() {
 			copyDisabled := a.Actions.CopyConfiguration == nil || busy
 			var copyButton ui.Element
-			a.formFeedbackOutlet(c.Key("config-copy-outlet"), strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+a.permissionFeedback(integration), func() {
+			a.formFeedbackOutlet(c.Key("config-copy-outlet"), strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+a.permissionFeedback(integration)+approvalFeedback(integration), func() {
 				copyButton = a.extensionIconButton(c, "copy", copy.ConfigCopy, copyDisabled)
 			})
 			a.rememberOperationFocus(c, integration.ID, "transfer", copyButton)
@@ -458,7 +458,7 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 			}
 			exportDisabled := a.Actions.ExportConfiguration == nil || busy
 			var exportButton ui.Element
-			a.formFeedbackOutlet(c.Key("config-export-outlet"), strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+a.permissionFeedback(integration), func() {
+			a.formFeedbackOutlet(c.Key("config-export-outlet"), strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+a.permissionFeedback(integration)+approvalFeedback(integration), func() {
 				exportButton = a.extensionIconButton(c, "file-down", copy.ConfigExport, exportDisabled)
 			})
 			a.rememberOperationFocus(c, integration.ID, "transfer", exportButton)

@@ -3072,7 +3072,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			wasAsking := a.configDiscard[integration.ID]
 			opened := a.row(c.Key("integration.config"), copy.ConfigSection, "", func() {
 				var button ui.Element
-				a.formFeedbackOutlet(c.Key("host-config-outlet"), a.permissionFeedback(integration), func() {
+				a.formFeedbackOutlet(c.Key("host-config-outlet"), a.permissionFeedback(integration)+approvalFeedback(integration), func() {
 					button = a.actionButton(c, copy.ConfigOpen).Bind(&opener)
 				})
 				a.restoreNotice(c, integration.ID, "discard", a.configDiscard[integration.ID], button)
@@ -3588,7 +3588,7 @@ func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration I
 	a.rowAligned(c.Key("tool-config-row"), ui.Center, nil, rowFace{Inert: !openable}, copy.ConfigSection, nil, "", func() {
 		// P13-s（§6.2b-6）：禁用的面不跟着字一起淡——`openable` 直接进面。
 		var button ui.Element
-		a.formFeedbackOutlet(c.Key("tool-config-outlet"), strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+a.permissionFeedback(integration), func() {
+		a.formFeedbackOutlet(c.Key("tool-config-outlet"), strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+a.permissionFeedback(integration)+approvalFeedback(integration), func() {
 			button = a.extensionGlyphActionButton(c, "link", copy.ConfigOpenConfiguration,
 				a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body, !openable)
 		})

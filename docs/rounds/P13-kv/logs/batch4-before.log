@@ -1,0 +1,63 @@
+=== RUN   TestCatalogReflowConfigTransfers
+=== RUN   TestCatalogReflowConfigTransfers/copy
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:672.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:832.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:672.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:672.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:832.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:672.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowConfigTransfers/export
+=== RUN   TestCatalogReflowConfigTransfers/export/approval
+=== RUN   TestCatalogReflowConfigTransfers/export/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:672.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:832.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:672.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowConfigTransfers/export/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:672.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:832.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:672.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCatalogReflowConfigTransfers (0.38s)
+    --- FAIL: TestCatalogReflowConfigTransfers/copy (0.27s)
+        --- FAIL: TestCatalogReflowConfigTransfers/copy/approval (0.27s)
+            --- FAIL: TestCatalogReflowConfigTransfers/copy/approval/light (0.21s)
+            --- FAIL: TestCatalogReflowConfigTransfers/copy/approval/dark (0.05s)
+    --- FAIL: TestCatalogReflowConfigTransfers/export (0.11s)
+        --- FAIL: TestCatalogReflowConfigTransfers/export/approval (0.11s)
+            --- FAIL: TestCatalogReflowConfigTransfers/export/approval/light (0.05s)
+            --- FAIL: TestCatalogReflowConfigTransfers/export/approval/dark (0.06s)
+=== RUN   TestCatalogReflowConfigOpen
+=== RUN   TestCatalogReflowConfigOpen/config-open
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Configure": target={X:631.8 Y:640.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Configure": target={X:631.8 Y:800.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Configure": target={X:631.8 Y:640.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Configure": target={X:631.8 Y:640.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Configure": target={X:631.8 Y:800.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Configure": target={X:631.8 Y:640.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowConfigOpen/tool-open
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval/light
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:640.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:800.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:640.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval/dark
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:640.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:800.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:142: feedback reflow hides active outlet "Open configuration": target={X:580.8 Y:640.19995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCatalogReflowConfigOpen (0.18s)
+    --- FAIL: TestCatalogReflowConfigOpen/config-open (0.10s)
+        --- FAIL: TestCatalogReflowConfigOpen/config-open/approval (0.10s)
+            --- FAIL: TestCatalogReflowConfigOpen/config-open/approval/light (0.05s)
+            --- FAIL: TestCatalogReflowConfigOpen/config-open/approval/dark (0.05s)
+    --- FAIL: TestCatalogReflowConfigOpen/tool-open (0.09s)
+        --- FAIL: TestCatalogReflowConfigOpen/tool-open/approval (0.08s)
+            --- FAIL: TestCatalogReflowConfigOpen/tool-open/approval/light (0.04s)
+            --- FAIL: TestCatalogReflowConfigOpen/tool-open/approval/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.568s
+FAIL

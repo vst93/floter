@@ -1,0 +1,166 @@
+=== RUN   TestCatalogReflowRunEditors
+=== RUN   TestCatalogReflowRunEditors/text
+=== RUN   TestCatalogReflowRunEditors/text/approval
+=== RUN   TestCatalogReflowRunEditors/text/approval/light
+=== RUN   TestCatalogReflowRunEditors/text/approval/dark
+=== RUN   TestCatalogReflowRunEditors/text/commands
+=== RUN   TestCatalogReflowRunEditors/text/commands/light
+=== RUN   TestCatalogReflowRunEditors/text/commands/dark
+=== RUN   TestCatalogReflowRunEditors/number
+=== RUN   TestCatalogReflowRunEditors/number/approval
+=== RUN   TestCatalogReflowRunEditors/number/approval/light
+=== RUN   TestCatalogReflowRunEditors/number/approval/dark
+=== RUN   TestCatalogReflowRunEditors/number/commands
+=== RUN   TestCatalogReflowRunEditors/number/commands/light
+=== RUN   TestCatalogReflowRunEditors/number/commands/dark
+=== RUN   TestCatalogReflowRunEditors/path
+=== RUN   TestCatalogReflowRunEditors/path/approval
+=== RUN   TestCatalogReflowRunEditors/path/approval/light
+=== RUN   TestCatalogReflowRunEditors/path/approval/dark
+=== RUN   TestCatalogReflowRunEditors/path/commands
+=== RUN   TestCatalogReflowRunEditors/path/commands/light
+=== RUN   TestCatalogReflowRunEditors/path/commands/dark
+--- PASS: TestCatalogReflowRunEditors (1.75s)
+    --- PASS: TestCatalogReflowRunEditors/text (0.66s)
+        --- PASS: TestCatalogReflowRunEditors/text/approval (0.39s)
+            --- PASS: TestCatalogReflowRunEditors/text/approval/light (0.26s)
+            --- PASS: TestCatalogReflowRunEditors/text/approval/dark (0.13s)
+        --- PASS: TestCatalogReflowRunEditors/text/commands (0.27s)
+            --- PASS: TestCatalogReflowRunEditors/text/commands/light (0.15s)
+            --- PASS: TestCatalogReflowRunEditors/text/commands/dark (0.12s)
+    --- PASS: TestCatalogReflowRunEditors/number (0.53s)
+        --- PASS: TestCatalogReflowRunEditors/number/approval (0.27s)
+            --- PASS: TestCatalogReflowRunEditors/number/approval/light (0.14s)
+            --- PASS: TestCatalogReflowRunEditors/number/approval/dark (0.13s)
+        --- PASS: TestCatalogReflowRunEditors/number/commands (0.26s)
+            --- PASS: TestCatalogReflowRunEditors/number/commands/light (0.13s)
+            --- PASS: TestCatalogReflowRunEditors/number/commands/dark (0.13s)
+    --- PASS: TestCatalogReflowRunEditors/path (0.55s)
+        --- PASS: TestCatalogReflowRunEditors/path/approval (0.29s)
+            --- PASS: TestCatalogReflowRunEditors/path/approval/light (0.15s)
+            --- PASS: TestCatalogReflowRunEditors/path/approval/dark (0.14s)
+        --- PASS: TestCatalogReflowRunEditors/path/commands (0.26s)
+            --- PASS: TestCatalogReflowRunEditors/path/commands/light (0.13s)
+            --- PASS: TestCatalogReflowRunEditors/path/commands/dark (0.14s)
+=== RUN   TestCatalogReflowRunChoices
+=== RUN   TestCatalogReflowRunChoices/boolean
+=== RUN   TestCatalogReflowRunChoices/boolean/approval
+=== RUN   TestCatalogReflowRunChoices/boolean/approval/light
+=== RUN   TestCatalogReflowRunChoices/boolean/approval/dark
+=== RUN   TestCatalogReflowRunChoices/boolean/commands
+=== RUN   TestCatalogReflowRunChoices/boolean/commands/light
+=== RUN   TestCatalogReflowRunChoices/boolean/commands/dark
+=== RUN   TestCatalogReflowRunChoices/select
+=== RUN   TestCatalogReflowRunChoices/select/approval
+=== RUN   TestCatalogReflowRunChoices/select/approval/light
+=== RUN   TestCatalogReflowRunChoices/select/approval/dark
+=== RUN   TestCatalogReflowRunChoices/select/commands
+=== RUN   TestCatalogReflowRunChoices/select/commands/light
+=== RUN   TestCatalogReflowRunChoices/select/commands/dark
+--- PASS: TestCatalogReflowRunChoices (1.10s)
+    --- PASS: TestCatalogReflowRunChoices/boolean (0.54s)
+        --- PASS: TestCatalogReflowRunChoices/boolean/approval (0.28s)
+            --- PASS: TestCatalogReflowRunChoices/boolean/approval/light (0.15s)
+            --- PASS: TestCatalogReflowRunChoices/boolean/approval/dark (0.13s)
+        --- PASS: TestCatalogReflowRunChoices/boolean/commands (0.26s)
+            --- PASS: TestCatalogReflowRunChoices/boolean/commands/light (0.13s)
+            --- PASS: TestCatalogReflowRunChoices/boolean/commands/dark (0.13s)
+    --- PASS: TestCatalogReflowRunChoices/select (0.55s)
+        --- PASS: TestCatalogReflowRunChoices/select/approval (0.28s)
+            --- PASS: TestCatalogReflowRunChoices/select/approval/light (0.15s)
+            --- PASS: TestCatalogReflowRunChoices/select/approval/dark (0.13s)
+        --- PASS: TestCatalogReflowRunChoices/select/commands (0.27s)
+            --- PASS: TestCatalogReflowRunChoices/select/commands/light (0.13s)
+            --- PASS: TestCatalogReflowRunChoices/select/commands/dark (0.14s)
+=== RUN   TestCatalogReflowRunCancel
+=== RUN   TestCatalogReflowRunCancel/approval
+=== RUN   TestCatalogReflowRunCancel/approval/light
+=== RUN   TestCatalogReflowRunCancel/approval/dark
+=== RUN   TestCatalogReflowRunCancel/commands
+=== RUN   TestCatalogReflowRunCancel/commands/light
+=== RUN   TestCatalogReflowRunCancel/commands/dark
+--- PASS: TestCatalogReflowRunCancel (0.93s)
+    --- PASS: TestCatalogReflowRunCancel/approval (0.48s)
+        --- PASS: TestCatalogReflowRunCancel/approval/light (0.23s)
+        --- PASS: TestCatalogReflowRunCancel/approval/dark (0.24s)
+    --- PASS: TestCatalogReflowRunCancel/commands (0.45s)
+        --- PASS: TestCatalogReflowRunCancel/commands/light (0.22s)
+        --- PASS: TestCatalogReflowRunCancel/commands/dark (0.22s)
+=== RUN   TestCatalogReflowRunSubmit
+=== RUN   TestCatalogReflowRunSubmit/approval
+=== RUN   TestCatalogReflowRunSubmit/approval/light
+=== RUN   TestCatalogReflowRunSubmit/approval/dark
+=== RUN   TestCatalogReflowRunSubmit/commands
+=== RUN   TestCatalogReflowRunSubmit/commands/light
+=== RUN   TestCatalogReflowRunSubmit/commands/dark
+--- PASS: TestCatalogReflowRunSubmit (1.07s)
+    --- PASS: TestCatalogReflowRunSubmit/approval (0.52s)
+        --- PASS: TestCatalogReflowRunSubmit/approval/light (0.26s)
+        --- PASS: TestCatalogReflowRunSubmit/approval/dark (0.26s)
+    --- PASS: TestCatalogReflowRunSubmit/commands (0.55s)
+        --- PASS: TestCatalogReflowRunSubmit/commands/light (0.27s)
+        --- PASS: TestCatalogReflowRunSubmit/commands/dark (0.28s)
+=== RUN   TestCatalogReflowConfigFields
+=== RUN   TestCatalogReflowConfigFields/approval
+=== RUN   TestCatalogReflowConfigFields/approval/light
+=== RUN   TestCatalogReflowConfigFields/approval/dark
+--- PASS: TestCatalogReflowConfigFields (0.32s)
+    --- PASS: TestCatalogReflowConfigFields/approval (0.32s)
+        --- PASS: TestCatalogReflowConfigFields/approval/light (0.17s)
+        --- PASS: TestCatalogReflowConfigFields/approval/dark (0.15s)
+=== RUN   TestCatalogReflowConfigActions
+=== RUN   TestCatalogReflowConfigActions/config-defaults
+=== RUN   TestCatalogReflowConfigActions/config-defaults/approval
+=== RUN   TestCatalogReflowConfigActions/config-defaults/approval/light
+=== RUN   TestCatalogReflowConfigActions/config-defaults/approval/dark
+=== RUN   TestCatalogReflowConfigActions/config-save
+=== RUN   TestCatalogReflowConfigActions/config-save/approval
+=== RUN   TestCatalogReflowConfigActions/config-save/approval/light
+=== RUN   TestCatalogReflowConfigActions/config-save/approval/dark
+--- PASS: TestCatalogReflowConfigActions (0.84s)
+    --- PASS: TestCatalogReflowConfigActions/config-defaults (0.43s)
+        --- PASS: TestCatalogReflowConfigActions/config-defaults/approval (0.43s)
+            --- PASS: TestCatalogReflowConfigActions/config-defaults/approval/light (0.22s)
+            --- PASS: TestCatalogReflowConfigActions/config-defaults/approval/dark (0.21s)
+    --- PASS: TestCatalogReflowConfigActions/config-save (0.41s)
+        --- PASS: TestCatalogReflowConfigActions/config-save/approval (0.41s)
+            --- PASS: TestCatalogReflowConfigActions/config-save/approval/light (0.20s)
+            --- PASS: TestCatalogReflowConfigActions/config-save/approval/dark (0.21s)
+=== RUN   TestCatalogReflowConfigTransfers
+=== RUN   TestCatalogReflowConfigTransfers/copy
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval/light
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval/dark
+=== RUN   TestCatalogReflowConfigTransfers/export
+=== RUN   TestCatalogReflowConfigTransfers/export/approval
+=== RUN   TestCatalogReflowConfigTransfers/export/approval/light
+=== RUN   TestCatalogReflowConfigTransfers/export/approval/dark
+--- PASS: TestCatalogReflowConfigTransfers (0.35s)
+    --- PASS: TestCatalogReflowConfigTransfers/copy (0.16s)
+        --- PASS: TestCatalogReflowConfigTransfers/copy/approval (0.16s)
+            --- PASS: TestCatalogReflowConfigTransfers/copy/approval/light (0.08s)
+            --- PASS: TestCatalogReflowConfigTransfers/copy/approval/dark (0.08s)
+    --- PASS: TestCatalogReflowConfigTransfers/export (0.18s)
+        --- PASS: TestCatalogReflowConfigTransfers/export/approval (0.18s)
+            --- PASS: TestCatalogReflowConfigTransfers/export/approval/light (0.09s)
+            --- PASS: TestCatalogReflowConfigTransfers/export/approval/dark (0.09s)
+=== RUN   TestCatalogReflowConfigOpen
+=== RUN   TestCatalogReflowConfigOpen/config-open
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval/light
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval/dark
+=== RUN   TestCatalogReflowConfigOpen/tool-open
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval/light
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval/dark
+--- PASS: TestCatalogReflowConfigOpen (0.29s)
+    --- PASS: TestCatalogReflowConfigOpen/config-open (0.16s)
+        --- PASS: TestCatalogReflowConfigOpen/config-open/approval (0.16s)
+            --- PASS: TestCatalogReflowConfigOpen/config-open/approval/light (0.09s)
+            --- PASS: TestCatalogReflowConfigOpen/config-open/approval/dark (0.08s)
+    --- PASS: TestCatalogReflowConfigOpen/tool-open (0.13s)
+        --- PASS: TestCatalogReflowConfigOpen/tool-open/approval (0.13s)
+            --- PASS: TestCatalogReflowConfigOpen/tool-open/approval/light (0.07s)
+            --- PASS: TestCatalogReflowConfigOpen/tool-open/approval/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	6.657s

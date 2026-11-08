@@ -1,0 +1,38 @@
+=== RUN   TestCatalogReflowConfigTransfers
+=== RUN   TestCatalogReflowConfigTransfers/copy
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval/light
+=== RUN   TestCatalogReflowConfigTransfers/copy/approval/dark
+=== RUN   TestCatalogReflowConfigTransfers/export
+=== RUN   TestCatalogReflowConfigTransfers/export/approval
+=== RUN   TestCatalogReflowConfigTransfers/export/approval/light
+=== RUN   TestCatalogReflowConfigTransfers/export/approval/dark
+--- PASS: TestCatalogReflowConfigTransfers (0.43s)
+    --- PASS: TestCatalogReflowConfigTransfers/copy (0.29s)
+        --- PASS: TestCatalogReflowConfigTransfers/copy/approval (0.29s)
+            --- PASS: TestCatalogReflowConfigTransfers/copy/approval/light (0.22s)
+            --- PASS: TestCatalogReflowConfigTransfers/copy/approval/dark (0.06s)
+    --- PASS: TestCatalogReflowConfigTransfers/export (0.14s)
+        --- PASS: TestCatalogReflowConfigTransfers/export/approval (0.14s)
+            --- PASS: TestCatalogReflowConfigTransfers/export/approval/light (0.07s)
+            --- PASS: TestCatalogReflowConfigTransfers/export/approval/dark (0.08s)
+=== RUN   TestCatalogReflowConfigOpen
+=== RUN   TestCatalogReflowConfigOpen/config-open
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval/light
+=== RUN   TestCatalogReflowConfigOpen/config-open/approval/dark
+=== RUN   TestCatalogReflowConfigOpen/tool-open
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval/light
+=== RUN   TestCatalogReflowConfigOpen/tool-open/approval/dark
+--- PASS: TestCatalogReflowConfigOpen (0.22s)
+    --- PASS: TestCatalogReflowConfigOpen/config-open (0.12s)
+        --- PASS: TestCatalogReflowConfigOpen/config-open/approval (0.12s)
+            --- PASS: TestCatalogReflowConfigOpen/config-open/approval/light (0.06s)
+            --- PASS: TestCatalogReflowConfigOpen/config-open/approval/dark (0.06s)
+    --- PASS: TestCatalogReflowConfigOpen/tool-open (0.10s)
+        --- PASS: TestCatalogReflowConfigOpen/tool-open/approval (0.10s)
+            --- PASS: TestCatalogReflowConfigOpen/tool-open/approval/light (0.05s)
+            --- PASS: TestCatalogReflowConfigOpen/tool-open/approval/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.660s

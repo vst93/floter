@@ -241,3 +241,15 @@ func TestCatalogReflowConfigActions(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) { checkCatalogReflow(t, scenario, "") })
 	}
 }
+
+func TestCatalogReflowConfigTransfers(t *testing.T) {
+	for _, kind := range []string{"copy", "export"} {
+		t.Run(kind, func(t *testing.T) { checkCatalogReflow(t, "config-toolbar", kind) })
+	}
+}
+
+func TestCatalogReflowConfigOpen(t *testing.T) {
+	for _, scenario := range []string{"config-open", "tool-open"} {
+		t.Run(scenario, func(t *testing.T) { checkCatalogReflow(t, scenario, "") })
+	}
+}

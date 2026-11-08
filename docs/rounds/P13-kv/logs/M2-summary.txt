@@ -1,0 +1,4 @@
+FAIL M2-red           docs/rounds/P13-kv/logs/M2-red.log | === RUN   TestCatalogReflowConfigFields === RUN   TestCatalogReflowConfigFields/approval === RUN   TestCatalogReflowConfigFields/approval/light 
+FOCUSED PASS=0 evidence=docs/rounds/P13-kv/logs/M2-red.log
+PASS M2-restored      docs/rounds/P13-kv/logs/M2-restored.log
+FOCUSED PASS=82 evidence=docs/rounds/P13-kv/logs/M2-restored.log
