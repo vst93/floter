@@ -6455,7 +6455,7 @@ func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
 		labelClicked := a.row(c, label, "", func() {
 			var toggle ui.Element
 			draw := func() { toggle = a.switchControl(c, &on).Label(label) }
-			if permission == extensions.PermissionFilesystemRead || permission == extensions.PermissionFilesystemWrite {
+			if permission == extensions.PermissionFilesystemRead || permission == extensions.PermissionFilesystemWrite || permission == extensions.PermissionNetworkFetch || permission == extensions.PermissionProcessSpawn {
 				outputFocusOutlet(c.Key("permission-outlet"), draw)
 			} else {
 				draw()

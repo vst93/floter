@@ -96,6 +96,12 @@ func TestPermissionEdgeFilesystemRead(t *testing.T) {
 func TestPermissionEdgeFilesystemWrite(t *testing.T) {
 	checkPermissionEdge(t, extensions.PermissionFilesystemWrite)
 }
+func TestPermissionEdgeNetwork(t *testing.T) {
+	checkPermissionEdge(t, extensions.PermissionNetworkFetch)
+}
+func TestPermissionEdgeProcess(t *testing.T) {
+	checkPermissionEdge(t, extensions.PermissionProcessSpawn)
+}
 func checkScriptEditorEdge(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
