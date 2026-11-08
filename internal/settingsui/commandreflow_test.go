@@ -83,8 +83,41 @@ func checkCommandReflow(t *testing.T, control, source string) {
 					if step%2 == 0 {
 						in.Permissions = append([]string(nil), extensions.AllPermissions...)
 					}
+				case "error":
+					in.Error = ""
+					if step%2 == 0 {
+						in.Error = "无法连接天气服务，请检查网络后重试"
+					}
+				case "failure":
+					in.FailureCode, in.FailureDetail = "", ""
+					if step%2 == 0 {
+						in.FailureCode = extensions.BindingCodeMissing
+						in.FailureDetail = "/usr/bin/weather"
+					}
+				case "health":
+					in.Health, in.HealthReport = "", nil
+					if step%2 == 0 {
+						in.Health, in.HealthReport = "Degraded", testHealthReport()
+					}
+				case "diagnosis":
+					in.Diagnosis = ""
+					if step%2 == 0 {
+						in.Diagnosis = "天气服务不可用，请检查网络后重试"
+					}
 				}
 				tt.Frame()
+				if step == 0 && source == "error" && control == "alias" {
+					if tag := os.Getenv("FLOTER_P13KX_DUMP"); tag != "" {
+						f, err := os.Create("/tmp/floter-P13-kx-command-" + appearanceName(dark) + "-" + tag + ".png")
+						if err != nil {
+							t.Fatal(err)
+						}
+						if err := png.Encode(f, tt.Image()); err != nil {
+							t.Fatal(err)
+						}
+						f.Close()
+					}
+				}
 				if step == 0 && source == "catalog" && control == "alias" {
 					if tag := os.Getenv("FLOTER_P13KW_DUMP"); tag != "" {
 						f, err := os.Create("/tmp/floter-P13-kw-command-" + appearanceName(dark) + "-" + tag + ".png")
@@ -132,3 +165,6 @@ func TestCommandAliasCatalogReflow(t *testing.T)  { checkCommandReflow(t, "alias
 func TestCommandAliasOrderReflow(t *testing.T)    { checkCommandReflow(t, "alias", "order") }
 func TestCommandSwitchCatalogReflow(t *testing.T) { checkCommandReflow(t, "switch", "catalog") }
 func TestCommandSwitchOrderReflow(t *testing.T)   { checkCommandReflow(t, "switch", "order") }
+
+func TestCommandAliasErrorReflow(t *testing.T)  { checkCommandReflow(t, "alias", "error") }
+func TestCommandSwitchErrorReflow(t *testing.T) { checkCommandReflow(t, "switch", "error") }

@@ -1,0 +1,2 @@
+FAIL reproduce-1      docs/rounds/P13-kx/logs/reproduce-1.log | === RUN   TestCommandAliasErrorReflow === RUN   TestCommandAliasErrorReflow/light     commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": targe
+FOCUSED PASS=1 evidence=docs/rounds/P13-kx/logs/reproduce-1.log

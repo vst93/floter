@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasErrorReflow
+=== RUN   TestCommandAliasErrorReflow/light
+=== RUN   TestCommandAliasErrorReflow/dark
+--- PASS: TestCommandAliasErrorReflow (0.16s)
+    --- PASS: TestCommandAliasErrorReflow/light (0.12s)
+    --- PASS: TestCommandAliasErrorReflow/dark (0.04s)
+=== RUN   TestCommandSwitchErrorReflow
+=== RUN   TestCommandSwitchErrorReflow/light
+=== RUN   TestCommandSwitchErrorReflow/dark
+--- PASS: TestCommandSwitchErrorReflow (0.05s)
+    --- PASS: TestCommandSwitchErrorReflow/light (0.03s)
+    --- PASS: TestCommandSwitchErrorReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.216s

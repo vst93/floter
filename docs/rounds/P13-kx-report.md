@@ -1,0 +1,29 @@
+# P13-kx · 命令卡前置反馈刷新
+
+Codex独立执行；开盘e610b964，pull同步、工作树空。统一验证入口已有，复用；安装恢复P13-jx不重复。本轮先事件复现，再分四批修复。
+
+## stash清点
+
+本轮实际逐条reverse-check均1，SHA与交接账本一致。八条是早期独立WIP；真正stale-kill已于P13-gq归档。无直接可反向应用项，不静默drop，也不把旧主题/Tauri覆盖当前实现；独有工作移植仍未完成。
+
+| ref | SHA | 判断 | 处置 |
+| --- | --- | --- | --- |
+| stash@{0} | 422483b4 | 旧keycap/主题，reverse1 | 保留 |
+| stash@{1} | 8af94a07 | 旧行距/滑块，reverse1 | 保留 |
+| stash@{2} | 7e4aa710 | 旧卸载布局，reverse1 | 保留 |
+| stash@{3} | 1e3aec94 | 旧数字字段，reverse1 | 保留 |
+| stash@{4} | 363f5a42 | 旧字段/确认栏，reverse1 | 保留 |
+| stash@{5} | 9b8ce23c | 旧快捷键，reverse1 | 保留 |
+| stash@{6} | 90d314b2 | 旧动作栏，reverse1 | 保留 |
+| stash@{7} | 7a9f6e13 | 旧Tauri发布链，reverse1 | 保留 |
+
+## 实施记录
+
+基线重新计数：上轮原始verbose日志6953 PASS，开盘3626测试函数。命令移除/转合成/整组消失的别名及开关共六种探测，现有Close出口正常、Tab继续有效；未复现，不计bug，不改焦点策略。探针仅临时运行，原日志已保留。
+
+1. Error插入使别名框完全出屏（Y=534、W/H=0）→ 把Error内容纳入原显现条件 → 深浅四次插入/撤回后可见、180ms后原ID单次写回。
+2. Error插入使启用开关只剩8px高可见 → 同一反馈传至原身份行 → 深浅显现完整、Space只派发原ID一次。
+
+两项原始事件均红，见reproduce-1.log。旧V/B/S断言改动0/0/0；无新增Skip。分批门槛与变异结果随后追加。
+
+第一批6 PASS。M1撤掉Error反馈接线，两函数深浅均红：`Alias for 天气预报: target={X:208.8 Y:534 W:0 H:0} ... focused=true`；开关仅8px可见。恢复后逐字节MD5核验与touch复跑见M1-restored.log。

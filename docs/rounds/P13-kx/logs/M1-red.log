@@ -1,0 +1,23 @@
+=== RUN   TestCommandAliasErrorReflow
+=== RUN   TestCommandAliasErrorReflow/light
+    commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:534 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:534 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasErrorReflow/dark
+    commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:534 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:133: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:534 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasErrorReflow (0.19s)
+    --- FAIL: TestCommandAliasErrorReflow/light (0.15s)
+    --- FAIL: TestCommandAliasErrorReflow/dark (0.03s)
+=== RUN   TestCommandSwitchErrorReflow
+=== RUN   TestCommandSwitchErrorReflow/light
+    commandreflow_test.go:133: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:512 W:32.400024 H:8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:133: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:512 W:32.400024 H:8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandSwitchErrorReflow/dark
+    commandreflow_test.go:133: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:512 W:32.400024 H:8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:133: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:512 W:32.400024 H:8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandSwitchErrorReflow (0.05s)
+    --- FAIL: TestCommandSwitchErrorReflow/light (0.02s)
+    --- FAIL: TestCommandSwitchErrorReflow/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.241s
+FAIL
