@@ -1,0 +1,11 @@
+=== RUN   TestRegistryFieldEdgeVersion
+=== RUN   TestRegistryFieldEdgeVersion/light
+    configfieldedge_test.go:139: cannot reach registry field
+=== RUN   TestRegistryFieldEdgeVersion/dark
+    configfieldedge_test.go:139: cannot reach registry field
+--- FAIL: TestRegistryFieldEdgeVersion (0.69s)
+    --- FAIL: TestRegistryFieldEdgeVersion/light (0.41s)
+    --- FAIL: TestRegistryFieldEdgeVersion/dark (0.27s)
+FAIL
+FAIL	floter/internal/settingsui	0.693s
+FAIL

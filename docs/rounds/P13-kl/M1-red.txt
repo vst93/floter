@@ -1,0 +1,27 @@
+=== RUN   TestRegistryFieldEdgeName
+=== RUN   TestRegistryFieldEdgeName/light
+    configfieldedge_test.go:172: registry-name target={X:186.8 Y:51.4 W:292 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=137.59999
+    configfieldedge_test.go:180: registry-name top active edge missing: blue-red=30
+    configfieldedge_test.go:184: registry-name active edge intersects fade: {X:186.8 Y:51.4 W:292 H:29.799995}
+=== RUN   TestRegistryFieldEdgeName/dark
+    configfieldedge_test.go:172: registry-name target={X:186.8 Y:51.4 W:292 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=137.59999
+    configfieldedge_test.go:180: registry-name top active edge missing: blue-red=21
+    configfieldedge_test.go:184: registry-name active edge intersects fade: {X:186.8 Y:51.4 W:292 H:29.799995}
+--- FAIL: TestRegistryFieldEdgeName (0.15s)
+    --- FAIL: TestRegistryFieldEdgeName/light (0.11s)
+    --- FAIL: TestRegistryFieldEdgeName/dark (0.04s)
+=== RUN   TestRegistryFieldEdgeVersion
+=== RUN   TestRegistryFieldEdgeVersion/light
+    configfieldedge_test.go:172: registry-version target={X:482.40002 Y:51.4 W:160 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=137.59999
+    configfieldedge_test.go:180: registry-version top active edge missing: blue-red=30
+    configfieldedge_test.go:184: registry-version active edge intersects fade: {X:482.40002 Y:51.4 W:160 H:29.799995}
+=== RUN   TestRegistryFieldEdgeVersion/dark
+    configfieldedge_test.go:172: registry-version target={X:482.40002 Y:51.4 W:160 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=137.59999
+    configfieldedge_test.go:180: registry-version top active edge missing: blue-red=21
+    configfieldedge_test.go:184: registry-version active edge intersects fade: {X:482.40002 Y:51.4 W:160 H:29.799995}
+--- FAIL: TestRegistryFieldEdgeVersion (0.09s)
+    --- FAIL: TestRegistryFieldEdgeVersion/light (0.04s)
+    --- FAIL: TestRegistryFieldEdgeVersion/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.246s
+FAIL
