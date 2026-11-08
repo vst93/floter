@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasFreshnessSourceReflow
+=== RUN   TestCommandAliasFreshnessSourceReflow/light
+=== RUN   TestCommandAliasFreshnessSourceReflow/dark
+--- PASS: TestCommandAliasFreshnessSourceReflow (0.14s)
+    --- PASS: TestCommandAliasFreshnessSourceReflow/light (0.11s)
+    --- PASS: TestCommandAliasFreshnessSourceReflow/dark (0.03s)
+=== RUN   TestCommandSwitchFreshnessSourceReflow
+=== RUN   TestCommandSwitchFreshnessSourceReflow/light
+=== RUN   TestCommandSwitchFreshnessSourceReflow/dark
+--- PASS: TestCommandSwitchFreshnessSourceReflow (0.06s)
+    --- PASS: TestCommandSwitchFreshnessSourceReflow/light (0.03s)
+    --- PASS: TestCommandSwitchFreshnessSourceReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.204s

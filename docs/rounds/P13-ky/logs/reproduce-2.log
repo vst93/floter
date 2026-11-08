@@ -1,0 +1,19 @@
+=== RUN   TestCommandAliasFreshnessSourceReflow
+=== RUN   TestCommandAliasFreshnessSourceReflow/light
+    commandreflow_test.go:180: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:490.99994 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:180: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:490.99994 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasFreshnessSourceReflow/dark
+    commandreflow_test.go:180: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:490.99994 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:180: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:490.99994 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasFreshnessSourceReflow (0.15s)
+    --- FAIL: TestCommandAliasFreshnessSourceReflow/light (0.12s)
+    --- FAIL: TestCommandAliasFreshnessSourceReflow/dark (0.03s)
+=== RUN   TestCommandSwitchFreshnessSourceReflow
+=== RUN   TestCommandSwitchFreshnessSourceReflow/light
+=== RUN   TestCommandSwitchFreshnessSourceReflow/dark
+--- PASS: TestCommandSwitchFreshnessSourceReflow (0.05s)
+    --- PASS: TestCommandSwitchFreshnessSourceReflow/light (0.03s)
+    --- PASS: TestCommandSwitchFreshnessSourceReflow/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.208s
+FAIL

@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasConfigSchemaReflow
+=== RUN   TestCommandAliasConfigSchemaReflow/light
+=== RUN   TestCommandAliasConfigSchemaReflow/dark
+--- PASS: TestCommandAliasConfigSchemaReflow (0.14s)
+    --- PASS: TestCommandAliasConfigSchemaReflow/light (0.10s)
+    --- PASS: TestCommandAliasConfigSchemaReflow/dark (0.04s)
+=== RUN   TestCommandSwitchConfigSchemaReflow
+=== RUN   TestCommandSwitchConfigSchemaReflow/light
+=== RUN   TestCommandSwitchConfigSchemaReflow/dark
+--- PASS: TestCommandSwitchConfigSchemaReflow (0.08s)
+    --- PASS: TestCommandSwitchConfigSchemaReflow/light (0.04s)
+    --- PASS: TestCommandSwitchConfigSchemaReflow/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.231s

@@ -1,0 +1,43 @@
+=== RUN   TestCommandAliasFreshnessReflow
+=== RUN   TestCommandAliasFreshnessReflow/light
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:540 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:540 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasFreshnessReflow/dark
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:540 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:540 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasFreshnessReflow (0.13s)
+    --- FAIL: TestCommandAliasFreshnessReflow/light (0.10s)
+    --- FAIL: TestCommandAliasFreshnessReflow/dark (0.03s)
+=== RUN   TestCommandSwitchFreshnessReflow
+=== RUN   TestCommandSwitchFreshnessReflow/light
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:518 W:32.400024 H:2} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:518 W:32.400024 H:2} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandSwitchFreshnessReflow/dark
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:518 W:32.400024 H:2} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:518 W:32.400024 H:2} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandSwitchFreshnessReflow (0.05s)
+    --- FAIL: TestCommandSwitchFreshnessReflow/light (0.03s)
+    --- FAIL: TestCommandSwitchFreshnessReflow/dark (0.02s)
+=== RUN   TestCommandAliasFreshnessSourceReflow
+=== RUN   TestCommandAliasFreshnessSourceReflow/light
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:490.99994 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:490.99994 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasFreshnessSourceReflow/dark
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:490.99994 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:490.99994 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasFreshnessSourceReflow (0.07s)
+    --- FAIL: TestCommandAliasFreshnessSourceReflow/light (0.03s)
+    --- FAIL: TestCommandAliasFreshnessSourceReflow/dark (0.03s)
+=== RUN   TestCommandSwitchFreshnessSourceReflow
+=== RUN   TestCommandSwitchFreshnessSourceReflow/light
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:498 W:32.400024 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:498 W:32.400024 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandSwitchFreshnessSourceReflow/dark
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:498 W:32.400024 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:498 W:32.400024 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandSwitchFreshnessSourceReflow (0.06s)
+    --- FAIL: TestCommandSwitchFreshnessSourceReflow/light (0.03s)
+    --- FAIL: TestCommandSwitchFreshnessSourceReflow/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.315s
+FAIL

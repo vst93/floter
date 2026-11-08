@@ -1,0 +1,6 @@
+[mygo-rewrite ca2a4ca8] fix: 配置字段刷新后保留命令编辑与开关出口(P13-ky)
+ 6 files changed, 32 insertions(+)
+ create mode 100644 docs/rounds/P13-ky/logs/batch4.exit
+ create mode 100644 docs/rounds/P13-ky/logs/reproduce-4.exit
+To github.com:vst93/floter.git
+   05080bed..ca2a4ca8  mygo-rewrite -> mygo-rewrite

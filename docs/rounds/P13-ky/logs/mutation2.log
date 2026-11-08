@@ -1,0 +1,23 @@
+=== RUN   TestCommandAliasConfigSchemaReflow
+=== RUN   TestCommandAliasConfigSchemaReflow/light
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:609.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:609.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasConfigSchemaReflow/dark
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:609.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:609.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasConfigSchemaReflow (0.22s)
+    --- FAIL: TestCommandAliasConfigSchemaReflow/light (0.17s)
+    --- FAIL: TestCommandAliasConfigSchemaReflow/dark (0.04s)
+=== RUN   TestCommandSwitchConfigSchemaReflow
+=== RUN   TestCommandSwitchConfigSchemaReflow/light
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:587.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:587.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandSwitchConfigSchemaReflow/dark
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:587.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:587.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandSwitchConfigSchemaReflow (0.08s)
+    --- FAIL: TestCommandSwitchConfigSchemaReflow/light (0.04s)
+    --- FAIL: TestCommandSwitchConfigSchemaReflow/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.303s
+FAIL

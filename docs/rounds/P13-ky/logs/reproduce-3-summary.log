@@ -1,0 +1,2 @@
+FAIL reproduce-3      docs/rounds/P13-ky/logs/reproduce-3.log | === RUN   TestCommandAliasConfigPresenceReflow === RUN   TestCommandAliasConfigPresenceReflow/light     commandreflow_test.go:191: feedback reflow hides active outlet "Alias for å¤
+FOCUSED PASS=0 evidence=docs/rounds/P13-ky/logs/reproduce-3.log

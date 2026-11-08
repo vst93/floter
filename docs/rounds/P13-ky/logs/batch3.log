@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasConfigPresenceReflow
+=== RUN   TestCommandAliasConfigPresenceReflow/light
+=== RUN   TestCommandAliasConfigPresenceReflow/dark
+--- PASS: TestCommandAliasConfigPresenceReflow (0.19s)
+    --- PASS: TestCommandAliasConfigPresenceReflow/light (0.16s)
+    --- PASS: TestCommandAliasConfigPresenceReflow/dark (0.03s)
+=== RUN   TestCommandSwitchConfigPresenceReflow
+=== RUN   TestCommandSwitchConfigPresenceReflow/light
+=== RUN   TestCommandSwitchConfigPresenceReflow/dark
+--- PASS: TestCommandSwitchConfigPresenceReflow (0.05s)
+    --- PASS: TestCommandSwitchConfigPresenceReflow/light (0.03s)
+    --- PASS: TestCommandSwitchConfigPresenceReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.249s

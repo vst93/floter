@@ -1,0 +1,2 @@
+FAIL mutation1        docs/rounds/P13-ky/logs/mutation1.log | === RUN   TestCommandAliasFreshnessReflow === RUN   TestCommandAliasFreshnessReflow/light     commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报
+FOCUSED PASS=0 evidence=docs/rounds/P13-ky/logs/mutation1.log

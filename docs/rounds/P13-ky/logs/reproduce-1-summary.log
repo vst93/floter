@@ -1,0 +1,2 @@
+FAIL reproduce-1      docs/rounds/P13-ky/logs/reproduce-1.log | === RUN   TestCommandAliasFreshnessReflow === RUN   TestCommandAliasFreshnessReflow/light     commandreflow_test.go:180: feedback reflow hides active outlet "Alias for 天气预报
+FOCUSED PASS=0 evidence=docs/rounds/P13-ky/logs/reproduce-1.log

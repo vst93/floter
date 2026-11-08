@@ -1,0 +1,26 @@
+=== RUN   TestCommandAliasFreshnessReflow
+=== RUN   TestCommandAliasFreshnessReflow/light
+=== RUN   TestCommandAliasFreshnessReflow/dark
+--- PASS: TestCommandAliasFreshnessReflow (0.11s)
+    --- PASS: TestCommandAliasFreshnessReflow/light (0.08s)
+    --- PASS: TestCommandAliasFreshnessReflow/dark (0.03s)
+=== RUN   TestCommandSwitchFreshnessReflow
+=== RUN   TestCommandSwitchFreshnessReflow/light
+=== RUN   TestCommandSwitchFreshnessReflow/dark
+--- PASS: TestCommandSwitchFreshnessReflow (0.06s)
+    --- PASS: TestCommandSwitchFreshnessReflow/light (0.03s)
+    --- PASS: TestCommandSwitchFreshnessReflow/dark (0.03s)
+=== RUN   TestCommandAliasFreshnessSourceReflow
+=== RUN   TestCommandAliasFreshnessSourceReflow/light
+=== RUN   TestCommandAliasFreshnessSourceReflow/dark
+--- PASS: TestCommandAliasFreshnessSourceReflow (0.07s)
+    --- PASS: TestCommandAliasFreshnessSourceReflow/light (0.03s)
+    --- PASS: TestCommandAliasFreshnessSourceReflow/dark (0.03s)
+=== RUN   TestCommandSwitchFreshnessSourceReflow
+=== RUN   TestCommandSwitchFreshnessSourceReflow/light
+=== RUN   TestCommandSwitchFreshnessSourceReflow/dark
+--- PASS: TestCommandSwitchFreshnessSourceReflow (0.06s)
+    --- PASS: TestCommandSwitchFreshnessSourceReflow/light (0.03s)
+    --- PASS: TestCommandSwitchFreshnessSourceReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.305s

@@ -1,0 +1,23 @@
+=== RUN   TestCommandAliasConfigPresenceReflow
+=== RUN   TestCommandAliasConfigPresenceReflow/light
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:524.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:524.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasConfigPresenceReflow/dark
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:524.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:524.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasConfigPresenceReflow (0.21s)
+    --- FAIL: TestCommandAliasConfigPresenceReflow/light (0.18s)
+    --- FAIL: TestCommandAliasConfigPresenceReflow/dark (0.03s)
+=== RUN   TestCommandSwitchConfigPresenceReflow
+=== RUN   TestCommandSwitchConfigPresenceReflow/light
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:502.99994 W:32.400024 H:17.000061} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:502.99994 W:32.400024 H:17.000061} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandSwitchConfigPresenceReflow/dark
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:502.99994 W:32.400024 H:17.000061} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:191: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:502.99994 W:32.400024 H:17.000061} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandSwitchConfigPresenceReflow (0.05s)
+    --- FAIL: TestCommandSwitchConfigPresenceReflow/light (0.03s)
+    --- FAIL: TestCommandSwitchConfigPresenceReflow/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.270s
+FAIL
