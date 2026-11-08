@@ -1,0 +1,111 @@
+=== RUN   TestToolRefusalExitName
+=== RUN   TestToolRefusalExitName/light/connect
+    toolrefusalexit_test.go:75: name refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: name refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitName/light/edit
+    toolrefusalexit_test.go:75: name refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: name refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitName/dark/connect
+    toolrefusalexit_test.go:75: name refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: name refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitName/dark/edit
+    toolrefusalexit_test.go:75: name refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: name refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitName (1.55s)
+    --- FAIL: TestToolRefusalExitName/light/connect (0.71s)
+    --- FAIL: TestToolRefusalExitName/light/edit (0.35s)
+    --- FAIL: TestToolRefusalExitName/dark/connect (0.24s)
+    --- FAIL: TestToolRefusalExitName/dark/edit (0.25s)
+=== RUN   TestToolRefusalExitCommand
+=== RUN   TestToolRefusalExitCommand/light/connect
+    toolrefusalexit_test.go:75: command refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: command refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitCommand/light/edit
+    toolrefusalexit_test.go:75: command refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: command refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitCommand/dark/connect
+    toolrefusalexit_test.go:75: command refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: command refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitCommand/dark/edit
+    toolrefusalexit_test.go:75: command refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: command refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitCommand (1.10s)
+    --- FAIL: TestToolRefusalExitCommand/light/connect (0.30s)
+    --- FAIL: TestToolRefusalExitCommand/light/edit (0.26s)
+    --- FAIL: TestToolRefusalExitCommand/dark/connect (0.27s)
+    --- FAIL: TestToolRefusalExitCommand/dark/edit (0.27s)
+=== RUN   TestToolRefusalExitVersion
+=== RUN   TestToolRefusalExitVersion/light/connect
+    toolrefusalexit_test.go:75: version refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: version refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitVersion/light/edit
+    toolrefusalexit_test.go:75: version refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: version refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitVersion/dark/connect
+    toolrefusalexit_test.go:75: version refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: version refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitVersion/dark/edit
+    toolrefusalexit_test.go:75: version refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: version refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitVersion (1.16s)
+    --- FAIL: TestToolRefusalExitVersion/light/connect (0.27s)
+    --- FAIL: TestToolRefusalExitVersion/light/edit (0.28s)
+    --- FAIL: TestToolRefusalExitVersion/dark/connect (0.32s)
+    --- FAIL: TestToolRefusalExitVersion/dark/edit (0.29s)
+=== RUN   TestToolRefusalExitProgram
+=== RUN   TestToolRefusalExitProgram/light/connect
+    toolrefusalexit_test.go:75: program refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: program refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitProgram/light/edit
+    toolrefusalexit_test.go:75: program refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: program refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitProgram/dark/connect
+    toolrefusalexit_test.go:75: program refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: program refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitProgram/dark/edit
+    toolrefusalexit_test.go:75: program refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: program refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitProgram (0.93s)
+    --- FAIL: TestToolRefusalExitProgram/light/connect (0.25s)
+    --- FAIL: TestToolRefusalExitProgram/light/edit (0.23s)
+    --- FAIL: TestToolRefusalExitProgram/dark/connect (0.23s)
+    --- FAIL: TestToolRefusalExitProgram/dark/edit (0.22s)
+=== RUN   TestToolRefusalExitScript
+=== RUN   TestToolRefusalExitScript/light/connect
+    toolrefusalexit_test.go:75: script refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: script refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitScript/light/edit
+    toolrefusalexit_test.go:75: script refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: script refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitScript/dark/connect
+    toolrefusalexit_test.go:75: script refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: script refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitScript/dark/edit
+    toolrefusalexit_test.go:75: script refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: script refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitScript (0.91s)
+    --- FAIL: TestToolRefusalExitScript/light/connect (0.23s)
+    --- FAIL: TestToolRefusalExitScript/light/edit (0.24s)
+    --- FAIL: TestToolRefusalExitScript/dark/connect (0.22s)
+    --- FAIL: TestToolRefusalExitScript/dark/edit (0.22s)
+=== RUN   TestToolRefusalExitPlatform
+=== RUN   TestToolRefusalExitPlatform/light/connect
+    toolrefusalexit_test.go:75: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/light/edit
+    toolrefusalexit_test.go:75: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/dark/connect
+    toolrefusalexit_test.go:75: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/dark/edit
+    toolrefusalexit_test.go:75: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: platform refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitPlatform (0.97s)
+    --- FAIL: TestToolRefusalExitPlatform/light/connect (0.25s)
+    --- FAIL: TestToolRefusalExitPlatform/light/edit (0.23s)
+    --- FAIL: TestToolRefusalExitPlatform/dark/connect (0.24s)
+    --- FAIL: TestToolRefusalExitPlatform/dark/edit (0.25s)
+FAIL
+FAIL	floter/internal/settingsui	6.633s
+FAIL

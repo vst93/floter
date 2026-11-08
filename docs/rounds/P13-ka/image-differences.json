@@ -1,0 +1,82 @@
+[
+  {
+    "name": "refusal-command-connect-dark",
+    "changed_pixels": 457,
+    "bbox": [
+      526,
+      267,
+      686,
+      297
+    ]
+  },
+  {
+    "name": "refusal-command-connect-light",
+    "changed_pixels": 457,
+    "bbox": [
+      526,
+      267,
+      686,
+      297
+    ]
+  },
+  {
+    "name": "refusal-command-edit-dark",
+    "changed_pixels": 457,
+    "bbox": [
+      526,
+      312,
+      686,
+      342
+    ]
+  },
+  {
+    "name": "refusal-command-edit-light",
+    "changed_pixels": 457,
+    "bbox": [
+      526,
+      312,
+      686,
+      342
+    ]
+  },
+  {
+    "name": "refusal-name-connect-dark",
+    "changed_pixels": 617,
+    "bbox": [
+      446,
+      105,
+      686,
+      135
+    ]
+  },
+  {
+    "name": "refusal-name-connect-light",
+    "changed_pixels": 617,
+    "bbox": [
+      446,
+      105,
+      686,
+      135
+    ]
+  },
+  {
+    "name": "refusal-name-edit-dark",
+    "changed_pixels": 617,
+    "bbox": [
+      446,
+      150,
+      686,
+      180
+    ]
+  },
+  {
+    "name": "refusal-name-edit-light",
+    "changed_pixels": 617,
+    "bbox": [
+      446,
+      150,
+      686,
+      180
+    ]
+  }
+]

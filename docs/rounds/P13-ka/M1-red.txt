@@ -1,0 +1,39 @@
+=== RUN   TestToolRefusalExitName
+=== RUN   TestToolRefusalExitName/light/connect
+    toolrefusalexit_test.go:75: name refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: name refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitName/light/edit
+    toolrefusalexit_test.go:75: name refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: name refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitName/dark/connect
+    toolrefusalexit_test.go:75: name refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: name refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitName/dark/edit
+    toolrefusalexit_test.go:75: name refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: name refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitName (2.03s)
+    --- FAIL: TestToolRefusalExitName/light/connect (0.74s)
+    --- FAIL: TestToolRefusalExitName/light/edit (0.44s)
+    --- FAIL: TestToolRefusalExitName/dark/connect (0.34s)
+    --- FAIL: TestToolRefusalExitName/dark/edit (0.51s)
+=== RUN   TestToolRefusalExitCommand
+=== RUN   TestToolRefusalExitCommand/light/connect
+    toolrefusalexit_test.go:75: command refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: command refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitCommand/light/edit
+    toolrefusalexit_test.go:75: command refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: command refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitCommand/dark/connect
+    toolrefusalexit_test.go:75: command refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: command refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitCommand/dark/edit
+    toolrefusalexit_test.go:75: command refusal lost editable keyboard exit
+    toolrefusalexit_test.go:90: command refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitCommand (1.63s)
+    --- FAIL: TestToolRefusalExitCommand/light/connect (0.41s)
+    --- FAIL: TestToolRefusalExitCommand/light/edit (0.41s)
+    --- FAIL: TestToolRefusalExitCommand/dark/connect (0.41s)
+    --- FAIL: TestToolRefusalExitCommand/dark/edit (0.39s)
+FAIL
+FAIL	floter/internal/settingsui	3.698s
+FAIL

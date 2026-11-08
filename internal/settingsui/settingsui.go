@@ -5802,7 +5802,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.fixedRow(c, copy.LocalToolId, a.toolEditing)
 			}
 			a.row(c, copy.LocalToolName, "", func() {
-				a.extensionField(c, &name, customFieldMetrics).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+				a.extensionField(c, &name, customFieldMetrics).Bind(&a.contentFocus(c, "name").source).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldName)
 			})
@@ -5988,8 +5988,16 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			}
 			// The same shape rules the host will apply, read before the host
 			// sees them: name, command, version, platforms, mode, script.
-			if len(customIssues(tool)) > 0 {
+			if issues := customIssues(tool); len(issues) > 0 {
 				a.toolIssue = true
+				// Return only on a refused submission, never on background
+				// validation while the user is editing another field.
+				switch issues[0].Field {
+				case extensions.CustomFieldName:
+					c.Resolve(a.contentFocus(c, "name").source).Focus()
+				case extensions.CustomFieldCommand:
+					c.Resolve(a.contentFocus(c, "command").source).Focus()
+				}
 				return
 			}
 			// The program row has no localization key of its own: it refuses

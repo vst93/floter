@@ -1,0 +1,22 @@
+=== RUN   TestToolRefusalExitName
+=== RUN   TestToolRefusalExitName/light/connect
+=== RUN   TestToolRefusalExitName/light/edit
+=== RUN   TestToolRefusalExitName/dark/connect
+=== RUN   TestToolRefusalExitName/dark/edit
+--- PASS: TestToolRefusalExitName (1.08s)
+    --- PASS: TestToolRefusalExitName/light/connect (0.47s)
+    --- PASS: TestToolRefusalExitName/light/edit (0.19s)
+    --- PASS: TestToolRefusalExitName/dark/connect (0.21s)
+    --- PASS: TestToolRefusalExitName/dark/edit (0.21s)
+=== RUN   TestToolRefusalExitCommand
+=== RUN   TestToolRefusalExitCommand/light/connect
+=== RUN   TestToolRefusalExitCommand/light/edit
+=== RUN   TestToolRefusalExitCommand/dark/connect
+=== RUN   TestToolRefusalExitCommand/dark/edit
+--- PASS: TestToolRefusalExitCommand (0.90s)
+    --- PASS: TestToolRefusalExitCommand/light/connect (0.26s)
+    --- PASS: TestToolRefusalExitCommand/light/edit (0.23s)
+    --- PASS: TestToolRefusalExitCommand/dark/connect (0.22s)
+    --- PASS: TestToolRefusalExitCommand/dark/edit (0.20s)
+PASS
+ok  	floter/internal/settingsui	1.988s
