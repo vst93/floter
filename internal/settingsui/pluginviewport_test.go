@@ -25,6 +25,9 @@ func pluginViewportDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 	}
 }
 
+func TestPluginViewportToggle(t *testing.T) { checkPluginViewport(t, plugincfg.Toggle, "toggle") }
+func TestPluginViewportSelect(t *testing.T) { checkPluginViewport(t, plugincfg.Select, "select") }
+
 func checkPluginViewport(t *testing.T, kind plugincfg.Kind, name string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {
@@ -60,14 +63,26 @@ func checkPluginViewport(t *testing.T, kind plugincfg.Kind, name string) {
 			sheet.Run = func(string) { t.Error("resize ran action") }
 			sheet.Unarm = func(string) { sheet.Armed = "" }
 			width, height := float32(560), float32(400)
+			window := false
+			outside := false
 			var target, viewport ui.Rect
+			var slotHeight float32
 			focused := false
 			tt := ui.NewTester(func(c *ui.Context) {
 				c.SetTheme(a.tokens(c).Theme)
 				c.Root().Background(c.Theme().Background)
-				ui.Column(c).Width(width).Height(height).Children(func() { a.PluginSheet(c, sheet) })
+				pane := ui.Column(c).Width(width).Height(height)
+				if window {
+					pane.Fill()
+				}
+				pane.Children(func() { a.PluginSheet(c, sheet) })
+				if outside {
+					ui.Button(c, "外部出口").Absolute().Top(4).Right(4)
+				}
 				viewport = c.Resolve(a.PluginScroll.Handle).Bounds()
 				e := c.Resolve(*a.pluginEditorRef(field.Key))
+				e.Label("viewport-control")
+				slotHeight = c.Theme().Space(7)
 				target, focused = e.Bounds(), e.FocusWithin()
 				if kind == plugincfg.Text || kind == plugincfg.Number {
 					target.Y += (target.H - c.Theme().Space(7)) / 2
@@ -111,6 +126,22 @@ func checkPluginViewport(t *testing.T, kind plugincfg.Kind, name string) {
 			}
 			if calls != 0 {
 				t.Fatalf("resize wrote %d times", calls)
+			}
+			// A real window resize must settle without an extra input or forced
+			// frame. Tester.Find reads the final rendered tree.
+			window = true
+			a.PluginScroll.Y += target.Y + target.H + 16 - 400
+			tt.Frame()
+			for _, size := range [][2]int{{420, 240}, {320, 180}, {560, 400}} {
+				tt.SetSize(size[0], size[1])
+				r := mustFind(t, tt, "viewport-control")
+				if kind == plugincfg.Text || kind == plugincfg.Number {
+					r.Y += (r.H - slotHeight) / 2
+					r.H = slotHeight
+				}
+				if r.H <= 0 || r.Y-3 < 11 || r.Y+r.H+3 > float32(size[1])-11 {
+					t.Errorf("%s window resize did not settle: size=%v rect=%+v", name, size, r)
+				}
 			}
 			if kind == plugincfg.Text && a.pluginTextDrafts["viewport\x00"+field.Key] != "continued" {
 				t.Error("resize discarded draft")
@@ -163,6 +194,17 @@ func checkPluginViewport(t *testing.T, kind plugincfg.Kind, name string) {
 				}
 			} else if calls != 1 || !reflect.DeepEqual(sheet.Values[field.Key], want) {
 				t.Errorf("resized edit got=%v want=%v calls=%d", sheet.Values[field.Key], want, calls)
+			}
+			outside = true
+			tt.Frame()
+			if err := tt.Click("外部出口"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Wheel(160, 90, 0, 70)
+			manual = a.PluginScroll.Y
+			tt.SetSize(520, 360)
+			if !tt.Focused("外部出口") || a.PluginScroll.Y != manual || calls != 1 {
+				t.Errorf("unfocused resize stole focus/scroll or wrote: scroll=%v want=%v calls=%d", a.PluginScroll.Y, manual, calls)
 			}
 		})
 	}

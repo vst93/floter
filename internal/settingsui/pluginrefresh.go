@@ -45,11 +45,13 @@ func (a *App) pluginFieldOutlet(c *ui.Context, field ui.Element) {
 
 // A size change can hide the current editor even when the host's schema is
 // unchanged. Track only the viewport dimensions: tracking its position would
-// fight ordinary scrolling. The previous layout becomes available next frame.
+// fight ordinary scrolling. Include the current window size so its resize is
+// handled in that frame, before the next layout's viewport bounds are available.
 func (a *App) pluginViewportOutlet(c *ui.Context, field ui.Element) {
 	viewport := c.Resolve(a.PluginScroll.Handle).Bounds()
-	size := [2]float32{viewport.W, viewport.H}
-	previous := ui.Local(field, "plugin-viewport-size", func() [2]float32 { return size })
+	w, h := c.Size()
+	size := [4]float32{viewport.W, viewport.H, w, h}
+	previous := ui.Local(field, "plugin-viewport-size", func() [4]float32 { return size })
 	resized := *previous != size
 	*previous = size
 	pluginFieldOutlet(c, field, a.pluginSheetLayout(c).changed || resized)

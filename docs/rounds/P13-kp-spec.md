@@ -23,7 +23,7 @@
 
 ## 验证与mutation
 
-开盘完整verbose基线正在/tmp/floter-P13-kp/baseline.txt实跑，退出后填实数。统一LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。最终一次gofmt、三平台vet/build、普通和verbose全量；测试函数数不降，V/B/S旧断言零改。
+开盘完整verbose基线实测6597 PASS / 0 FAIL / 3562函数、exit0，原始输出/tmp/floter-P13-kp/baseline.txt。统一LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。最终一次gofmt、三平台vet/build、普通和verbose全量；测试函数数不降，V/B/S旧断言零改。
 
 M1撤回单选/多选尺寸感知接线；M2撤回文本/数字尺寸感知接线。必须实红，备份MD5还原、touch后实绿。每项深浅ui.Tester原PNG与前后对照入仓库；只按实测计数。
 
