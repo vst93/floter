@@ -259,6 +259,18 @@ func checkCommandReflow(t *testing.T, control, source string) {
 			if a.Body.Y != before {
 				t.Errorf("stable layout stole scroll: %v -> %v", before, a.Body.Y)
 			}
+			if source == "config-error" {
+				a.configOpen[in.ID] = false
+				tt.Frame()
+				a.Body.Y = 0
+				tt.Frame()
+				before = a.Body.Y
+				a.configError[in.ID] = "隐藏表单的保存失败"
+				tt.Frame()
+				if a.Body.Y != before {
+					t.Errorf("hidden configuration error stole scroll: %v -> %v", before, a.Body.Y)
+				}
+			}
 		})
 	}
 }
@@ -306,3 +318,8 @@ func TestCommandSwitchDiagnosisReflow(t *testing.T) { checkCommandReflow(t, "swi
 
 func TestCommandAliasDescriptionReflow(t *testing.T)  { checkCommandReflow(t, "alias", "description") }
 func TestCommandSwitchDescriptionReflow(t *testing.T) { checkCommandReflow(t, "switch", "description") }
+
+func TestCommandAliasConfigErrorReflow(t *testing.T) { checkCommandReflow(t, "alias", "config-error") }
+func TestCommandSwitchConfigErrorReflow(t *testing.T) {
+	checkCommandReflow(t, "switch", "config-error")
+}

@@ -328,6 +328,7 @@ func (a *App) commandConfigLayoutFeedback(integration Integration) string {
 		return ""
 	}
 	var feedback strings.Builder
+	feedback.WriteString(strconv.Quote(a.configError[integration.ID]))
 	for _, field := range integration.Config {
 		for _, value := range []string{field.Key, strings.ToLower(field.Type), field.Label, field.Description, strconv.FormatBool(field.Required)} {
 			feedback.WriteString(strconv.Quote(value))
