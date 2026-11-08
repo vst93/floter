@@ -200,6 +200,13 @@ func checkAuditReflow(t *testing.T, scenario, kind string) {
 	}
 }
 
+func TestAuditReflowConfigFields(t *testing.T) { checkAuditReflow(t, "config-fields", "text") }
+func TestAuditReflowConfigActions(t *testing.T) {
+	for _, scenario := range []string{"config-defaults", "config-save"} {
+		t.Run(scenario, func(t *testing.T) { checkAuditReflow(t, scenario, "") })
+	}
+}
+
 func TestAuditReflowRunEditors(t *testing.T) {
 	for _, kind := range []string{"text", "number", "path"} {
 		t.Run(kind, func(t *testing.T) { checkAuditReflow(t, "run-controls", kind) })
