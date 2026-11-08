@@ -1006,6 +1006,7 @@ func New(opts Options) *App {
 		ExportIntegrations:    a.exportIntegrations,
 		ImportIntegrations:    a.importIntegrations,
 		ExportScript:          a.exportScript,
+		ExportScriptAsync:     a.exportScriptWithCompletion,
 		AdoptIntegration: func(id string) {
 			if !a.Settings.BeginOrphanOperation(id, "adopt") {
 				return

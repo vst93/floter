@@ -1,0 +1,32 @@
+=== RUN   TestToolExportWaitAndRetry
+=== RUN   TestToolExportWaitAndRetry/light
+=== RUN   TestToolExportWaitAndRetry/dark
+--- PASS: TestToolExportWaitAndRetry (0.47s)
+    --- PASS: TestToolExportWaitAndRetry/light (0.32s)
+    --- PASS: TestToolExportWaitAndRetry/dark (0.15s)
+=== RUN   TestToolExportReturnsToScript
+=== RUN   TestToolExportReturnsToScript/light/editor
+=== RUN   TestToolExportReturnsToScript/light/moved
+=== RUN   TestToolExportReturnsToScript/dark/editor
+=== RUN   TestToolExportReturnsToScript/dark/moved
+--- PASS: TestToolExportReturnsToScript (0.52s)
+    --- PASS: TestToolExportReturnsToScript/light/editor (0.12s)
+    --- PASS: TestToolExportReturnsToScript/light/moved (0.14s)
+    --- PASS: TestToolExportReturnsToScript/dark/editor (0.11s)
+    --- PASS: TestToolExportReturnsToScript/dark/moved (0.14s)
+PASS
+ok  	floter/internal/settingsui	1.038s
+=== RUN   TestScriptExportCompletionEveryExit
+=== RUN   TestScriptExportCompletionEveryExit/cancel
+=== RUN   TestScriptExportCompletionEveryExit/picker-error
+2026/11/08 13:52:25 floter: could not pick a path for weather.py: portal unavailable
+=== RUN   TestScriptExportCompletionEveryExit/write-error
+2026/11/08 13:52:25 floter: could not write /tmp/TestScriptExportCompletionEveryExitwrite-error503106827/001: open /tmp/TestScriptExportCompletionEveryExitwrite-error503106827/001: is a directory
+=== RUN   TestScriptExportCompletionEveryExit/success
+--- PASS: TestScriptExportCompletionEveryExit (0.12s)
+    --- PASS: TestScriptExportCompletionEveryExit/cancel (0.03s)
+    --- PASS: TestScriptExportCompletionEveryExit/picker-error (0.03s)
+    --- PASS: TestScriptExportCompletionEveryExit/write-error (0.03s)
+    --- PASS: TestScriptExportCompletionEveryExit/success (0.03s)
+PASS
+ok  	floter/internal/shell	0.158s

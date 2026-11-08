@@ -187,8 +187,15 @@ func importReport(path string, report extensions.SyncReport) *settingsui.ImportR
 // build raised. name is the file name the dialog offers, already carrying the
 // language's extension (`settingsui.scriptExportName`).
 func (a *App) exportScript(name, content string) {
+	a.exportScriptWithCompletion(name, content, nil)
+}
+
+func (a *App) exportScriptWithCompletion(name, content string, done func()) {
 	attempt := a.beginNotice("script-export:" + name)
 	go func() {
+		if done != nil {
+			defer done()
+		}
 		copy := a.SettingsCopy()
 		path, err := a.saveFile(name)
 		if err != nil {

@@ -1,0 +1,303 @@
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.53s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.40s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.14s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.19s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.11s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.08s)
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+--- PASS: TestCopyLifecycleProgramModeRetiresSuccess (0.60s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.16s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.15s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.14s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.15s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+--- PASS: TestCopyLifecycleScriptModeRetiresSuccess (0.33s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.16s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.17s)
+=== RUN   TestCopyLifecycleFoldRetiresSuccess
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/light
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/dark
+--- PASS: TestCopyLifecycleFoldRetiresSuccess (0.25s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/light (0.13s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/dark (0.13s)
+=== RUN   TestCopyLifecyclePageRetiresSuccess
+=== RUN   TestCopyLifecyclePageRetiresSuccess/light
+=== RUN   TestCopyLifecyclePageRetiresSuccess/dark
+--- PASS: TestCopyLifecyclePageRetiresSuccess (0.47s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/light (0.25s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/dark (0.22s)
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/light
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/dark
+--- PASS: TestCopyLifecycleAboutUnavailableIsInert (0.07s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/light (0.04s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/dark (0.03s)
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/light
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/dark
+--- PASS: TestCopyLifecycleAboutPageRetiresSuccess (0.24s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/light (0.11s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/dark (0.12s)
+=== RUN   TestToolCurrentPickerDraft
+=== RUN   TestToolCurrentPickerDraft/light/mode
+=== RUN   TestToolCurrentPickerDraft/light/fields
+=== RUN   TestToolCurrentPickerDraft/light/clear
+=== RUN   TestToolCurrentPickerDraft/dark/mode
+=== RUN   TestToolCurrentPickerDraft/dark/fields
+=== RUN   TestToolCurrentPickerDraft/dark/clear
+--- PASS: TestToolCurrentPickerDraft (0.24s)
+    --- PASS: TestToolCurrentPickerDraft/light/mode (0.04s)
+    --- PASS: TestToolCurrentPickerDraft/light/fields (0.04s)
+    --- PASS: TestToolCurrentPickerDraft/light/clear (0.04s)
+    --- PASS: TestToolCurrentPickerDraft/dark/mode (0.03s)
+    --- PASS: TestToolCurrentPickerDraft/dark/fields (0.04s)
+    --- PASS: TestToolCurrentPickerDraft/dark/clear (0.04s)
+=== RUN   TestToolCurrentPickerErrorKeyboard
+=== RUN   TestToolCurrentPickerErrorKeyboard/light
+=== RUN   TestToolCurrentPickerErrorKeyboard/dark
+--- PASS: TestToolCurrentPickerErrorKeyboard (0.06s)
+    --- PASS: TestToolCurrentPickerErrorKeyboard/light (0.03s)
+    --- PASS: TestToolCurrentPickerErrorKeyboard/dark (0.03s)
+=== RUN   TestToolCurrentCopyDraft
+=== RUN   TestToolCurrentCopyDraft/light/command
+=== RUN   TestToolCurrentCopyDraft/light/plan
+=== RUN   TestToolCurrentCopyDraft/light/script
+=== RUN   TestToolCurrentCopyDraft/dark/command
+=== RUN   TestToolCurrentCopyDraft/dark/plan
+=== RUN   TestToolCurrentCopyDraft/dark/script
+--- PASS: TestToolCurrentCopyDraft (0.41s)
+    --- PASS: TestToolCurrentCopyDraft/light/command (0.07s)
+    --- PASS: TestToolCurrentCopyDraft/light/plan (0.07s)
+    --- PASS: TestToolCurrentCopyDraft/light/script (0.06s)
+    --- PASS: TestToolCurrentCopyDraft/dark/command (0.07s)
+    --- PASS: TestToolCurrentCopyDraft/dark/plan (0.07s)
+    --- PASS: TestToolCurrentCopyDraft/dark/script (0.06s)
+=== RUN   TestToolCurrentExportDraft
+=== RUN   TestToolCurrentExportDraft/light
+=== RUN   TestToolCurrentExportDraft/dark
+--- PASS: TestToolCurrentExportDraft (0.13s)
+    --- PASS: TestToolCurrentExportDraft/light (0.06s)
+    --- PASS: TestToolCurrentExportDraft/dark (0.06s)
+=== RUN   TestToolCurrentPickerFold
+=== RUN   TestToolCurrentPickerFold/light
+=== RUN   TestToolCurrentPickerFold/dark
+--- PASS: TestToolCurrentPickerFold (0.23s)
+    --- PASS: TestToolCurrentPickerFold/light (0.11s)
+    --- PASS: TestToolCurrentPickerFold/dark (0.12s)
+=== RUN   TestToolCurrentCopyFold
+=== RUN   TestToolCurrentCopyFold/light
+=== RUN   TestToolCurrentCopyFold/dark
+--- PASS: TestToolCurrentCopyFold (0.24s)
+    --- PASS: TestToolCurrentCopyFold/light (0.12s)
+    --- PASS: TestToolCurrentCopyFold/dark (0.12s)
+=== RUN   TestToolCurrentPickerPage
+=== RUN   TestToolCurrentPickerPage/light
+=== RUN   TestToolCurrentPickerPage/dark
+--- PASS: TestToolCurrentPickerPage (0.35s)
+    --- PASS: TestToolCurrentPickerPage/light (0.18s)
+    --- PASS: TestToolCurrentPickerPage/dark (0.18s)
+=== RUN   TestToolCurrentCopyPage
+=== RUN   TestToolCurrentCopyPage/light
+=== RUN   TestToolCurrentCopyPage/dark
+--- PASS: TestToolCurrentCopyPage (0.34s)
+    --- PASS: TestToolCurrentCopyPage/light (0.17s)
+    --- PASS: TestToolCurrentCopyPage/dark (0.17s)
+=== RUN   TestToolExportWaitAndRetry
+=== RUN   TestToolExportWaitAndRetry/light
+=== RUN   TestToolExportWaitAndRetry/dark
+--- PASS: TestToolExportWaitAndRetry (0.25s)
+    --- PASS: TestToolExportWaitAndRetry/light (0.13s)
+    --- PASS: TestToolExportWaitAndRetry/dark (0.13s)
+=== RUN   TestToolExportReturnsToScript
+=== RUN   TestToolExportReturnsToScript/light/editor
+=== RUN   TestToolExportReturnsToScript/light/moved
+=== RUN   TestToolExportReturnsToScript/dark/editor
+=== RUN   TestToolExportReturnsToScript/dark/moved
+--- PASS: TestToolExportReturnsToScript (0.47s)
+    --- PASS: TestToolExportReturnsToScript/light/editor (0.10s)
+    --- PASS: TestToolExportReturnsToScript/light/moved (0.13s)
+    --- PASS: TestToolExportReturnsToScript/dark/editor (0.11s)
+    --- PASS: TestToolExportReturnsToScript/dark/moved (0.13s)
+=== RUN   TestToolModeExitProgram
+=== RUN   TestToolModeExitProgram/input
+=== RUN   TestToolModeExitProgram/input/light
+=== RUN   TestToolModeExitProgram/input/dark
+=== RUN   TestToolModeExitProgram/args
+=== RUN   TestToolModeExitProgram/args/light
+=== RUN   TestToolModeExitProgram/args/dark
+=== RUN   TestToolModeExitProgram/version
+=== RUN   TestToolModeExitProgram/version/light
+=== RUN   TestToolModeExitProgram/version/dark
+=== RUN   TestToolModeExitProgram/description
+=== RUN   TestToolModeExitProgram/description/light
+=== RUN   TestToolModeExitProgram/description/dark
+=== RUN   TestToolModeExitProgram/choose
+=== RUN   TestToolModeExitProgram/choose/light
+=== RUN   TestToolModeExitProgram/choose/dark
+=== RUN   TestToolModeExitProgram/copy
+=== RUN   TestToolModeExitProgram/copy/light
+=== RUN   TestToolModeExitProgram/copy/dark
+=== RUN   TestToolModeExitProgram/plan
+=== RUN   TestToolModeExitProgram/plan/light
+=== RUN   TestToolModeExitProgram/plan/dark
+--- PASS: TestToolModeExitProgram (0.53s)
+    --- PASS: TestToolModeExitProgram/input (0.07s)
+        --- PASS: TestToolModeExitProgram/input/light (0.04s)
+        --- PASS: TestToolModeExitProgram/input/dark (0.03s)
+    --- PASS: TestToolModeExitProgram/args (0.07s)
+        --- PASS: TestToolModeExitProgram/args/light (0.03s)
+        --- PASS: TestToolModeExitProgram/args/dark (0.03s)
+    --- PASS: TestToolModeExitProgram/version (0.07s)
+        --- PASS: TestToolModeExitProgram/version/light (0.04s)
+        --- PASS: TestToolModeExitProgram/version/dark (0.04s)
+    --- PASS: TestToolModeExitProgram/description (0.08s)
+        --- PASS: TestToolModeExitProgram/description/light (0.04s)
+        --- PASS: TestToolModeExitProgram/description/dark (0.04s)
+    --- PASS: TestToolModeExitProgram/choose (0.07s)
+        --- PASS: TestToolModeExitProgram/choose/light (0.03s)
+        --- PASS: TestToolModeExitProgram/choose/dark (0.03s)
+    --- PASS: TestToolModeExitProgram/copy (0.08s)
+        --- PASS: TestToolModeExitProgram/copy/light (0.04s)
+        --- PASS: TestToolModeExitProgram/copy/dark (0.04s)
+    --- PASS: TestToolModeExitProgram/plan (0.09s)
+        --- PASS: TestToolModeExitProgram/plan/light (0.04s)
+        --- PASS: TestToolModeExitProgram/plan/dark (0.04s)
+=== RUN   TestToolModeExitScript
+=== RUN   TestToolModeExitScript/editor
+=== RUN   TestToolModeExitScript/editor/light
+=== RUN   TestToolModeExitScript/editor/dark
+=== RUN   TestToolModeExitScript/language
+=== RUN   TestToolModeExitScript/language/light
+=== RUN   TestToolModeExitScript/language/dark
+=== RUN   TestToolModeExitScript/copy
+=== RUN   TestToolModeExitScript/copy/light
+=== RUN   TestToolModeExitScript/copy/dark
+=== RUN   TestToolModeExitScript/export
+=== RUN   TestToolModeExitScript/export/light
+=== RUN   TestToolModeExitScript/export/dark
+--- PASS: TestToolModeExitScript (0.48s)
+    --- PASS: TestToolModeExitScript/editor (0.05s)
+        --- PASS: TestToolModeExitScript/editor/light (0.03s)
+        --- PASS: TestToolModeExitScript/editor/dark (0.03s)
+    --- PASS: TestToolModeExitScript/language (0.06s)
+        --- PASS: TestToolModeExitScript/language/light (0.03s)
+        --- PASS: TestToolModeExitScript/language/dark (0.03s)
+    --- PASS: TestToolModeExitScript/copy (0.19s)
+        --- PASS: TestToolModeExitScript/copy/light (0.09s)
+        --- PASS: TestToolModeExitScript/copy/dark (0.09s)
+    --- PASS: TestToolModeExitScript/export (0.18s)
+        --- PASS: TestToolModeExitScript/export/light (0.09s)
+        --- PASS: TestToolModeExitScript/export/dark (0.09s)
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/program
+=== RUN   TestToolModeExitDoesNotStealFromSurvivingInput/script
+--- PASS: TestToolModeExitDoesNotStealFromSurvivingInput (0.05s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/program (0.02s)
+    --- PASS: TestToolModeExitDoesNotStealFromSurvivingInput/script (0.02s)
+=== RUN   TestToolRefusalExitName
+=== RUN   TestToolRefusalExitName/light/connect
+=== RUN   TestToolRefusalExitName/light/edit
+=== RUN   TestToolRefusalExitName/dark/connect
+=== RUN   TestToolRefusalExitName/dark/edit
+--- PASS: TestToolRefusalExitName (0.51s)
+    --- PASS: TestToolRefusalExitName/light/connect (0.13s)
+    --- PASS: TestToolRefusalExitName/light/edit (0.13s)
+    --- PASS: TestToolRefusalExitName/dark/connect (0.13s)
+    --- PASS: TestToolRefusalExitName/dark/edit (0.12s)
+=== RUN   TestToolRefusalExitCommand
+=== RUN   TestToolRefusalExitCommand/light/connect
+=== RUN   TestToolRefusalExitCommand/light/edit
+=== RUN   TestToolRefusalExitCommand/dark/connect
+=== RUN   TestToolRefusalExitCommand/dark/edit
+--- PASS: TestToolRefusalExitCommand (0.53s)
+    --- PASS: TestToolRefusalExitCommand/light/connect (0.14s)
+    --- PASS: TestToolRefusalExitCommand/light/edit (0.13s)
+    --- PASS: TestToolRefusalExitCommand/dark/connect (0.14s)
+    --- PASS: TestToolRefusalExitCommand/dark/edit (0.12s)
+=== RUN   TestToolRefusalExitVersion
+=== RUN   TestToolRefusalExitVersion/light/connect
+=== RUN   TestToolRefusalExitVersion/light/edit
+=== RUN   TestToolRefusalExitVersion/dark/connect
+=== RUN   TestToolRefusalExitVersion/dark/edit
+--- PASS: TestToolRefusalExitVersion (0.51s)
+    --- PASS: TestToolRefusalExitVersion/light/connect (0.14s)
+    --- PASS: TestToolRefusalExitVersion/light/edit (0.12s)
+    --- PASS: TestToolRefusalExitVersion/dark/connect (0.13s)
+    --- PASS: TestToolRefusalExitVersion/dark/edit (0.12s)
+=== RUN   TestToolRefusalExitProgram
+=== RUN   TestToolRefusalExitProgram/light/connect
+=== RUN   TestToolRefusalExitProgram/light/edit
+=== RUN   TestToolRefusalExitProgram/dark/connect
+=== RUN   TestToolRefusalExitProgram/dark/edit
+--- PASS: TestToolRefusalExitProgram (0.49s)
+    --- PASS: TestToolRefusalExitProgram/light/connect (0.13s)
+    --- PASS: TestToolRefusalExitProgram/light/edit (0.12s)
+    --- PASS: TestToolRefusalExitProgram/dark/connect (0.13s)
+    --- PASS: TestToolRefusalExitProgram/dark/edit (0.12s)
+=== RUN   TestToolRefusalExitScript
+=== RUN   TestToolRefusalExitScript/light/connect
+=== RUN   TestToolRefusalExitScript/light/edit
+=== RUN   TestToolRefusalExitScript/dark/connect
+=== RUN   TestToolRefusalExitScript/dark/edit
+--- PASS: TestToolRefusalExitScript (0.46s)
+    --- PASS: TestToolRefusalExitScript/light/connect (0.12s)
+    --- PASS: TestToolRefusalExitScript/light/edit (0.12s)
+    --- PASS: TestToolRefusalExitScript/dark/connect (0.11s)
+    --- PASS: TestToolRefusalExitScript/dark/edit (0.12s)
+=== RUN   TestToolRefusalExitPlatform
+=== RUN   TestToolRefusalExitPlatform/light/connect
+=== RUN   TestToolRefusalExitPlatform/light/edit
+=== RUN   TestToolRefusalExitPlatform/dark/connect
+=== RUN   TestToolRefusalExitPlatform/dark/edit
+--- PASS: TestToolRefusalExitPlatform (0.47s)
+    --- PASS: TestToolRefusalExitPlatform/light/connect (0.12s)
+    --- PASS: TestToolRefusalExitPlatform/light/edit (0.11s)
+    --- PASS: TestToolRefusalExitPlatform/dark/connect (0.12s)
+    --- PASS: TestToolRefusalExitPlatform/dark/edit (0.11s)
+PASS
+ok  	floter/internal/settingsui	9.519s
+=== RUN   TestScriptExportCompletionEveryExit
+=== RUN   TestScriptExportCompletionEveryExit/cancel
+=== RUN   TestScriptExportCompletionEveryExit/picker-error
+2026/11/08 13:51:47 floter: could not pick a path for weather.py: portal unavailable
+=== RUN   TestScriptExportCompletionEveryExit/write-error
+2026/11/08 13:51:48 floter: could not write /tmp/TestScriptExportCompletionEveryExitwrite-error2003305843/001: open /tmp/TestScriptExportCompletionEveryExitwrite-error2003305843/001: is a directory
+=== RUN   TestScriptExportCompletionEveryExit/success
+--- PASS: TestScriptExportCompletionEveryExit (0.16s)
+    --- PASS: TestScriptExportCompletionEveryExit/cancel (0.05s)
+    --- PASS: TestScriptExportCompletionEveryExit/picker-error (0.04s)
+    --- PASS: TestScriptExportCompletionEveryExit/write-error (0.04s)
+    --- PASS: TestScriptExportCompletionEveryExit/success (0.04s)
+=== RUN   TestScriptExportPickerExplainsFailure
+=== RUN   TestScriptExportPickerExplainsFailure/light
+2026/11/08 13:51:48 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+=== RUN   TestScriptExportPickerExplainsFailure/dark
+2026/11/08 13:51:48 floter: could not pick a path for diagnose.py: file picker unavailable: restart the desktop portal
+--- PASS: TestScriptExportPickerExplainsFailure (0.61s)
+    --- PASS: TestScriptExportPickerExplainsFailure/light (0.31s)
+    --- PASS: TestScriptExportPickerExplainsFailure/dark (0.30s)
+=== RUN   TestScriptExportWriteExplainsFailure
+=== RUN   TestScriptExportWriteExplainsFailure/light
+2026/11/08 13:51:48 floter: could not write /tmp/TestScriptExportWriteExplainsFailurelight2172807180/001: open /tmp/TestScriptExportWriteExplainsFailurelight2172807180/001: is a directory
+=== RUN   TestScriptExportWriteExplainsFailure/dark
+2026/11/08 13:51:49 floter: could not write /tmp/TestScriptExportWriteExplainsFailuredark3788933325/001: open /tmp/TestScriptExportWriteExplainsFailuredark3788933325/001: is a directory
+--- PASS: TestScriptExportWriteExplainsFailure (0.68s)
+    --- PASS: TestScriptExportWriteExplainsFailure/light (0.36s)
+    --- PASS: TestScriptExportWriteExplainsFailure/dark (0.32s)
+=== RUN   TestScriptOlderSuccessKeepsNewerFailure
+2026/11/08 13:51:49 floter: could not pick a path for diagnose.py: newer picker failed
+--- PASS: TestScriptOlderSuccessKeepsNewerFailure (0.10s)
+PASS
+ok  	floter/internal/shell	1.620s

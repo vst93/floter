@@ -1,0 +1,29 @@
+=== RUN   TestToolExportWaitAndRetry
+=== RUN   TestToolExportWaitAndRetry/light
+    toolexportexit_test.go:46: waiting export dispatched 2 save dialogs
+    toolexportexit_test.go:56: new form bypassed export wait: 3
+    toolexportexit_test.go:69: export retry lost current snapshot: ["weather-script.py" "weather-script.py" "forecast-script.py" "forecast-script.py"] / ["print('sunny')\n" "print('sunny')\n" "print('new')\n" "print('new')\n"]
+=== RUN   TestToolExportWaitAndRetry/dark
+    toolexportexit_test.go:46: waiting export dispatched 2 save dialogs
+    toolexportexit_test.go:56: new form bypassed export wait: 3
+    toolexportexit_test.go:69: export retry lost current snapshot: ["weather-script.py" "weather-script.py" "forecast-script.py" "forecast-script.py"] / ["print('sunny')\n" "print('sunny')\n" "print('new')\n" "print('new')\n"]
+--- FAIL: TestToolExportWaitAndRetry (0.50s)
+    --- FAIL: TestToolExportWaitAndRetry/light (0.37s)
+    --- FAIL: TestToolExportWaitAndRetry/dark (0.13s)
+=== RUN   TestToolExportReturnsToScript
+=== RUN   TestToolExportReturnsToScript/light/editor
+    toolexportexit_test.go:105: export completion lost current keyboard exit: 脚本
+    toolexportexit_test.go:115: export return dropped keyboard correction: "print('sunny')\n"
+=== RUN   TestToolExportReturnsToScript/light/moved
+=== RUN   TestToolExportReturnsToScript/dark/editor
+    toolexportexit_test.go:105: export completion lost current keyboard exit: 脚本
+    toolexportexit_test.go:115: export return dropped keyboard correction: "print('sunny')\n"
+=== RUN   TestToolExportReturnsToScript/dark/moved
+--- FAIL: TestToolExportReturnsToScript (0.37s)
+    --- FAIL: TestToolExportReturnsToScript/light/editor (0.08s)
+    --- PASS: TestToolExportReturnsToScript/light/moved (0.10s)
+    --- FAIL: TestToolExportReturnsToScript/dark/editor (0.08s)
+    --- PASS: TestToolExportReturnsToScript/dark/moved (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.874s
+FAIL

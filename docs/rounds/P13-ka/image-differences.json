@@ -1,5 +1,55 @@
 [
   {
+    "name": "export-return-dark",
+    "changed_pixels": 34,
+    "bbox": [
+      83,
+      339,
+      85,
+      356
+    ]
+  },
+  {
+    "name": "export-return-light",
+    "changed_pixels": 34,
+    "bbox": [
+      83,
+      339,
+      85,
+      356
+    ]
+  },
+  {
+    "name": "export-return-moved-dark",
+    "changed_pixels": 0,
+    "bbox": null
+  },
+  {
+    "name": "export-return-moved-light",
+    "changed_pixels": 0,
+    "bbox": null
+  },
+  {
+    "name": "export-wait-dark",
+    "changed_pixels": 1854,
+    "bbox": [
+      83,
+      339,
+      193,
+      561
+    ]
+  },
+  {
+    "name": "export-wait-light",
+    "changed_pixels": 1850,
+    "bbox": [
+      83,
+      339,
+      193,
+      561
+    ]
+  },
+  {
     "name": "refusal-command-connect-dark",
     "changed_pixels": 457,
     "bbox": [

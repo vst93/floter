@@ -230,6 +230,10 @@ type Actions struct {
 	// word "script", and the language's extension); the host owns the dialog,
 	// the write, and the success toast. Nil hides the button.
 	ExportScript func(name, content string)
+	// ExportScriptAsync is the same operation with a completion signal. The
+	// host calls done once after success, failure or cancellation. Older
+	// synchronous embedders may keep using ExportScript.
+	ExportScriptAsync func(name, content string, done func())
 	// EditCustomTool rewrites a generated integration from the same form the
 	// connect flow uses (the id names it, so its identity is kept), and
 	// ScriptRuntime answers what this machine has for a script language: the
@@ -823,6 +827,10 @@ type App struct {
 	// current platform alone (R7-5).
 	toolPlatforms   map[string]bool
 	toolPermissions map[string]bool
+	// A native save dialog belongs to the shared export outlet, including
+	// when its originating form is folded or replaced. Only the UI thread
+	// consumes this completion channel.
+	toolExportDone <-chan struct{}
 	// toolParams is the declared inputs the form is editing, one per row.
 	toolParams []toolParam
 	// scriptRuntime is the script form's own probe state, one entry per
@@ -6167,14 +6175,42 @@ func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, comman
 // mounted it always but the write would have produced an empty file.
 func (a *App) exportScriptAction(c *ui.Context, copy i18n.Settings, command, script, language string) bool {
 	focus := a.contentFocus(c, "export")
-	if a.Actions.ExportScript == nil || strings.TrimSpace(script) == "" {
+	if a.toolExportDone != nil {
+		select {
+		case <-a.toolExportDone:
+			a.toolExportDone = nil
+		default:
+		}
+	}
+	if (a.Actions.ExportScript == nil && a.Actions.ExportScriptAsync == nil) || strings.TrimSpace(script) == "" {
 		focus.restore(c)
+		return true
+	}
+	if a.toolExportDone != nil {
+		a.disabledActionButton(c, copy.LocalToolExportScript)
 		return true
 	}
 	if a.rememberModeContent(c, true, a.actionButton(c, copy.LocalToolExportScript).Bind(&focus.button)).Clicked() {
 		before := a.toolCallbackState()
-		a.Actions.ExportScript(scriptExportName(a.toolEditing, command, language), script)
-		return a.toolCallbackState() == before
+		name := scriptExportName(a.toolEditing, command, language)
+		if a.Actions.ExportScriptAsync != nil {
+			done := make(chan struct{})
+			a.toolExportDone = done
+			invalidate := a.Actions.Invalidate
+			a.Actions.ExportScriptAsync(name, script, func() {
+				close(done)
+				if invalidate != nil {
+					invalidate()
+				}
+			})
+		} else {
+			a.Actions.ExportScript(name, script)
+		}
+		current := a.toolCallbackState() == before
+		if current {
+			focus.restore(c)
+		}
+		return current
 	}
 	return true
 }

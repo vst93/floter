@@ -47,3 +47,12 @@ M2 撤回两个目标，实红 `version refusal lost editable keyboard exit` / `
 8. **平台全清后没有键盘选择出口**：现象 → 提交后 Space 仍按提交按钮；改动 → 聚焦平台行第一个既有复选框；验证 → 四组 Space 补选平台后提交一次，不自动选择、不更改平台限制。
 
 M3 撤回脚本/平台目标后实红 `script refusal lost editable keyboard exit` / `platform refusal lost editable keyboard exit`；MD5 还原、touch 后累计 **30 PASS / exit0**，settingsui vet exit0。旧 V/B/S 0/0/0。
+
+第三批 41aab284 已推送，六类基本表单出口已全绿。中文 locale 开盘源码 overlay 的完整基线 **6101 PASS / 0 FAIL / exit0**。
+
+### 第四批：导出等待与编辑出口
+
+1. **导出等待重复打开保存窗口**：现象 → 连点导出派发两个保存对话框，换表单还能继续派发；改动 → 接通宿主完成通知，当前导出出口等待期间保留原几何并显示禁用面；验证 → 深浅两组连续点击只派发一次、换表单仍等待，完成后恰一次导出 forecast-script.py 与新脚本内容。
+2. **导出取消或失败后不能接着写脚本**：现象 → 焦点停在动作按钮，直接输入落空；改动 → 派发后把自己持有的焦点交回原脚本，晚完成只解锁、不夺回用户已移动的焦点；验证 → 深浅原编辑器和主动改焦点四组直接输入正确落地，真实宿主 saveFile 的取消/选择失败/写入失败/成功四支各完成一次且可重试，取消无通知。
+
+新旧定向回归 **146 PASS / 0 FAIL / exit0**。M4 撤回等待闸和返焦后实红 `waiting export dispatched 2 save dialogs` / `export completion lost current keyboard exit: 脚本` / `export return dropped keyboard correction`；MD5 还原、touch 后 **13 PASS / exit0**，settingsui/shell vet exit0。旧直接宿主导出的并发通知 B 测试保持通过。无新增动画、无几何变化；只复用禁用面，不新增 spinner。
