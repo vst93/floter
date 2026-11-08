@@ -5811,7 +5811,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.fixedRow(c, copy.LocalToolId, a.toolEditing)
 			}
 			a.row(c, copy.LocalToolName, "", func() {
-				a.extensionField(c, &name, customFieldMetrics).Bind(&a.contentFocus(c, "name").source).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+				outputFocusOutlet(c.Key("local-name-outlet"), func() {
+					a.extensionField(c, &name, customFieldMetrics).Bind(&a.contentFocus(c, "name").source).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+				})
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldName)
 			})
@@ -5847,8 +5849,10 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			} else {
 				a.row(c.Key("local-program"), copy.LocalToolProgram, copy.LocalToolProgramHint, func() {
 					pickerFocus := a.contentFocus(c, "choose")
-					a.rememberModeContent(c, false, a.extensionField(c, &program, customFieldMetrics).Bind(&a.contentFocus(c, "plan").source).Label(copy.LocalToolProgram).Width(240).Grow(1).
-						Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source))
+					outputFocusOutlet(c.Key("local-program-outlet"), func() {
+						a.rememberModeContent(c, false, a.extensionField(c, &program, customFieldMetrics).Bind(&a.contentFocus(c, "plan").source).Label(copy.LocalToolProgram).Width(240).Grow(1).
+							Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source))
+					})
 					if a.Actions.ChooseProgram != nil {
 						if a.rememberModeContent(c, false, a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button)).Clicked() {
 							before := a.toolCallbackState()

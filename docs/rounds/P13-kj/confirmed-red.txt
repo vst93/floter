@@ -1,0 +1,101 @@
+=== RUN   TestKJProbe
+=== RUN   TestKJProbe/name
+=== RUN   TestKJProbe/name/light
+    toolfieldedge_test.go:81: name rect={X:449.8 Y:51.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=243.7
+    toolfieldedge_test.go:90: name top active edge missing at [569 51]: blue-red=30
+    toolfieldedge_test.go:94: name active edge intersects 16px fade: rect={X:449.8 Y:51.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/name/dark
+    toolfieldedge_test.go:81: name rect={X:449.8 Y:51.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=243.7
+    toolfieldedge_test.go:90: name top active edge missing at [569 51]: blue-red=21
+    toolfieldedge_test.go:94: name active edge intersects 16px fade: rect={X:449.8 Y:51.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/program
+=== RUN   TestKJProbe/program/light
+    toolfieldedge_test.go:81: program rect={X:386.8 Y:51.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=350.69998
+    toolfieldedge_test.go:90: program top active edge missing at [506 51]: blue-red=30
+    toolfieldedge_test.go:94: program active edge intersects 16px fade: rect={X:386.8 Y:51.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/program/dark
+    toolfieldedge_test.go:81: program rect={X:386.8 Y:51.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=350.69998
+    toolfieldedge_test.go:90: program top active edge missing at [506 51]: blue-red=21
+    toolfieldedge_test.go:94: program active edge intersects 16px fade: rect={X:386.8 Y:51.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/args
+=== RUN   TestKJProbe/args/light
+    toolfieldedge_test.go:81: args rect={X:469.8 Y:51.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=460.69998
+    toolfieldedge_test.go:90: args top active edge missing at [579 51]: blue-red=30
+    toolfieldedge_test.go:94: args active edge intersects 16px fade: rect={X:469.8 Y:51.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/args/dark
+    toolfieldedge_test.go:81: args rect={X:469.8 Y:51.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=460.69998
+    toolfieldedge_test.go:90: args top active edge missing at [579 51]: blue-red=21
+    toolfieldedge_test.go:94: args active edge intersects 16px fade: rect={X:469.8 Y:51.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/versionargs
+=== RUN   TestKJProbe/versionargs/light
+    toolfieldedge_test.go:81: versionargs rect={X:529.8 Y:51.399963 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=515.7
+    toolfieldedge_test.go:90: versionargs top active edge missing at [609 51]: blue-red=30
+    toolfieldedge_test.go:94: versionargs active edge intersects 16px fade: rect={X:529.8 Y:51.399963 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/versionargs/dark
+    toolfieldedge_test.go:81: versionargs rect={X:529.8 Y:51.399963 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=515.7
+    toolfieldedge_test.go:90: versionargs top active edge missing at [609 51]: blue-red=21
+    toolfieldedge_test.go:94: versionargs active edge intersects 16px fade: rect={X:529.8 Y:51.399963 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/description
+=== RUN   TestKJProbe/description/light
+    toolfieldedge_test.go:81: description rect={X:449.8 Y:51.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=622.7
+    toolfieldedge_test.go:90: description top active edge missing at [569 51]: blue-red=30
+    toolfieldedge_test.go:94: description active edge intersects 16px fade: rect={X:449.8 Y:51.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/description/dark
+    toolfieldedge_test.go:81: description rect={X:449.8 Y:51.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=622.7
+    toolfieldedge_test.go:90: description top active edge missing at [569 51]: blue-red=21
+    toolfieldedge_test.go:94: description active edge intersects 16px fade: rect={X:449.8 Y:51.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/mode
+=== RUN   TestKJProbe/mode/light
+    toolfieldedge_test.go:81: mode rect={X:600.8 Y:51.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=295.69998
+    toolfieldedge_test.go:90: mode top active edge missing at [622 49]: blue-red=1
+    toolfieldedge_test.go:94: mode active edge intersects 16px fade: rect={X:600.8 Y:51.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/mode/dark
+    toolfieldedge_test.go:81: mode rect={X:600.8 Y:51.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=295.69998
+    toolfieldedge_test.go:90: mode top active edge missing at [622 49]: blue-red=2
+    toolfieldedge_test.go:94: mode active edge intersects 16px fade: rect={X:600.8 Y:51.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/choose
+=== RUN   TestKJProbe/choose/light
+    toolfieldedge_test.go:81: choose rect={X:634.8 Y:51.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=350.69998
+    toolfieldedge_test.go:90: choose top active edge missing at [662 49]: blue-red=1
+    toolfieldedge_test.go:94: choose active edge intersects 16px fade: rect={X:634.8 Y:51.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/choose/dark
+    toolfieldedge_test.go:81: choose rect={X:634.8 Y:51.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=350.69998
+    toolfieldedge_test.go:90: choose top active edge missing at [662 49]: blue-red=2
+    toolfieldedge_test.go:94: choose active edge intersects 16px fade: rect={X:634.8 Y:51.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/language
+=== RUN   TestKJProbe/language/light
+    toolfieldedge_test.go:81: language rect={X:469.8 Y:51.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=351.69998
+    toolfieldedge_test.go:90: language top active edge missing at [579 49]: blue-red=1
+    toolfieldedge_test.go:94: language active edge intersects 16px fade: rect={X:469.8 Y:51.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestKJProbe/language/dark
+    toolfieldedge_test.go:81: language rect={X:469.8 Y:51.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=351.69998
+    toolfieldedge_test.go:90: language top active edge missing at [579 49]: blue-red=2
+    toolfieldedge_test.go:94: language active edge intersects 16px fade: rect={X:469.8 Y:51.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestKJProbe (3.20s)
+    --- FAIL: TestKJProbe/name (0.63s)
+        --- FAIL: TestKJProbe/name/light (0.50s)
+        --- FAIL: TestKJProbe/name/dark (0.13s)
+    --- FAIL: TestKJProbe/program (0.30s)
+        --- FAIL: TestKJProbe/program/light (0.16s)
+        --- FAIL: TestKJProbe/program/dark (0.14s)
+    --- FAIL: TestKJProbe/args (0.37s)
+        --- FAIL: TestKJProbe/args/light (0.20s)
+        --- FAIL: TestKJProbe/args/dark (0.17s)
+    --- FAIL: TestKJProbe/versionargs (0.38s)
+        --- FAIL: TestKJProbe/versionargs/light (0.18s)
+        --- FAIL: TestKJProbe/versionargs/dark (0.20s)
+    --- FAIL: TestKJProbe/description (0.43s)
+        --- FAIL: TestKJProbe/description/light (0.22s)
+        --- FAIL: TestKJProbe/description/dark (0.21s)
+    --- FAIL: TestKJProbe/mode (0.34s)
+        --- FAIL: TestKJProbe/mode/light (0.17s)
+        --- FAIL: TestKJProbe/mode/dark (0.17s)
+    --- FAIL: TestKJProbe/choose (0.35s)
+        --- FAIL: TestKJProbe/choose/light (0.16s)
+        --- FAIL: TestKJProbe/choose/dark (0.18s)
+    --- FAIL: TestKJProbe/language (0.41s)
+        --- FAIL: TestKJProbe/language/light (0.22s)
+        --- FAIL: TestKJProbe/language/dark (0.19s)
+FAIL
+FAIL	floter/internal/settingsui	3.215s
+FAIL
