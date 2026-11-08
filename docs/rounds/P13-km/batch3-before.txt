@@ -1,0 +1,31 @@
+=== RUN   TestRunFieldEdgeSelect
+=== RUN   TestRunFieldEdgeSelect/light
+    runfieldedge_test.go:99: select top target={X:577.8 Y:51.399998 W:52 H:29.999996} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:103: select top top active edge missing: blue-red=1
+    runfieldedge_test.go:107: select active edge intersects page fade: {X:577.8 Y:51.399998 W:52 H:29.999996}
+    runfieldedge_test.go:99: select bottom target={X:577.8 Y:489.99994 W:52 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:103: select bottom bottom active edge missing: blue-red=0
+    runfieldedge_test.go:107: select active edge intersects page fade: {X:577.8 Y:489.99994 W:52 H:30}
+=== RUN   TestRunFieldEdgeSelect/dark
+    runfieldedge_test.go:99: select top target={X:577.8 Y:51.399998 W:52 H:29.999996} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:103: select top top active edge missing: blue-red=2
+    runfieldedge_test.go:107: select active edge intersects page fade: {X:577.8 Y:51.399998 W:52 H:29.999996}
+    runfieldedge_test.go:99: select bottom target={X:577.8 Y:489.99994 W:52 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:103: select bottom bottom active edge missing: blue-red=0
+    runfieldedge_test.go:107: select active edge intersects page fade: {X:577.8 Y:489.99994 W:52 H:30}
+--- FAIL: TestRunFieldEdgeSelect (0.54s)
+    --- FAIL: TestRunFieldEdgeSelect/light (0.37s)
+    --- FAIL: TestRunFieldEdgeSelect/dark (0.17s)
+=== RUN   TestConfigMultiPageEdge
+=== RUN   TestConfigMultiPageEdge/light
+    runfieldedge_test.go:188: multiselect top enters page fade: inner={X:334.8 Y:48.600067 W:351 H:56} page={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:188: multiselect bottom enters page fade: inner={X:334.8 Y:502.80002 W:351 H:56} page={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestConfigMultiPageEdge/dark
+    runfieldedge_test.go:188: multiselect top enters page fade: inner={X:334.8 Y:48.600067 W:351 H:56} page={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    runfieldedge_test.go:188: multiselect bottom enters page fade: inner={X:334.8 Y:502.80002 W:351 H:56} page={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestConfigMultiPageEdge (0.30s)
+    --- FAIL: TestConfigMultiPageEdge/light (0.16s)
+    --- FAIL: TestConfigMultiPageEdge/dark (0.14s)
+FAIL
+FAIL	floter/internal/settingsui	0.849s
+FAIL

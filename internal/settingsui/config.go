@@ -719,14 +719,9 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 		// Grid percentages resolve against the whole grid in mygo. Give the
 		// control a cell-sized parent so FillWidth excludes the label and gap.
 		ui.Column(c).ColumnStart(2).MinWidth(0).Children(func() {
-			// Single controls reveal their keyboard ink beyond the page fade.
-			// Match configField's normalized/default type handling; the nested
-			// multiselect keeps its own viewport and focus reveal instead.
-			if strings.ToLower(field.Type) != "multiselect" {
-				outputFocusOutlet(c.Key("config-control-outlet"), func() { control() })
-			} else {
-				control()
-			}
+			// Reveal the field beyond the page fade on entry. A list keeps its
+			// separate inner scroll position while its whole box becomes visible.
+			outputFocusOutlet(c.Key("config-control-outlet"), func() { control() })
 		})
 		if field.Description != "" {
 			ui.Text(c, field.Description).FontSize(tokens.Caption).FontWeight(500).
