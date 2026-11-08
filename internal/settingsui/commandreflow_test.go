@@ -32,6 +32,9 @@ func checkCommandReflow(t *testing.T, control, source string) {
 			original := append([]Command(nil), in.Commands...)
 			freshness := extensions.Freshness{}
 			hasFreshness := source == "freshness-source"
+			if source == "freshness-source" || source == "config-presence" || source == "config-schema" {
+				in.Description = strings.Repeat("查询城市天气并返回温度与降雨信息。\n", 8)
+			}
 			a.Actions.Freshness = func(string) (extensions.Freshness, bool) { return freshness, hasFreshness }
 			if source == "config-schema" {
 				in.Config = []ConfigField{{Key: "city", Label: "城市", Type: "text"}}
@@ -57,6 +60,14 @@ func checkCommandReflow(t *testing.T, control, source string) {
 			tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) { c.Resolve(a.Body.Handle).Label("feedback-viewport") })
 			a.Now = tt.Now
 			optionExitFocus(t, tt, label)
+			if source == "freshness-source" && control == "switch" {
+				// A manually scrolled, still visible switch can sit at the lower
+				// safe edge before an asynchronous freshness update arrives.
+				r, viewport := mustFind(t, tt, label), mustFind(t, tt, "feedback-viewport")
+				a.Body.Y += r.Y + r.H + 19 - (viewport.Y + viewport.H)
+				tt.Frame()
+				checkFeedbackVisible(t, tt, label)
+			}
 			if control == "alias" {
 				tt.Key(0, ui.KeyEnd)
 				tt.Type("-next")
@@ -221,6 +232,13 @@ func checkCommandReflow(t *testing.T, control, source string) {
 
 func TestCommandAliasFreshnessReflow(t *testing.T)  { checkCommandReflow(t, "alias", "freshness") }
 func TestCommandSwitchFreshnessReflow(t *testing.T) { checkCommandReflow(t, "switch", "freshness") }
+
+func TestCommandAliasFreshnessSourceReflow(t *testing.T) {
+	checkCommandReflow(t, "alias", "freshness-source")
+}
+func TestCommandSwitchFreshnessSourceReflow(t *testing.T) {
+	checkCommandReflow(t, "switch", "freshness-source")
+}
 
 func TestCommandAliasCatalogReflow(t *testing.T)  { checkCommandReflow(t, "alias", "catalog") }
 func TestCommandAliasOrderReflow(t *testing.T)    { checkCommandReflow(t, "alias", "order") }
