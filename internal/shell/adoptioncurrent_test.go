@@ -23,9 +23,7 @@ func adoptionFixture(t *testing.T, dark bool) *diagnosisFixture {
 	f.manifest.Runtime.ExecutableNames = []string{program}
 	f.write(t)
 	diagnosisWrite(t, f.paths.RepositoryFile, map[string]any{"schemaVersion": 1, "extensions": map[string]extensions.Entry{}})
-	t.Cleanup(extensions.StubToolCandidates(func(...string) []extensions.ExecutableCandidate {
-		return []extensions.ExecutableCandidate{{Name: "fixture", Path: program}}
-	}))
+	t.Cleanup(extensions.StubToolLookup(func(...string) (string, bool) { return program, true }))
 	f.a.RefreshIntegrations(context.Background())
 	f.a.Settings.Recommended = nil
 	clearNotices(f.a)

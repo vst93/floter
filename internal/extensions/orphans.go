@@ -23,6 +23,9 @@ var ErrNoOrphan = errors.New("extensions: no such package directory")
 // deleted behind the repository's back.
 var ErrNotOrphan = errors.New("extensions: the package is installed, not an orphan")
 
+// ErrAdoptChanged retires an answer to a declaration the package no longer has.
+var ErrAdoptChanged = errors.New("extensions: the orphan declaration changed during review")
+
 // PrepareAdopt stages an orphan package directory for adoption. The returned
 // Prepared is committed exactly as an install's is, so a package that declares
 // permissions is still gated on the user's approval.
@@ -43,6 +46,7 @@ func PrepareAdopt(paths Paths, id string) (Prepared, error) {
 	if prepared.Manifest.ID != id {
 		return Prepared{}, fmt.Errorf("extensions: the package in %s declares %s", id, prepared.Manifest.ID)
 	}
+	prepared.adopting = true
 	return prepared, nil
 }
 
