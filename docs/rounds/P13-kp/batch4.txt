@@ -1,0 +1,326 @@
+=== RUN   TestPluginFieldEdgeRadio
+=== RUN   TestPluginFieldEdgeRadio/light
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:16.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:213.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=198.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+=== RUN   TestPluginFieldEdgeRadio/dark
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:16.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:213.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=198.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+--- PASS: TestPluginFieldEdgeRadio (0.23s)
+    --- PASS: TestPluginFieldEdgeRadio/light (0.18s)
+    --- PASS: TestPluginFieldEdgeRadio/dark (0.06s)
+=== RUN   TestPluginFieldEdgeCheckboxes
+=== RUN   TestPluginFieldEdgeCheckboxes/light
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:16.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:227.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=184.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+=== RUN   TestPluginFieldEdgeCheckboxes/dark
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:16.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:227.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=184.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+--- PASS: TestPluginFieldEdgeCheckboxes (0.09s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/light (0.05s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/dark (0.04s)
+=== RUN   TestPluginFieldEdgeText
+=== RUN   TestPluginFieldEdgeText/light
+    pluginfieldedge_test.go:129: text top target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: text bottom target={X:36.2 Y:219.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=192.09999
+    pluginfieldedge_test.go:187: range=609.79987 calls=1
+=== RUN   TestPluginFieldEdgeText/dark
+    pluginfieldedge_test.go:129: text top target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=396.9
+    pluginfieldedge_test.go:129: text bottom target={X:36.2 Y:219.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=192.09999
+    pluginfieldedge_test.go:187: range=609.79987 calls=1
+--- PASS: TestPluginFieldEdgeText (0.09s)
+    --- PASS: TestPluginFieldEdgeText/light (0.04s)
+    --- PASS: TestPluginFieldEdgeText/dark (0.05s)
+=== RUN   TestPluginFieldEdgeNumber
+=== RUN   TestPluginFieldEdgeNumber/light
+    pluginfieldedge_test.go:129: number top target={X:478 Y:15.000007 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=373
+    pluginfieldedge_test.go:129: number bottom target={X:478 Y:219.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=168.2
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeNumber/dark
+    pluginfieldedge_test.go:129: number top target={X:478 Y:15.000007 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=373
+    pluginfieldedge_test.go:129: number bottom target={X:478 Y:219.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=168.2
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- PASS: TestPluginFieldEdgeNumber (0.09s)
+    --- PASS: TestPluginFieldEdgeNumber/light (0.04s)
+    --- PASS: TestPluginFieldEdgeNumber/dark (0.04s)
+=== RUN   TestPluginFieldEdgeToggle
+=== RUN   TestPluginFieldEdgeToggle/light
+    pluginfieldedge_test.go:129: toggle top target={X:500.6 Y:16 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=375.6
+    pluginfieldedge_test.go:129: toggle bottom target={X:500.6 Y:226 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=165.6
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeToggle/dark
+    pluginfieldedge_test.go:129: toggle top target={X:500.6 Y:16 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=375.6
+    pluginfieldedge_test.go:129: toggle bottom target={X:500.6 Y:226 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=165.6
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- PASS: TestPluginFieldEdgeToggle (0.09s)
+    --- PASS: TestPluginFieldEdgeToggle/light (0.04s)
+    --- PASS: TestPluginFieldEdgeToggle/dark (0.04s)
+=== RUN   TestPluginFieldEdgeSelect
+=== RUN   TestPluginFieldEdgeSelect/light
+    pluginfieldedge_test.go:129: select top target={X:313 Y:14.999994 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=371.7
+    pluginfieldedge_test.go:129: select bottom target={X:313 Y:215.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=171.50002
+    pluginfieldedge_test.go:187: range=589.1999 calls=1
+=== RUN   TestPluginFieldEdgeSelect/dark
+    pluginfieldedge_test.go:129: select top target={X:313 Y:14.999994 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=371.7
+    pluginfieldedge_test.go:129: select bottom target={X:313 Y:215.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=171.50002
+    pluginfieldedge_test.go:187: range=589.1999 calls=1
+--- PASS: TestPluginFieldEdgeSelect (0.11s)
+    --- PASS: TestPluginFieldEdgeSelect/light (0.05s)
+    --- PASS: TestPluginFieldEdgeSelect/dark (0.05s)
+=== RUN   TestPluginFieldEdgeSlider
+=== RUN   TestPluginFieldEdgeSlider/light
+    pluginfieldedge_test.go:129: slider top target={X:28 Y:16.000011 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: slider bottom target={X:28 Y:226.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=185.9
+    pluginfieldedge_test.go:187: range=602.59985 calls=1
+=== RUN   TestPluginFieldEdgeSlider/dark
+    pluginfieldedge_test.go:129: slider top target={X:28 Y:16.000011 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: slider bottom target={X:28 Y:226.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=185.9
+    pluginfieldedge_test.go:187: range=602.59985 calls=1
+--- PASS: TestPluginFieldEdgeSlider (0.09s)
+    --- PASS: TestPluginFieldEdgeSlider/light (0.05s)
+    --- PASS: TestPluginFieldEdgeSlider/dark (0.04s)
+=== RUN   TestPluginFieldEdgeAction
+=== RUN   TestPluginFieldEdgeAction/light
+    pluginfieldedge_test.go:129: action top target={X:473 Y:15.000007 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=373
+    pluginfieldedge_test.go:129: action bottom target={X:473 Y:219.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=168.2
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeAction/dark
+    pluginfieldedge_test.go:129: action top target={X:473 Y:15.000007 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=373
+    pluginfieldedge_test.go:129: action bottom target={X:473 Y:219.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:260} scroll=168.2
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- PASS: TestPluginFieldEdgeAction (0.09s)
+    --- PASS: TestPluginFieldEdgeAction/light (0.05s)
+    --- PASS: TestPluginFieldEdgeAction/dark (0.04s)
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.03s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.02s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.01s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.02s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.01s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.03s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginRefreshOutletRadio
+=== RUN   TestPluginRefreshOutletRadio/light
+    pluginrefreshoutlet_test.go:118: radio failure target={X:28 Y:213.40002 W:504 H:30.6} scroll=224.29999
+    pluginrefreshoutlet_test.go:125: radio heading target={X:28 Y:213.40004 W:504 H:30.6} scroll=257.69998
+    pluginrefreshoutlet_test.go:133: radio recovery target={X:28 Y:16.000011 W:504 H:30.6} scroll=429.3
+=== RUN   TestPluginRefreshOutletRadio/dark
+    pluginrefreshoutlet_test.go:118: radio failure target={X:28 Y:213.40002 W:504 H:30.6} scroll=224.29999
+    pluginrefreshoutlet_test.go:125: radio heading target={X:28 Y:213.40004 W:504 H:30.6} scroll=257.69998
+    pluginrefreshoutlet_test.go:133: radio recovery target={X:28 Y:16.000011 W:504 H:30.6} scroll=429.3
+--- PASS: TestPluginRefreshOutletRadio (0.07s)
+    --- PASS: TestPluginRefreshOutletRadio/light (0.04s)
+    --- PASS: TestPluginRefreshOutletRadio/dark (0.04s)
+=== RUN   TestPluginRefreshOutletCheckboxes
+=== RUN   TestPluginRefreshOutletCheckboxes/light
+    pluginrefreshoutlet_test.go:118: checkboxes failure target={X:28 Y:227.00003 W:504 H:17} scroll=210.69998
+    pluginrefreshoutlet_test.go:125: checkboxes heading target={X:28 Y:227.00005 W:504 H:17} scroll=244.09998
+    pluginrefreshoutlet_test.go:133: checkboxes recovery target={X:28 Y:16.000011 W:504 H:17} scroll=429.3
+=== RUN   TestPluginRefreshOutletCheckboxes/dark
+    pluginrefreshoutlet_test.go:118: checkboxes failure target={X:28 Y:227.00003 W:504 H:17} scroll=210.69998
+    pluginrefreshoutlet_test.go:125: checkboxes heading target={X:28 Y:227.00005 W:504 H:17} scroll=244.09998
+    pluginrefreshoutlet_test.go:133: checkboxes recovery target={X:28 Y:16.000011 W:504 H:17} scroll=429.3
+--- PASS: TestPluginRefreshOutletCheckboxes (0.07s)
+    --- PASS: TestPluginRefreshOutletCheckboxes/light (0.04s)
+    --- PASS: TestPluginRefreshOutletCheckboxes/dark (0.03s)
+=== RUN   TestPluginRefreshOutletText
+=== RUN   TestPluginRefreshOutletText/light
+    pluginrefreshoutlet_test.go:118: text failure target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=217.89998
+    pluginrefreshoutlet_test.go:125: text heading target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=251.29997
+    pluginrefreshoutlet_test.go:133: text recovery target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} scroll=430.3
+=== RUN   TestPluginRefreshOutletText/dark
+    pluginrefreshoutlet_test.go:118: text failure target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=217.89998
+    pluginrefreshoutlet_test.go:125: text heading target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=251.29997
+    pluginrefreshoutlet_test.go:133: text recovery target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} scroll=430.3
+--- PASS: TestPluginRefreshOutletText (0.07s)
+    --- PASS: TestPluginRefreshOutletText/light (0.03s)
+    --- PASS: TestPluginRefreshOutletText/dark (0.03s)
+=== RUN   TestPluginRefreshOutletNumber
+=== RUN   TestPluginRefreshOutletNumber/light
+    pluginrefreshoutlet_test.go:118: number failure target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=193.99998
+    pluginrefreshoutlet_test.go:125: number heading target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=227.39998
+    pluginrefreshoutlet_test.go:133: number recovery target={X:478 Y:15.000007 W:46.8 H:25.199999} scroll=406.4
+=== RUN   TestPluginRefreshOutletNumber/dark
+    pluginrefreshoutlet_test.go:118: number failure target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=193.99998
+    pluginrefreshoutlet_test.go:125: number heading target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=227.39998
+    pluginrefreshoutlet_test.go:133: number recovery target={X:478 Y:15.000007 W:46.8 H:25.199999} scroll=406.4
+--- PASS: TestPluginRefreshOutletNumber (0.07s)
+    --- PASS: TestPluginRefreshOutletNumber/light (0.03s)
+    --- PASS: TestPluginRefreshOutletNumber/dark (0.03s)
+=== RUN   TestPluginRefreshOutletToggle
+=== RUN   TestPluginRefreshOutletToggle/light
+    pluginrefreshoutlet_test.go:118: toggle failure target={X:500.6 Y:226.00002 W:32.399998 H:18} scroll=191.4
+    pluginrefreshoutlet_test.go:125: toggle heading target={X:500.6 Y:226.00003 W:32.399998 H:18} scroll=224.79999
+    pluginrefreshoutlet_test.go:133: toggle recovery target={X:500.6 Y:16 W:32.399998 H:18} scroll=409
+=== RUN   TestPluginRefreshOutletToggle/dark
+    pluginrefreshoutlet_test.go:118: toggle failure target={X:500.6 Y:226.00002 W:32.399998 H:18} scroll=191.4
+    pluginrefreshoutlet_test.go:125: toggle heading target={X:500.6 Y:226.00003 W:32.399998 H:18} scroll=224.79999
+    pluginrefreshoutlet_test.go:133: toggle recovery target={X:500.6 Y:16 W:32.399998 H:18} scroll=409
+--- PASS: TestPluginRefreshOutletToggle (0.06s)
+    --- PASS: TestPluginRefreshOutletToggle/light (0.03s)
+    --- PASS: TestPluginRefreshOutletToggle/dark (0.03s)
+=== RUN   TestPluginRefreshOutletSelect
+=== RUN   TestPluginRefreshOutletSelect/light
+    pluginrefreshoutlet_test.go:118: select failure target={X:313 Y:215.20001 W:220 H:29.8} scroll=197.3
+    pluginrefreshoutlet_test.go:125: select heading target={X:313 Y:215.20001 W:220 H:29.8} scroll=230.7
+    pluginrefreshoutlet_test.go:133: select recovery target={X:313 Y:14.999994 W:220 H:29.8} scroll=405.1
+=== RUN   TestPluginRefreshOutletSelect/dark
+    pluginrefreshoutlet_test.go:118: select failure target={X:313 Y:215.20001 W:220 H:29.8} scroll=197.3
+    pluginrefreshoutlet_test.go:125: select heading target={X:313 Y:215.20001 W:220 H:29.8} scroll=230.7
+    pluginrefreshoutlet_test.go:133: select recovery target={X:313 Y:14.999994 W:220 H:29.8} scroll=405.1
+--- PASS: TestPluginRefreshOutletSelect (0.07s)
+    --- PASS: TestPluginRefreshOutletSelect/light (0.04s)
+    --- PASS: TestPluginRefreshOutletSelect/dark (0.03s)
+=== RUN   TestPluginRefreshOutletSlider
+=== RUN   TestPluginRefreshOutletSlider/light
+    pluginrefreshoutlet_test.go:118: slider failure target={X:28 Y:226.00003 W:451.8 H:18} scroll=211.69998
+    pluginrefreshoutlet_test.go:125: slider heading target={X:28 Y:226.00005 W:451.8 H:18} scroll=245.09998
+    pluginrefreshoutlet_test.go:133: slider recovery target={X:28 Y:16.000011 W:451.8 H:18} scroll=429.3
+=== RUN   TestPluginRefreshOutletSlider/dark
+    pluginrefreshoutlet_test.go:118: slider failure target={X:28 Y:226.00003 W:451.8 H:18} scroll=211.69998
+    pluginrefreshoutlet_test.go:125: slider heading target={X:28 Y:226.00005 W:451.8 H:18} scroll=245.09998
+    pluginrefreshoutlet_test.go:133: slider recovery target={X:28 Y:16.000011 W:451.8 H:18} scroll=429.3
+--- PASS: TestPluginRefreshOutletSlider (0.05s)
+    --- PASS: TestPluginRefreshOutletSlider/light (0.03s)
+    --- PASS: TestPluginRefreshOutletSlider/dark (0.03s)
+=== RUN   TestPluginRefreshOutletAction
+=== RUN   TestPluginRefreshOutletAction/light
+    pluginrefreshoutlet_test.go:118: action failure target={X:473 Y:219.80003 W:60 H:25.199999} scroll=193.99998
+    pluginrefreshoutlet_test.go:125: action heading target={X:473 Y:219.80003 W:60 H:25.199999} scroll=227.39998
+    pluginrefreshoutlet_test.go:133: action recovery target={X:473 Y:15.000007 W:60 H:25.199999} scroll=406.4
+=== RUN   TestPluginRefreshOutletAction/dark
+    pluginrefreshoutlet_test.go:118: action failure target={X:473 Y:219.80003 W:60 H:25.199999} scroll=193.99998
+    pluginrefreshoutlet_test.go:125: action heading target={X:473 Y:219.80003 W:60 H:25.199999} scroll=227.39998
+    pluginrefreshoutlet_test.go:133: action recovery target={X:473 Y:15.000007 W:60 H:25.199999} scroll=406.4
+--- PASS: TestPluginRefreshOutletAction (0.07s)
+    --- PASS: TestPluginRefreshOutletAction/light (0.03s)
+    --- PASS: TestPluginRefreshOutletAction/dark (0.03s)
+=== RUN   TestPluginViewportToggle
+=== RUN   TestPluginViewportToggle/light
+    pluginviewport_test.go:119: toggle size=[560 220] target={X:500.6 Y:186 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=205.6
+    pluginviewport_test.go:119: toggle size=[320 180] target={X:260.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=245.6
+    pluginviewport_test.go:119: toggle size=[560 400] target={X:500.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=245.6
+=== RUN   TestPluginViewportToggle/dark
+    pluginviewport_test.go:119: toggle size=[560 220] target={X:500.6 Y:186 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=205.6
+    pluginviewport_test.go:119: toggle size=[320 180] target={X:260.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=245.6
+    pluginviewport_test.go:119: toggle size=[560 400] target={X:500.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=245.6
+--- PASS: TestPluginViewportToggle (0.20s)
+    --- PASS: TestPluginViewportToggle/light (0.10s)
+    --- PASS: TestPluginViewportToggle/dark (0.10s)
+=== RUN   TestPluginViewportSelect
+=== RUN   TestPluginViewportSelect/light
+    pluginviewport_test.go:119: select size=[560 220] target={X:313 Y:175.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:220} scroll=211.50002
+    pluginviewport_test.go:119: select size=[320 180] target={X:72.99999 Y:135.2 W:220 H:29.8} viewport={X:0 Y:0 W:320 H:180} scroll=254.60002
+    pluginviewport_test.go:119: select size=[560 400] target={X:313 Y:132.09999 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:400} scroll=254.60002
+=== RUN   TestPluginViewportSelect/dark
+    pluginviewport_test.go:119: select size=[560 220] target={X:313 Y:175.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:220} scroll=211.50002
+    pluginviewport_test.go:119: select size=[320 180] target={X:72.99999 Y:135.2 W:220 H:29.8} viewport={X:0 Y:0 W:320 H:180} scroll=254.60002
+    pluginviewport_test.go:119: select size=[560 400] target={X:313 Y:132.09999 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:400} scroll=254.60002
+--- PASS: TestPluginViewportSelect (0.23s)
+    --- PASS: TestPluginViewportSelect/light (0.11s)
+    --- PASS: TestPluginViewportSelect/dark (0.12s)
+=== RUN   TestPluginViewportSlider
+=== RUN   TestPluginViewportSlider/light
+    pluginviewport_test.go:119: slider size=[560 220] target={X:28 Y:186.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=225.9
+    pluginviewport_test.go:119: slider size=[320 180] target={X:28 Y:146.00002 W:211.8 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=265.9
+    pluginviewport_test.go:119: slider size=[560 400] target={X:28 Y:146.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=265.9
+=== RUN   TestPluginViewportSlider/dark
+    pluginviewport_test.go:119: slider size=[560 220] target={X:28 Y:186.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=225.9
+    pluginviewport_test.go:119: slider size=[320 180] target={X:28 Y:146.00002 W:211.8 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=265.9
+    pluginviewport_test.go:119: slider size=[560 400] target={X:28 Y:146.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=265.9
+--- PASS: TestPluginViewportSlider (0.19s)
+    --- PASS: TestPluginViewportSlider/light (0.10s)
+    --- PASS: TestPluginViewportSlider/dark (0.09s)
+=== RUN   TestPluginViewportAction
+=== RUN   TestPluginViewportAction/light
+    pluginviewport_test.go:119: action size=[560 220] target={X:473 Y:179.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:119: action size=[320 180] target={X:233 Y:139.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:119: action size=[560 400] target={X:473 Y:139.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+=== RUN   TestPluginViewportAction/dark
+    pluginviewport_test.go:119: action size=[560 220] target={X:473 Y:179.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:119: action size=[320 180] target={X:233 Y:139.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:119: action size=[560 400] target={X:473 Y:139.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+--- PASS: TestPluginViewportAction (0.19s)
+    --- PASS: TestPluginViewportAction/light (0.10s)
+    --- PASS: TestPluginViewportAction/dark (0.09s)
+=== RUN   TestPluginViewportRadio
+=== RUN   TestPluginViewportRadio/light
+    pluginviewport_test.go:119: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:119: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:119: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+=== RUN   TestPluginViewportRadio/dark
+    pluginviewport_test.go:119: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:119: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:119: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+--- PASS: TestPluginViewportRadio (0.21s)
+    --- PASS: TestPluginViewportRadio/light (0.10s)
+    --- PASS: TestPluginViewportRadio/dark (0.10s)
+=== RUN   TestPluginViewportCheckboxes
+=== RUN   TestPluginViewportCheckboxes/light
+    pluginviewport_test.go:119: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:119: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:119: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+=== RUN   TestPluginViewportCheckboxes/dark
+    pluginviewport_test.go:119: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:119: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:119: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+--- PASS: TestPluginViewportCheckboxes (0.18s)
+    --- PASS: TestPluginViewportCheckboxes/light (0.09s)
+    --- PASS: TestPluginViewportCheckboxes/dark (0.09s)
+=== RUN   TestPluginViewportText
+=== RUN   TestPluginViewportText/light
+    pluginviewport_test.go:119: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:119: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:119: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+=== RUN   TestPluginViewportText/dark
+    pluginviewport_test.go:119: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:119: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:119: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+--- PASS: TestPluginViewportText (0.18s)
+    --- PASS: TestPluginViewportText/light (0.09s)
+    --- PASS: TestPluginViewportText/dark (0.09s)
+=== RUN   TestPluginViewportNumber
+=== RUN   TestPluginViewportNumber/light
+    pluginviewport_test.go:119: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:119: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:119: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+=== RUN   TestPluginViewportNumber/dark
+    pluginviewport_test.go:119: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:119: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:119: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+--- PASS: TestPluginViewportNumber (0.18s)
+    --- PASS: TestPluginViewportNumber/light (0.09s)
+    --- PASS: TestPluginViewportNumber/dark (0.09s)
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange (0.01s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/light (0.01s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/dark (0.00s)
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange (0.03s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/light (0.02s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	3.124s

@@ -45,4 +45,102 @@
 7. 滑轨：现象→缩窗后轨道仍Y366/H18，Right可改不可见的值。改动→原滑轨接回尺寸变化显现。验证→深浅内部与真实窗口尺寸变化，Right只把12改到13一次，失焦缩窗不抢焦点或滚轮。
 8. 动作：现象→缩窗后当前胶囊仍Y359.8/H25.2，Enter可装填看不见的动作。改动→原动作胶囊接回尺寸变化显现，确认与取消仍复用原组件。验证→深浅完整活动边，Enter仅装填一次、不执行命令；失焦缩窗不派发动作。
 
-第四批及M3当帧尺寸独立变异正在验证，完整门槛随后执行。至此八类组件各有独立旧产品实红证据与事件pin，不把测试夹具纠正另算修复。
+第四批90 PASS/exit0、包vet净，1621aa5d已提交推送。M3撤回当帧尺寸，八类深浅真实SetSize全红，MD5还原OK、touch后24 PASS/exit0。至此八类组件各有独立旧产品实红证据与事件pin，不把测试夹具纠正另算修复。普通/verbose全量与三平台门槛正在执行。
+
+## 偷了什么
+
+实际读取qiaomu-design SKILL、偏好账本、craft-loop、preflight、chinese-typography与Linear供体。读取为紧凑原生配置浮层，冒险/动效/密度3/2/7；既定方向与用户修复范围优先于四方向预览、外部模型与五项装饰额度。
+
+- craft-loop菜单#3 品牌focus环：保留原3px环，默认11px软边内侧留净空；不增加原本没有的环。
+- #4 签名交互：缩窗才触发一次显现，0ms，默认ceil(Space(3))+5=16px；纯值刷新与失焦缩窗触发0次，滚轮位置不被拉回。
+- #12 材质细节：新增面层/高光/阴影均0；原字段8px圆角和胶囊半高圆角继续承载活动状态。
+- Linear供体的近黑底/面/浮三级、0.05–0.08发丝边角色与单一交互accent均映射到既有token；不复制紫色、Inter或营销页排版。
+
+**为什么更轻、更有空间感**：缩窗后操作位置仍完整落在软边内，原层级能继续表达可操作区域；不靠加框、常驻提示或更厚的面提醒用户。
+
+## 两轮视觉与事件复核
+
+首轮四视角：艺术总监看到活动环被裁而原面无反馈；工程师看到焦点身份仍在却越过视口；任务使用者能继续写不可见的草稿；读者缩窗后只看到上方无关字段。第二轮集中检查完整活动环、真实窗口首帧、窄面、草稿和失焦滚轮保护。真实SetSize首帧缺口已在第三批修正。
+
+浅色单选对照：before只有fielda–fieldc，after完整显示“当前字段”与“北方”蓝环。深色数字对照：before没有当前输入，after可见右侧1e与原槽；不把焦点样式不存在的数字框描述成新增蓝环。原图来自Linux ui.Tester 560×400里的可用内容区变化；真实SetSize另以420×240、320×180和560×400断言，不冒充原生操作系统窗口录像。
+
+| 组件 | 浅色对照 | 深色对照 |
+| --- | --- | --- |
+| 单选 | [图](P13-kp/radio-560x220-light-comparison.png) | [图](P13-kp/radio-560x220-dark-comparison.png) |
+| 多选 | [图](P13-kp/checkboxes-560x220-light-comparison.png) | [图](P13-kp/checkboxes-560x220-dark-comparison.png) |
+| 文本 | [图](P13-kp/text-560x220-light-comparison.png) | [图](P13-kp/text-560x220-dark-comparison.png) |
+| 数字 | [图](P13-kp/number-560x220-light-comparison.png) | [图](P13-kp/number-560x220-dark-comparison.png) |
+| 开关 | [图](P13-kp/toggle-560x220-light-comparison.png) | [图](P13-kp/toggle-560x220-dark-comparison.png) |
+| 下拉 | [图](P13-kp/select-560x220-light-comparison.png) | [图](P13-kp/select-560x220-dark-comparison.png) |
+| 滑轨 | [图](P13-kp/slider-560x220-light-comparison.png) | [图](P13-kp/slider-560x220-dark-comparison.png) |
+| 动作 | [图](P13-kp/action-560x220-light-comparison.png) | [图](P13-kp/action-560x220-dark-comparison.png) |
+
+## Preflight A / B / C / D2
+
+| 检查 | 结论 |
+| --- | --- |
+| A1 渐变/纯黑/霓虹/渐变字 | 产品无新增，沿用深浅主题 |
+| A2 非系统字体通则 | 中文系统字体优先，未换字体 |
+| A3 斜体 | 无新增 |
+| A4 Hero | 原生配置浮层不适用 |
+| A5 三等分/万能卡片 | 无新增卡片 |
+| A6 假数据 | 产品无假指标；截图为隔离测试schema |
+| A7 空词 | 产品i18n零改 |
+| A8 眉批 | 无新增 |
+| A9 H1换行 | 原标题不改，窄面活动控件可见 |
+| A10 Bento | 不适用 |
+| A11 左侧装饰线 | 无新增 |
+| B1 设计读取 | 3/2/7与紧凑功能面一致 |
+| B2 主题 | 每个Tester独立深/浅 |
+| B3 记忆点 | 缩窗后仍可看见正在编辑的字段 |
+| B4 动效气质 | 一次即时显现，原按压保持 |
+| C1 目的/频率 | 仅尺寸或宿主布局变化、焦点进入；滚轮不触发 |
+| C2 all/ease-in/scale(0)/纯fade | 无新增 |
+| C3 时长/active | 显现0ms，原120ms颜色和0.97按压保持 |
+| C4 origin | 原控件是显现目标，无新浮层 |
+| C5 reduced-motion | 测试ReduceMotion，新增显现即时 |
+| C6 hover媒体查询 | Go自绘不适用CSS媒体查询，原指针反馈保留 |
+| C7 布局动画 | 未动画宽高/间距 |
+| C8 keyframes | 无新增 |
+| C9 手势 | 本轮不涉及拖拽/swipe |
+| C10 Framer | Go自绘不适用 |
+| C11 慢放 | 无新轨迹，检查确定帧和SetSize事件，不冒充真机慢放 |
+| D2-1 字体 | 系统中文字体，无webfont |
+| D2-2 字号/行高/字重 | Caption9.9/正文10.8仍不满足通用14px/1.5；既有拍板项保留 |
+| D2-3 混排空格 | 产品文案零改，测试隔离数据不充当产品文案 |
+| D2-4 标点/对比 | 原标点墨色保持，不声称所有次要墨达到7:1 |
+
+自发现缺陷沉淀到项目§6.269和事件pin，不把特定Go控件缺陷发布为通用skill审美规则。
+
+## 仍待
+
+1. 下一轮先复现既有参数运行表单/集成配置表单在缩窗或错误行插入时的当前出口；本轮只改插件浮层，不把其他表面线索算已确认bug。至少八项跨组件，同族批量处理。
+2. 插件当前字段删除/改型后的新焦点归属须明确键盘契约后再改；选项撤回仍先事件复现，不凭线索实施。沿用字号/行盒、accent禁用、未知多选、保存期间草稿、输出首尾键/选区、终端S1b/S1c/S2尾拍板项。
+3. Windows/macOS仅交叉vet/build；原生真机交互未验。八条早期WIP继续保留原件，没有静默丢弃。
+
+## 最终门槛（增量）
+
+开盘6597 PASS/0 FAIL/3562函数；最终全量正在执行，未把预期增量写成实测。四批定向30/36/30/90 PASS，包vet均净。M1/M2/M3实红、MD5还原并touch后分别6/6/24 PASS。旧V/B/S断言0/0/0，旧测试函数删除0，新Skip0。
+
+图证已完成：128张原始PNG、64张前后对照（48状态对照+16静息对照）、2张八组件总览、8张4×局部。16组静息逐像素完全相同；4×为最近邻检查放大，不冒充原生高DPI。深浅总览和单选局部已目视，八类原活动墨均完整进入软边内，数字/文本内容仍清楚。实测函数数3562→3570，净增8；三平台vet/build、gofmt与文档CI均exit0。最终产品源码已冻结，后续只补完整测试与交接记录。
+
+17:37 UTC第一次普通/verbose全量均exit1：并发运行时settingsui包达到默认10分钟，原始报错`panic: test timed out after 10m0s`，verbose只有6457个已完成PASS，不能计作完整通过。原日志保存为first-parallel-*；保持产品、断言、GOMAXPROCS和默认超时不变，改为独立逐个运行。已接近40调用预算，后续仅做已有八项的必要验收与交接，不扩大选题。
+
+17:48:56 UTC最终独立verbose完整exit0，**6621 PASS / 0 FAIL / 3570函数**；独立普通全量也完整exit0。相对开盘6597/3562为+24 PASS、+8函数。最终三份源码MD5均OK，后续产品零修改。
+
+| 门槛 | 最终实测 |
+| --- | --- |
+| gofmt -l cmd internal | 空 |
+| go vet ./... | Linux / Windows / Darwin均exit0，日志空 |
+| go build ./... | Linux / Windows / Darwin均exit0，日志空 |
+| go test -count=1 ./... | 独立完整exit0 |
+| go test -count=1 -v ./... | 独立完整exit0，6621 PASS / 0 FAIL |
+| 测试函数 | 3562 → 3570，旧函数删除0 |
+| 每批定向 | 30 / 36 / 30 / 90 PASS，包vet均净 |
+| mutation | M1 / M2 / M3实红、MD5还原、touch后6 / 6 / 24 PASS |
+| V / B / S、Skip | 旧断言修改0 / 0 / 0，新Skip0 |
+| 图证 | 128原图、64对照、2总览、8局部；16组静息零差 |
+
+原始证据：[开盘](P13-kp/baseline.txt)、[普通全量](P13-kp/full-test.txt)、[verbose全量](P13-kp/full-verbose.txt)、[首次并发超时](P13-kp/first-parallel-verbose.txt)、[M1](P13-kp/M1-red.txt)、[M2](P13-kp/M2-red.txt)、[M3](P13-kp/M3-red.txt)、[源码MD5](P13-kp/final-source.md5)、[像素差](P13-kp/image-differences.json)。每个门槛的退出码文件同目录归档。
+
+执行偏差：调用超过40，上限后只继续必要的全量验收与归档；没有按预算立即终止，不能宣称全部执行纪律达成。前置阅读未独立计时，不虚报达到45–75分钟目标。首次并发超时保留，未加超时、跳测、放宽断言或改旧B pin。八项任务量、四批提交推送与最终门槛均已完成。

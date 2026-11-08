@@ -1,0 +1,43 @@
+=== RUN   TestPluginViewportSlider
+=== RUN   TestPluginViewportSlider/light
+    pluginviewport_test.go:119: slider size=[560 220] target={X:28 Y:366 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=45.899994
+    pluginviewport_test.go:124: slider resize hides active ink: target={X:28 Y:366 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:119: slider size=[320 180] target={X:28 Y:366 W:211.8 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=45.899994
+    pluginviewport_test.go:124: slider resize hides active ink: target={X:28 Y:366 W:211.8 H:18} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:119: slider size=[560 400] target={X:28 Y:366 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=45.899994
+    pluginviewport_test.go:143: slider window resize did not settle: size=[420 240] rect={X:28 Y:366 W:0 H:0}
+    pluginviewport_test.go:143: slider window resize did not settle: size=[320 180] rect={X:28 Y:366 W:0 H:0}
+=== RUN   TestPluginViewportSlider/dark
+    pluginviewport_test.go:119: slider size=[560 220] target={X:28 Y:366 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=45.899994
+    pluginviewport_test.go:124: slider resize hides active ink: target={X:28 Y:366 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:119: slider size=[320 180] target={X:28 Y:366 W:211.8 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=45.899994
+    pluginviewport_test.go:124: slider resize hides active ink: target={X:28 Y:366 W:211.8 H:18} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:119: slider size=[560 400] target={X:28 Y:366 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=45.899994
+    pluginviewport_test.go:143: slider window resize did not settle: size=[420 240] rect={X:28 Y:366 W:0 H:0}
+    pluginviewport_test.go:143: slider window resize did not settle: size=[320 180] rect={X:28 Y:366 W:0 H:0}
+--- FAIL: TestPluginViewportSlider (0.31s)
+    --- FAIL: TestPluginViewportSlider/light (0.22s)
+    --- FAIL: TestPluginViewportSlider/dark (0.09s)
+=== RUN   TestPluginViewportAction
+=== RUN   TestPluginViewportAction/light
+    pluginviewport_test.go:119: action size=[560 220] target={X:473 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=28.199997
+    pluginviewport_test.go:124: action resize hides active ink: target={X:473 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:119: action size=[320 180] target={X:233 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=28.199997
+    pluginviewport_test.go:124: action resize hides active ink: target={X:233 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:119: action size=[560 400] target={X:473 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=28.199997
+    pluginviewport_test.go:143: action window resize did not settle: size=[420 240] rect={X:333 Y:358.8 W:0 H:0}
+    pluginviewport_test.go:143: action window resize did not settle: size=[320 180] rect={X:233 Y:358.8 W:0 H:0}
+=== RUN   TestPluginViewportAction/dark
+    pluginviewport_test.go:119: action size=[560 220] target={X:473 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=28.199997
+    pluginviewport_test.go:124: action resize hides active ink: target={X:473 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:119: action size=[320 180] target={X:233 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=28.199997
+    pluginviewport_test.go:124: action resize hides active ink: target={X:233 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:119: action size=[560 400] target={X:473 Y:359.8 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=28.199997
+    pluginviewport_test.go:143: action window resize did not settle: size=[420 240] rect={X:333 Y:358.8 W:0 H:0}
+    pluginviewport_test.go:143: action window resize did not settle: size=[320 180] rect={X:233 Y:358.8 W:0 H:0}
+--- FAIL: TestPluginViewportAction (0.20s)
+    --- FAIL: TestPluginViewportAction/light (0.11s)
+    --- FAIL: TestPluginViewportAction/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	0.522s
+FAIL

@@ -1,0 +1,35 @@
+=== RUN   TestPluginViewportRadio
+=== RUN   TestPluginViewportRadio/light
+    pluginviewport_test.go:104: radio size=[560 220] target={X:28 Y:353.4 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=58.499992
+    pluginviewport_test.go:109: radio resize hides active ink: target={X:28 Y:353.4 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:104: radio size=[320 180] target={X:28 Y:353.4 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=58.499992
+    pluginviewport_test.go:109: radio resize hides active ink: target={X:28 Y:353.4 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:104: radio size=[560 400] target={X:28 Y:353.4 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=58.499992
+=== RUN   TestPluginViewportRadio/dark
+    pluginviewport_test.go:104: radio size=[560 220] target={X:28 Y:353.4 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=58.499992
+    pluginviewport_test.go:109: radio resize hides active ink: target={X:28 Y:353.4 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:104: radio size=[320 180] target={X:28 Y:353.4 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=58.499992
+    pluginviewport_test.go:109: radio resize hides active ink: target={X:28 Y:353.4 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:104: radio size=[560 400] target={X:28 Y:353.4 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=58.499992
+--- FAIL: TestPluginViewportRadio (0.39s)
+    --- FAIL: TestPluginViewportRadio/light (0.25s)
+    --- FAIL: TestPluginViewportRadio/dark (0.14s)
+=== RUN   TestPluginViewportCheckboxes
+=== RUN   TestPluginViewportCheckboxes/light
+    pluginviewport_test.go:104: checkboxes size=[560 220] target={X:28 Y:367 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=44.899994
+    pluginviewport_test.go:109: checkboxes resize hides active ink: target={X:28 Y:367 W:504 H:17} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:104: checkboxes size=[320 180] target={X:28 Y:367 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=44.899994
+    pluginviewport_test.go:109: checkboxes resize hides active ink: target={X:28 Y:367 W:264 H:17} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:104: checkboxes size=[560 400] target={X:28 Y:367 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=44.899994
+=== RUN   TestPluginViewportCheckboxes/dark
+    pluginviewport_test.go:104: checkboxes size=[560 220] target={X:28 Y:367 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=44.899994
+    pluginviewport_test.go:109: checkboxes resize hides active ink: target={X:28 Y:367 W:504 H:17} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:104: checkboxes size=[320 180] target={X:28 Y:367 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=44.899994
+    pluginviewport_test.go:109: checkboxes resize hides active ink: target={X:28 Y:367 W:264 H:17} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:104: checkboxes size=[560 400] target={X:28 Y:367 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=44.899994
+--- FAIL: TestPluginViewportCheckboxes (0.24s)
+    --- FAIL: TestPluginViewportCheckboxes/light (0.14s)
+    --- FAIL: TestPluginViewportCheckboxes/dark (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	0.646s
+FAIL

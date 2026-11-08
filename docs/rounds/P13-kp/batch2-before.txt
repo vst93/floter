@@ -1,0 +1,35 @@
+=== RUN   TestPluginViewportText
+=== RUN   TestPluginViewportText/light
+    pluginviewport_test.go:104: text size=[560 220] target={X:36.2 Y:359.8 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=52.09999
+    pluginviewport_test.go:109: text resize hides active ink: target={X:36.2 Y:359.8 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:104: text size=[320 180] target={X:36.2 Y:359.8 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=52.09999
+    pluginviewport_test.go:109: text resize hides active ink: target={X:36.2 Y:359.8 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:104: text size=[560 400] target={X:36.2 Y:359.8 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=52.09999
+=== RUN   TestPluginViewportText/dark
+    pluginviewport_test.go:104: text size=[560 220] target={X:36.2 Y:359.8 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=52.09999
+    pluginviewport_test.go:109: text resize hides active ink: target={X:36.2 Y:359.8 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:104: text size=[320 180] target={X:36.2 Y:359.8 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=52.09999
+    pluginviewport_test.go:109: text resize hides active ink: target={X:36.2 Y:359.8 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:104: text size=[560 400] target={X:36.2 Y:359.8 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=52.09999
+--- FAIL: TestPluginViewportText (0.58s)
+    --- FAIL: TestPluginViewportText/light (0.40s)
+    --- FAIL: TestPluginViewportText/dark (0.18s)
+=== RUN   TestPluginViewportNumber
+=== RUN   TestPluginViewportNumber/light
+    pluginviewport_test.go:104: number size=[560 220] target={X:478 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=28.199997
+    pluginviewport_test.go:109: number resize hides active ink: target={X:478 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:104: number size=[320 180] target={X:238 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=28.199997
+    pluginviewport_test.go:109: number resize hides active ink: target={X:238 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:104: number size=[560 400] target={X:478 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=28.199997
+=== RUN   TestPluginViewportNumber/dark
+    pluginviewport_test.go:104: number size=[560 220] target={X:478 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=28.199997
+    pluginviewport_test.go:109: number resize hides active ink: target={X:478 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220}
+    pluginviewport_test.go:104: number size=[320 180] target={X:238 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=28.199997
+    pluginviewport_test.go:109: number resize hides active ink: target={X:238 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180}
+    pluginviewport_test.go:104: number size=[560 400] target={X:478 Y:359.8 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=28.199997
+--- FAIL: TestPluginViewportNumber (0.35s)
+    --- FAIL: TestPluginViewportNumber/light (0.19s)
+    --- FAIL: TestPluginViewportNumber/dark (0.16s)
+FAIL
+FAIL	floter/internal/settingsui	0.957s
+FAIL

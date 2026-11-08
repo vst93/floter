@@ -1,0 +1,157 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.038s
+ok  	floter/internal/apps	0.446s
+ok  	floter/internal/browser	0.093s
+ok  	floter/internal/calc	0.018s
+ok  	floter/internal/calculator	0.040s
+ok  	floter/internal/ci	13.789s
+ok  	floter/internal/clipboard	0.101s
+ok  	floter/internal/control	0.255s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.008s
+ok  	floter/internal/drops	0.011s
+ok  	floter/internal/extensions	63.015s
+ok  	floter/internal/extensions/recommended	0.214s
+ok  	floter/internal/frameaudit	0.133s
+ok  	floter/internal/glassmap	0.014s
+ok  	floter/internal/homepath	0.009s
+ok  	floter/internal/i18n	2.130s
+ok  	floter/internal/inputtext	0.102s
+ok  	floter/internal/inventory	0.248s
+ok  	floter/internal/launcher	89.410s
+ok  	floter/internal/motion	0.039s
+ok  	floter/internal/pathid	0.087s
+ok  	floter/internal/pathlist	0.048s
+ok  	floter/internal/pinyin	0.010s
+ok  	floter/internal/plist	0.044s
+ok  	floter/internal/plugincfg	0.020s
+ok  	floter/internal/progname	0.016s
+ok  	floter/internal/progtype	0.007s
+ok  	floter/internal/scriptlang	0.014s
+ok  	floter/internal/semver	0.013s
+ok  	floter/internal/settings	4.707s
+panic: test timed out after 10m0s
+	running tests:
+		TestGeneralMaterialGroupFootnotes (0s)
+
+goroutine 3386 [running]:
+testing.(*M).startAlarm.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2961 +0x34a
+created by time.goFunc
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/time/sleep.go:182 +0x2d
+
+goroutine 1 [chan receive, locked to thread]:
+testing.(*T).Run(0x2b07c4b0e008, {0xda35ab?, 0x2b07c4979aa0?}, 0x1724ee8)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2268 +0x4f2
+testing.runTests.func1(0x2b07c4b0e008)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2744 +0x37
+testing.tRunner(0x2b07c4b0e008, 0x2b07c4979bc8)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+testing.runTests({0xd7e1d8, 0x6}, {0xd97e85, 0x1a}, 0x2b07c4b00000, {0x1749aa0, 0x54b, 0x54b}, {0xc2b44ab0e00f63bf, 0x8bb3604f5e, ...})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2742 +0x510
+testing.(*M).Run(0x2b07c495b180)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2602 +0x6af
+main.main()
+	_testmain.go:2758 +0x9b
+
+goroutine 20 [runnable]:
+github.com/egoist/mygo/internal/raster.(*painter).at(0x2b07c4e24a20, 0x43f94000?, 0x45159800?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:737 +0x4cc
+github.com/egoist/mygo/internal/raster.(*renderer).fill(0x2b07c49e6168, 0x2b07c53694e0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:938 +0xb7d
+github.com/egoist/mygo/internal/raster.(*renderer).render(0x2b07c49e6168, 0x41b17b?, 0x2b07c4b6d2c0, {{0x2b07c4998150?, 0x17b8aa0?}, {0x17b8ab0?, 0x2b07c4f6b298?}}, {0x2b07c4ec6000, 0x107, 0x200}, ...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:251 +0x40a
+github.com/egoist/mygo/internal/raster.(*drawer).band(0x49bfc5?, 0x0?, 0x2b07c4e24f98?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:224 +0xeb
+github.com/egoist/mygo/internal/raster.(*team).work(0x2b07c4d96d78, 0x2)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:56 +0x3a
+github.com/egoist/mygo/internal/raster.help()
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:76 +0x45
+created by github.com/egoist/mygo/internal/raster.hire in goroutine 34
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:69 +0xac
+
+goroutine 21 [runnable]:
+github.com/egoist/mygo/internal/raster.(*renderer).clipSolid(0x2b07c49e6218, 0x931)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:393 +0x275
+github.com/egoist/mygo/internal/raster.(*renderer).fill(0x2b07c49e6218, 0x2b07c535c270)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:917 +0x805
+github.com/egoist/mygo/internal/raster.(*renderer).render(0x2b07c49e6218, 0x41b17b?, 0x2b07c4b6d2c0, {{0x2b07c4998230?, 0x17b94a0?}, {0x17b94b0?, 0x2b07c5211b98?}}, {0x2b07c4ec6000, 0x107, 0x200}, ...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:251 +0x40a
+github.com/egoist/mygo/internal/raster.(*drawer).band(0x49bfc5?, 0x2b07c51a1f78?, 0x2b07c51a1f98?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:224 +0xeb
+github.com/egoist/mygo/internal/raster.(*team).work(0x2b07c4d96d78, 0x3)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:56 +0x3a
+github.com/egoist/mygo/internal/raster.help()
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:76 +0x45
+created by github.com/egoist/mygo/internal/raster.hire in goroutine 34
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:69 +0xac
+
+goroutine 22 [chan receive]:
+github.com/egoist/mygo/internal/raster.help()
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:75 +0x6e
+created by github.com/egoist/mygo/internal/raster.hire in goroutine 34
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:69 +0xac
+
+goroutine 3385 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0x6ea9da?, 0x1?)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0x2b07c4d96d90)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/sync/waitgroup.go:206 +0x85
+github.com/egoist/mygo/internal/raster.(*team).run(0x2b07c4d96d78, 0x169d248?, 0x434e0000?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/team.go:50 +0xf5
+github.com/egoist/mygo/internal/raster.(*drawer).drawOps(0x2b07c4d96d60, 0x2b07c4d96d28, 0x2b07c4b6d2c0, {{0x2b07c53c3280?, 0x6ef08e?}, {0x2b07c53a78f0?, 0x2b07c48ed1d0?}}, {0x2b07c4ec6000, 0x107, 0x200}, ...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:201 +0x5b6
+github.com/egoist/mygo/internal/raster.(*drawer).draw(0x2b07c4d96d60, 0x2b07c4d96d28, 0x2b07c4b6d2c0?, {{0x3f8000003f800000?, 0x0?}, {0x4516000044340000?, 0x0?}}, {0x2b07c4ec6000, 0x107, 0x200})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/raster.go:170 +0x8d5
+github.com/egoist/mygo/internal/raster.(*Renderer).Render(0x2b07c4d96d28, 0x2b07c4b6d2c0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/internal/raster/damage.go:36 +0x205
+github.com/egoist/mygo/ui.(*headless).present(0x2b07c4b6d008?, 0x2b07c5c6a000?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:99 +0x3c
+github.com/egoist/mygo/ui.(*engine).runFrame(0x2b07c4b6d008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:676 +0xd42
+github.com/egoist/mygo/ui.(*Tester).settle(0x2b07c4ef2150)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.coreNewTester(0x2b07c48ec9b0, 0x2d0, 0x960)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:252 +0x1df
+github.com/egoist/mygo/ui.NewTester(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399
+floter/internal/settingsui.render(0x2b07c4b0e248, 0x2b07c569e008, 0x2d0, 0x960)
+	/home/tar/workspace/floter/internal/settingsui/view_test.go:37 +0xcf
+floter/internal/settingsui.TestGeneralMaterialGroupFootnotes(0x2b07c4b0e248?)
+	/home/tar/workspace/floter/internal/settingsui/view_test.go:203 +0x245
+testing.tRunner(0x2b07c4b0e248, 0x1724ee8)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 1
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+
+goroutine 2748 [select (no cases), 1 minutes]:
+floter/internal/settingsui.toolchainVerdicts.func3({0x53bf20?, 0x2b07c4954908?})
+	/home/tar/workspace/floter/internal/settingsui/runtimeline_test.go:89 +0x2f
+floter/internal/settingsui.(*App).scriptRuntimeStart.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:6552 +0x55
+created by floter/internal/settingsui.(*App).scriptRuntimeStart in goroutine 2789
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:6551 +0x298
+
+goroutine 2750 [select (no cases), 1 minutes]:
+floter/internal/settingsui.toolchainVerdicts.func3({0x5c?, 0x7f1?})
+	/home/tar/workspace/floter/internal/settingsui/runtimeline_test.go:89 +0x2f
+floter/internal/settingsui.(*App).scriptRuntimeStart.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:6552 +0x55
+created by floter/internal/settingsui.(*App).scriptRuntimeStart in goroutine 2789
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:6551 +0x298
+FAIL	floter/internal/settingsui	600.044s
+ok  	floter/internal/shell	389.212s
+ok  	floter/internal/shortcuts	0.030s
+ok  	floter/internal/spawn	0.180s
+ok  	floter/internal/statefile	0.015s
+ok  	floter/internal/terminalui	46.975s
+ok  	floter/internal/termsession	4.480s
+ok  	floter/internal/textlines	0.015s
+ok  	floter/internal/theme	0.153s
+ok  	floter/internal/tools	0.033s
+ok  	floter/internal/usage	0.054s
+ok  	floter/internal/valuedomain	0.042s
+ok  	floter/internal/versioning	0.015s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.012s
+FAIL

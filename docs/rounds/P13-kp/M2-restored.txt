@@ -1,0 +1,26 @@
+=== RUN   TestPluginViewportText
+=== RUN   TestPluginViewportText/light
+    pluginviewport_test.go:104: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:104: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:104: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+=== RUN   TestPluginViewportText/dark
+    pluginviewport_test.go:104: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:104: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:104: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+--- PASS: TestPluginViewportText (0.15s)
+    --- PASS: TestPluginViewportText/light (0.11s)
+    --- PASS: TestPluginViewportText/dark (0.04s)
+=== RUN   TestPluginViewportNumber
+=== RUN   TestPluginViewportNumber/light
+    pluginviewport_test.go:104: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:104: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:104: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+=== RUN   TestPluginViewportNumber/dark
+    pluginviewport_test.go:104: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:104: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:104: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+--- PASS: TestPluginViewportNumber (0.08s)
+    --- PASS: TestPluginViewportNumber/light (0.04s)
+    --- PASS: TestPluginViewportNumber/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.235s

@@ -1,0 +1,110 @@
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.17s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.16s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.01s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.02s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.01s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.02s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.04s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginRefreshOutletText
+=== RUN   TestPluginRefreshOutletText/light
+    pluginrefreshoutlet_test.go:118: text failure target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=217.89998
+    pluginrefreshoutlet_test.go:125: text heading target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=251.29997
+    pluginrefreshoutlet_test.go:133: text recovery target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} scroll=430.3
+=== RUN   TestPluginRefreshOutletText/dark
+    pluginrefreshoutlet_test.go:118: text failure target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=217.89998
+    pluginrefreshoutlet_test.go:125: text heading target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=251.29997
+    pluginrefreshoutlet_test.go:133: text recovery target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} scroll=430.3
+--- PASS: TestPluginRefreshOutletText (0.09s)
+    --- PASS: TestPluginRefreshOutletText/light (0.05s)
+    --- PASS: TestPluginRefreshOutletText/dark (0.04s)
+=== RUN   TestPluginRefreshOutletNumber
+=== RUN   TestPluginRefreshOutletNumber/light
+    pluginrefreshoutlet_test.go:118: number failure target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=193.99998
+    pluginrefreshoutlet_test.go:125: number heading target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=227.39998
+    pluginrefreshoutlet_test.go:133: number recovery target={X:478 Y:15.000007 W:46.8 H:25.199999} scroll=406.4
+=== RUN   TestPluginRefreshOutletNumber/dark
+    pluginrefreshoutlet_test.go:118: number failure target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=193.99998
+    pluginrefreshoutlet_test.go:125: number heading target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=227.39998
+    pluginrefreshoutlet_test.go:133: number recovery target={X:478 Y:15.000007 W:46.8 H:25.199999} scroll=406.4
+--- PASS: TestPluginRefreshOutletNumber (0.09s)
+    --- PASS: TestPluginRefreshOutletNumber/light (0.05s)
+    --- PASS: TestPluginRefreshOutletNumber/dark (0.04s)
+=== RUN   TestPluginViewportRadio
+=== RUN   TestPluginViewportRadio/light
+    pluginviewport_test.go:104: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:104: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:104: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+=== RUN   TestPluginViewportRadio/dark
+    pluginviewport_test.go:104: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:104: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:104: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+--- PASS: TestPluginViewportRadio (0.22s)
+    --- PASS: TestPluginViewportRadio/light (0.12s)
+    --- PASS: TestPluginViewportRadio/dark (0.11s)
+=== RUN   TestPluginViewportCheckboxes
+=== RUN   TestPluginViewportCheckboxes/light
+    pluginviewport_test.go:104: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:104: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:104: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+=== RUN   TestPluginViewportCheckboxes/dark
+    pluginviewport_test.go:104: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:104: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:104: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+--- PASS: TestPluginViewportCheckboxes (0.18s)
+    --- PASS: TestPluginViewportCheckboxes/light (0.09s)
+    --- PASS: TestPluginViewportCheckboxes/dark (0.09s)
+=== RUN   TestPluginViewportText
+=== RUN   TestPluginViewportText/light
+    pluginviewport_test.go:104: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:104: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:104: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+=== RUN   TestPluginViewportText/dark
+    pluginviewport_test.go:104: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:104: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:104: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+--- PASS: TestPluginViewportText (0.18s)
+    --- PASS: TestPluginViewportText/light (0.09s)
+    --- PASS: TestPluginViewportText/dark (0.09s)
+=== RUN   TestPluginViewportNumber
+=== RUN   TestPluginViewportNumber/light
+    pluginviewport_test.go:104: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:104: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:104: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+=== RUN   TestPluginViewportNumber/dark
+    pluginviewport_test.go:104: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:104: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:104: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+--- PASS: TestPluginViewportNumber (0.19s)
+    --- PASS: TestPluginViewportNumber/light (0.09s)
+    --- PASS: TestPluginViewportNumber/dark (0.10s)
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange (0.02s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/light (0.01s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/dark (0.01s)
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange (0.02s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/light (0.01s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	1.294s

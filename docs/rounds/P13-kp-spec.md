@@ -8,14 +8,14 @@
 
 | 项 | 位置（开盘实读） | 现状线索 → 目标 |
 | --- | --- | --- |
-| 1 单选 | pluginsheet.go:475 | 只观察schema刷新 → 缩窗后整段活动轨道可见 |
-| 2 多选 | pluginsheet.go:503 | 只观察schema刷新 → 当前选项可见 |
-| 3 文本 | pluginsheet.go:740 | 窗口高度不在刷新输入中 → 当前草稿槽可见 |
-| 4 数字 | pluginsheet.go:698 | 同上 → 半输入与完整槽可见 |
-| 5 开关 | pluginsheet.go:353 | 同上 → 当前开关环可见 |
-| 6 下拉 | pluginsheet.go:358 | 同上 → 原触发器可见并能打开 |
-| 7 滑轨 | pluginsheet.go:566 | 同上 → 当前轨道与原按键可用 |
-| 8 动作 | pluginsheet.go:812 | 同上 → 原确认/取消出口可见 |
+| 1 单选 | pluginsheet.go:469 | 只观察schema刷新 → 缩窗后整段活动轨道可见 |
+| 2 多选 | pluginsheet.go:500 | 只观察schema刷新 → 当前选项可见 |
+| 3 文本 | pluginsheet.go:739 | 窗口高度不在刷新输入中 → 当前草稿槽可见 |
+| 4 数字 | pluginsheet.go:697 | 同上 → 半输入与完整槽可见 |
+| 5 开关 | pluginsheet.go:352 | 同上 → 当前开关环可见 |
+| 6 下拉 | pluginsheet.go:357 | 同上 → 原触发器可见并能打开 |
+| 7 滑轨 | pluginsheet.go:564 | 同上 → 当前轨道与原按键可用 |
+| 8 动作 | pluginsheet.go:814 | 同上 → 原确认/取消出口可见 |
 
 公共证据：pluginrefresh.go:30仅比较schema/failed/armed/actionFailed，未包含视口尺寸；pluginsheet.go:543只在焦点进入或该刷新信号时显现。必须先跑旧产品红，正常项不计任务量。每两项定向验证、包vet后commit/push。
 

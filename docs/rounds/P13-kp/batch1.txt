@@ -1,0 +1,98 @@
+=== RUN   TestPluginFieldEdgeRadio
+=== RUN   TestPluginFieldEdgeRadio/light
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:16.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:213.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=198.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+=== RUN   TestPluginFieldEdgeRadio/dark
+    pluginfieldedge_test.go:129: radio top target={X:28 Y:16.000011 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: radio bottom target={X:28 Y:213.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:260} scroll=198.5
+    pluginfieldedge_test.go:187: range=615.1999 calls=1
+--- PASS: TestPluginFieldEdgeRadio (0.40s)
+    --- PASS: TestPluginFieldEdgeRadio/light (0.28s)
+    --- PASS: TestPluginFieldEdgeRadio/dark (0.12s)
+=== RUN   TestPluginFieldEdgeCheckboxes
+=== RUN   TestPluginFieldEdgeCheckboxes/light
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:16.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:227.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=184.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+=== RUN   TestPluginFieldEdgeCheckboxes/dark
+    pluginfieldedge_test.go:129: checkboxes top target={X:28 Y:16.000011 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=395.9
+    pluginfieldedge_test.go:129: checkboxes bottom target={X:28 Y:227.00002 W:43.600006 H:17} viewport={X:0 Y:0 W:560 H:260} scroll=184.9
+    pluginfieldedge_test.go:187: range=601.59985 calls=1
+--- PASS: TestPluginFieldEdgeCheckboxes (0.12s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/light (0.07s)
+    --- PASS: TestPluginFieldEdgeCheckboxes/dark (0.06s)
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.03s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.02s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.01s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.04s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.02s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.02s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.02s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.03s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginRefreshOutletRadio
+=== RUN   TestPluginRefreshOutletRadio/light
+    pluginrefreshoutlet_test.go:118: radio failure target={X:28 Y:213.40002 W:504 H:30.6} scroll=224.29999
+    pluginrefreshoutlet_test.go:125: radio heading target={X:28 Y:213.40004 W:504 H:30.6} scroll=257.69998
+    pluginrefreshoutlet_test.go:133: radio recovery target={X:28 Y:16.000011 W:504 H:30.6} scroll=429.3
+=== RUN   TestPluginRefreshOutletRadio/dark
+    pluginrefreshoutlet_test.go:118: radio failure target={X:28 Y:213.40002 W:504 H:30.6} scroll=224.29999
+    pluginrefreshoutlet_test.go:125: radio heading target={X:28 Y:213.40004 W:504 H:30.6} scroll=257.69998
+    pluginrefreshoutlet_test.go:133: radio recovery target={X:28 Y:16.000011 W:504 H:30.6} scroll=429.3
+--- PASS: TestPluginRefreshOutletRadio (0.15s)
+    --- PASS: TestPluginRefreshOutletRadio/light (0.08s)
+    --- PASS: TestPluginRefreshOutletRadio/dark (0.06s)
+=== RUN   TestPluginRefreshOutletCheckboxes
+=== RUN   TestPluginRefreshOutletCheckboxes/light
+    pluginrefreshoutlet_test.go:118: checkboxes failure target={X:28 Y:227.00003 W:504 H:17} scroll=210.69998
+    pluginrefreshoutlet_test.go:125: checkboxes heading target={X:28 Y:227.00005 W:504 H:17} scroll=244.09998
+    pluginrefreshoutlet_test.go:133: checkboxes recovery target={X:28 Y:16.000011 W:504 H:17} scroll=429.3
+=== RUN   TestPluginRefreshOutletCheckboxes/dark
+    pluginrefreshoutlet_test.go:118: checkboxes failure target={X:28 Y:227.00003 W:504 H:17} scroll=210.69998
+    pluginrefreshoutlet_test.go:125: checkboxes heading target={X:28 Y:227.00005 W:504 H:17} scroll=244.09998
+    pluginrefreshoutlet_test.go:133: checkboxes recovery target={X:28 Y:16.000011 W:504 H:17} scroll=429.3
+--- PASS: TestPluginRefreshOutletCheckboxes (0.07s)
+    --- PASS: TestPluginRefreshOutletCheckboxes/light (0.03s)
+    --- PASS: TestPluginRefreshOutletCheckboxes/dark (0.03s)
+=== RUN   TestPluginViewportRadio
+=== RUN   TestPluginViewportRadio/light
+    pluginviewport_test.go:104: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:104: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:104: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+=== RUN   TestPluginViewportRadio/dark
+    pluginviewport_test.go:104: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:104: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:104: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+--- PASS: TestPluginViewportRadio (0.26s)
+    --- PASS: TestPluginViewportRadio/light (0.15s)
+    --- PASS: TestPluginViewportRadio/dark (0.12s)
+=== RUN   TestPluginViewportCheckboxes
+=== RUN   TestPluginViewportCheckboxes/light
+    pluginviewport_test.go:104: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:104: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:104: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+=== RUN   TestPluginViewportCheckboxes/dark
+    pluginviewport_test.go:104: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:104: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:104: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+--- PASS: TestPluginViewportCheckboxes (0.22s)
+    --- PASS: TestPluginViewportCheckboxes/light (0.10s)
+    --- PASS: TestPluginViewportCheckboxes/dark (0.12s)
+PASS
+ok  	floter/internal/settingsui	1.350s

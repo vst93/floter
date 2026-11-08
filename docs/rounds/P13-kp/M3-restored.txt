@@ -1,0 +1,98 @@
+=== RUN   TestPluginViewportToggle
+=== RUN   TestPluginViewportToggle/light
+    pluginviewport_test.go:119: toggle size=[560 220] target={X:500.6 Y:186 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=205.6
+    pluginviewport_test.go:119: toggle size=[320 180] target={X:260.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=245.6
+    pluginviewport_test.go:119: toggle size=[560 400] target={X:500.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=245.6
+=== RUN   TestPluginViewportToggle/dark
+    pluginviewport_test.go:119: toggle size=[560 220] target={X:500.6 Y:186 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=205.6
+    pluginviewport_test.go:119: toggle size=[320 180] target={X:260.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=245.6
+    pluginviewport_test.go:119: toggle size=[560 400] target={X:500.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=245.6
+--- PASS: TestPluginViewportToggle (0.12s)
+    --- PASS: TestPluginViewportToggle/light (0.08s)
+    --- PASS: TestPluginViewportToggle/dark (0.04s)
+=== RUN   TestPluginViewportSelect
+=== RUN   TestPluginViewportSelect/light
+    pluginviewport_test.go:119: select size=[560 220] target={X:313 Y:175.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:220} scroll=211.50002
+    pluginviewport_test.go:119: select size=[320 180] target={X:72.99999 Y:135.2 W:220 H:29.8} viewport={X:0 Y:0 W:320 H:180} scroll=254.60002
+    pluginviewport_test.go:119: select size=[560 400] target={X:313 Y:132.09999 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:400} scroll=254.60002
+=== RUN   TestPluginViewportSelect/dark
+    pluginviewport_test.go:119: select size=[560 220] target={X:313 Y:175.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:220} scroll=211.50002
+    pluginviewport_test.go:119: select size=[320 180] target={X:72.99999 Y:135.2 W:220 H:29.8} viewport={X:0 Y:0 W:320 H:180} scroll=254.60002
+    pluginviewport_test.go:119: select size=[560 400] target={X:313 Y:132.09999 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:400} scroll=254.60002
+--- PASS: TestPluginViewportSelect (0.11s)
+    --- PASS: TestPluginViewportSelect/light (0.05s)
+    --- PASS: TestPluginViewportSelect/dark (0.05s)
+=== RUN   TestPluginViewportSlider
+=== RUN   TestPluginViewportSlider/light
+    pluginviewport_test.go:119: slider size=[560 220] target={X:28 Y:186.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=225.9
+    pluginviewport_test.go:119: slider size=[320 180] target={X:28 Y:146.00002 W:211.8 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=265.9
+    pluginviewport_test.go:119: slider size=[560 400] target={X:28 Y:146.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=265.9
+=== RUN   TestPluginViewportSlider/dark
+    pluginviewport_test.go:119: slider size=[560 220] target={X:28 Y:186.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=225.9
+    pluginviewport_test.go:119: slider size=[320 180] target={X:28 Y:146.00002 W:211.8 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=265.9
+    pluginviewport_test.go:119: slider size=[560 400] target={X:28 Y:146.00002 W:451.8 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=265.9
+--- PASS: TestPluginViewportSlider (0.08s)
+    --- PASS: TestPluginViewportSlider/light (0.04s)
+    --- PASS: TestPluginViewportSlider/dark (0.04s)
+=== RUN   TestPluginViewportAction
+=== RUN   TestPluginViewportAction/light
+    pluginviewport_test.go:119: action size=[560 220] target={X:473 Y:179.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:119: action size=[320 180] target={X:233 Y:139.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:119: action size=[560 400] target={X:473 Y:139.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+=== RUN   TestPluginViewportAction/dark
+    pluginviewport_test.go:119: action size=[560 220] target={X:473 Y:179.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:119: action size=[320 180] target={X:233 Y:139.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:119: action size=[560 400] target={X:473 Y:139.80002 W:60 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+--- PASS: TestPluginViewportAction (0.08s)
+    --- PASS: TestPluginViewportAction/light (0.04s)
+    --- PASS: TestPluginViewportAction/dark (0.04s)
+=== RUN   TestPluginViewportRadio
+=== RUN   TestPluginViewportRadio/light
+    pluginviewport_test.go:119: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:119: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:119: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+=== RUN   TestPluginViewportRadio/dark
+    pluginviewport_test.go:119: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:119: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:119: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+--- PASS: TestPluginViewportRadio (0.09s)
+    --- PASS: TestPluginViewportRadio/light (0.05s)
+    --- PASS: TestPluginViewportRadio/dark (0.05s)
+=== RUN   TestPluginViewportCheckboxes
+=== RUN   TestPluginViewportCheckboxes/light
+    pluginviewport_test.go:119: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:119: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:119: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+=== RUN   TestPluginViewportCheckboxes/dark
+    pluginviewport_test.go:119: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:119: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:119: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+--- PASS: TestPluginViewportCheckboxes (0.08s)
+    --- PASS: TestPluginViewportCheckboxes/light (0.04s)
+    --- PASS: TestPluginViewportCheckboxes/dark (0.04s)
+=== RUN   TestPluginViewportText
+=== RUN   TestPluginViewportText/light
+    pluginviewport_test.go:119: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:119: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:119: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+=== RUN   TestPluginViewportText/dark
+    pluginviewport_test.go:119: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:119: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:119: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+--- PASS: TestPluginViewportText (0.08s)
+    --- PASS: TestPluginViewportText/light (0.04s)
+    --- PASS: TestPluginViewportText/dark (0.04s)
+=== RUN   TestPluginViewportNumber
+=== RUN   TestPluginViewportNumber/light
+    pluginviewport_test.go:119: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:119: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:119: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+=== RUN   TestPluginViewportNumber/dark
+    pluginviewport_test.go:119: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:119: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:119: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+--- PASS: TestPluginViewportNumber (0.08s)
+    --- PASS: TestPluginViewportNumber/light (0.04s)
+    --- PASS: TestPluginViewportNumber/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.728s

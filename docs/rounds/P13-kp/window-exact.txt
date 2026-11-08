@@ -1,0 +1,87 @@
+=== RUN   TestPluginViewportToggle
+=== RUN   TestPluginViewportToggle/light
+    pluginviewport_test.go:115: toggle size=[560 220] target={X:500.6 Y:186 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=205.6
+    pluginviewport_test.go:115: toggle size=[320 180] target={X:260.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=245.6
+    pluginviewport_test.go:115: toggle size=[560 400] target={X:500.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=245.6
+    pluginviewport_test.go:139: toggle window resize did not settle: size=[420 240] rect={X:360.6 Y:366 W:0 H:0}
+=== RUN   TestPluginViewportToggle/dark
+    pluginviewport_test.go:115: toggle size=[560 220] target={X:500.6 Y:186 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:220} scroll=205.6
+    pluginviewport_test.go:115: toggle size=[320 180] target={X:260.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:320 H:180} scroll=245.6
+    pluginviewport_test.go:115: toggle size=[560 400] target={X:500.6 Y:146 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:400} scroll=245.6
+    pluginviewport_test.go:139: toggle window resize did not settle: size=[420 240] rect={X:360.6 Y:366 W:0 H:0}
+--- FAIL: TestPluginViewportToggle (0.17s)
+    --- FAIL: TestPluginViewportToggle/light (0.12s)
+    --- FAIL: TestPluginViewportToggle/dark (0.06s)
+=== RUN   TestPluginViewportSelect
+=== RUN   TestPluginViewportSelect/light
+    pluginviewport_test.go:115: select size=[560 220] target={X:313 Y:175.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:220} scroll=211.50002
+    pluginviewport_test.go:115: select size=[320 180] target={X:72.99999 Y:135.2 W:220 H:29.8} viewport={X:0 Y:0 W:320 H:180} scroll=254.60002
+    pluginviewport_test.go:115: select size=[560 400] target={X:313 Y:132.09999 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:400} scroll=254.60002
+    pluginviewport_test.go:139: select window resize did not settle: size=[420 240] rect={X:173.00002 Y:354.19998 W:0 H:0}
+=== RUN   TestPluginViewportSelect/dark
+    pluginviewport_test.go:115: select size=[560 220] target={X:313 Y:175.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:220} scroll=211.50002
+    pluginviewport_test.go:115: select size=[320 180] target={X:72.99999 Y:135.2 W:220 H:29.8} viewport={X:0 Y:0 W:320 H:180} scroll=254.60002
+    pluginviewport_test.go:115: select size=[560 400] target={X:313 Y:132.09999 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:400} scroll=254.60002
+    pluginviewport_test.go:139: select window resize did not settle: size=[420 240] rect={X:173.00002 Y:354.19998 W:0 H:0}
+--- FAIL: TestPluginViewportSelect (0.14s)
+    --- FAIL: TestPluginViewportSelect/light (0.07s)
+    --- FAIL: TestPluginViewportSelect/dark (0.07s)
+=== RUN   TestPluginViewportRadio
+=== RUN   TestPluginViewportRadio/light
+    pluginviewport_test.go:115: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:115: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:115: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+    pluginviewport_test.go:139: radio window resize did not settle: size=[420 240] rect={X:28 Y:353.39996 W:0 H:0}
+=== RUN   TestPluginViewportRadio/dark
+    pluginviewport_test.go:115: radio size=[560 220] target={X:28 Y:173.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:220} scroll=238.5
+    pluginviewport_test.go:115: radio size=[320 180] target={X:28 Y:133.40001 W:264 H:30.6} viewport={X:0 Y:0 W:320 H:180} scroll=278.5
+    pluginviewport_test.go:115: radio size=[560 400] target={X:28 Y:133.40001 W:504 H:30.6} viewport={X:0 Y:0 W:560 H:400} scroll=278.5
+    pluginviewport_test.go:139: radio window resize did not settle: size=[420 240] rect={X:28 Y:353.39996 W:0 H:0}
+--- FAIL: TestPluginViewportRadio (0.12s)
+    --- FAIL: TestPluginViewportRadio/light (0.06s)
+    --- FAIL: TestPluginViewportRadio/dark (0.06s)
+=== RUN   TestPluginViewportCheckboxes
+=== RUN   TestPluginViewportCheckboxes/light
+    pluginviewport_test.go:115: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:115: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:115: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+    pluginviewport_test.go:139: checkboxes window resize did not settle: size=[420 240] rect={X:28 Y:366.99997 W:0 H:0}
+=== RUN   TestPluginViewportCheckboxes/dark
+    pluginviewport_test.go:115: checkboxes size=[560 220] target={X:28 Y:187.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:220} scroll=224.9
+    pluginviewport_test.go:115: checkboxes size=[320 180] target={X:28 Y:147.00002 W:264 H:17} viewport={X:0 Y:0 W:320 H:180} scroll=264.9
+    pluginviewport_test.go:115: checkboxes size=[560 400] target={X:28 Y:147.00002 W:504 H:17} viewport={X:0 Y:0 W:560 H:400} scroll=264.9
+    pluginviewport_test.go:139: checkboxes window resize did not settle: size=[420 240] rect={X:28 Y:366.99997 W:0 H:0}
+--- FAIL: TestPluginViewportCheckboxes (0.09s)
+    --- FAIL: TestPluginViewportCheckboxes/light (0.05s)
+    --- FAIL: TestPluginViewportCheckboxes/dark (0.05s)
+=== RUN   TestPluginViewportText
+=== RUN   TestPluginViewportText/light
+    pluginviewport_test.go:115: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:115: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:115: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+    pluginviewport_test.go:139: text window resize did not settle: size=[420 240] rect={X:36.2 Y:350.3 W:0 H:25.199999}
+=== RUN   TestPluginViewportText/dark
+    pluginviewport_test.go:115: text size=[560 220] target={X:36.2 Y:179.80002 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=232.09999
+    pluginviewport_test.go:115: text size=[320 180] target={X:36.2 Y:139.80003 W:247.6 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=272.09998
+    pluginviewport_test.go:115: text size=[560 400] target={X:36.2 Y:139.80003 W:487.6 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=272.09998
+    pluginviewport_test.go:139: text window resize did not settle: size=[420 240] rect={X:36.2 Y:350.3 W:0 H:25.199999}
+--- FAIL: TestPluginViewportText (0.10s)
+    --- FAIL: TestPluginViewportText/light (0.05s)
+    --- FAIL: TestPluginViewportText/dark (0.05s)
+=== RUN   TestPluginViewportNumber
+=== RUN   TestPluginViewportNumber/light
+    pluginviewport_test.go:115: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:115: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:115: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+    pluginviewport_test.go:139: number window resize did not settle: size=[420 240] rect={X:338 Y:350.3 W:0 H:25.199999}
+=== RUN   TestPluginViewportNumber/dark
+    pluginviewport_test.go:115: number size=[560 220] target={X:478 Y:179.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:220} scroll=208.2
+    pluginviewport_test.go:115: number size=[320 180] target={X:238 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:320 H:180} scroll=248.2
+    pluginviewport_test.go:115: number size=[560 400] target={X:478 Y:139.80002 W:46.8 H:25.199999} viewport={X:0 Y:0 W:560 H:400} scroll=248.2
+    pluginviewport_test.go:139: number window resize did not settle: size=[420 240] rect={X:338 Y:350.3 W:0 H:25.199999}
+--- FAIL: TestPluginViewportNumber (0.10s)
+    --- FAIL: TestPluginViewportNumber/light (0.05s)
+    --- FAIL: TestPluginViewportNumber/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.737s
+FAIL
