@@ -1,0 +1,49 @@
+=== RUN   TestContentVisibilityCopyRetired
+=== RUN   TestContentVisibilityCopyRetired/command-withdraw/light
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:529.8 Y:-1097.0001 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestContentVisibilityCopyRetired/command-withdraw/dark
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:529.8 Y:-1097.0001 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestContentVisibilityCopyRetired/command-empty/light
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:529.8 Y:-1097.0001 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestContentVisibilityCopyRetired/command-empty/dark
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:529.8 Y:-1097.0001 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestContentVisibilityCopyRetired/plan-withdraw/light
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:449.8 Y:-1152.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestContentVisibilityCopyRetired/plan-withdraw/dark
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:449.8 Y:-1152.0001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1554.1002
+=== RUN   TestContentVisibilityCopyRetired/script-withdraw/light
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestContentVisibilityCopyRetired/script-withdraw/dark
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestContentVisibilityCopyRetired/script-empty/light
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:201.8 Y:-993.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1523.3003
+=== RUN   TestContentVisibilityCopyRetired/script-empty/dark
+    copyvisibility_test.go:62: editing outlet outside viewport: rect={X:201.8 Y:-993.9002 W:487 H:64.8} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1523.3003
+--- FAIL: TestContentVisibilityCopyRetired (0.43s)
+    --- FAIL: TestContentVisibilityCopyRetired/command-withdraw/light (0.16s)
+    --- FAIL: TestContentVisibilityCopyRetired/command-withdraw/dark (0.03s)
+    --- FAIL: TestContentVisibilityCopyRetired/command-empty/light (0.03s)
+    --- FAIL: TestContentVisibilityCopyRetired/command-empty/dark (0.03s)
+    --- FAIL: TestContentVisibilityCopyRetired/plan-withdraw/light (0.03s)
+    --- FAIL: TestContentVisibilityCopyRetired/plan-withdraw/dark (0.03s)
+    --- FAIL: TestContentVisibilityCopyRetired/script-withdraw/light (0.03s)
+    --- FAIL: TestContentVisibilityCopyRetired/script-withdraw/dark (0.03s)
+    --- FAIL: TestContentVisibilityCopyRetired/script-empty/light (0.03s)
+    --- FAIL: TestContentVisibilityCopyRetired/script-empty/dark (0.03s)
+=== RUN   TestContentVisibilityLinkRetired
+=== RUN   TestContentVisibilityLinkRetired/connect/light
+    copyvisibility_test.go:120: editing outlet outside viewport: rect={X:208.6 Y:324.6 W:399.80002 H:15} viewport={X:170.6 Y:51.399998 W:549.4 H:248.6} scroll=0
+=== RUN   TestContentVisibilityLinkRetired/connect/dark
+    copyvisibility_test.go:120: editing outlet outside viewport: rect={X:208.6 Y:324.6 W:399.80002 H:15} viewport={X:170.6 Y:51.399998 W:549.4 H:248.6} scroll=0
+=== RUN   TestContentVisibilityLinkRetired/register/light
+    copyvisibility_test.go:120: editing outlet outside viewport: rect={X:208.6 Y:369.6 W:399.80002 H:15} viewport={X:170.6 Y:51.399998 W:549.4 H:248.6} scroll=0
+=== RUN   TestContentVisibilityLinkRetired/register/dark
+    copyvisibility_test.go:120: editing outlet outside viewport: rect={X:208.6 Y:369.6 W:399.80002 H:15} viewport={X:170.6 Y:51.399998 W:549.4 H:248.6} scroll=0
+--- FAIL: TestContentVisibilityLinkRetired (0.07s)
+    --- FAIL: TestContentVisibilityLinkRetired/connect/light (0.02s)
+    --- FAIL: TestContentVisibilityLinkRetired/connect/dark (0.02s)
+    --- FAIL: TestContentVisibilityLinkRetired/register/light (0.01s)
+    --- FAIL: TestContentVisibilityLinkRetired/register/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.507s
+FAIL

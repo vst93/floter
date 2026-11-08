@@ -1,0 +1,39 @@
+=== RUN   TestContentVisibilityCopyRetired
+=== RUN   TestContentVisibilityCopyRetired/command-withdraw/light
+=== RUN   TestContentVisibilityCopyRetired/command-withdraw/dark
+=== RUN   TestContentVisibilityCopyRetired/command-empty/light
+=== RUN   TestContentVisibilityCopyRetired/command-empty/dark
+=== RUN   TestContentVisibilityCopyRetired/plan-withdraw/light
+=== RUN   TestContentVisibilityCopyRetired/plan-withdraw/dark
+=== RUN   TestContentVisibilityCopyRetired/script-withdraw/light
+=== RUN   TestContentVisibilityCopyRetired/script-withdraw/dark
+=== RUN   TestContentVisibilityCopyRetired/script-empty/light
+=== RUN   TestContentVisibilityCopyRetired/script-empty/dark
+--- PASS: TestContentVisibilityCopyRetired (0.46s)
+    --- PASS: TestContentVisibilityCopyRetired/command-withdraw/light (0.17s)
+    --- PASS: TestContentVisibilityCopyRetired/command-withdraw/dark (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/command-empty/light (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/command-empty/dark (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/plan-withdraw/light (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/plan-withdraw/dark (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/script-withdraw/light (0.04s)
+    --- PASS: TestContentVisibilityCopyRetired/script-withdraw/dark (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/script-empty/light (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/script-empty/dark (0.03s)
+=== RUN   TestContentVisibilityLinkRetired
+=== RUN   TestContentVisibilityLinkRetired/connect/light
+    copyvisibility_test.go:120: editing outlet outside viewport: rect={X:208.6 Y:285.00003 W:399.80002 H:15} viewport={X:170.6 Y:51.399998 W:549.4 H:248.6} scroll=39.599976
+=== RUN   TestContentVisibilityLinkRetired/connect/dark
+    copyvisibility_test.go:120: editing outlet outside viewport: rect={X:208.6 Y:285.00003 W:399.80002 H:15} viewport={X:170.6 Y:51.399998 W:549.4 H:248.6} scroll=39.599976
+=== RUN   TestContentVisibilityLinkRetired/register/light
+    copyvisibility_test.go:120: editing outlet outside viewport: rect={X:208.6 Y:285.00003 W:399.80002 H:15} viewport={X:170.6 Y:51.399998 W:549.4 H:248.6} scroll=84.599976
+=== RUN   TestContentVisibilityLinkRetired/register/dark
+    copyvisibility_test.go:120: editing outlet outside viewport: rect={X:208.6 Y:285.00003 W:399.80002 H:15} viewport={X:170.6 Y:51.399998 W:549.4 H:248.6} scroll=84.599976
+--- FAIL: TestContentVisibilityLinkRetired (0.08s)
+    --- FAIL: TestContentVisibilityLinkRetired/connect/light (0.03s)
+    --- FAIL: TestContentVisibilityLinkRetired/connect/dark (0.02s)
+    --- FAIL: TestContentVisibilityLinkRetired/register/light (0.02s)
+    --- FAIL: TestContentVisibilityLinkRetired/register/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.552s
+FAIL

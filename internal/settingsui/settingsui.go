@@ -6259,7 +6259,7 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) bo
 	c = c.Key(action)
 	focus := a.contentFocus(c, action)
 	if a.Actions.CopyText == nil || strings.TrimSpace(value) == "" {
-		focus.restore(c)
+		focus.restoreVisible(c)
 	}
 	if a.Actions.CopyText == nil || (a.copiedContent == action && a.copiedContentValue != value) {
 		a.copiedContent, a.copiedContentValue = "", ""

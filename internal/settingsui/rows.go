@@ -1436,7 +1436,9 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
 				text.Focusable()
 			}
 			if a.Actions.CopyText == nil {
-				focus.restore(c)
+				if focus.restore(c) {
+					chip.ScrollIntoView()
+				}
 			}
 		})
 	}, below...)

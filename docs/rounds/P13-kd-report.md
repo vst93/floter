@@ -41,3 +41,12 @@ M2回注第一批产品，四场景实红`editing outlet outside viewport`；MD5
 导出夹具最初从代码编辑器按Tab，Tab被编辑器消费，没到按钮；该失败仅属夹具，保留M3-fixture-error.txt，不算产品/mutation。改为绑定的按钮设起点后Tab往返，使用真实Enter与状态刷新复现。
 
 M3回注第二批产品，八场景实红`editing outlet outside viewport: rect={X:201.8 Y:-1023.9002 W:487 H:64.8}`；MD5还原、touch后含既有导出等待/重试回归共18 PASS / 0 FAIL / exit0，settingsui vet净。V/B/S旧断言0/0/0。
+
+第三批ebd46d4d已推送。
+
+7. 内容复制退役：command/plan/script能力撤回、command/script变空时，原源字段返焦但在Y=-1097/-1152/-1023.9 → 各动作只在实际返焦时显示自己的字段 → 五种场景×深浅，直接输入落到各自草稿；复制派发0次、确认0条、滚轮自由。plan始终是有效JSON，没有捏造空plan场景。
+8. About深链接复制撤回：短窗口先聚焦第二条复制，再滚回顶部，宿主撤回CopyText；链接焦点在Y=369.6而视口底300 → 保留按URL分开的返焦，显示原链接凹槽 → 两条链接×深浅，选择目标可见、Tab可退出、不派发复制、不显示虚假确认。
+
+第一次只显示链接文字仍报`rect={X:208.6 Y:285.00003 W:399.80002 H:15}`，占用像素跨过底300；不加容差，改为显示含内边距的现有chip，严格像素包含通过。此中间失败保留M4-incomplete-reveal.txt。
+
+M4两源文件回注第三批产品，14个深浅场景实红`editing outlet outside viewport`；两文件MD5还原、touch复验，加不抢焦点10场景共27 PASS / 0 FAIL / exit0，settingsui vet净。其他编辑器仍持焦时500px偏移精确保留、名称输入有效。旧V/B/S断言0/0/0。深色导出after目视：代码首行与插入点出现在正文顶端，原命令/版本在下面；浅色链接after目视：register文字及蓝色选择环完整进入凹槽，复制按钮退淡。
