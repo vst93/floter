@@ -234,3 +234,10 @@ func TestCatalogReflowRunChoices(t *testing.T) {
 
 func TestCatalogReflowRunCancel(t *testing.T) { checkCatalogReflow(t, "run-controls", "cancel") }
 func TestCatalogReflowRunSubmit(t *testing.T) { checkCatalogReflow(t, "run-submit", "text") }
+
+func TestCatalogReflowConfigFields(t *testing.T) { checkCatalogReflow(t, "config-fields", "text") }
+func TestCatalogReflowConfigActions(t *testing.T) {
+	for _, scenario := range []string{"config-defaults", "config-save"} {
+		t.Run(scenario, func(t *testing.T) { checkCatalogReflow(t, scenario, "") })
+	}
+}

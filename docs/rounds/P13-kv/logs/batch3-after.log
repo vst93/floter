@@ -1,0 +1,28 @@
+=== RUN   TestCatalogReflowConfigFields
+=== RUN   TestCatalogReflowConfigFields/approval
+=== RUN   TestCatalogReflowConfigFields/approval/light
+=== RUN   TestCatalogReflowConfigFields/approval/dark
+--- PASS: TestCatalogReflowConfigFields (0.45s)
+    --- PASS: TestCatalogReflowConfigFields/approval (0.45s)
+        --- PASS: TestCatalogReflowConfigFields/approval/light (0.34s)
+        --- PASS: TestCatalogReflowConfigFields/approval/dark (0.11s)
+=== RUN   TestCatalogReflowConfigActions
+=== RUN   TestCatalogReflowConfigActions/config-defaults
+=== RUN   TestCatalogReflowConfigActions/config-defaults/approval
+=== RUN   TestCatalogReflowConfigActions/config-defaults/approval/light
+=== RUN   TestCatalogReflowConfigActions/config-defaults/approval/dark
+=== RUN   TestCatalogReflowConfigActions/config-save
+=== RUN   TestCatalogReflowConfigActions/config-save/approval
+=== RUN   TestCatalogReflowConfigActions/config-save/approval/light
+=== RUN   TestCatalogReflowConfigActions/config-save/approval/dark
+--- PASS: TestCatalogReflowConfigActions (0.43s)
+    --- PASS: TestCatalogReflowConfigActions/config-defaults (0.22s)
+        --- PASS: TestCatalogReflowConfigActions/config-defaults/approval (0.22s)
+            --- PASS: TestCatalogReflowConfigActions/config-defaults/approval/light (0.11s)
+            --- PASS: TestCatalogReflowConfigActions/config-defaults/approval/dark (0.11s)
+    --- PASS: TestCatalogReflowConfigActions/config-save (0.21s)
+        --- PASS: TestCatalogReflowConfigActions/config-save/approval (0.21s)
+            --- PASS: TestCatalogReflowConfigActions/config-save/approval/light (0.11s)
+            --- PASS: TestCatalogReflowConfigActions/config-save/approval/dark (0.10s)
+PASS
+ok  	floter/internal/settingsui	0.886s
