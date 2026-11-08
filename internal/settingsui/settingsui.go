@@ -3344,12 +3344,20 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// derivation, so a tool that shipped new subcommands comes back
 			// with them without a disconnect.
 			if integration.Generated && a.Actions.ReprobeCommands != nil {
-				if rowAction(copy.IntegrationsReprobe).Clicked() {
+				var reprobe ui.Element
+				a.formFeedbackOutlet(c.Key("row-reprobe-outlet"), a.integrationLead+outputFeedback, func() {
+					reprobe = rowAction(copy.IntegrationsReprobe)
+				})
+				if reprobe.Clicked() {
 					a.Actions.ReprobeCommands(integration.ID)
 				}
 			}
 			if integration.Generated && a.Actions.EditCustomTool != nil && a.Actions.ToolForEdit != nil {
-				if rowAction(copy.EditLabel).Clicked() {
+				var edit ui.Element
+				a.formFeedbackOutlet(c.Key("row-edit-outlet"), a.integrationLead+outputFeedback, func() {
+					edit = rowAction(copy.EditLabel)
+				})
+				if edit.Clicked() {
 					form := a.toolFormKey
 					tool, ok := a.Actions.ToolForEdit(integration.ID)
 					// Fetching may replace the editor or refresh the target's
