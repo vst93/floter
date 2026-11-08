@@ -218,6 +218,18 @@ func (p Prepared) Commit(approved bool) (Entry, error) {
 			return Entry{}, ErrAdoptChanged
 		}
 	}
+	if !p.adopting && p.spec.Distribution == "local" {
+		// package.json can select another declaration without changing the
+		// previously reviewed file's bytes. Resolve the local source again.
+		current, err := PrepareLocal(p.paths, p.spec.PackageDir)
+		if err != nil {
+			return Entry{}, err
+		}
+		if current.spec.ManifestPath != p.spec.ManifestPath ||
+			current.spec.PackageName != p.spec.PackageName || current.spec.Version != p.spec.Version {
+			return Entry{}, ErrInstallChanged
+		}
+	}
 	spec := p.spec
 	spec.Approved = approved
 	spec.reviewedDigest = p.Digest
@@ -400,6 +412,12 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 // carrying over what an existing entry must keep.
 func buildEntry(manifest Manifest, packageDir string, binding RuntimeBinding, spec installSpec, previous Entry, existed bool) Entry {
 	now := uint64(time.Now().Unix())
+	manifestPath := filepath.Join(packageDir, manifestFileName)
+	if spec.ManifestPath != "" {
+		if relative, err := filepath.Rel(spec.PackageDir, spec.ManifestPath); err == nil {
+			manifestPath = filepath.Join(packageDir, relative)
+		}
+	}
 	runtimeOwnership := RuntimeOwnershipSystem
 	var runtimeRoot *string
 	if manifest.Runtime.Type == "script" {
@@ -437,7 +455,7 @@ func buildEntry(manifest Manifest, packageDir string, binding RuntimeBinding, sp
 		PackageName:        optionalString(spec.PackageName),
 		Integrity:          optionalString(spec.Integrity),
 		CurrentVersion:     version,
-		ManifestPath:       filepath.Join(packageDir, manifestFileName),
+		ManifestPath:       manifestPath,
 		ExecutablePath:     binding.Program,
 		RuntimeRoot:        runtimeRoot,
 		InstalledAt:        now,

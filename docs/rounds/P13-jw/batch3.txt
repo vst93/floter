@@ -1,0 +1,199 @@
+=== RUN   TestAdoptionCurrentPermissions
+=== RUN   TestAdoptionCurrentPermissions/light
+=== RUN   TestAdoptionCurrentPermissions/dark
+--- PASS: TestAdoptionCurrentPermissions (0.60s)
+    --- PASS: TestAdoptionCurrentPermissions/light (0.35s)
+    --- PASS: TestAdoptionCurrentPermissions/dark (0.25s)
+=== RUN   TestAdoptionCurrentPackage
+=== RUN   TestAdoptionCurrentPackage/light
+=== RUN   TestAdoptionCurrentPackage/dark
+--- PASS: TestAdoptionCurrentPackage (0.50s)
+    --- PASS: TestAdoptionCurrentPackage/light (0.25s)
+    --- PASS: TestAdoptionCurrentPackage/dark (0.25s)
+=== RUN   TestAdoptionCurrentRecord
+=== RUN   TestAdoptionCurrentRecord/light
+=== RUN   TestAdoptionCurrentRecord/dark
+--- PASS: TestAdoptionCurrentRecord (0.41s)
+    --- PASS: TestAdoptionCurrentRecord/light (0.23s)
+    --- PASS: TestAdoptionCurrentRecord/dark (0.18s)
+=== RUN   TestAdoptionCurrentRemoved
+=== RUN   TestAdoptionCurrentRemoved/light
+=== RUN   TestAdoptionCurrentRemoved/dark
+--- PASS: TestAdoptionCurrentRemoved (0.27s)
+    --- PASS: TestAdoptionCurrentRemoved/light (0.14s)
+    --- PASS: TestAdoptionCurrentRemoved/dark (0.14s)
+=== RUN   TestAdoptionCancel
+=== RUN   TestAdoptionCancel/light
+=== RUN   TestAdoptionCancel/dark
+--- PASS: TestAdoptionCancel (0.40s)
+    --- PASS: TestAdoptionCancel/light (0.20s)
+    --- PASS: TestAdoptionCancel/dark (0.20s)
+=== RUN   TestAdoptionDeleteFailure
+=== RUN   TestAdoptionDeleteFailure/light
+2026/11/08 10:51:04 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailurelight2020032843/001/extension-repository.json: unexpected end of JSON input
+=== RUN   TestAdoptionDeleteFailure/dark
+2026/11/08 10:51:04 floter: could not delete dev.floter.check: extensions: invalid repository /tmp/TestAdoptionDeleteFailuredark2299237689/001/extension-repository.json: unexpected end of JSON input
+--- PASS: TestAdoptionDeleteFailure (0.39s)
+    --- PASS: TestAdoptionDeleteFailure/light (0.18s)
+    --- PASS: TestAdoptionDeleteFailure/dark (0.21s)
+=== RUN   TestRecommendedConnectAsksWhichExecutableToBind
+--- PASS: TestRecommendedConnectAsksWhichExecutableToBind (0.08s)
+=== RUN   TestRecommendedConnectCancelledByTheChooserInstallsNothing
+--- PASS: TestRecommendedConnectCancelledByTheChooserInstallsNothing (0.30s)
+=== RUN   TestCompletionSeverityInstall
+=== RUN   TestCompletionSeverityInstall/registry
+=== RUN   TestCompletionSeverityInstall/registry/light
+2026/11/08 10:51:05 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+=== RUN   TestCompletionSeverityInstall/registry/dark
+2026/11/08 10:51:05 floter: could not install floter-test-tool: extensions: the registry answered 503 Service Unavailable for floter-test-tool
+=== RUN   TestCompletionSeverityInstall/adoption
+=== RUN   TestCompletionSeverityInstall/adoption/light
+2026/11/08 10:51:05 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+=== RUN   TestCompletionSeverityInstall/adoption/dark
+2026/11/08 10:51:05 floter: could not adopt missing-tool: extensions: no such package directory: missing-tool
+--- PASS: TestCompletionSeverityInstall (1.00s)
+    --- PASS: TestCompletionSeverityInstall/registry (0.50s)
+        --- PASS: TestCompletionSeverityInstall/registry/light (0.25s)
+        --- PASS: TestCompletionSeverityInstall/registry/dark (0.24s)
+    --- PASS: TestCompletionSeverityInstall/adoption (0.50s)
+        --- PASS: TestCompletionSeverityInstall/adoption/light (0.25s)
+        --- PASS: TestCompletionSeverityInstall/adoption/dark (0.25s)
+=== RUN   TestTheDetectedRowKnowsItsInstallCommand
+=== RUN   TestTheDetectedRowKnowsItsInstallCommand/a_known_tool_and_a_manager_this_machine_has
+=== RUN   TestTheDetectedRowKnowsItsInstallCommand/a_known_tool_and_no_manager
+=== RUN   TestTheDetectedRowKnowsItsInstallCommand/a_Windows-style_executable_name
+=== RUN   TestTheDetectedRowKnowsItsInstallCommand/a_tool_the_catalog_does_not_know
+=== RUN   TestTheDetectedRowKnowsItsInstallCommand/a_platform_the_tool_has_no_recipe_for
+--- PASS: TestTheDetectedRowKnowsItsInstallCommand (0.00s)
+    --- PASS: TestTheDetectedRowKnowsItsInstallCommand/a_known_tool_and_a_manager_this_machine_has (0.00s)
+    --- PASS: TestTheDetectedRowKnowsItsInstallCommand/a_known_tool_and_no_manager (0.00s)
+    --- PASS: TestTheDetectedRowKnowsItsInstallCommand/a_Windows-style_executable_name (0.00s)
+    --- PASS: TestTheDetectedRowKnowsItsInstallCommand/a_tool_the_catalog_does_not_know (0.00s)
+    --- PASS: TestTheDetectedRowKnowsItsInstallCommand/a_platform_the_tool_has_no_recipe_for (0.00s)
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval/light
+=== RUN   TestFactsRefreshOldDigestCannotUndoApproval/dark
+--- PASS: TestFactsRefreshOldDigestCannotUndoApproval (0.16s)
+    --- PASS: TestFactsRefreshOldDigestCannotUndoApproval/light (0.08s)
+    --- PASS: TestFactsRefreshOldDigestCannotUndoApproval/dark (0.08s)
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval/light
+=== RUN   TestFactsSyncFirstDigestCannotUndoApproval/dark
+--- PASS: TestFactsSyncFirstDigestCannotUndoApproval (0.16s)
+    --- PASS: TestFactsSyncFirstDigestCannotUndoApproval/light (0.08s)
+    --- PASS: TestFactsSyncFirstDigestCannotUndoApproval/dark (0.08s)
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval/light
+=== RUN   TestFactsSyncAddedDigestCannotUndoOwnApproval/dark
+--- PASS: TestFactsSyncAddedDigestCannotUndoOwnApproval (0.30s)
+    --- PASS: TestFactsSyncAddedDigestCannotUndoOwnApproval/light (0.14s)
+    --- PASS: TestFactsSyncAddedDigestCannotUndoOwnApproval/dark (0.15s)
+=== RUN   TestInstallCurrentLocalBusy
+=== RUN   TestInstallCurrentLocalBusy/light
+=== RUN   TestInstallCurrentLocalBusy/dark
+--- PASS: TestInstallCurrentLocalBusy (0.65s)
+    --- PASS: TestInstallCurrentLocalBusy/light (0.30s)
+    --- PASS: TestInstallCurrentLocalBusy/dark (0.34s)
+=== RUN   TestInstallCurrentRecommendedBusy
+=== RUN   TestInstallCurrentRecommendedBusy/light
+=== RUN   TestInstallCurrentRecommendedBusy/dark
+--- PASS: TestInstallCurrentRecommendedBusy (0.73s)
+    --- PASS: TestInstallCurrentRecommendedBusy/light (0.36s)
+    --- PASS: TestInstallCurrentRecommendedBusy/dark (0.37s)
+=== RUN   TestInstallCurrentLocalPermissions
+=== RUN   TestInstallCurrentLocalPermissions/light
+=== RUN   TestInstallCurrentLocalPermissions/dark
+--- PASS: TestInstallCurrentLocalPermissions (1.09s)
+    --- PASS: TestInstallCurrentLocalPermissions/light (0.56s)
+    --- PASS: TestInstallCurrentLocalPermissions/dark (0.53s)
+=== RUN   TestInstallCurrentRecommendedPermissions
+=== RUN   TestInstallCurrentRecommendedPermissions/light
+=== RUN   TestInstallCurrentRecommendedPermissions/dark
+--- PASS: TestInstallCurrentRecommendedPermissions (1.18s)
+    --- PASS: TestInstallCurrentRecommendedPermissions/light (0.56s)
+    --- PASS: TestInstallCurrentRecommendedPermissions/dark (0.62s)
+=== RUN   TestInstallCurrentLocalPackage
+=== RUN   TestInstallCurrentLocalPackage/light
+=== RUN   TestInstallCurrentLocalPackage/dark
+--- PASS: TestInstallCurrentLocalPackage (1.01s)
+    --- PASS: TestInstallCurrentLocalPackage/light (0.51s)
+    --- PASS: TestInstallCurrentLocalPackage/dark (0.49s)
+=== RUN   TestInstallCurrentRecommendedPackage
+=== RUN   TestInstallCurrentRecommendedPackage/light
+=== RUN   TestInstallCurrentRecommendedPackage/dark
+--- PASS: TestInstallCurrentRecommendedPackage (0.98s)
+    --- PASS: TestInstallCurrentRecommendedPackage/light (0.49s)
+    --- PASS: TestInstallCurrentRecommendedPackage/dark (0.49s)
+=== RUN   TestLocalInstallReviewCarriesTheManifestSummary
+--- PASS: TestLocalInstallReviewCarriesTheManifestSummary (0.00s)
+=== RUN   TestLocalInstallReviewListsDeclaredPermissions
+--- PASS: TestLocalInstallReviewListsDeclaredPermissions (0.00s)
+=== RUN   TestInstallFromFolderReviewsBeforeCommitting
+--- PASS: TestInstallFromFolderReviewsBeforeCommitting (0.36s)
+=== RUN   TestRecommendedInstallReviewNamesTheToolAndTiersItsPermissions
+--- PASS: TestRecommendedInstallReviewNamesTheToolAndTiersItsPermissions (0.00s)
+=== RUN   TestRecommendedConnectReviewsBeforeCommitting
+--- PASS: TestRecommendedConnectReviewsBeforeCommitting (0.35s)
+=== RUN   TestInstallFromRegistryReachesTheStore
+2026/11/08 10:51:13 floter: installed NPM Tool 1.0.0
+--- PASS: TestInstallFromRegistryReachesTheStore (0.08s)
+=== RUN   TestInstallAsksBeforeGrantingPermissions
+2026/11/08 10:51:13 floter: NPM Tool was not approved, so it was not installed
+2026/11/08 10:51:13 floter: installed NPM Tool 1.0.0
+--- PASS: TestInstallAsksBeforeGrantingPermissions (0.32s)
+=== RUN   TestASummonRefreshesTheInstallCatalog
+--- PASS: TestASummonRefreshesTheInstallCatalog (0.00s)
+=== RUN   TestTheWayBackRefreshesTheInstallCatalog
+--- PASS: TestTheWayBackRefreshesTheInstallCatalog (0.00s)
+=== RUN   TestARevealRefreshesTheInstallCatalog
+--- PASS: TestARevealRefreshesTheInstallCatalog (0.00s)
+=== RUN   TestARefreshReplacesTheInstallCatalog
+--- PASS: TestARefreshReplacesTheInstallCatalog (0.00s)
+=== RUN   TestConnectRecommendedInstallsTheShippedPackage
+--- PASS: TestConnectRecommendedInstallsTheShippedPackage (0.09s)
+=== RUN   TestApprovalRecordReachesTheCard
+--- PASS: TestApprovalRecordReachesTheCard (0.04s)
+PASS
+ok  	floter/internal/shell	11.493s
+=== RUN   TestApprovalIsStale
+--- PASS: TestApprovalIsStale (0.00s)
+=== RUN   TestPrepareRefusesAManifestBuiltForAnotherRelease
+--- PASS: TestPrepareRefusesAManifestBuiltForAnotherRelease (0.00s)
+=== RUN   TestInstallLocalRefusesAnIncompatibleProtocol
+--- PASS: TestInstallLocalRefusesAnIncompatibleProtocol (0.00s)
+=== RUN   TestCreateCustomNeedsApproval
+--- PASS: TestCreateCustomNeedsApproval (0.08s)
+=== RUN   TestInstallLocal
+--- PASS: TestInstallLocal (0.08s)
+=== RUN   TestInstallLocalRejectsBadPackages
+--- PASS: TestInstallLocalRejectsBadPackages (0.08s)
+=== RUN   TestInstallLocalUpdateKeepsTheAuditTrail
+--- PASS: TestInstallLocalUpdateKeepsTheAuditTrail (0.15s)
+=== RUN   TestInstallLocalWithASystemRuntime
+--- PASS: TestInstallLocalWithASystemRuntime (0.07s)
+=== RUN   TestPermissionsGateTheInstall
+--- PASS: TestPermissionsGateTheInstall (0.12s)
+=== RUN   TestAdoptAndDeleteOrphans
+--- PASS: TestAdoptAndDeleteOrphans (0.11s)
+=== RUN   TestPrepareRefusesAnOsBelowTheOverrideFloor
+--- PASS: TestPrepareRefusesAnOsBelowTheOverrideFloor (0.00s)
+=== RUN   TestInstallRefusesAnUnsupportedPlatform
+--- PASS: TestInstallRefusesAnUnsupportedPlatform (0.00s)
+=== RUN   TestInstallFromRegistry
+--- PASS: TestInstallFromRegistry (0.12s)
+=== RUN   TestInstallFromRegistryRefusesBadPackages
+--- PASS: TestInstallFromRegistryRefusesBadPackages (0.00s)
+=== RUN   TestImportSyncInstallsAndConfigures
+--- PASS: TestImportSyncInstallsAndConfigures (0.26s)
+=== RUN   TestImportSyncMergesIntoAnInstalledIntegration
+--- PASS: TestImportSyncMergesIntoAnInstalledIntegration (0.05s)
+=== RUN   TestImportSyncSkipsWhatItCannotInstall
+--- PASS: TestImportSyncSkipsWhatItCannotInstall (0.00s)
+=== RUN   TestImportSyncAsksOnceAndRefusalInstallsNothing
+--- PASS: TestImportSyncAsksOnceAndRefusalInstallsNothing (0.08s)
+PASS
+ok  	floter/internal/extensions	1.223s
+=== RUN   TestPrepare
+--- PASS: TestPrepare (0.03s)
+PASS
+ok  	floter/internal/extensions/recommended	0.036s

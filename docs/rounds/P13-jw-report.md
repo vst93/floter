@@ -38,3 +38,14 @@
 4. 现象：推荐连接审核后暂存声明改变，同样把旧回答用给新权限。改动：共用摘要保护，推荐入口处理失效结果并恢复。验证：推荐行真实Click及其独立暂存目录变化，深浅两套同验。
 
 第二批相关 **86 PASS / 0 FAIL**，extensions/shell vet净。M2撤销摘要检查后四场景报 `obsolete local-permissions review rewrote repository` / `obsolete recommended-permissions review rewrote repository`；MD5还原、touch后 **6 PASS**。开盘树 `git grep -h '^func Test' 2cca8ae9 -- '*_test.go'` 实数 **3395**（上一轮报告写3393，本轮不沿用误差）。
+
+第二批 **41dadd06** 已推送。
+
+### 第三批：包入口变化使旧回答退役
+
+5. 现象：本地审核时保留原manifest字节，只将package.json改指current.json，旧回答仍登记原声明。改动：提交前重新解析本地包入口、名称与版本；重新审核后记录实际manifest相对路径，避免读取旧文件。验证：真实Click→入口改指→确认，仓库不变；新审核成功且Inventory读到当前工具名。
+6. 现象：推荐暂存包改入口也绕过摘要检查，仍登记旧声明。改动：推荐路径共用当前入口复核。验证：独立暂存包、深浅两套事件，失效回答不写盘/不发旧通知，重新点击推荐可正常安装原装包。
+
+第三批原代码四场景均报 `obsolete local-package review rewrote repository` / `obsolete recommended-package review rewrote repository`。新审核后manifest路径也一并钉住，不单算第九项。
+
+第三批相关 **92 PASS / 0 FAIL**，extensions/shell vet净。M3撤销入口复核，四场景实红；MD5还原、touch后 **6 PASS**。两次审核后的当前manifest名称有独立断言。

@@ -1,0 +1,14 @@
+=== RUN   TestInstallCurrentLocalPackage
+=== RUN   TestInstallCurrentLocalPackage/light
+=== RUN   TestInstallCurrentLocalPackage/dark
+--- PASS: TestInstallCurrentLocalPackage (1.04s)
+    --- PASS: TestInstallCurrentLocalPackage/light (0.56s)
+    --- PASS: TestInstallCurrentLocalPackage/dark (0.49s)
+=== RUN   TestInstallCurrentRecommendedPackage
+=== RUN   TestInstallCurrentRecommendedPackage/light
+=== RUN   TestInstallCurrentRecommendedPackage/dark
+--- PASS: TestInstallCurrentRecommendedPackage (0.89s)
+    --- PASS: TestInstallCurrentRecommendedPackage/light (0.46s)
+    --- PASS: TestInstallCurrentRecommendedPackage/dark (0.43s)
+PASS
+ok  	floter/internal/shell	1.941s

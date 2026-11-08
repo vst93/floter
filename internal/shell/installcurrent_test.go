@@ -260,8 +260,10 @@ func checkInstallCurrentDeclaration(t *testing.T, recommended bool, change strin
 			installCurrentClick(t, f, tt, recommended)
 			adoptionWait(t, settled)
 			adoptionWait(t, settled)
-			if _, ok := f.a.Integrations.Inventory().WithID(p.Manifest.ID); !ok {
+			if installed, ok := f.a.Integrations.Inventory().WithID(p.Manifest.ID); !ok {
 				t.Error("fresh review did not install")
+			} else if change == "package" && !recommended && installed.Manifest.Name != current.Name {
+				t.Errorf("fresh review loaded the old package entry: got=%q want=%q", installed.Manifest.Name, current.Name)
 			}
 		})
 	}
@@ -272,4 +274,11 @@ func TestInstallCurrentLocalPermissions(t *testing.T) {
 }
 func TestInstallCurrentRecommendedPermissions(t *testing.T) {
 	checkInstallCurrentDeclaration(t, true, "permissions")
+}
+
+func TestInstallCurrentLocalPackage(t *testing.T) {
+	checkInstallCurrentDeclaration(t, false, "package")
+}
+func TestInstallCurrentRecommendedPackage(t *testing.T) {
+	checkInstallCurrentDeclaration(t, true, "package")
 }

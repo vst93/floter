@@ -1,0 +1,19 @@
+=== RUN   TestInstallCurrentLocalPackage
+=== RUN   TestInstallCurrentLocalPackage/light
+    installcurrent_test.go:251: obsolete local-package review rewrote repository
+=== RUN   TestInstallCurrentLocalPackage/dark
+    installcurrent_test.go:251: obsolete local-package review rewrote repository
+--- FAIL: TestInstallCurrentLocalPackage (0.61s)
+    --- FAIL: TestInstallCurrentLocalPackage/light (0.39s)
+    --- FAIL: TestInstallCurrentLocalPackage/dark (0.22s)
+=== RUN   TestInstallCurrentRecommendedPackage
+=== RUN   TestInstallCurrentRecommendedPackage/light
+    installcurrent_test.go:251: obsolete recommended-package review rewrote repository
+=== RUN   TestInstallCurrentRecommendedPackage/dark
+    installcurrent_test.go:251: obsolete recommended-package review rewrote repository
+--- FAIL: TestInstallCurrentRecommendedPackage (0.48s)
+    --- FAIL: TestInstallCurrentRecommendedPackage/light (0.24s)
+    --- FAIL: TestInstallCurrentRecommendedPackage/dark (0.24s)
+FAIL
+FAIL	floter/internal/shell	1.088s
+FAIL
