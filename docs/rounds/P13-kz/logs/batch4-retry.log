@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasTransferReportReflow
+=== RUN   TestCommandAliasTransferReportReflow/light
+=== RUN   TestCommandAliasTransferReportReflow/dark
+--- PASS: TestCommandAliasTransferReportReflow (0.12s)
+    --- PASS: TestCommandAliasTransferReportReflow/light (0.09s)
+    --- PASS: TestCommandAliasTransferReportReflow/dark (0.03s)
+=== RUN   TestCommandSwitchTransferReportReflow
+=== RUN   TestCommandSwitchTransferReportReflow/light
+=== RUN   TestCommandSwitchTransferReportReflow/dark
+--- PASS: TestCommandSwitchTransferReportReflow (0.06s)
+    --- PASS: TestCommandSwitchTransferReportReflow/light (0.03s)
+    --- PASS: TestCommandSwitchTransferReportReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.186s

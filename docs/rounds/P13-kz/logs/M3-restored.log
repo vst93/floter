@@ -1,0 +1,50 @@
+=== RUN   TestCommandAliasDescriptionReflow
+=== RUN   TestCommandAliasDescriptionReflow/light
+=== RUN   TestCommandAliasDescriptionReflow/dark
+--- PASS: TestCommandAliasDescriptionReflow (0.14s)
+    --- PASS: TestCommandAliasDescriptionReflow/light (0.10s)
+    --- PASS: TestCommandAliasDescriptionReflow/dark (0.03s)
+=== RUN   TestCommandSwitchDescriptionReflow
+=== RUN   TestCommandSwitchDescriptionReflow/light
+=== RUN   TestCommandSwitchDescriptionReflow/dark
+--- PASS: TestCommandSwitchDescriptionReflow (0.05s)
+    --- PASS: TestCommandSwitchDescriptionReflow/light (0.03s)
+    --- PASS: TestCommandSwitchDescriptionReflow/dark (0.03s)
+=== RUN   TestCommandAliasConfigErrorReflow
+=== RUN   TestCommandAliasConfigErrorReflow/light
+=== RUN   TestCommandAliasConfigErrorReflow/dark
+--- PASS: TestCommandAliasConfigErrorReflow (0.11s)
+    --- PASS: TestCommandAliasConfigErrorReflow/light (0.06s)
+    --- PASS: TestCommandAliasConfigErrorReflow/dark (0.05s)
+=== RUN   TestCommandSwitchConfigErrorReflow
+=== RUN   TestCommandSwitchConfigErrorReflow/light
+=== RUN   TestCommandSwitchConfigErrorReflow/dark
+--- PASS: TestCommandSwitchConfigErrorReflow (0.09s)
+    --- PASS: TestCommandSwitchConfigErrorReflow/light (0.05s)
+    --- PASS: TestCommandSwitchConfigErrorReflow/dark (0.05s)
+=== RUN   TestCommandAliasHighlightReflow
+=== RUN   TestCommandAliasHighlightReflow/light
+=== RUN   TestCommandAliasHighlightReflow/dark
+--- PASS: TestCommandAliasHighlightReflow (0.07s)
+    --- PASS: TestCommandAliasHighlightReflow/light (0.03s)
+    --- PASS: TestCommandAliasHighlightReflow/dark (0.03s)
+=== RUN   TestCommandSwitchHighlightReflow
+=== RUN   TestCommandSwitchHighlightReflow/light
+=== RUN   TestCommandSwitchHighlightReflow/dark
+--- PASS: TestCommandSwitchHighlightReflow (0.06s)
+    --- PASS: TestCommandSwitchHighlightReflow/light (0.03s)
+    --- PASS: TestCommandSwitchHighlightReflow/dark (0.03s)
+=== RUN   TestCommandAliasTransferReportReflow
+=== RUN   TestCommandAliasTransferReportReflow/light
+=== RUN   TestCommandAliasTransferReportReflow/dark
+--- PASS: TestCommandAliasTransferReportReflow (0.06s)
+    --- PASS: TestCommandAliasTransferReportReflow/light (0.03s)
+    --- PASS: TestCommandAliasTransferReportReflow/dark (0.03s)
+=== RUN   TestCommandSwitchTransferReportReflow
+=== RUN   TestCommandSwitchTransferReportReflow/light
+=== RUN   TestCommandSwitchTransferReportReflow/dark
+--- PASS: TestCommandSwitchTransferReportReflow (0.06s)
+    --- PASS: TestCommandSwitchTransferReportReflow/light (0.03s)
+    --- PASS: TestCommandSwitchTransferReportReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.655s

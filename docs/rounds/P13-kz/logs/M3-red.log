@@ -1,0 +1,29 @@
+=== RUN   TestCommandAliasTransferReportReflow
+=== RUN   TestCommandAliasTransferReportReflow/light
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:630.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:531.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:531.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+=== RUN   TestCommandAliasTransferReportReflow/dark
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:630.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:531.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:531.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+--- FAIL: TestCommandAliasTransferReportReflow (0.19s)
+    --- FAIL: TestCommandAliasTransferReportReflow/light (0.16s)
+    --- FAIL: TestCommandAliasTransferReportReflow/dark (0.03s)
+=== RUN   TestCommandSwitchTransferReportReflow
+=== RUN   TestCommandSwitchTransferReportReflow/light
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:637.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:538.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:538.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:242: writes=0, want exactly one
+=== RUN   TestCommandSwitchTransferReportReflow/dark
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:637.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:538.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:538.2 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    commandreflow_test.go:242: writes=0, want exactly one
+--- FAIL: TestCommandSwitchTransferReportReflow (0.06s)
+    --- FAIL: TestCommandSwitchTransferReportReflow/light (0.03s)
+    --- FAIL: TestCommandSwitchTransferReportReflow/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.258s
+FAIL

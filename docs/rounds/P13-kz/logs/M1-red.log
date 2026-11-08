@@ -1,0 +1,23 @@
+=== RUN   TestCommandAliasDescriptionReflow
+=== RUN   TestCommandAliasDescriptionReflow/light
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:656 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:656 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasDescriptionReflow/dark
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:656 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:230: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:656 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasDescriptionReflow (0.19s)
+    --- FAIL: TestCommandAliasDescriptionReflow/light (0.16s)
+    --- FAIL: TestCommandAliasDescriptionReflow/dark (0.03s)
+=== RUN   TestCommandSwitchDescriptionReflow
+=== RUN   TestCommandSwitchDescriptionReflow/light
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:634 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:634 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandSwitchDescriptionReflow/dark
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:634 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:230: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:634 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandSwitchDescriptionReflow (0.05s)
+    --- FAIL: TestCommandSwitchDescriptionReflow/light (0.03s)
+    --- FAIL: TestCommandSwitchDescriptionReflow/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.244s
+FAIL
