@@ -202,3 +202,10 @@ func TestPluginRefreshOutletText(t *testing.T) { checkPluginRefreshOutlet(t, plu
 func TestPluginRefreshOutletNumber(t *testing.T) {
 	checkPluginRefreshOutlet(t, plugincfg.Number, "number")
 }
+
+func TestPluginRefreshOutletToggle(t *testing.T) {
+	checkPluginRefreshOutlet(t, plugincfg.Toggle, "toggle")
+}
+func TestPluginRefreshOutletSelect(t *testing.T) {
+	checkPluginRefreshOutlet(t, plugincfg.Select, "select")
+}
