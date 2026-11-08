@@ -3711,13 +3711,13 @@ func (a *App) commandList(c *ui.Context, copy i18n.Settings, extensionID string,
 	t := a.cardTheme(c)
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
 		occurrences := map[string]int{}
-		for _, command := range commands {
+		for index, command := range commands {
 			command := command
 			// Discovery may reorder commands while one owns the keyboard.
 			// Distinguish duplicate declarations without keying other IDs by index.
 			occurrence := occurrences[command.ID]
 			occurrences[command.ID]++
-			a.commandPlate(c.Key(strconv.Itoa(occurrence)+"\x00"+command.ID), copy, extensionID, command)
+			a.commandPlate(c.Key(strconv.Itoa(occurrence)+"\x00"+command.ID), copy, extensionID, command, strconv.Itoa(index))
 		}
 	})
 }
@@ -3743,7 +3743,7 @@ func declaredCommands(commands []Command) []Command {
 // is dimmed as a whole (opacity 0.62) so its state reads before the switch is
 // found — a de-emphasis, never a disable (the alias editor and the switch stay
 // live).
-func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string, command Command) {
+func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string, command Command, position ...string) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	plate := ui.Column(c).FillWidth().Gap(t.Space(2)).
@@ -3773,7 +3773,12 @@ func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string
 	}
 	plate.Children(func() {
 		a.commandIdentity(c, copy, extensionID, command)
-		a.commandAliasEditor(c, copy, extensionID, command)
+		// P13-kw: preserve the active editor's visible ink when discovery
+		// moves its stable ID. Values and single-line descriptions do not
+		// change its position, so they must not reclaim manual scrolling.
+		a.formFeedbackOutlet(c.Key("command-alias-outlet"), strings.Join(position, ""), func() {
+			a.commandAliasEditor(c, copy, extensionID, command)
+		})
 	})
 }
 
