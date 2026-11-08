@@ -23,4 +23,6 @@
 
 门槛：LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4；gofmt -l cmd internal 空、三平台 go vet ./... 与 go build ./...、go test -count=1 ./...、verbose 全量 PASS 计数。开盘基线正在实跑，函数按开盘树 3377；PASS 完成后据日志补录。
 
+开盘基线已完成：5926 PASS / 0 FAIL / 3377函数，verbose全量exit0。
+
 变异：M1 恢复两处库存专用刷新，应让搜索恢复 pin 红；M2 取消声明/包复核；M3 取消绑定/root复核；M4 取消归属/移除复核。每组保存原文件、实跑红、还原 md5sum -c、touch 再跑。PNG 由 ui.Tester 导出深浅 before/after，目视检查。
