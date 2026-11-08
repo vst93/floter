@@ -1,0 +1,11 @@
+=== RUN   TestChoiceIdentityMultiKeyboard
+=== RUN   TestChoiceIdentityMultiKeyboard/light
+    choiceidentity_test.go:46: checkbox 文件 did not take focus
+=== RUN   TestChoiceIdentityMultiKeyboard/dark
+    choiceidentity_test.go:46: checkbox 文件 did not take focus
+--- FAIL: TestChoiceIdentityMultiKeyboard (0.02s)
+    --- FAIL: TestChoiceIdentityMultiKeyboard/light (0.02s)
+    --- FAIL: TestChoiceIdentityMultiKeyboard/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.027s
+FAIL

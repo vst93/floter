@@ -1302,47 +1302,47 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 		label = a.copy().ConfigNone
 	}
 	// This list has a 12px fade, distinct from the page's 16px fade.
-	// Reveal the row and its 3px keyboard ring, with no layout-height change.
-	outlet := ui.Column(c).FillWidth().Padding(15, 0).Margin(-15, 0)
-	var row ui.Element
-	outlet.Children(func() {
-		row = ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
-			Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5))
-		position := ui.Local(row, "option.position", func() int { return -1 })
-		moved := len(index) > 0 && *position != index[0]
-		if len(index) > 0 {
-			*position = index[0]
+	// Reveal the row and its 3px keyboard ring without enlarging its hit area:
+	// neighbouring rows are only 22px apart, so a padded parent steals clicks.
+	row := ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
+		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5))
+	var outlet ui.Element
+	position := ui.Local(row, "option.position", func() int { return -1 })
+	moved := len(index) > 0 && *position != index[0]
+	if len(index) > 0 {
+		*position = index[0]
+	}
+	row.Children(func() {
+		outlet = ui.Box(c.Key("option-focus-envelope")).Absolute().Top(-15).Bottom(-15).
+			Left(0).Right(0).PassThrough()
+		word := ui.Text(c, label).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary).
+			Grow(1).MinWidth(0).SingleLine()
+		if word.Clicked() && !locked {
+			clicked = true
+			mods = word.ClickModifiers()
 		}
-		row.Children(func() {
-			word := ui.Text(c, label).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary).
-				Grow(1).MinWidth(0).SingleLine()
-			if word.Clicked() && !locked {
-				clicked = true
-				mods = word.ClickModifiers()
-			}
-			// CheckboxBase alone has neither a face nor a hit area. Keep the
-			// existing native checkbox's size, check mark and focus treatment.
-			box := ui.Checkbox(c, on, "").Label(label)
-			if clicked {
-				box.Focus()
-			}
-			// Reveal a moved keyboard target once. Ordinary wheel scrolling
-			// remains free to move past an unchanged focused option.
-			if moved && box.Focused() {
-				outlet.ScrollIntoView()
-			}
-			// P13-t：这里曾经在 `locked` 时再挂一次 `Disabled(true)`。列表框自己已经是
-			// `Disabled`（`config.go` 的 multiselect 臂），`IsDisabled` 走祖先链
-			// （`ui/element.go:1349-1356`），点击与 hover 一样被祖先挡住；再挂一次就是
-			// 0.5 × 0.5 = 0.25——一个框里的勾选框比箱面深一档，正是这一轮要收掉的
-			// 「同一件事三种深度」。`locked` 仍然只用在两条点击守卫上。
-			if box.Clicked() && !locked {
-				*changed = true
-				mods = box.ClickModifiers()
-			}
-		})
+		// CheckboxBase alone has neither a face nor a hit area. Keep the
+		// existing native checkbox's size, check mark and focus treatment.
+		box := ui.Checkbox(c, on, "").Label(label)
+		if clicked {
+			box.Focus()
+		}
+		// Reveal a moved keyboard target once. Ordinary wheel scrolling
+		// remains free to move past an unchanged focused option.
+		if moved && box.Focused() {
+			outlet.ScrollIntoView()
+		}
+		// P13-t：这里曾经在 `locked` 时再挂一次 `Disabled(true)`。列表框自己已经是
+		// `Disabled`（`config.go` 的 multiselect 臂），`IsDisabled` 走祖先链
+		// （`ui/element.go:1349-1356`），点击与 hover 一样被祖先挡住；再挂一次就是
+		// 0.5 × 0.5 = 0.25——一个框里的勾选框比箱面深一档，正是这一轮要收掉的
+		// 「同一件事三种深度」。`locked` 仍然只用在两条点击守卫上。
+		if box.Clicked() && !locked {
+			*changed = true
+			mods = box.ClickModifiers()
+		}
 	})
-	was := ui.Local(outlet, "option-focused", func() bool { return false })
+	was := ui.Local(row, "option-focused", func() bool { return false })
 	focused := row.FocusWithin()
 	if focused && !*was {
 		outlet.ScrollIntoView()
