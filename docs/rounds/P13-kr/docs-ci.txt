@@ -1,0 +1,93 @@
+=== RUN   TestTheWindowsSetupGlobMatchesMygoNames
+--- PASS: TestTheWindowsSetupGlobMatchesMygoNames (0.00s)
+=== RUN   TestTheAppNameKeepsArtifactNamesStable
+--- PASS: TestTheAppNameKeepsArtifactNamesStable (0.00s)
+=== RUN   TestTheWindowsSetupAssetIsNamedLikeTheDocs
+--- PASS: TestTheWindowsSetupAssetIsNamedLikeTheDocs (0.00s)
+=== RUN   TestTheColorStepIsTheReferenceDurTwo
+--- PASS: TestTheColorStepIsTheReferenceDurTwo (0.00s)
+=== RUN   TestEveryColorTransitionRidesOneStep
+--- PASS: TestEveryColorTransitionRidesOneStep (0.05s)
+=== RUN   TestTestHelpersAreVisibleOnEveryPlatform
+--- PASS: TestTestHelpersAreVisibleOnEveryPlatform (2.82s)
+=== RUN   TestTheDeadCodeBaselineStaysDeleted
+--- PASS: TestTheDeadCodeBaselineStaysDeleted (0.29s)
+=== RUN   TestTheDeadCodeFalsePositiveStaysOut
+--- PASS: TestTheDeadCodeFalsePositiveStaysOut (0.00s)
+=== RUN   TestDesktopEntriesHaveOneReader
+--- PASS: TestDesktopEntriesHaveOneReader (0.03s)
+=== RUN   TestNoDisabledChainFadesTwice
+--- PASS: TestNoDisabledChainFadesTwice (0.21s)
+=== RUN   TestFloatingThrowsFollowTheFrameScale
+--- PASS: TestFloatingThrowsFollowTheFrameScale (0.01s)
+=== RUN   TestNoPaddedPaneIsFlat
+--- PASS: TestNoPaddedPaneIsFlat (0.26s)
+=== RUN   TestTheSettingsPackagesTextSizesAreLadderRungs
+=== RUN   TestTheSettingsPackagesTextSizesAreLadderRungs/../settingsui
+=== RUN   TestTheSettingsPackagesTextSizesAreLadderRungs/../launcher
+--- PASS: TestTheSettingsPackagesTextSizesAreLadderRungs (0.08s)
+    --- PASS: TestTheSettingsPackagesTextSizesAreLadderRungs/../settingsui (0.05s)
+    --- PASS: TestTheSettingsPackagesTextSizesAreLadderRungs/../launcher (0.02s)
+=== RUN   TestTheFontLadderExceptionsAreStillNamed
+--- PASS: TestTheFontLadderExceptionsAreStillNamed (0.01s)
+=== RUN   TestTheFrameAuditHasOneRule
+--- PASS: TestTheFrameAuditHasOneRule (0.00s)
+=== RUN   TestTildeExpansionHasOneAnswer
+--- PASS: TestTildeExpansionHasOneAnswer (0.02s)
+=== RUN   TestLanguageWhitelistHasOneAnswer
+--- PASS: TestLanguageWhitelistHasOneAnswer (0.03s)
+=== RUN   TestTheTwoLanguagePackagesAgree
+--- PASS: TestTheTwoLanguagePackagesAgree (0.00s)
+=== RUN   TestTheLiquidGlassContractSupersedesTheRaycastOne
+    liquidglass_contract_test.go:101: the gap table has 1407 rows, 1407 of them carry a status
+--- PASS: TestTheLiquidGlassContractSupersedesTheRaycastOne (0.01s)
+=== RUN   TestEveryPointerStateFaceNamesItsPair
+--- PASS: TestEveryPointerStateFaceNamesItsPair (0.09s)
+=== RUN   TestEveryLitEdgeTakesItsColourFromAToken
+--- PASS: TestEveryLitEdgeTakesItsColourFromAToken (0.18s)
+=== RUN   TestTheFrameworkIsPinnedAtOrAboveTheAuditedVersion
+--- PASS: TestTheFrameworkIsPinnedAtOrAboveTheAuditedVersion (0.00s)
+=== RUN   TestTheScrollHandlersStayOutOfTheWheelPath
+--- PASS: TestTheScrollHandlersStayOutOfTheWheelPath (0.02s)
+=== RUN   TestPathIdentityHasOneAnswer
+--- PASS: TestPathIdentityHasOneAnswer (0.03s)
+=== RUN   TestPathListsHaveOneSplitter
+--- PASS: TestPathListsHaveOneSplitter (0.04s)
+=== RUN   TestAPlainVersionIsAlwaysTheLatestRelease
+--- PASS: TestAPlainVersionIsAlwaysTheLatestRelease (0.00s)
+=== RUN   TestTheStampedVersionIsAPlainSemver
+--- PASS: TestTheStampedVersionIsAPlainSemver (0.00s)
+=== RUN   TestTheChangelogHasOneUnreleasedSection
+--- PASS: TestTheChangelogHasOneUnreleasedSection (0.00s)
+=== RUN   TestTheSettingsRowsKeepOneVerticalStep
+--- PASS: TestTheSettingsRowsKeepOneVerticalStep (0.05s)
+=== RUN   TestTheSettingsPackageKeepsItsSpacingSteps
+--- PASS: TestTheSettingsPackageKeepsItsSpacingSteps (0.05s)
+=== RUN   TestVersionOrderingHasOneAnswer
+--- PASS: TestVersionOrderingHasOneAnswer (0.03s)
+=== RUN   TestTheTwoVersionPackagesOrderTheSameWay
+--- PASS: TestTheTwoVersionPackagesOrderTheSameWay (0.00s)
+=== RUN   TestTheSessionListTakesItsOutcomeFromTheTerminalSurface
+--- PASS: TestTheSessionListTakesItsOutcomeFromTheTerminalSurface (0.00s)
+=== RUN   TestStateFilesHaveOneWriter
+--- PASS: TestStateFilesHaveOneWriter (0.01s)
+=== RUN   TestNoControlWearsTheFrameworksStockButton
+--- PASS: TestNoControlWearsTheFrameworksStockButton (0.02s)
+=== RUN   TestTheSessionHostIsASubcommandBeforeTheSingleInstanceLock
+--- PASS: TestTheSessionHostIsASubcommandBeforeTheSingleInstanceLock (0.00s)
+=== RUN   TestTheSessionHostAddsNoDependency
+--- PASS: TestTheSessionHostAddsNoDependency (0.00s)
+=== RUN   TestTextLinesHaveOneReader
+--- PASS: TestTextLinesHaveOneReader (0.02s)
+=== RUN   TestValueDomainsHaveOneAnswer
+--- PASS: TestValueDomainsHaveOneAnswer (0.03s)
+=== RUN   TestTheLoaderAndThePickableDomainsAgree
+--- PASS: TestTheLoaderAndThePickableDomainsAgree (0.00s)
+=== RUN   TestTheCalculatorCopyModesHaveOneAnswer
+--- PASS: TestTheCalculatorCopyModesHaveOneAnswer (0.00s)
+=== RUN   TestWindowsSmokeIsDispatchOnly
+--- PASS: TestWindowsSmokeIsDispatchOnly (0.00s)
+=== RUN   TestWindowsSmokeStaysOutOfTheReleaseChain
+--- PASS: TestWindowsSmokeStaysOutOfTheReleaseChain (0.00s)
+PASS
+ok  	floter/internal/ci	4.382s

@@ -1,0 +1,23 @@
+=== RUN   TestFormFeedbackRunSelect
+=== RUN   TestFormFeedbackRunSelect/light
+    formfeedback_test.go:73: feedback reflow hides active outlet "北方": target={X:597.8 Y:559.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:73: feedback reflow hides active outlet "北方": target={X:597.8 Y:559.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackRunSelect/dark
+    formfeedback_test.go:73: feedback reflow hides active outlet "北方": target={X:597.8 Y:559.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:73: feedback reflow hides active outlet "北方": target={X:597.8 Y:559.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackRunSelect (0.55s)
+    --- FAIL: TestFormFeedbackRunSelect/light (0.36s)
+    --- FAIL: TestFormFeedbackRunSelect/dark (0.19s)
+=== RUN   TestFormFeedbackRunCancel
+=== RUN   TestFormFeedbackRunCancel/light
+    formfeedback_test.go:73: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:569.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:73: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:569.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackRunCancel/dark
+    formfeedback_test.go:73: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:569.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:73: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:569.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackRunCancel (0.52s)
+    --- FAIL: TestFormFeedbackRunCancel/light (0.26s)
+    --- FAIL: TestFormFeedbackRunCancel/dark (0.26s)
+FAIL
+FAIL	floter/internal/settingsui	1.080s
+FAIL

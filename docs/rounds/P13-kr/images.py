@@ -21,3 +21,19 @@ for before in sorted(Path('/tmp').glob('floter-P13-kr-*-before.png')):
         draw.text((732, 5), 'AFTER', fill='white')
         sheet.save(out / f'{name}-comparison.png')
 (out / 'image-differences.txt').write_text('\n'.join(records) + '\n')
+
+scenarios = ['run-text', 'run-boolean', 'run-select', 'run-cancel',
+             'config-text', 'config-defaults', 'config-save', 'config-copy']
+for appearance in ['dark', 'light']:
+    overview = Image.new('RGB', (1440, 8 * 272), '#777777')
+    for row, scenario in enumerate(scenarios):
+        name = f'{scenario}-change0-{appearance}'
+        before = Image.open(out / f'{name}-before.png').convert('RGB')
+        after = Image.open(out / f'{name}-after.png').convert('RGB')
+        # The lower part contains the active outlet; preserve it at 1x.
+        overview.paste(before.crop((0, 272, 720, 520)), (0, row * 272 + 24))
+        overview.paste(after.crop((0, 272, 720, 520)), (720, row * 272 + 24))
+        ImageDraw.Draw(overview).text((12, row * 272 + 5), scenario + ' / BEFORE                          AFTER', fill='white')
+    overview.save(out / f'overview-{appearance}.png')
+    detail = Image.open(out / f'config-save-change0-{appearance}-after.png')
+    detail.crop((560, 462, 710, 510)).resize((600, 192)).save(out / f'save-detail4x-{appearance}.png')

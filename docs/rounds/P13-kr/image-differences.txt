@@ -1,0 +1,136 @@
+config-boolean-change0-dark: (187, 51, 704, 520)
+config-boolean-change0-light: (187, 51, 704, 520)
+config-boolean-change1-dark: (187, 51, 704, 520)
+config-boolean-change1-light: (187, 51, 704, 520)
+config-boolean-change2-dark: (187, 51, 704, 520)
+config-boolean-change2-light: (187, 51, 704, 520)
+config-boolean-rest-dark: None
+config-boolean-rest-light: None
+config-copy-change0-dark: (187, 51, 704, 520)
+config-copy-change0-light: (187, 51, 704, 520)
+config-copy-change1-dark: (187, 51, 704, 520)
+config-copy-change1-light: (187, 51, 704, 520)
+config-copy-change2-dark: (187, 51, 704, 520)
+config-copy-change2-light: (187, 51, 704, 520)
+config-copy-rest-dark: None
+config-copy-rest-light: None
+config-defaults-change0-dark: (193, 51, 703, 520)
+config-defaults-change0-light: (193, 51, 703, 520)
+config-defaults-change1-dark: (187, 51, 704, 508)
+config-defaults-change1-light: (187, 51, 704, 508)
+config-defaults-change2-dark: (193, 51, 703, 520)
+config-defaults-change2-light: (193, 51, 703, 520)
+config-defaults-rest-dark: None
+config-defaults-rest-light: None
+config-export-change0-dark: (187, 51, 704, 520)
+config-export-change0-light: (187, 51, 704, 520)
+config-export-change1-dark: (187, 51, 704, 520)
+config-export-change1-light: (187, 51, 704, 520)
+config-export-change2-dark: (187, 51, 704, 520)
+config-export-change2-light: (187, 51, 704, 520)
+config-export-rest-dark: None
+config-export-rest-light: None
+config-multiselect-change0-dark: (187, 51, 704, 520)
+config-multiselect-change0-light: (187, 51, 704, 520)
+config-multiselect-change1-dark: (187, 51, 704, 520)
+config-multiselect-change1-light: (187, 51, 704, 520)
+config-multiselect-change2-dark: (187, 51, 704, 520)
+config-multiselect-change2-light: (187, 51, 704, 520)
+config-multiselect-rest-dark: None
+config-multiselect-rest-light: None
+config-number-change0-dark: (187, 51, 704, 520)
+config-number-change0-light: (187, 51, 704, 520)
+config-number-change1-dark: (187, 51, 704, 520)
+config-number-change1-light: (187, 51, 704, 520)
+config-number-change2-dark: (187, 51, 704, 520)
+config-number-change2-light: (187, 51, 704, 520)
+config-number-rest-dark: None
+config-number-rest-light: None
+config-password-change0-dark: (187, 51, 704, 520)
+config-password-change0-light: (187, 51, 704, 520)
+config-password-change1-dark: (187, 51, 704, 520)
+config-password-change1-light: (187, 51, 704, 520)
+config-password-change2-dark: (187, 51, 704, 520)
+config-password-change2-light: (187, 51, 704, 520)
+config-password-rest-dark: None
+config-password-rest-light: None
+config-path-change0-dark: (187, 51, 704, 520)
+config-path-change0-light: (187, 51, 704, 520)
+config-path-change1-dark: (187, 51, 704, 520)
+config-path-change1-light: (187, 51, 704, 520)
+config-path-change2-dark: (187, 51, 704, 520)
+config-path-change2-light: (187, 51, 704, 520)
+config-path-rest-dark: None
+config-path-rest-light: None
+config-save-change0-dark: (195, 51, 703, 520)
+config-save-change0-light: (195, 51, 703, 520)
+config-save-change1-dark: (187, 51, 704, 508)
+config-save-change1-light: (187, 51, 704, 508)
+config-save-change2-dark: (195, 51, 703, 520)
+config-save-change2-light: (195, 51, 703, 520)
+config-save-rest-dark: None
+config-save-rest-light: None
+config-select-change0-dark: (187, 51, 704, 520)
+config-select-change0-light: (187, 51, 704, 520)
+config-select-change1-dark: (187, 51, 704, 520)
+config-select-change1-light: (187, 51, 704, 520)
+config-select-change2-dark: (187, 51, 704, 520)
+config-select-change2-light: (187, 51, 704, 520)
+config-select-rest-dark: None
+config-select-rest-light: None
+config-text-change0-dark: (187, 51, 704, 520)
+config-text-change0-light: (187, 51, 704, 520)
+config-text-change1-dark: (187, 51, 704, 520)
+config-text-change1-light: (187, 51, 704, 520)
+config-text-change2-dark: (187, 51, 704, 520)
+config-text-change2-light: (187, 51, 704, 520)
+config-text-rest-dark: None
+config-text-rest-light: None
+run-boolean-change0-dark: (187, 51, 704, 518)
+run-boolean-change0-light: (187, 51, 704, 518)
+run-boolean-change1-dark: (187, 51, 704, 520)
+run-boolean-change1-light: (187, 51, 704, 520)
+run-boolean-change2-dark: (187, 51, 704, 518)
+run-boolean-change2-light: (187, 51, 704, 518)
+run-boolean-rest-dark: None
+run-boolean-rest-light: None
+run-cancel-change0-dark: (195, 51, 703, 520)
+run-cancel-change0-light: (195, 51, 703, 520)
+run-cancel-change1-dark: (187, 51, 704, 520)
+run-cancel-change1-light: (187, 51, 704, 520)
+run-cancel-change2-dark: (195, 51, 703, 520)
+run-cancel-change2-light: (195, 51, 703, 520)
+run-cancel-rest-dark: None
+run-cancel-rest-light: None
+run-number-change0-dark: (187, 51, 704, 513)
+run-number-change0-light: (187, 51, 704, 513)
+run-number-change1-dark: (187, 51, 704, 501)
+run-number-change1-light: (187, 51, 704, 501)
+run-number-change2-dark: (187, 51, 704, 513)
+run-number-change2-light: (187, 51, 704, 513)
+run-number-rest-dark: None
+run-number-rest-light: None
+run-path-change0-dark: (187, 51, 704, 513)
+run-path-change0-light: (187, 51, 704, 513)
+run-path-change1-dark: (187, 51, 704, 520)
+run-path-change1-light: (187, 51, 704, 520)
+run-path-change2-dark: (187, 51, 704, 513)
+run-path-change2-light: (187, 51, 704, 513)
+run-path-rest-dark: None
+run-path-rest-light: None
+run-select-change0-dark: (187, 51, 704, 509)
+run-select-change0-light: (187, 51, 704, 509)
+run-select-change1-dark: (187, 51, 704, 520)
+run-select-change1-light: (187, 51, 704, 520)
+run-select-change2-dark: (187, 51, 704, 509)
+run-select-change2-light: (187, 51, 704, 509)
+run-select-rest-dark: None
+run-select-rest-light: None
+run-text-change0-dark: (187, 51, 704, 513)
+run-text-change0-light: (187, 51, 704, 513)
+run-text-change1-dark: (187, 51, 704, 520)
+run-text-change1-light: (187, 51, 704, 520)
+run-text-change2-dark: (187, 51, 704, 513)
+run-text-change2-light: (187, 51, 704, 513)
+run-text-rest-dark: None
+run-text-rest-light: None

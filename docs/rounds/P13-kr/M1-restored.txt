@@ -1,0 +1,28 @@
+=== RUN   TestFormFeedbackRunEditors
+=== RUN   TestFormFeedbackRunEditors/text
+=== RUN   TestFormFeedbackRunEditors/text/light
+=== RUN   TestFormFeedbackRunEditors/text/dark
+=== RUN   TestFormFeedbackRunEditors/number
+=== RUN   TestFormFeedbackRunEditors/number/light
+=== RUN   TestFormFeedbackRunEditors/number/dark
+=== RUN   TestFormFeedbackRunEditors/path
+=== RUN   TestFormFeedbackRunEditors/path/light
+=== RUN   TestFormFeedbackRunEditors/path/dark
+--- PASS: TestFormFeedbackRunEditors (0.81s)
+    --- PASS: TestFormFeedbackRunEditors/text (0.34s)
+        --- PASS: TestFormFeedbackRunEditors/text/light (0.23s)
+        --- PASS: TestFormFeedbackRunEditors/text/dark (0.11s)
+    --- PASS: TestFormFeedbackRunEditors/number (0.25s)
+        --- PASS: TestFormFeedbackRunEditors/number/light (0.13s)
+        --- PASS: TestFormFeedbackRunEditors/number/dark (0.12s)
+    --- PASS: TestFormFeedbackRunEditors/path (0.21s)
+        --- PASS: TestFormFeedbackRunEditors/path/light (0.10s)
+        --- PASS: TestFormFeedbackRunEditors/path/dark (0.11s)
+=== RUN   TestFormFeedbackRunToggle
+=== RUN   TestFormFeedbackRunToggle/light
+=== RUN   TestFormFeedbackRunToggle/dark
+--- PASS: TestFormFeedbackRunToggle (0.20s)
+    --- PASS: TestFormFeedbackRunToggle/light (0.10s)
+    --- PASS: TestFormFeedbackRunToggle/dark (0.10s)
+PASS
+ok  	floter/internal/settingsui	1.024s

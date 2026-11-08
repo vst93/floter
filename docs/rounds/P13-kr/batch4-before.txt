@@ -1,0 +1,43 @@
+=== RUN   TestFormFeedbackConfigSave
+=== RUN   TestFormFeedbackConfigSave/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigSave/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackConfigSave (0.39s)
+    --- FAIL: TestFormFeedbackConfigSave/light (0.26s)
+    --- FAIL: TestFormFeedbackConfigSave/dark (0.13s)
+=== RUN   TestFormFeedbackConfigTransfer
+=== RUN   TestFormFeedbackConfigTransfer/copy
+=== RUN   TestFormFeedbackConfigTransfer/copy/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:520.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:236: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:462.69998 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:236: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:520.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:287: transfer calls=0 want=1
+=== RUN   TestFormFeedbackConfigTransfer/copy/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:520.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:236: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:462.69998 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:236: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:520.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:287: transfer calls=0 want=1
+=== RUN   TestFormFeedbackConfigTransfer/export
+=== RUN   TestFormFeedbackConfigTransfer/export/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:520.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:236: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:462.69998 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:236: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:520.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:287: transfer calls=0 want=1
+=== RUN   TestFormFeedbackConfigTransfer/export/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:520.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:236: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:462.69998 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:236: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:520.69995 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    formfeedback_test.go:287: transfer calls=0 want=1
+--- FAIL: TestFormFeedbackConfigTransfer (0.27s)
+    --- FAIL: TestFormFeedbackConfigTransfer/copy (0.14s)
+        --- FAIL: TestFormFeedbackConfigTransfer/copy/light (0.07s)
+        --- FAIL: TestFormFeedbackConfigTransfer/copy/dark (0.06s)
+    --- FAIL: TestFormFeedbackConfigTransfer/export (0.13s)
+        --- FAIL: TestFormFeedbackConfigTransfer/export/light (0.07s)
+        --- FAIL: TestFormFeedbackConfigTransfer/export/dark (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.668s
+FAIL

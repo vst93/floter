@@ -1,0 +1,170 @@
+=== RUN   TestFormFeedbackRunEditors
+=== RUN   TestFormFeedbackRunEditors/text
+=== RUN   TestFormFeedbackRunEditors/text/light
+=== RUN   TestFormFeedbackRunEditors/text/dark
+=== RUN   TestFormFeedbackRunEditors/number
+=== RUN   TestFormFeedbackRunEditors/number/light
+=== RUN   TestFormFeedbackRunEditors/number/dark
+=== RUN   TestFormFeedbackRunEditors/path
+=== RUN   TestFormFeedbackRunEditors/path/light
+=== RUN   TestFormFeedbackRunEditors/path/dark
+--- PASS: TestFormFeedbackRunEditors (1.25s)
+    --- PASS: TestFormFeedbackRunEditors/text (0.57s)
+        --- PASS: TestFormFeedbackRunEditors/text/light (0.39s)
+        --- PASS: TestFormFeedbackRunEditors/text/dark (0.18s)
+    --- PASS: TestFormFeedbackRunEditors/number (0.36s)
+        --- PASS: TestFormFeedbackRunEditors/number/light (0.18s)
+        --- PASS: TestFormFeedbackRunEditors/number/dark (0.18s)
+    --- PASS: TestFormFeedbackRunEditors/path (0.32s)
+        --- PASS: TestFormFeedbackRunEditors/path/light (0.16s)
+        --- PASS: TestFormFeedbackRunEditors/path/dark (0.16s)
+=== RUN   TestFormFeedbackRunToggle
+=== RUN   TestFormFeedbackRunToggle/light
+=== RUN   TestFormFeedbackRunToggle/dark
+--- PASS: TestFormFeedbackRunToggle (0.30s)
+    --- PASS: TestFormFeedbackRunToggle/light (0.15s)
+    --- PASS: TestFormFeedbackRunToggle/dark (0.15s)
+=== RUN   TestFormFeedbackRunSelect
+=== RUN   TestFormFeedbackRunSelect/light
+=== RUN   TestFormFeedbackRunSelect/dark
+--- PASS: TestFormFeedbackRunSelect (0.30s)
+    --- PASS: TestFormFeedbackRunSelect/light (0.15s)
+    --- PASS: TestFormFeedbackRunSelect/dark (0.15s)
+=== RUN   TestFormFeedbackRunCancel
+=== RUN   TestFormFeedbackRunCancel/light
+=== RUN   TestFormFeedbackRunCancel/dark
+--- PASS: TestFormFeedbackRunCancel (0.44s)
+    --- PASS: TestFormFeedbackRunCancel/light (0.22s)
+    --- PASS: TestFormFeedbackRunCancel/dark (0.22s)
+=== RUN   TestFormViewportRunEditors
+=== RUN   TestFormViewportRunEditors/text
+=== RUN   TestFormViewportRunEditors/text/light
+    formviewport_test.go:122: run-text size=[720 360] target={X:204.8 Y:308.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=389.70004
+    formviewport_test.go:122: run-text size=[620 320] target={X:204.8 Y:268.99994 W:150.00005 H:18} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=429.70004
+    formviewport_test.go:122: run-text size=[720 520] target={X:204.8 Y:268.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=429.70004
+=== RUN   TestFormViewportRunEditors/text/dark
+    formviewport_test.go:122: run-text size=[720 360] target={X:204.8 Y:308.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=389.70004
+    formviewport_test.go:122: run-text size=[620 320] target={X:204.8 Y:268.99994 W:150.00005 H:18} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=429.70004
+    formviewport_test.go:122: run-text size=[720 520] target={X:204.8 Y:268.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=429.70004
+=== RUN   TestFormViewportRunEditors/number
+=== RUN   TestFormViewportRunEditors/number/light
+    formviewport_test.go:122: run-number size=[720 360] target={X:204.8 Y:308.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=389.70004
+    formviewport_test.go:122: run-number size=[620 320] target={X:204.8 Y:268.99994 W:150.00005 H:18} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=429.70004
+    formviewport_test.go:122: run-number size=[720 520] target={X:204.8 Y:268.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=429.70004
+=== RUN   TestFormViewportRunEditors/number/dark
+    formviewport_test.go:122: run-number size=[720 360] target={X:204.8 Y:308.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=389.70004
+    formviewport_test.go:122: run-number size=[620 320] target={X:204.8 Y:268.99994 W:150.00005 H:18} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=429.70004
+    formviewport_test.go:122: run-number size=[720 520] target={X:204.8 Y:268.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=429.70004
+=== RUN   TestFormViewportRunEditors/path
+=== RUN   TestFormViewportRunEditors/path/light
+    formviewport_test.go:122: run-path size=[720 360] target={X:204.8 Y:308.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=389.70004
+    formviewport_test.go:122: run-path size=[620 320] target={X:204.8 Y:268.99994 W:150.00005 H:18} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=429.70004
+    formviewport_test.go:122: run-path size=[720 520] target={X:204.8 Y:268.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=429.70004
+=== RUN   TestFormViewportRunEditors/path/dark
+    formviewport_test.go:122: run-path size=[720 360] target={X:204.8 Y:308.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=389.70004
+    formviewport_test.go:122: run-path size=[620 320] target={X:204.8 Y:268.99994 W:150.00005 H:18} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=429.70004
+    formviewport_test.go:122: run-path size=[720 520] target={X:204.8 Y:268.99994 W:249.99998 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=429.70004
+--- PASS: TestFormViewportRunEditors (0.61s)
+    --- PASS: TestFormViewportRunEditors/text (0.20s)
+        --- PASS: TestFormViewportRunEditors/text/light (0.11s)
+        --- PASS: TestFormViewportRunEditors/text/dark (0.10s)
+    --- PASS: TestFormViewportRunEditors/number (0.21s)
+        --- PASS: TestFormViewportRunEditors/number/light (0.11s)
+        --- PASS: TestFormViewportRunEditors/number/dark (0.11s)
+    --- PASS: TestFormViewportRunEditors/path (0.19s)
+        --- PASS: TestFormViewportRunEditors/path/light (0.10s)
+        --- PASS: TestFormViewportRunEditors/path/dark (0.10s)
+=== RUN   TestFormViewportRunToggle
+=== RUN   TestFormViewportRunToggle/light
+    formviewport_test.go:122: run-boolean size=[720 360] target={X:204.8 Y:313.99994 W:437.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=384.70004
+    formviewport_test.go:122: run-boolean size=[620 320] target={X:204.8 Y:273.99994 W:337.60004 H:18} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=424.70004
+    formviewport_test.go:122: run-boolean size=[720 520] target={X:204.8 Y:273.99994 W:437.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=424.70004
+=== RUN   TestFormViewportRunToggle/dark
+    formviewport_test.go:122: run-boolean size=[720 360] target={X:204.8 Y:313.99994 W:437.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=384.70004
+    formviewport_test.go:122: run-boolean size=[620 320] target={X:204.8 Y:273.99994 W:337.60004 H:18} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=424.70004
+    formviewport_test.go:122: run-boolean size=[720 520] target={X:204.8 Y:273.99994 W:437.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=424.70004
+--- PASS: TestFormViewportRunToggle (0.19s)
+    --- PASS: TestFormViewportRunToggle/light (0.10s)
+    --- PASS: TestFormViewportRunToggle/dark (0.10s)
+=== RUN   TestFormViewportRunSelect
+=== RUN   TestFormViewportRunSelect/light
+    formviewport_test.go:122: run-select size=[720 360] target={X:597.8 Y:307.99994 W:42 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=393.70004
+    formviewport_test.go:122: run-select size=[620 320] target={X:497.80005 Y:267.99994 W:42 H:30} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=433.70004
+    formviewport_test.go:122: run-select size=[720 520] target={X:597.8 Y:267.99994 W:42 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=433.70004
+=== RUN   TestFormViewportRunSelect/dark
+    formviewport_test.go:122: run-select size=[720 360] target={X:597.8 Y:307.99994 W:42 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=393.70004
+    formviewport_test.go:122: run-select size=[620 320] target={X:497.80005 Y:267.99994 W:42 H:30} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=433.70004
+    formviewport_test.go:122: run-select size=[720 520] target={X:597.8 Y:267.99994 W:42 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=433.70004
+--- PASS: TestFormViewportRunSelect (0.19s)
+    --- PASS: TestFormViewportRunSelect/light (0.10s)
+    --- PASS: TestFormViewportRunSelect/dark (0.09s)
+=== RUN   TestFormViewportRunCancel
+=== RUN   TestFormViewportRunCancel/light
+    formviewport_test.go:122: run-cancel size=[720 360] target={X:499.8 Y:317.5 W:37 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=898.7001
+    formviewport_test.go:122: run-cancel size=[620 320] target={X:399.80005 Y:277.5 W:37 H:17} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=938.7001
+    formviewport_test.go:122: run-cancel size=[720 520] target={X:499.8 Y:277.5 W:37 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=938.7001
+=== RUN   TestFormViewportRunCancel/dark
+    formviewport_test.go:122: run-cancel size=[720 360] target={X:499.8 Y:317.5 W:37 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=898.7001
+    formviewport_test.go:122: run-cancel size=[620 320] target={X:399.80005 Y:277.5 W:37 H:17} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=938.7001
+    formviewport_test.go:122: run-cancel size=[720 520] target={X:499.8 Y:277.5 W:37 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=938.7001
+--- PASS: TestFormViewportRunCancel (0.35s)
+    --- PASS: TestFormViewportRunCancel/light (0.17s)
+    --- PASS: TestFormViewportRunCancel/dark (0.18s)
+=== RUN   TestFormViewportRunSubmit
+=== RUN   TestFormViewportRunSubmit/light
+    formviewport_test.go:122: run-submit size=[720 360] target={X:566.8 Y:317.5 W:117 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=898.7001
+    formviewport_test.go:122: run-submit size=[620 320] target={X:466.80005 Y:277.5 W:117 H:17} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=938.7001
+    formviewport_test.go:122: run-submit size=[720 520] target={X:566.8 Y:277.5 W:117 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=938.7001
+=== RUN   TestFormViewportRunSubmit/dark
+    formviewport_test.go:122: run-submit size=[720 360] target={X:566.8 Y:317.5 W:117 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:308.6} scroll=898.7001
+    formviewport_test.go:122: run-submit size=[620 320] target={X:466.80005 Y:277.5 W:117 H:17} viewport={X:170.6 Y:51.399998 W:449.4 H:268.6} scroll=938.7001
+    formviewport_test.go:122: run-submit size=[720 520] target={X:566.8 Y:277.5 W:117 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=938.7001
+--- PASS: TestFormViewportRunSubmit (0.35s)
+    --- PASS: TestFormViewportRunSubmit/light (0.17s)
+    --- PASS: TestFormViewportRunSubmit/dark (0.18s)
+=== RUN   TestRunConditionEditedValue
+=== RUN   TestRunConditionEditedValue/light
+=== RUN   TestRunConditionEditedValue/dark
+--- PASS: TestRunConditionEditedValue (0.21s)
+    --- PASS: TestRunConditionEditedValue/light (0.11s)
+    --- PASS: TestRunConditionEditedValue/dark (0.10s)
+=== RUN   TestRunConditionRemovedField
+=== RUN   TestRunConditionRemovedField/light
+=== RUN   TestRunConditionRemovedField/dark
+--- PASS: TestRunConditionRemovedField (0.15s)
+    --- PASS: TestRunConditionRemovedField/light (0.08s)
+    --- PASS: TestRunConditionRemovedField/dark (0.07s)
+=== RUN   TestRunConditionChangedConstraints
+=== RUN   TestRunConditionChangedConstraints/light
+=== RUN   TestRunConditionChangedConstraints/dark
+--- PASS: TestRunConditionChangedConstraints (0.13s)
+    --- PASS: TestRunConditionChangedConstraints/light (0.06s)
+    --- PASS: TestRunConditionChangedConstraints/dark (0.06s)
+=== RUN   TestRunConditionRenamedField
+=== RUN   TestRunConditionRenamedField/light
+=== RUN   TestRunConditionRenamedField/dark
+--- PASS: TestRunConditionRenamedField (0.12s)
+    --- PASS: TestRunConditionRenamedField/light (0.06s)
+    --- PASS: TestRunConditionRenamedField/dark (0.06s)
+=== RUN   TestRunConditionValidationRefreshVariants
+=== RUN   TestRunConditionValidationRefreshVariants/required
+=== RUN   TestRunConditionValidationRefreshVariants/required/light
+=== RUN   TestRunConditionValidationRefreshVariants/required/dark
+=== RUN   TestRunConditionValidationRefreshVariants/flag
+=== RUN   TestRunConditionValidationRefreshVariants/flag/light
+=== RUN   TestRunConditionValidationRefreshVariants/flag/dark
+=== RUN   TestRunConditionValidationRefreshVariants/options
+=== RUN   TestRunConditionValidationRefreshVariants/options/light
+=== RUN   TestRunConditionValidationRefreshVariants/options/dark
+--- PASS: TestRunConditionValidationRefreshVariants (0.36s)
+    --- PASS: TestRunConditionValidationRefreshVariants/required (0.12s)
+        --- PASS: TestRunConditionValidationRefreshVariants/required/light (0.06s)
+        --- PASS: TestRunConditionValidationRefreshVariants/required/dark (0.06s)
+    --- PASS: TestRunConditionValidationRefreshVariants/flag (0.12s)
+        --- PASS: TestRunConditionValidationRefreshVariants/flag/light (0.06s)
+        --- PASS: TestRunConditionValidationRefreshVariants/flag/dark (0.06s)
+    --- PASS: TestRunConditionValidationRefreshVariants/options (0.12s)
+        --- PASS: TestRunConditionValidationRefreshVariants/options/light (0.06s)
+        --- PASS: TestRunConditionValidationRefreshVariants/options/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	5.002s

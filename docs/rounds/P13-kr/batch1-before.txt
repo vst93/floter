@@ -1,0 +1,45 @@
+=== RUN   TestFormFeedbackRunEditors
+=== RUN   TestFormFeedbackRunEditors/text
+=== RUN   TestFormFeedbackRunEditors/text/light
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackRunEditors/text/dark
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackRunEditors/number
+=== RUN   TestFormFeedbackRunEditors/number/light
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackRunEditors/number/dark
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackRunEditors/path
+=== RUN   TestFormFeedbackRunEditors/path/light
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackRunEditors/path/dark
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:560.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackRunEditors (2.48s)
+    --- FAIL: TestFormFeedbackRunEditors/text (1.04s)
+        --- FAIL: TestFormFeedbackRunEditors/text/light (0.63s)
+        --- FAIL: TestFormFeedbackRunEditors/text/dark (0.41s)
+    --- FAIL: TestFormFeedbackRunEditors/number (0.74s)
+        --- FAIL: TestFormFeedbackRunEditors/number/light (0.39s)
+        --- FAIL: TestFormFeedbackRunEditors/number/dark (0.34s)
+    --- FAIL: TestFormFeedbackRunEditors/path (0.70s)
+        --- FAIL: TestFormFeedbackRunEditors/path/light (0.36s)
+        --- FAIL: TestFormFeedbackRunEditors/path/dark (0.34s)
+=== RUN   TestFormFeedbackRunToggle
+=== RUN   TestFormFeedbackRunToggle/light
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:565.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:565.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackRunToggle/dark
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:565.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:66: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:565.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackRunToggle (0.77s)
+    --- FAIL: TestFormFeedbackRunToggle/light (0.42s)
+    --- FAIL: TestFormFeedbackRunToggle/dark (0.35s)
+FAIL
+FAIL	floter/internal/settingsui	3.262s
+FAIL

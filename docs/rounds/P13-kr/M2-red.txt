@@ -1,0 +1,23 @@
+=== RUN   TestFormFeedbackConfigDefaults
+=== RUN   TestFormFeedbackConfigDefaults/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigDefaults/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackConfigDefaults (0.30s)
+    --- FAIL: TestFormFeedbackConfigDefaults/light (0.22s)
+    --- FAIL: TestFormFeedbackConfigDefaults/dark (0.08s)
+=== RUN   TestFormFeedbackConfigSave
+=== RUN   TestFormFeedbackConfigSave/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigSave/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "Save configuration": target={X:583.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackConfigSave (0.18s)
+    --- FAIL: TestFormFeedbackConfigSave/light (0.09s)
+    --- FAIL: TestFormFeedbackConfigSave/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	0.488s
+FAIL

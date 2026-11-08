@@ -1,0 +1,85 @@
+=== RUN   TestFormFeedbackConfigFields
+=== RUN   TestFormFeedbackConfigFields/text
+=== RUN   TestFormFeedbackConfigFields/text/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/text/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/password
+=== RUN   TestFormFeedbackConfigFields/password/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/password/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/path
+=== RUN   TestFormFeedbackConfigFields/path/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/path/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/number
+=== RUN   TestFormFeedbackConfigFields/number/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/number/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/boolean
+=== RUN   TestFormFeedbackConfigFields/boolean/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:559.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:559.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/boolean/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:559.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:559.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/select
+=== RUN   TestFormFeedbackConfigFields/select/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/select/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:554.49994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/multiselect
+=== RUN   TestFormFeedbackConfigFields/multiselect/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "北方": target={X:334.8 Y:517.49994 W:328.60004 H:2.500061} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "北方": target={X:334.8 Y:517.49994 W:328.60004 H:2.500061} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigFields/multiselect/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "北方": target={X:334.8 Y:517.49994 W:328.60004 H:2.500061} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "北方": target={X:334.8 Y:517.49994 W:328.60004 H:2.500061} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackConfigFields (1.41s)
+    --- FAIL: TestFormFeedbackConfigFields/text (0.26s)
+        --- FAIL: TestFormFeedbackConfigFields/text/light (0.16s)
+        --- FAIL: TestFormFeedbackConfigFields/text/dark (0.09s)
+    --- FAIL: TestFormFeedbackConfigFields/password (0.19s)
+        --- FAIL: TestFormFeedbackConfigFields/password/light (0.09s)
+        --- FAIL: TestFormFeedbackConfigFields/password/dark (0.09s)
+    --- FAIL: TestFormFeedbackConfigFields/path (0.19s)
+        --- FAIL: TestFormFeedbackConfigFields/path/light (0.09s)
+        --- FAIL: TestFormFeedbackConfigFields/path/dark (0.09s)
+    --- FAIL: TestFormFeedbackConfigFields/number (0.20s)
+        --- FAIL: TestFormFeedbackConfigFields/number/light (0.10s)
+        --- FAIL: TestFormFeedbackConfigFields/number/dark (0.10s)
+    --- FAIL: TestFormFeedbackConfigFields/boolean (0.19s)
+        --- FAIL: TestFormFeedbackConfigFields/boolean/light (0.09s)
+        --- FAIL: TestFormFeedbackConfigFields/boolean/dark (0.09s)
+    --- FAIL: TestFormFeedbackConfigFields/select (0.20s)
+        --- FAIL: TestFormFeedbackConfigFields/select/light (0.10s)
+        --- FAIL: TestFormFeedbackConfigFields/select/dark (0.10s)
+    --- FAIL: TestFormFeedbackConfigFields/multiselect (0.20s)
+        --- FAIL: TestFormFeedbackConfigFields/multiselect/light (0.10s)
+        --- FAIL: TestFormFeedbackConfigFields/multiselect/dark (0.10s)
+=== RUN   TestFormFeedbackConfigDefaults
+=== RUN   TestFormFeedbackConfigDefaults/light
+    formfeedback_test.go:236: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestFormFeedbackConfigDefaults/dark
+    formfeedback_test.go:236: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    formfeedback_test.go:236: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:592.4999 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestFormFeedbackConfigDefaults (0.26s)
+    --- FAIL: TestFormFeedbackConfigDefaults/light (0.13s)
+    --- FAIL: TestFormFeedbackConfigDefaults/dark (0.13s)
+FAIL
+FAIL	floter/internal/settingsui	1.678s
+FAIL
