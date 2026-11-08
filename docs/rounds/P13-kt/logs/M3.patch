@@ -1,0 +1,168 @@
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index dd57b71a..174a0c7c 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -3213,6 +3213,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 		// `disabled={busy}`, `src/extensions/ExtensionRow.tsx:131,301-419,447`),
+ 		// not only the button that was pressed.
+ 		busy := a.rowBusy(integration.ID)
++		// A first result or its disclosure changes the space above this row.
++		// Observe those transitions, not the scroll position or output bytes.
++		_, hasOutput := a.runOutputs[integration.ID]
++		outputFeedback := strconv.FormatBool(hasOutput) + strconv.FormatBool(a.outputOpen[integration.ID])
+ 		// rowAction draws one of the row's action pills, disabled while the row
+ 		// is busy. The one button whose own work is in flight (the re-check or
+ 		// the reconnect) is drawn by repairAction in its busy face instead.
+@@ -3241,14 +3245,16 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 				// fact, so its crown goes out with the rest of the cluster. Exactly one
+ 				// pill is built either way.
+ 				var run ui.Element
+-				switch {
+-				case !runnable:
+-					run = tokens.Tip(c, a.disabledActionButton(c, copy.RunAction), copy.RunActionUnavailable)
+-				case busy:
+-					run = a.disabledActionButton(c, copy.RunAction)
+-				default:
+-					run = a.actionButton(c, copy.RunAction)
+-				}
++				a.formFeedbackOutlet(c.Key("row-run-output-outlet"), outputFeedback, func() {
++					switch {
++					case !runnable:
++						run = tokens.Tip(c, a.disabledActionButton(c, copy.RunAction), copy.RunActionUnavailable)
++					case busy:
++						run = a.disabledActionButton(c, copy.RunAction)
++					default:
++						run = a.actionButton(c, copy.RunAction)
++					}
++				})
+ 				a.rememberOperationFocus(c, integration.ID, "run-opener", run)
+ 				if run.IsDisabled() && run.FocusWithin() {
+ 					c.Resolve(*noticeExit(c)).Focus()
+@@ -3302,7 +3308,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 				}
+ 			}
+ 			if a.Actions.DiagnoseIntegration != nil {
+-				checkOpener = rowAction(copy.IntegrationsCheck)
++				a.formFeedbackOutlet(c.Key("row-check-output-outlet"), outputFeedback, func() {
++					checkOpener = rowAction(copy.IntegrationsCheck)
++				})
+ 				if checkOpener.Clicked() {
+ 					a.Actions.DiagnoseIntegration(integration.ID)
+ 				}
+@@ -3342,7 +3350,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 			// some kinds skipped the bar, which handed npm and custom rows one
+ 			// question fewer than the reference asked.
+ 			if (a.Actions.UninstallIntegration != nil || a.Actions.UninstallComponents != nil) && !integration.Orphan {
+-				removeOpener = rowAction(integration.removalLabel(copy))
++				a.formFeedbackOutlet(c.Key("row-remove-output-outlet"), outputFeedback, func() {
++					removeOpener = rowAction(integration.removalLabel(copy))
++				})
+ 				if removeOpener.Clicked() {
+ 					a.requestRemove(integration.ID)
+ 				}
+@@ -3357,28 +3367,30 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 			// stops whatever is running; turning one on is no question at all.
+ 			if a.Actions.SetIntegrationEnabled != nil {
+ 				on := enabled
+-				switch {
+-				case a.toggleBusy[integration.ID] || a.disableBusy[integration.ID]:
+-					// The write is in flight: the reference swapped the switch's
+-					// thumb for a turning LoaderCircle and set `aria-busy` until
+-					// `runMutation`'s `finally` (`settings-switch--loading`,
+-					// `src/extensions/ExtensionRow.tsx:443-455`).
+-					a.rememberOperationFocus(c, integration.ID, "toggle", a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable))
+-				case busy || integration.Broken:
+-					// Another operation is in flight, or the row is broken: the
+-					// reference disabled the switch for both
+-					// (`disabled={busy || extension.state === "broken"}`).
+-					a.rememberOperationFocus(c, integration.ID, "toggle", disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable))
+-				default:
+-					disableOpener = a.rememberOperationFocus(c, integration.ID, "toggle", a.switchControl(c, &on).Label(copy.IntegrationsEnable))
+-					if disableOpener.Changed() {
+-						if !on {
+-							a.requestDisable(integration.ID)
+-						} else {
+-							enabled, enableChanged = on, true
++				a.formFeedbackOutlet(c.Key("row-toggle-output-outlet"), outputFeedback, func() {
++					switch {
++					case a.toggleBusy[integration.ID] || a.disableBusy[integration.ID]:
++						// The write is in flight: the reference swapped the switch's
++						// thumb for a turning LoaderCircle and set `aria-busy` until
++						// `runMutation`'s `finally` (`settings-switch--loading`,
++						// `src/extensions/ExtensionRow.tsx:443-455`).
++						a.rememberOperationFocus(c, integration.ID, "toggle", a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable))
++					case busy || integration.Broken:
++						// Another operation is in flight, or the row is broken: the
++						// reference disabled the switch for both
++						// (`disabled={busy || extension.state === "broken"}`).
++						a.rememberOperationFocus(c, integration.ID, "toggle", disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable))
++					default:
++						disableOpener = a.rememberOperationFocus(c, integration.ID, "toggle", a.switchControl(c, &on).Label(copy.IntegrationsEnable))
++						if disableOpener.Changed() {
++							if !on {
++								a.requestDisable(integration.ID)
++							} else {
++								enabled, enableChanged = on, true
++							}
+ 						}
+ 					}
+-				}
++				})
+ 			}
+ 		})
+ 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
+@@ -7931,6 +7943,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 			ui.Text(c, copy.RunValuesHint).FontSize(a.tokens(c).Caption).TextColor(theme.TextMuted)
+ 		})
+ 		feedback := strconv.Quote(integration.Error) + strconv.Quote(integration.Description)
++		// Capture report contents, not its pointer: a refreshed probe can move
++		// an active field even when the viewport and diagnostics stay unchanged.
++		healthFeedback := fmt.Sprintf("%#v", integration.HealthReport)
+ 		a.runParamsBox(c, func() {
+ 			occurrences := map[string]int{}
+ 			for index, param := range integration.Params {
+@@ -7982,7 +7997,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 					on := truthyValue(values[param.ID])
+ 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
+ 						var sw ui.Element
+-						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback, func() {
++						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback+healthFeedback, func() {
+ 							sw = a.switchControl(c, &on).Label(label)
+ 							bindFocus(sw)
+ 						})
+@@ -8011,7 +8026,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 					}
+ 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
+ 						var picker ui.Element
+-						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback, func() {
++						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback+healthFeedback, func() {
+ 							picker = a.segmentedControlKeyed(c, &index, param.Options, keys)
+ 							bindFocus(picker)
+ 						})
+@@ -8033,7 +8048,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 								lockedControl(input.TextColor(a.tokens(c).Disabled))
+ 							}
+ 						}
+-						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback, draw)
++						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback+healthFeedback, draw)
+ 					}, below...)
+ 					if !locked {
+ 						values[param.ID] = value
+@@ -8062,7 +8077,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 			// form keeps the user's in-progress edits — the reference's
+ 			// `runParamMemory`, session memory seeded only on a fresh open.
+ 			var cancel ui.Element
+-			a.formFeedbackOutlet(c.Key("run-cancel-outlet"), feedback, func() { cancel = a.actionButton(c, copy.RunCancel) })
++			a.formFeedbackOutlet(c.Key("run-cancel-outlet"), feedback+healthFeedback, func() { cancel = a.actionButton(c, copy.RunCancel) })
+ 			if hadFieldFocus && !c.Resolve(*fieldFocus).Valid() {
+ 				cancel.Focus().ScrollIntoView()
+ 			}
+@@ -8072,7 +8087,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
+ 			}
+ 			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
+ 			var run ui.Element
+-			a.formFeedbackOutlet(c.Key("run-submit-outlet"), feedback, func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
++			a.formFeedbackOutlet(c.Key("run-submit-outlet"), feedback+healthFeedback, func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
+ 			if runDisabled && hadSubmitFocus {
+ 				cancel.Focus().ScrollIntoView()
+ 			}
