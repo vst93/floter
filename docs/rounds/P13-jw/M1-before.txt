@@ -1,0 +1,21 @@
+=== RUN   TestInstallCurrentLocalBusy
+=== RUN   TestInstallCurrentLocalBusy/light
+    installcurrent_test.go:154: pending local-busy permits repeat: calls=1
+=== RUN   TestInstallCurrentLocalBusy/dark
+2026/11/08 10:45:25 floter: could not review /tmp/TestInstallCurrentLocalBusylight1074672633/001: open /tmp/TestInstallCurrentLocalBusylight1074672633/001/floter.extension.json: no such file or directory
+    installcurrent_test.go:154: pending local-busy permits repeat: calls=1
+--- FAIL: TestInstallCurrentLocalBusy (1.72s)
+    --- FAIL: TestInstallCurrentLocalBusy/light (0.96s)
+    --- FAIL: TestInstallCurrentLocalBusy/dark (0.76s)
+=== RUN   TestInstallCurrentRecommendedBusy
+=== RUN   TestInstallCurrentRecommendedBusy/light
+2026/11/08 10:45:25 floter: could not review /tmp/TestInstallCurrentLocalBusydark204916828/001: open /tmp/TestInstallCurrentLocalBusydark204916828/001/floter.extension.json: no such file or directory
+    installcurrent_test.go:154: pending recommended-busy permits repeat: calls=1
+=== RUN   TestInstallCurrentRecommendedBusy/dark
+    installcurrent_test.go:154: pending recommended-busy permits repeat: calls=1
+--- FAIL: TestInstallCurrentRecommendedBusy (1.28s)
+    --- FAIL: TestInstallCurrentRecommendedBusy/light (0.67s)
+    --- FAIL: TestInstallCurrentRecommendedBusy/dark (0.61s)
+FAIL
+FAIL	floter/internal/shell	3.014s
+FAIL

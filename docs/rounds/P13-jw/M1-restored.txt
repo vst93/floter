@@ -1,0 +1,14 @@
+=== RUN   TestInstallCurrentLocalBusy
+=== RUN   TestInstallCurrentLocalBusy/light
+=== RUN   TestInstallCurrentLocalBusy/dark
+--- PASS: TestInstallCurrentLocalBusy (1.25s)
+    --- PASS: TestInstallCurrentLocalBusy/light (0.68s)
+    --- PASS: TestInstallCurrentLocalBusy/dark (0.57s)
+=== RUN   TestInstallCurrentRecommendedBusy
+=== RUN   TestInstallCurrentRecommendedBusy/light
+=== RUN   TestInstallCurrentRecommendedBusy/dark
+--- PASS: TestInstallCurrentRecommendedBusy (1.13s)
+    --- PASS: TestInstallCurrentRecommendedBusy/light (0.60s)
+    --- PASS: TestInstallCurrentRecommendedBusy/dark (0.53s)
+PASS
+ok  	floter/internal/shell	2.396s

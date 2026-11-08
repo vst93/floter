@@ -770,6 +770,9 @@ type App struct {
 	// orphanOperation holds the same row lock while adoption asks for
 	// permissions or a package directory is being deleted.
 	orphanOperation map[string]string
+	// packageInstallBusy belongs to the visible install outlet, before the
+	// package has an installed integration row of its own.
+	packageInstallBusy map[string]bool
 	// toggleBusy marks the integrations whose enable write is in flight, so
 	// the row's switch swaps its thumb for the reference's turning LoaderCircle
 	// and holds its `disabled` face until the shell reports back
@@ -2196,7 +2199,9 @@ func (a *App) recommendedRow(c *ui.Context, copy i18n.Settings) {
 			for _, tool := range pending {
 				tool := tool
 				a.row(c, tool.Name, tool.Description, func() {
-					if a.actionButton(c, copy.IntegrationsConnect).Clicked() {
+					if a.packageInstallBusy["recommended:"+tool.ID] {
+						a.busyActionButton(c, copy.IntegrationsConnect, "install.recommended."+tool.ID)
+					} else if a.actionButton(c, copy.IntegrationsConnect).Clicked() {
 						a.Actions.ConnectRecommended(tool.ID)
 					}
 				})
@@ -4131,6 +4136,29 @@ func (a *App) rowBusy(id string) bool {
 func (a *App) rowBusyExceptRepair(id string) bool {
 	return a.orphanOperation[id] != "" || a.diagnosisBusy[id] || a.healthBusy[id] || a.disableBusy[id] || a.removeBusy[id] || a.uninstallBusy[id] ||
 		a.toggleBusy[id]
+}
+
+// BeginPackageInstall and FinishPackageInstall retain the install outlet's
+// waiting state until its review, disk work and inventory refresh settle.
+func (a *App) BeginPackageInstall(outlet string) bool {
+	if a.packageInstallBusy[outlet] {
+		return false
+	}
+	if a.packageInstallBusy == nil {
+		a.packageInstallBusy = map[string]bool{}
+	}
+	a.packageInstallBusy[outlet] = true
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
+	return true
+}
+
+func (a *App) FinishPackageInstall(outlet string) {
+	delete(a.packageInstallBusy, outlet)
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 // BeginOrphanOperation and FinishOrphanOperation keep the package row locked
@@ -7456,7 +7484,9 @@ func (a *App) installFolderRow(c *ui.Context, copy i18n.Settings) {
 	}
 	a.card(c, func() {
 		a.row(c, copy.InstallFolderLabel, copy.InstallFolderHint, func() {
-			if a.actionButton(c, copy.InstallFolderChoose).Clicked() {
+			if a.packageInstallBusy["folder"] {
+				a.busyActionButton(c, copy.InstallFolderChoose, "install.folder")
+			} else if a.actionButton(c, copy.InstallFolderChoose).Clicked() {
 				if dir, err := a.Actions.ChooseFolder(); err == nil && dir != "" {
 					a.Actions.InstallFromFolder(dir)
 				}

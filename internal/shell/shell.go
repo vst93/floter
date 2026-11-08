@@ -2783,7 +2783,12 @@ func (a *App) recommendedTools() []settingsui.RecommendedTool {
 // materialized and handed to the same local install every other tool goes
 // through, so its permissions are still reviewed.
 func (a *App) connectRecommended(id string) {
+	outlet := "recommended:" + id
+	if !a.Settings.BeginPackageInstall(outlet) {
+		return
+	}
 	go func() {
+		defer a.onMain(func() { a.Settings.FinishPackageInstall(outlet) })
 		prepared, cleanup, err := recommended.Prepare(a.Paths, id)
 		if err != nil {
 			log.Printf("floter: could not prepare %s: %v", id, err)
@@ -2925,7 +2930,11 @@ func (a *App) runCommandFromPanel(entry extensions.CommandEntry, args []string) 
 // :1430-1440,1550-1560; LocalInstallDialog.tsx), so a package that declares
 // nothing still gets its source/runtime/platforms read back before install.
 func (a *App) installPackageFolder(dir string) {
+	if !a.Settings.BeginPackageInstall("folder") {
+		return
+	}
 	go func() {
+		defer a.onMain(func() { a.Settings.FinishPackageInstall("folder") })
 		prepared, err := extensions.PrepareLocal(a.Paths, dir)
 		if err != nil {
 			log.Printf("floter: could not review %s: %v", dir, err)

@@ -1,0 +1,110 @@
+=== RUN   TestRecommendedConnectAsksWhichExecutableToBind
+--- PASS: TestRecommendedConnectAsksWhichExecutableToBind (0.40s)
+=== RUN   TestRecommendedConnectCancelledByTheChooserInstallsNothing
+--- PASS: TestRecommendedConnectCancelledByTheChooserInstallsNothing (0.30s)
+=== RUN   TestInstallCurrentLocalBusy
+=== RUN   TestInstallCurrentLocalBusy/light
+=== RUN   TestInstallCurrentLocalBusy/dark
+--- PASS: TestInstallCurrentLocalBusy (3.57s)
+    --- PASS: TestInstallCurrentLocalBusy/light (2.18s)
+    --- PASS: TestInstallCurrentLocalBusy/dark (1.39s)
+=== RUN   TestInstallCurrentRecommendedBusy
+=== RUN   TestInstallCurrentRecommendedBusy/light
+=== RUN   TestInstallCurrentRecommendedBusy/dark
+--- PASS: TestInstallCurrentRecommendedBusy (2.65s)
+    --- PASS: TestInstallCurrentRecommendedBusy/light (1.42s)
+    --- PASS: TestInstallCurrentRecommendedBusy/dark (1.23s)
+=== RUN   TestInstallFromFolderReviewsBeforeCommitting
+--- PASS: TestInstallFromFolderReviewsBeforeCommitting (0.49s)
+=== RUN   TestRecommendedConnectReviewsBeforeCommitting
+--- PASS: TestRecommendedConnectReviewsBeforeCommitting (0.49s)
+PASS
+ok  	floter/internal/shell	7.994s
+=== RUN   TestPendingOutletSaveOwner
+=== RUN   TestPendingOutletSaveOwner/light/entry
+=== RUN   TestPendingOutletSaveOwner/light/elsewhere
+=== RUN   TestPendingOutletSaveOwner/dark/entry
+=== RUN   TestPendingOutletSaveOwner/dark/elsewhere
+--- PASS: TestPendingOutletSaveOwner (2.31s)
+    --- PASS: TestPendingOutletSaveOwner/light/entry (0.54s)
+    --- PASS: TestPendingOutletSaveOwner/light/elsewhere (0.72s)
+    --- PASS: TestPendingOutletSaveOwner/dark/entry (0.36s)
+    --- PASS: TestPendingOutletSaveOwner/dark/elsewhere (0.69s)
+=== RUN   TestPendingOutletSaveSchema
+=== RUN   TestPendingOutletSaveSchema/light/entry
+=== RUN   TestPendingOutletSaveSchema/light/elsewhere
+=== RUN   TestPendingOutletSaveSchema/dark/entry
+=== RUN   TestPendingOutletSaveSchema/dark/elsewhere
+--- PASS: TestPendingOutletSaveSchema (1.99s)
+    --- PASS: TestPendingOutletSaveSchema/light/entry (0.29s)
+    --- PASS: TestPendingOutletSaveSchema/light/elsewhere (0.69s)
+    --- PASS: TestPendingOutletSaveSchema/dark/entry (0.34s)
+    --- PASS: TestPendingOutletSaveSchema/dark/elsewhere (0.66s)
+=== RUN   TestPendingOutletRecheckHealthy
+=== RUN   TestPendingOutletRecheckHealthy/light/entry
+=== RUN   TestPendingOutletRecheckHealthy/light/elsewhere
+=== RUN   TestPendingOutletRecheckHealthy/dark/entry
+=== RUN   TestPendingOutletRecheckHealthy/dark/elsewhere
+--- PASS: TestPendingOutletRecheckHealthy (0.21s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/entry (0.05s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/elsewhere (0.05s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/entry (0.05s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/elsewhere (0.06s)
+=== RUN   TestPendingOutletReconnectHealthy
+=== RUN   TestPendingOutletReconnectHealthy/light/entry
+=== RUN   TestPendingOutletReconnectHealthy/light/elsewhere
+=== RUN   TestPendingOutletReconnectHealthy/dark/entry
+=== RUN   TestPendingOutletReconnectHealthy/dark/elsewhere
+--- PASS: TestPendingOutletReconnectHealthy (0.20s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/entry (0.05s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/elsewhere (0.05s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/entry (0.04s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/elsewhere (0.06s)
+=== RUN   TestPendingOutletSaveOrphan
+=== RUN   TestPendingOutletSaveOrphan/light/entry
+=== RUN   TestPendingOutletSaveOrphan/light/elsewhere
+=== RUN   TestPendingOutletSaveOrphan/dark/entry
+=== RUN   TestPendingOutletSaveOrphan/dark/elsewhere
+--- PASS: TestPendingOutletSaveOrphan (1.48s)
+    --- PASS: TestPendingOutletSaveOrphan/light/entry (0.28s)
+    --- PASS: TestPendingOutletSaveOrphan/light/elsewhere (0.52s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/entry (0.23s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/elsewhere (0.45s)
+=== RUN   TestPendingOutletEditingUnavailable
+=== RUN   TestPendingOutletEditingUnavailable/light/entry
+=== RUN   TestPendingOutletEditingUnavailable/light/elsewhere
+=== RUN   TestPendingOutletEditingUnavailable/dark/entry
+=== RUN   TestPendingOutletEditingUnavailable/dark/elsewhere
+--- PASS: TestPendingOutletEditingUnavailable (1.75s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/entry (0.37s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/elsewhere (0.50s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/entry (0.36s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/elsewhere (0.53s)
+=== RUN   TestPendingOutletRepairOrphan
+=== RUN   TestPendingOutletRepairOrphan/light/entry
+=== RUN   TestPendingOutletRepairOrphan/light/elsewhere
+=== RUN   TestPendingOutletRepairOrphan/dark/entry
+=== RUN   TestPendingOutletRepairOrphan/dark/elsewhere
+--- PASS: TestPendingOutletRepairOrphan (0.18s)
+    --- PASS: TestPendingOutletRepairOrphan/light/entry (0.04s)
+    --- PASS: TestPendingOutletRepairOrphan/light/elsewhere (0.05s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/entry (0.04s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/elsewhere (0.05s)
+=== RUN   TestPendingOutletToggleOrphan
+=== RUN   TestPendingOutletToggleOrphan/light/entry
+=== RUN   TestPendingOutletToggleOrphan/light/elsewhere
+=== RUN   TestPendingOutletToggleOrphan/dark/entry
+=== RUN   TestPendingOutletToggleOrphan/dark/elsewhere
+--- PASS: TestPendingOutletToggleOrphan (0.16s)
+    --- PASS: TestPendingOutletToggleOrphan/light/entry (0.04s)
+    --- PASS: TestPendingOutletToggleOrphan/light/elsewhere (0.04s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/entry (0.03s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/elsewhere (0.04s)
+=== RUN   TestEveryUnavailableControlIsClassified
+--- PASS: TestEveryUnavailableControlIsClassified (0.08s)
+=== RUN   TestAnUnavailableControlPointsAtItselfWithOneOfTwoShapes
+--- PASS: TestAnUnavailableControlPointsAtItselfWithOneOfTwoShapes (0.06s)
+=== RUN   TestInstallFromFolderRow
+--- PASS: TestInstallFromFolderRow (0.12s)
+PASS
+ok  	floter/internal/settingsui	8.627s
