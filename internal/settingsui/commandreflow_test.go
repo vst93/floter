@@ -168,3 +168,6 @@ func TestCommandSwitchOrderReflow(t *testing.T)   { checkCommandReflow(t, "switc
 
 func TestCommandAliasErrorReflow(t *testing.T)  { checkCommandReflow(t, "alias", "error") }
 func TestCommandSwitchErrorReflow(t *testing.T) { checkCommandReflow(t, "switch", "error") }
+
+func TestCommandAliasFailureReflow(t *testing.T)  { checkCommandReflow(t, "alias", "failure") }
+func TestCommandSwitchFailureReflow(t *testing.T) { checkCommandReflow(t, "switch", "failure") }

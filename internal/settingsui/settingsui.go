@@ -3145,7 +3145,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				a.sectionHeading(c, copy.IntegrationsCommands, nil)
 				a.sectionHint(c, copy.IntegrationsCommandsHint)
 				a.commandList(c, copy, integration.ID, commands, approvalFeedback(integration), a.permissionFeedback(integration),
-					strconv.Quote(integration.Error))
+					strconv.Quote(integration.Error), failureReason(copy, integration.FailureCode, integration.FailureDetail))
 			})
 		}
 

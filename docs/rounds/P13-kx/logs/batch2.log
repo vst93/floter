@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasFailureReflow
+=== RUN   TestCommandAliasFailureReflow/light
+=== RUN   TestCommandAliasFailureReflow/dark
+--- PASS: TestCommandAliasFailureReflow (0.20s)
+    --- PASS: TestCommandAliasFailureReflow/light (0.17s)
+    --- PASS: TestCommandAliasFailureReflow/dark (0.03s)
+=== RUN   TestCommandSwitchFailureReflow
+=== RUN   TestCommandSwitchFailureReflow/light
+=== RUN   TestCommandSwitchFailureReflow/dark
+--- PASS: TestCommandSwitchFailureReflow (0.05s)
+    --- PASS: TestCommandSwitchFailureReflow/light (0.03s)
+    --- PASS: TestCommandSwitchFailureReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.258s
