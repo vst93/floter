@@ -1,0 +1,4 @@
+internal/settingsui/settingsui.go: 成功
+internal/settingsui/parameditor.go: 成功
+internal/shell/shell.go: 成功
+internal/shell/sync.go: 成功

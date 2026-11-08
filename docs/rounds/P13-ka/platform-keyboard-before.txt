@@ -1,0 +1,21 @@
+=== RUN   TestToolRefusalExitPlatform
+=== RUN   TestToolRefusalExitPlatform/light/connect
+    toolrefusalexit_test.go:83: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:98: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/light/edit
+    toolrefusalexit_test.go:83: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:98: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/dark/connect
+    toolrefusalexit_test.go:83: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:98: platform refused direct keyboard correction: submissions=0
+=== RUN   TestToolRefusalExitPlatform/dark/edit
+    toolrefusalexit_test.go:83: platform refusal lost editable keyboard exit
+    toolrefusalexit_test.go:98: platform refused direct keyboard correction: submissions=0
+--- FAIL: TestToolRefusalExitPlatform (2.02s)
+    --- FAIL: TestToolRefusalExitPlatform/light/connect (0.72s)
+    --- FAIL: TestToolRefusalExitPlatform/light/edit (0.43s)
+    --- FAIL: TestToolRefusalExitPlatform/dark/connect (0.43s)
+    --- FAIL: TestToolRefusalExitPlatform/dark/edit (0.43s)
+FAIL
+FAIL	floter/internal/settingsui	2.031s
+FAIL

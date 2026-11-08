@@ -3,6 +3,7 @@ package settingsui
 import (
 	"image/png"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -11,6 +12,13 @@ import (
 func toolExitDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 	t.Helper()
 	if tag := os.Getenv("FLOTER_P13KA_DUMP"); tag != "" {
+		// Checkboxes expose their focus ring only after keyboard traversal.
+		// A round trip preserves the target without choosing a platform.
+		if strings.HasPrefix(name, "refusal-platform") {
+			tt.Key(ui.Shift, ui.KeyTab)
+			tt.Key(0, ui.KeyTab)
+			tt.Frame()
+		}
 		f, err := os.Create("/tmp/floter-P13-ka-" + name + "-" + appearanceName(dark) + "-" + tag + ".png")
 		if err != nil {
 			t.Fatal(err)

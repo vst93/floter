@@ -1,0 +1,12 @@
+=== RUN   TestToolRefusalExitPlatform
+=== RUN   TestToolRefusalExitPlatform/light/connect
+=== RUN   TestToolRefusalExitPlatform/light/edit
+=== RUN   TestToolRefusalExitPlatform/dark/connect
+=== RUN   TestToolRefusalExitPlatform/dark/edit
+--- PASS: TestToolRefusalExitPlatform (1.91s)
+    --- PASS: TestToolRefusalExitPlatform/light/connect (0.69s)
+    --- PASS: TestToolRefusalExitPlatform/light/edit (0.41s)
+    --- PASS: TestToolRefusalExitPlatform/dark/connect (0.42s)
+    --- PASS: TestToolRefusalExitPlatform/dark/edit (0.40s)
+PASS
+ok  	floter/internal/settingsui	1.931s

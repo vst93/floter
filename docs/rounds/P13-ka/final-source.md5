@@ -1,0 +1,4 @@
+fa20b621bb238c581b31fd138a0875f4  internal/settingsui/settingsui.go
+f1020d48fbacf7ae406b335601f3403c  internal/settingsui/parameditor.go
+03a02b05126e76cd96f78d1c1fa4445d  internal/shell/shell.go
+cd95c9f692453e7881a4a5f3b2fe2aec  internal/shell/sync.go

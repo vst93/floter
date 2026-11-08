@@ -291,23 +291,43 @@
   },
   {
     "name": "refusal-platform-connect-dark",
-    "changed_pixels": 0,
-    "bbox": null
+    "changed_pixels": 3072,
+    "bbox": [
+      17,
+      638,
+      703,
+      890
+    ]
   },
   {
     "name": "refusal-platform-connect-light",
-    "changed_pixels": 0,
-    "bbox": null
+    "changed_pixels": 3072,
+    "bbox": [
+      17,
+      638,
+      703,
+      890
+    ]
   },
   {
     "name": "refusal-platform-edit-dark",
-    "changed_pixels": 0,
-    "bbox": null
+    "changed_pixels": 3072,
+    "bbox": [
+      17,
+      683,
+      703,
+      935
+    ]
   },
   {
     "name": "refusal-platform-edit-light",
-    "changed_pixels": 0,
-    "bbox": null
+    "changed_pixels": 3072,
+    "bbox": [
+      17,
+      683,
+      703,
+      935
+    ]
   },
   {
     "name": "refusal-program-connect-dark",
