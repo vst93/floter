@@ -1,0 +1,11 @@
+=== RUN   TestKHProbe
+=== RUN   TestKHProbe/light
+    localformring_test.go:62: cannot Tab to 类型
+=== RUN   TestKHProbe/dark
+    localformring_test.go:62: cannot Tab to 类型
+--- FAIL: TestKHProbe (1.26s)
+    --- FAIL: TestKHProbe/light (0.80s)
+    --- FAIL: TestKHProbe/dark (0.45s)
+FAIL
+FAIL	floter/internal/settingsui	1.268s
+FAIL

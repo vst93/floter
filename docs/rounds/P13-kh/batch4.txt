@@ -1,0 +1,87 @@
+=== RUN   TestLocalFormRingAdd
+=== RUN   TestLocalFormRingAdd/light
+    localformring_test.go:99: add rect={X:675.8 Y:473 W:28 H:28} scroll=453.29996
+=== RUN   TestLocalFormRingAdd/dark
+    localformring_test.go:99: add rect={X:675.8 Y:473 W:28 H:28} scroll=453.29996
+--- PASS: TestLocalFormRingAdd (0.49s)
+    --- PASS: TestLocalFormRingAdd/light (0.35s)
+    --- PASS: TestLocalFormRingAdd/dark (0.14s)
+=== RUN   TestLocalFormRingRemove
+=== RUN   TestLocalFormRingRemove/light
+    localformring_test.go:99: remove rect={X:666.8 Y:473.00006 W:28 H:28} scroll=633.2999
+=== RUN   TestLocalFormRingRemove/dark
+    localformring_test.go:99: remove rect={X:666.8 Y:473.00006 W:28 H:28} scroll=633.2999
+--- PASS: TestLocalFormRingRemove (0.37s)
+    --- PASS: TestLocalFormRingRemove/light (0.18s)
+    --- PASS: TestLocalFormRingRemove/dark (0.19s)
+=== RUN   TestLocalFormRingRequired
+=== RUN   TestLocalFormRingRequired/light
+    localformring_test.go:99: required rect={X:195.8 Y:485.99994 W:38 H:15} scroll=626.80005
+=== RUN   TestLocalFormRingRequired/dark
+    localformring_test.go:99: required rect={X:195.8 Y:485.99994 W:38 H:15} scroll=626.80005
+--- PASS: TestLocalFormRingRequired (0.34s)
+    --- PASS: TestLocalFormRingRequired/light (0.17s)
+    --- PASS: TestLocalFormRingRequired/dark (0.17s)
+=== RUN   TestLocalFormRingKind
+=== RUN   TestLocalFormRingKind/light
+    localformring_test.go:99: kind rect={X:541.8 Y:471 W:22 H:30} scroll=545.2999
+=== RUN   TestLocalFormRingKind/dark
+    localformring_test.go:99: kind rect={X:541.8 Y:471 W:22 H:30} scroll=545.2999
+--- PASS: TestLocalFormRingKind (0.33s)
+    --- PASS: TestLocalFormRingKind/light (0.17s)
+    --- PASS: TestLocalFormRingKind/dark (0.16s)
+=== RUN   TestLocalFormRingOutput
+=== RUN   TestLocalFormRingOutput/light
+    localformring_test.go:99: output rect={X:552.8 Y:468 W:66 H:30} scroll=305.30002
+=== RUN   TestLocalFormRingOutput/dark
+    localformring_test.go:99: output rect={X:552.8 Y:468 W:66 H:30} scroll=305.30002
+--- PASS: TestLocalFormRingOutput (0.20s)
+    --- PASS: TestLocalFormRingOutput/light (0.11s)
+    --- PASS: TestLocalFormRingOutput/dark (0.10s)
+=== RUN   TestLocalFormRingSave
+=== RUN   TestLocalFormRingSave/light
+    localformring_test.go:99: save rect={X:434.3 Y:471 W:22 H:30} scroll=1322.3
+=== RUN   TestLocalFormRingSave/dark
+    localformring_test.go:99: save rect={X:434.3 Y:471 W:22 H:30} scroll=1322.3
+--- PASS: TestLocalFormRingSave (0.67s)
+    --- PASS: TestLocalFormRingSave/light (0.34s)
+    --- PASS: TestLocalFormRingSave/dark (0.34s)
+=== RUN   TestLocalFormRingAdvanced
+=== RUN   TestLocalFormRingAdvanced/light
+    localformring_test.go:90: card unit=3.6
+    localformring_test.go:99: advanced rect={X:645.8 Y:474 W:44 H:30} scroll=402.30002
+    localformring_test.go:106: advanced bottom ring missing at [667 505]: blue-red=1
+    localformring_test.go:106: advanced top ring missing at [667 472]: blue-red=1
+=== RUN   TestLocalFormRingAdvanced/dark
+    localformring_test.go:90: card unit=3.6
+    localformring_test.go:99: advanced rect={X:645.8 Y:474 W:44 H:30} scroll=402.30002
+    localformring_test.go:106: advanced top ring missing at [667 472]: blue-red=2
+    localformring_test.go:106: advanced bottom ring missing at [667 505]: blue-red=2
+--- FAIL: TestLocalFormRingAdvanced (0.26s)
+    --- FAIL: TestLocalFormRingAdvanced/light (0.13s)
+    --- FAIL: TestLocalFormRingAdvanced/dark (0.13s)
+=== RUN   TestLocalFormRingPlatforms
+=== RUN   TestLocalFormRingPlatforms/light
+    localformring_test.go:99: platforms rect={X:490 Y:484.5 W:16 H:16} scroll=345.80002
+=== RUN   TestLocalFormRingPlatforms/dark
+    localformring_test.go:99: platforms rect={X:490 Y:484.5 W:16 H:16} scroll=345.80002
+--- PASS: TestLocalFormRingPlatforms (0.22s)
+    --- PASS: TestLocalFormRingPlatforms/light (0.11s)
+    --- PASS: TestLocalFormRingPlatforms/dark (0.11s)
+=== RUN   TestTheParamEditorDrawsTheReferencePlates
+--- PASS: TestTheParamEditorDrawsTheReferencePlates (0.42s)
+=== RUN   TestToolRefusalVisibilityPlatform
+=== RUN   TestToolRefusalVisibilityPlatform/light/connect
+=== RUN   TestToolRefusalVisibilityPlatform/light/edit
+=== RUN   TestToolRefusalVisibilityPlatform/dark/connect
+=== RUN   TestToolRefusalVisibilityPlatform/dark/edit
+--- PASS: TestToolRefusalVisibilityPlatform (0.48s)
+    --- PASS: TestToolRefusalVisibilityPlatform/light/connect (0.13s)
+    --- PASS: TestToolRefusalVisibilityPlatform/light/edit (0.12s)
+    --- PASS: TestToolRefusalVisibilityPlatform/dark/connect (0.11s)
+    --- PASS: TestToolRefusalVisibilityPlatform/dark/edit (0.12s)
+=== RUN   TestLocalToolPlatformsRow
+--- PASS: TestLocalToolPlatformsRow (0.43s)
+FAIL
+FAIL	floter/internal/settingsui	4.222s
+FAIL

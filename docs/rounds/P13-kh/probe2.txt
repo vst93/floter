@@ -1,0 +1,61 @@
+=== RUN   TestKHProbe
+=== RUN   TestKHProbe/required
+=== RUN   TestKHProbe/required/light
+    localformring_test.go:71: required rect={X:195.8 Y:504.99994 W:38 H:15} scroll=607.80005
+    localformring_test.go:78: required bottom ring missing at [214 521]: blue-red=0
+=== RUN   TestKHProbe/required/dark
+    localformring_test.go:71: required rect={X:195.8 Y:504.99994 W:38 H:15} scroll=607.80005
+    localformring_test.go:78: required bottom ring missing at [214 521]: blue-red=0
+=== RUN   TestKHProbe/kind
+=== RUN   TestKHProbe/kind/light
+    localformring_test.go:71: kind rect={X:541.8 Y:490 W:22 H:30} scroll=526.2999
+    localformring_test.go:78: kind bottom ring missing at [552 521]: blue-red=0
+=== RUN   TestKHProbe/kind/dark
+    localformring_test.go:71: kind rect={X:541.8 Y:490 W:22 H:30} scroll=526.2999
+    localformring_test.go:78: kind bottom ring missing at [552 521]: blue-red=0
+=== RUN   TestKHProbe/mode
+=== RUN   TestKHProbe/mode/light
+    localformring_test.go:71: mode rect={X:600.8 Y:347.09998 W:42 H:30} scroll=0
+=== RUN   TestKHProbe/mode/dark
+    localformring_test.go:71: mode rect={X:600.8 Y:347.09998 W:42 H:30} scroll=0
+=== RUN   TestKHProbe/output
+=== RUN   TestKHProbe/output/light
+    localformring_test.go:71: output rect={X:552.8 Y:490 W:66 H:30} scroll=283.30002
+    localformring_test.go:78: output bottom ring missing at [585 521]: blue-red=0
+=== RUN   TestKHProbe/output/dark
+    localformring_test.go:71: output rect={X:552.8 Y:490 W:66 H:30} scroll=283.30002
+    localformring_test.go:78: output bottom ring missing at [585 521]: blue-red=0
+=== RUN   TestKHProbe/choose
+=== RUN   TestKHProbe/choose/light
+    localformring_test.go:71: choose rect={X:645.8 Y:402.09998 W:33 H:30} scroll=0
+=== RUN   TestKHProbe/choose/dark
+    localformring_test.go:71: choose rect={X:645.8 Y:402.09998 W:33 H:30} scroll=0
+=== RUN   TestKHProbe/save
+=== RUN   TestKHProbe/save/light
+    localformring_test.go:71: save rect={X:434.3 Y:490 W:22 H:30} scroll=1303.3
+    localformring_test.go:78: save bottom ring missing at [445 521]: blue-red=0
+=== RUN   TestKHProbe/save/dark
+    localformring_test.go:71: save rect={X:434.3 Y:490 W:22 H:30} scroll=1303.3
+    localformring_test.go:78: save bottom ring missing at [445 521]: blue-red=0
+--- FAIL: TestKHProbe (3.47s)
+    --- FAIL: TestKHProbe/required (0.80s)
+        --- FAIL: TestKHProbe/required/light (0.56s)
+        --- FAIL: TestKHProbe/required/dark (0.25s)
+    --- FAIL: TestKHProbe/kind (0.55s)
+        --- FAIL: TestKHProbe/kind/light (0.28s)
+        --- FAIL: TestKHProbe/kind/dark (0.27s)
+    --- PASS: TestKHProbe/mode (0.26s)
+        --- PASS: TestKHProbe/mode/light (0.13s)
+        --- PASS: TestKHProbe/mode/dark (0.13s)
+    --- FAIL: TestKHProbe/output (0.39s)
+        --- FAIL: TestKHProbe/output/light (0.18s)
+        --- FAIL: TestKHProbe/output/dark (0.20s)
+    --- PASS: TestKHProbe/choose (0.30s)
+        --- PASS: TestKHProbe/choose/light (0.15s)
+        --- PASS: TestKHProbe/choose/dark (0.15s)
+    --- FAIL: TestKHProbe/save (1.17s)
+        --- FAIL: TestKHProbe/save/light (0.60s)
+        --- FAIL: TestKHProbe/save/dark (0.56s)
+FAIL
+FAIL	floter/internal/settingsui	3.480s
+FAIL

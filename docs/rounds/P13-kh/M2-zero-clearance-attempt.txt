@@ -1,0 +1,81 @@
+=== RUN   TestLocalFormRingAdd
+=== RUN   TestLocalFormRingAdd/light
+    localformring_test.go:80: add rect={X:675.8 Y:492 W:28 H:28} scroll=434.29996
+    localformring_test.go:87: add bottom ring missing at [689 521]: blue-red=0
+=== RUN   TestLocalFormRingAdd/dark
+    localformring_test.go:80: add rect={X:675.8 Y:492 W:28 H:28} scroll=434.29996
+    localformring_test.go:87: add bottom ring missing at [689 521]: blue-red=0
+--- FAIL: TestLocalFormRingAdd (0.38s)
+    --- FAIL: TestLocalFormRingAdd/light (0.25s)
+    --- FAIL: TestLocalFormRingAdd/dark (0.13s)
+=== RUN   TestLocalFormRingRemove
+=== RUN   TestLocalFormRingRemove/light
+    localformring_test.go:80: remove rect={X:666.8 Y:491.99994 W:28 H:28} scroll=614.30005
+    localformring_test.go:87: remove bottom ring missing at [680 521]: blue-red=0
+=== RUN   TestLocalFormRingRemove/dark
+    localformring_test.go:80: remove rect={X:666.8 Y:491.99994 W:28 H:28} scroll=614.30005
+    localformring_test.go:87: remove bottom ring missing at [680 521]: blue-red=0
+--- FAIL: TestLocalFormRingRemove (0.28s)
+    --- FAIL: TestLocalFormRingRemove/light (0.15s)
+    --- FAIL: TestLocalFormRingRemove/dark (0.14s)
+=== RUN   TestLocalFormRingRequired
+=== RUN   TestLocalFormRingRequired/light
+    localformring_test.go:80: required rect={X:195.8 Y:504.99994 W:38 H:15} scroll=607.80005
+    localformring_test.go:87: required bottom ring missing at [214 521]: blue-red=0
+=== RUN   TestLocalFormRingRequired/dark
+    localformring_test.go:80: required rect={X:195.8 Y:504.99994 W:38 H:15} scroll=607.80005
+    localformring_test.go:87: required bottom ring missing at [214 521]: blue-red=0
+--- FAIL: TestLocalFormRingRequired (0.25s)
+    --- FAIL: TestLocalFormRingRequired/light (0.12s)
+    --- FAIL: TestLocalFormRingRequired/dark (0.13s)
+=== RUN   TestLocalFormRingKind
+=== RUN   TestLocalFormRingKind/light
+    localformring_test.go:80: kind rect={X:541.8 Y:490 W:22 H:30} scroll=526.2999
+    localformring_test.go:87: kind bottom ring missing at [552 521]: blue-red=0
+=== RUN   TestLocalFormRingKind/dark
+    localformring_test.go:80: kind rect={X:541.8 Y:490 W:22 H:30} scroll=526.2999
+    localformring_test.go:87: kind bottom ring missing at [552 521]: blue-red=0
+--- FAIL: TestLocalFormRingKind (0.23s)
+    --- FAIL: TestLocalFormRingKind/light (0.11s)
+    --- FAIL: TestLocalFormRingKind/dark (0.11s)
+=== RUN   TestLocalFormRingOutput
+=== RUN   TestLocalFormRingOutput/light
+    localformring_test.go:80: output rect={X:552.8 Y:487 W:66 H:30} scroll=286.30002
+=== RUN   TestLocalFormRingOutput/dark
+    localformring_test.go:80: output rect={X:552.8 Y:487 W:66 H:30} scroll=286.30002
+--- PASS: TestLocalFormRingOutput (0.16s)
+    --- PASS: TestLocalFormRingOutput/light (0.08s)
+    --- PASS: TestLocalFormRingOutput/dark (0.08s)
+=== RUN   TestLocalFormRingSave
+=== RUN   TestLocalFormRingSave/light
+    localformring_test.go:80: save rect={X:434.3 Y:490 W:22 H:30} scroll=1303.3
+    localformring_test.go:87: save bottom ring missing at [445 521]: blue-red=0
+=== RUN   TestLocalFormRingSave/dark
+    localformring_test.go:80: save rect={X:434.3 Y:490 W:22 H:30} scroll=1303.3
+    localformring_test.go:87: save bottom ring missing at [445 521]: blue-red=0
+--- FAIL: TestLocalFormRingSave (0.50s)
+    --- FAIL: TestLocalFormRingSave/light (0.24s)
+    --- FAIL: TestLocalFormRingSave/dark (0.26s)
+=== RUN   TestLocalFormRingAdvanced
+=== RUN   TestLocalFormRingAdvanced/light
+    localformring_test.go:80: advanced rect={X:645.8 Y:490 W:44 H:30} scroll=383.30002
+    localformring_test.go:87: advanced bottom ring missing at [667 521]: blue-red=0
+=== RUN   TestLocalFormRingAdvanced/dark
+    localformring_test.go:80: advanced rect={X:645.8 Y:490 W:44 H:30} scroll=383.30002
+    localformring_test.go:87: advanced bottom ring missing at [667 521]: blue-red=0
+--- FAIL: TestLocalFormRingAdvanced (0.23s)
+    --- FAIL: TestLocalFormRingAdvanced/light (0.11s)
+    --- FAIL: TestLocalFormRingAdvanced/dark (0.11s)
+=== RUN   TestLocalFormRingPlatforms
+=== RUN   TestLocalFormRingPlatforms/light
+    localformring_test.go:80: platforms rect={X:490 Y:503.5 W:16 H:16} scroll=326.80002
+    localformring_test.go:87: platforms bottom ring missing at [498 521]: blue-red=0
+=== RUN   TestLocalFormRingPlatforms/dark
+    localformring_test.go:80: platforms rect={X:490 Y:503.5 W:16 H:16} scroll=326.80002
+    localformring_test.go:87: platforms bottom ring missing at [498 521]: blue-red=0
+--- FAIL: TestLocalFormRingPlatforms (0.19s)
+    --- FAIL: TestLocalFormRingPlatforms/light (0.10s)
+    --- FAIL: TestLocalFormRingPlatforms/dark (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	2.227s
+FAIL

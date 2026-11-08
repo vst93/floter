@@ -1,0 +1,94 @@
+=== RUN   TestDeclarationVisibilityAdd
+=== RUN   TestDeclarationVisibilityAdd/light
+=== RUN   TestDeclarationVisibilityAdd/dark
+--- PASS: TestDeclarationVisibilityAdd (0.42s)
+    --- PASS: TestDeclarationVisibilityAdd/light (0.35s)
+    --- PASS: TestDeclarationVisibilityAdd/dark (0.07s)
+=== RUN   TestDeclarationVisibilityRemoveNext
+=== RUN   TestDeclarationVisibilityRemoveNext/light
+=== RUN   TestDeclarationVisibilityRemoveNext/dark
+--- PASS: TestDeclarationVisibilityRemoveNext (0.24s)
+    --- PASS: TestDeclarationVisibilityRemoveNext/light (0.13s)
+    --- PASS: TestDeclarationVisibilityRemoveNext/dark (0.11s)
+=== RUN   TestDeclarationVisibilityRemoveTail
+=== RUN   TestDeclarationVisibilityRemoveTail/light
+=== RUN   TestDeclarationVisibilityRemoveTail/dark
+--- PASS: TestDeclarationVisibilityRemoveTail (0.23s)
+    --- PASS: TestDeclarationVisibilityRemoveTail/light (0.12s)
+    --- PASS: TestDeclarationVisibilityRemoveTail/dark (0.12s)
+=== RUN   TestDeclarationVisibilityRemoveOnly
+=== RUN   TestDeclarationVisibilityRemoveOnly/light
+=== RUN   TestDeclarationVisibilityRemoveOnly/dark
+--- PASS: TestDeclarationVisibilityRemoveOnly (0.18s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/light (0.10s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/dark (0.07s)
+=== RUN   TestDeclarationVisibilityWithdraw
+=== RUN   TestDeclarationVisibilityWithdraw/light
+=== RUN   TestDeclarationVisibilityWithdraw/dark
+--- PASS: TestDeclarationVisibilityWithdraw (0.14s)
+    --- PASS: TestDeclarationVisibilityWithdraw/light (0.07s)
+    --- PASS: TestDeclarationVisibilityWithdraw/dark (0.07s)
+=== RUN   TestParameterOptionsHonorReboundNewCommand
+=== RUN   TestParameterOptionsHonorReboundNewCommand/light
+=== RUN   TestParameterOptionsHonorReboundNewCommand/dark
+--- PASS: TestParameterOptionsHonorReboundNewCommand (0.05s)
+    --- PASS: TestParameterOptionsHonorReboundNewCommand/light (0.03s)
+    --- PASS: TestParameterOptionsHonorReboundNewCommand/dark (0.02s)
+=== RUN   TestLocalFormRingAdd
+=== RUN   TestLocalFormRingAdd/light
+    localformring_test.go:54: add rect={X:675.8 Y:473 W:28 H:28} scroll=453.29996
+=== RUN   TestLocalFormRingAdd/dark
+    localformring_test.go:54: add rect={X:675.8 Y:473 W:28 H:28} scroll=453.29996
+--- PASS: TestLocalFormRingAdd (0.46s)
+    --- PASS: TestLocalFormRingAdd/light (0.24s)
+    --- PASS: TestLocalFormRingAdd/dark (0.22s)
+=== RUN   TestLocalFormRingRemove
+=== RUN   TestLocalFormRingRemove/light
+    localformring_test.go:54: remove rect={X:666.8 Y:473.00006 W:28 H:28} scroll=633.2999
+=== RUN   TestLocalFormRingRemove/dark
+    localformring_test.go:54: remove rect={X:666.8 Y:473.00006 W:28 H:28} scroll=633.2999
+--- PASS: TestLocalFormRingRemove (0.55s)
+    --- PASS: TestLocalFormRingRemove/light (0.27s)
+    --- PASS: TestLocalFormRingRemove/dark (0.28s)
+=== RUN   TestParameterMenuExternalSelection
+=== RUN   TestParameterMenuExternalSelection/light
+=== RUN   TestParameterMenuExternalSelection/dark
+--- PASS: TestParameterMenuExternalSelection (0.02s)
+    --- PASS: TestParameterMenuExternalSelection/light (0.01s)
+    --- PASS: TestParameterMenuExternalSelection/dark (0.01s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.11s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.07s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.04s)
+=== RUN   TestParamReasonLayoutLocal
+=== RUN   TestParamReasonLayoutLocal/light
+=== RUN   TestParamReasonLayoutLocal/dark
+--- PASS: TestParamReasonLayoutLocal (0.08s)
+    --- PASS: TestParamReasonLayoutLocal/light (0.05s)
+    --- PASS: TestParamReasonLayoutLocal/dark (0.03s)
+=== RUN   TestParamReasonLayoutBackend
+=== RUN   TestParamReasonLayoutBackend/light
+=== RUN   TestParamReasonLayoutBackend/dark
+--- PASS: TestParamReasonLayoutBackend (0.09s)
+    --- PASS: TestParamReasonLayoutBackend/light (0.05s)
+    --- PASS: TestParamReasonLayoutBackend/dark (0.04s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.08s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.04s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.04s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.10s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.05s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.05s)
+=== RUN   TestTheParamEditorDrawsTheReferencePlates
+--- PASS: TestTheParamEditorDrawsTheReferencePlates (0.69s)
+=== RUN   TestParamOptionsNewlineCodec
+--- PASS: TestParamOptionsNewlineCodec (0.00s)
+PASS
+ok  	floter/internal/settingsui	3.453s

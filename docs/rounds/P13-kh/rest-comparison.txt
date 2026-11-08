@@ -1,0 +1,1 @@
+6 scenes: PNG and geometry byte-identical

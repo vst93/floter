@@ -1,0 +1,18 @@
+=== RUN   TestLocalFormRingAdd
+=== RUN   TestLocalFormRingAdd/light
+    localformring_test.go:71: add rect={X:675.8 Y:473 W:28 H:28} scroll=453.29996
+=== RUN   TestLocalFormRingAdd/dark
+    localformring_test.go:71: add rect={X:675.8 Y:473 W:28 H:28} scroll=453.29996
+--- PASS: TestLocalFormRingAdd (0.74s)
+    --- PASS: TestLocalFormRingAdd/light (0.51s)
+    --- PASS: TestLocalFormRingAdd/dark (0.22s)
+=== RUN   TestLocalFormRingRemove
+=== RUN   TestLocalFormRingRemove/light
+    localformring_test.go:71: remove rect={X:666.8 Y:473.00006 W:28 H:28} scroll=633.2999
+=== RUN   TestLocalFormRingRemove/dark
+    localformring_test.go:71: remove rect={X:666.8 Y:473.00006 W:28 H:28} scroll=633.2999
+--- PASS: TestLocalFormRingRemove (0.57s)
+    --- PASS: TestLocalFormRingRemove/light (0.28s)
+    --- PASS: TestLocalFormRingRemove/dark (0.29s)
+PASS
+ok  	floter/internal/settingsui	1.322s

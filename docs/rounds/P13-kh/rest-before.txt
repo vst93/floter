@@ -1,0 +1,4 @@
+=== RUN   TestKHRestingGeometry
+--- PASS: TestKHRestingGeometry (0.37s)
+PASS
+ok  	floter/internal/settingsui	0.378s

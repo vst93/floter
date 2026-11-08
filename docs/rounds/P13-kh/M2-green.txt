@@ -1,0 +1,34 @@
+=== RUN   TestLocalFormRingOutput
+=== RUN   TestLocalFormRingOutput/light
+    localformring_test.go:80: output rect={X:552.8 Y:468 W:66 H:30} scroll=305.30002
+=== RUN   TestLocalFormRingOutput/dark
+    localformring_test.go:80: output rect={X:552.8 Y:468 W:66 H:30} scroll=305.30002
+--- PASS: TestLocalFormRingOutput (0.53s)
+    --- PASS: TestLocalFormRingOutput/light (0.36s)
+    --- PASS: TestLocalFormRingOutput/dark (0.17s)
+=== RUN   TestLocalFormRingSave
+=== RUN   TestLocalFormRingSave/light
+    localformring_test.go:80: save rect={X:434.3 Y:471 W:22 H:30} scroll=1322.3
+=== RUN   TestLocalFormRingSave/dark
+    localformring_test.go:80: save rect={X:434.3 Y:471 W:22 H:30} scroll=1322.3
+--- PASS: TestLocalFormRingSave (1.31s)
+    --- PASS: TestLocalFormRingSave/light (0.64s)
+    --- PASS: TestLocalFormRingSave/dark (0.67s)
+=== RUN   TestLocalFormRingAdvanced
+=== RUN   TestLocalFormRingAdvanced/light
+    localformring_test.go:80: advanced rect={X:645.8 Y:471 W:44 H:30} scroll=402.30002
+=== RUN   TestLocalFormRingAdvanced/dark
+    localformring_test.go:80: advanced rect={X:645.8 Y:471 W:44 H:30} scroll=402.30002
+--- PASS: TestLocalFormRingAdvanced (0.51s)
+    --- PASS: TestLocalFormRingAdvanced/light (0.27s)
+    --- PASS: TestLocalFormRingAdvanced/dark (0.24s)
+=== RUN   TestLocalFormRingPlatforms
+=== RUN   TestLocalFormRingPlatforms/light
+    localformring_test.go:80: platforms rect={X:490 Y:484.5 W:16 H:16} scroll=345.80002
+=== RUN   TestLocalFormRingPlatforms/dark
+    localformring_test.go:80: platforms rect={X:490 Y:484.5 W:16 H:16} scroll=345.80002
+--- PASS: TestLocalFormRingPlatforms (0.45s)
+    --- PASS: TestLocalFormRingPlatforms/light (0.24s)
+    --- PASS: TestLocalFormRingPlatforms/dark (0.21s)
+PASS
+ok  	floter/internal/settingsui	2.820s

@@ -1,0 +1,23 @@
+=== RUN   TestLocalFormRingAdd
+=== RUN   TestLocalFormRingAdd/light
+    localformring_test.go:61: add rect={X:675.8 Y:492 W:28 H:28} scroll=434.29996
+    localformring_test.go:68: add bottom ring missing at [689 521]: blue-red=0
+=== RUN   TestLocalFormRingAdd/dark
+    localformring_test.go:61: add rect={X:675.8 Y:492 W:28 H:28} scroll=434.29996
+    localformring_test.go:68: add bottom ring missing at [689 521]: blue-red=0
+--- FAIL: TestLocalFormRingAdd (0.73s)
+    --- FAIL: TestLocalFormRingAdd/light (0.53s)
+    --- FAIL: TestLocalFormRingAdd/dark (0.20s)
+=== RUN   TestLocalFormRingRemove
+=== RUN   TestLocalFormRingRemove/light
+    localformring_test.go:61: remove rect={X:666.8 Y:491.99994 W:28 H:28} scroll=614.30005
+    localformring_test.go:68: remove bottom ring missing at [680 521]: blue-red=0
+=== RUN   TestLocalFormRingRemove/dark
+    localformring_test.go:61: remove rect={X:666.8 Y:491.99994 W:28 H:28} scroll=614.30005
+    localformring_test.go:68: remove bottom ring missing at [680 521]: blue-red=0
+--- FAIL: TestLocalFormRingRemove (0.52s)
+    --- FAIL: TestLocalFormRingRemove/light (0.24s)
+    --- FAIL: TestLocalFormRingRemove/dark (0.28s)
+FAIL
+FAIL	floter/internal/settingsui	1.262s
+FAIL

@@ -1,0 +1,25 @@
+=== RUN   TestLocalFormRingAdvanced
+=== RUN   TestLocalFormRingAdvanced/light
+    localformring_test.go:90: card unit=3.6
+    localformring_test.go:99: advanced rect={X:645.8 Y:490 W:44 H:30} scroll=383.30002
+    localformring_test.go:106: advanced bottom ring missing at [667 521]: blue-red=0
+=== RUN   TestLocalFormRingAdvanced/dark
+    localformring_test.go:90: card unit=3.6
+    localformring_test.go:99: advanced rect={X:645.8 Y:490 W:44 H:30} scroll=383.30002
+    localformring_test.go:106: advanced bottom ring missing at [667 521]: blue-red=0
+--- FAIL: TestLocalFormRingAdvanced (0.50s)
+    --- FAIL: TestLocalFormRingAdvanced/light (0.36s)
+    --- FAIL: TestLocalFormRingAdvanced/dark (0.14s)
+=== RUN   TestLocalFormRingPlatforms
+=== RUN   TestLocalFormRingPlatforms/light
+    localformring_test.go:99: platforms rect={X:490 Y:503.5 W:16 H:16} scroll=326.80002
+    localformring_test.go:106: platforms bottom ring missing at [498 521]: blue-red=0
+=== RUN   TestLocalFormRingPlatforms/dark
+    localformring_test.go:99: platforms rect={X:490 Y:503.5 W:16 H:16} scroll=326.80002
+    localformring_test.go:106: platforms bottom ring missing at [498 521]: blue-red=0
+--- FAIL: TestLocalFormRingPlatforms (0.23s)
+    --- FAIL: TestLocalFormRingPlatforms/light (0.11s)
+    --- FAIL: TestLocalFormRingPlatforms/dark (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	0.741s
+FAIL

@@ -1,0 +1,32 @@
+package settingsui
+
+import (
+	"fmt"
+	"image/png"
+	"os"
+	"testing"
+)
+
+// Independent before/after acceptance: adding reveal envelopes must not
+// move any resting content or change the page's scroll range.
+func TestKHRestingGeometry(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		a := declarationVisibilityApp(t, dark, 5)
+		tt := toolVisibilityFrame(t, a, dark)
+		for i, y := range []float32{0, 600, a.Body.MaxY} {
+			a.Body.Y = y
+			tt.Frame()
+			name := fmt.Sprintf("/tmp/floter-P13-kh/rest-%s-%d-%s", appearanceName(dark), i, os.Getenv("FLOTER_P13KH_REST"))
+			f, err := os.Create(name+".png")
+			if err != nil { t.Fatal(err) }
+			if err := png.Encode(f, tt.Image()); err != nil { t.Fatal(err) }
+			f.Close()
+			geometry := fmt.Sprintf("scroll=%v max=%v\n", a.Body.Y, a.Body.MaxY)
+			for _, label := range tt.Texts() {
+				r, _ := tt.Find(label)
+				geometry += fmt.Sprintf("%q %+v\n", label, r)
+			}
+			if err := os.WriteFile(name+".txt", []byte(geometry), 0600); err != nil { t.Fatal(err) }
+		}
+	}
+}

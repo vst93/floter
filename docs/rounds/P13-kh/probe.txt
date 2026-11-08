@@ -1,0 +1,87 @@
+=== RUN   TestKHProbe
+=== RUN   TestKHProbe/required
+=== RUN   TestKHProbe/required/light
+    localformring_test.go:54: required rect={X:195.8 Y:504.99994 W:38 H:15} scroll=607.80005
+    localformring_test.go:61: required bottom ring missing at [214 521]: blue-red=0
+=== RUN   TestKHProbe/required/dark
+    localformring_test.go:54: required rect={X:195.8 Y:504.99994 W:38 H:15} scroll=607.80005
+    localformring_test.go:61: required bottom ring missing at [214 521]: blue-red=0
+=== RUN   TestKHProbe/kind
+=== RUN   TestKHProbe/kind/light
+    localformring_test.go:54: kind rect={X:201.8 Y:51.399998 W:0 H:0} scroll=526.2999
+    localformring_test.go:61: kind top ring missing at [201 49]: blue-red=1
+    localformring_test.go:61: kind bottom ring missing at [201 52]: blue-red=2
+=== RUN   TestKHProbe/kind/dark
+    localformring_test.go:54: kind rect={X:201.8 Y:51.399998 W:0 H:0} scroll=526.2999
+    localformring_test.go:61: kind top ring missing at [201 49]: blue-red=2
+    localformring_test.go:61: kind bottom ring missing at [201 52]: blue-red=2
+=== RUN   TestKHProbe/mode
+=== RUN   TestKHProbe/mode/light
+    localformring_test.go:54: mode rect={X:600.8 Y:347.09998 W:42 H:30} scroll=0
+=== RUN   TestKHProbe/mode/dark
+    localformring_test.go:54: mode rect={X:600.8 Y:347.09998 W:42 H:30} scroll=0
+=== RUN   TestKHProbe/output
+=== RUN   TestKHProbe/output/light
+    localformring_test.go:54: output rect={X:552.8 Y:490 W:66 H:30} scroll=283.30002
+    localformring_test.go:61: output bottom ring missing at [585 521]: blue-red=0
+=== RUN   TestKHProbe/output/dark
+    localformring_test.go:54: output rect={X:552.8 Y:490 W:66 H:30} scroll=283.30002
+    localformring_test.go:61: output bottom ring missing at [585 521]: blue-red=0
+=== RUN   TestKHProbe/advanced
+=== RUN   TestKHProbe/advanced/light
+    localformring_test.go:54: advanced rect={X:201.8 Y:481 W:432 H:30} scroll=383.30002
+    localformring_test.go:61: advanced top ring missing at [417 479]: blue-red=1
+    localformring_test.go:61: advanced bottom ring missing at [417 512]: blue-red=1
+=== RUN   TestKHProbe/advanced/dark
+    localformring_test.go:54: advanced rect={X:201.8 Y:481 W:432 H:30} scroll=383.30002
+    localformring_test.go:61: advanced top ring missing at [417 479]: blue-red=2
+    localformring_test.go:61: advanced bottom ring missing at [417 512]: blue-red=2
+=== RUN   TestKHProbe/save
+=== RUN   TestKHProbe/save/light
+    localformring_test.go:54: save rect={X:434.3 Y:490 W:22 H:30} scroll=1303.3
+    localformring_test.go:61: save bottom ring missing at [445 521]: blue-red=0
+=== RUN   TestKHProbe/save/dark
+    localformring_test.go:54: save rect={X:434.3 Y:490 W:22 H:30} scroll=1303.3
+    localformring_test.go:61: save bottom ring missing at [445 521]: blue-red=0
+--- FAIL: TestKHProbe (3.47s)
+    --- FAIL: TestKHProbe/required (0.86s)
+        --- FAIL: TestKHProbe/required/light (0.55s)
+        --- FAIL: TestKHProbe/required/dark (0.31s)
+    --- FAIL: TestKHProbe/kind (0.57s)
+        --- FAIL: TestKHProbe/kind/light (0.25s)
+        --- FAIL: TestKHProbe/kind/dark (0.32s)
+    --- PASS: TestKHProbe/mode (0.17s)
+        --- PASS: TestKHProbe/mode/light (0.09s)
+        --- PASS: TestKHProbe/mode/dark (0.08s)
+    --- FAIL: TestKHProbe/output (0.34s)
+        --- FAIL: TestKHProbe/output/light (0.19s)
+        --- FAIL: TestKHProbe/output/dark (0.15s)
+    --- FAIL: TestKHProbe/advanced (0.42s)
+        --- FAIL: TestKHProbe/advanced/light (0.21s)
+        --- FAIL: TestKHProbe/advanced/dark (0.21s)
+    --- FAIL: TestKHProbe/save (1.11s)
+        --- FAIL: TestKHProbe/save/light (0.55s)
+        --- FAIL: TestKHProbe/save/dark (0.57s)
+=== RUN   TestLocalFormRingAdd
+=== RUN   TestLocalFormRingAdd/light
+    localformring_test.go:54: add rect={X:675.8 Y:492 W:28 H:28} scroll=434.29996
+    localformring_test.go:61: add bottom ring missing at [689 521]: blue-red=0
+=== RUN   TestLocalFormRingAdd/dark
+    localformring_test.go:54: add rect={X:675.8 Y:492 W:28 H:28} scroll=434.29996
+    localformring_test.go:61: add bottom ring missing at [689 521]: blue-red=0
+--- FAIL: TestLocalFormRingAdd (0.41s)
+    --- FAIL: TestLocalFormRingAdd/light (0.21s)
+    --- FAIL: TestLocalFormRingAdd/dark (0.20s)
+=== RUN   TestLocalFormRingRemove
+=== RUN   TestLocalFormRingRemove/light
+    localformring_test.go:54: remove rect={X:666.8 Y:491.99994 W:28 H:28} scroll=614.30005
+    localformring_test.go:61: remove bottom ring missing at [680 521]: blue-red=0
+=== RUN   TestLocalFormRingRemove/dark
+    localformring_test.go:54: remove rect={X:666.8 Y:491.99994 W:28 H:28} scroll=614.30005
+    localformring_test.go:61: remove bottom ring missing at [680 521]: blue-red=0
+--- FAIL: TestLocalFormRingRemove (0.57s)
+    --- FAIL: TestLocalFormRingRemove/light (0.28s)
+    --- FAIL: TestLocalFormRingRemove/dark (0.29s)
+FAIL
+FAIL	floter/internal/settingsui	4.470s
+FAIL
