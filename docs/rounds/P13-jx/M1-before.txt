@@ -1,0 +1,19 @@
+=== RUN   TestInstallRecoveryDownload
+=== RUN   TestInstallRecoveryDownload/light
+    installrecovery_test.go:75: ui: no element shows "版本或范围（可空）"
+=== RUN   TestInstallRecoveryDownload/dark
+    installrecovery_test.go:75: ui: no element shows "版本或范围（可空）"
+--- FAIL: TestInstallRecoveryDownload (0.32s)
+    --- FAIL: TestInstallRecoveryDownload/light (0.24s)
+    --- FAIL: TestInstallRecoveryDownload/dark (0.08s)
+=== RUN   TestInstallRecoveryCancel
+=== RUN   TestInstallRecoveryCancel/light
+    installrecovery_test.go:75: ui: no element shows "版本或范围（可空）"
+=== RUN   TestInstallRecoveryCancel/dark
+    installrecovery_test.go:75: ui: no element shows "版本或范围（可空）"
+--- FAIL: TestInstallRecoveryCancel (0.17s)
+    --- FAIL: TestInstallRecoveryCancel/light (0.08s)
+    --- FAIL: TestInstallRecoveryCancel/dark (0.09s)
+FAIL
+FAIL	floter/internal/shell	0.500s
+FAIL

@@ -1031,8 +1031,9 @@ type App struct {
 	pluginTextCommits map[string]string
 
 	// installName and installVersion are the npm install field's contents.
-	installName    string
-	installVersion string
+	installName     string
+	installVersion  string
+	installRevision uint64
 
 	// The custom-shortcut row being made: whether it is on screen at all (the
 	// reference's Add put it there), the recorded key, the chosen action and,
@@ -2304,11 +2305,29 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 			requested = true
 		}
 	})
+	if name != a.installName || version != a.installVersion {
+		a.installRevision++
+	}
 	a.installName, a.installVersion = name, version
 	if requested && strings.TrimSpace(name) != "" {
 		a.Actions.InstallFromRegistry(strings.TrimSpace(name), strings.TrimSpace(version))
 		a.installName, a.installVersion = "", ""
 		a.Body.Y = 0
+	}
+}
+
+// RegistryInstallRecovery returns this request's failure outlet. Submission
+// still clears the fields; later typing (even typing then clearing) owns a new
+// draft that an older result must never replace. Call on the UI thread.
+func (a *App) RegistryInstallRecovery(name, version string) func() {
+	revision := a.installRevision
+	if strings.TrimSpace(a.installName) == name && strings.TrimSpace(a.installVersion) == version {
+		name, version = a.installName, a.installVersion
+	}
+	return func() {
+		if a.installRevision == revision && a.installName == "" && a.installVersion == "" {
+			a.installName, a.installVersion = name, version
+		}
 	}
 }
 

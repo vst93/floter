@@ -1,0 +1,21 @@
+=== RUN   TestInstallRecoveryDownload
+=== RUN   TestInstallRecoveryDownload/light
+2026/11/08 11:40:39 floter: could not install review-current: extensions: the registry answered 503 Service Unavailable for review-current
+    installrecovery_test.go:91: download lost retry draft: "" / ""
+=== RUN   TestInstallRecoveryDownload/dark
+2026/11/08 11:40:39 floter: could not install review-current: extensions: the registry answered 503 Service Unavailable for review-current
+    installrecovery_test.go:91: download lost retry draft: "" / ""
+--- FAIL: TestInstallRecoveryDownload (1.04s)
+    --- FAIL: TestInstallRecoveryDownload/light (0.64s)
+    --- FAIL: TestInstallRecoveryDownload/dark (0.40s)
+=== RUN   TestInstallRecoveryCancel
+=== RUN   TestInstallRecoveryCancel/light
+    installrecovery_test.go:91: cancel lost retry draft: "" / ""
+=== RUN   TestInstallRecoveryCancel/dark
+    installrecovery_test.go:91: cancel lost retry draft: "" / ""
+--- FAIL: TestInstallRecoveryCancel (0.75s)
+    --- FAIL: TestInstallRecoveryCancel/light (0.38s)
+    --- FAIL: TestInstallRecoveryCancel/dark (0.36s)
+FAIL
+FAIL	floter/internal/shell	1.793s
+FAIL

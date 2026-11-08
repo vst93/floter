@@ -1,0 +1,4 @@
+=== RUN   TestInstallFromRegistryControl
+--- PASS: TestInstallFromRegistryControl (0.26s)
+PASS
+ok  	floter/internal/settingsui	0.272s

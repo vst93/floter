@@ -884,6 +884,7 @@ func New(opts Options) *App {
 		CustomShortcuts:    func() []settings.CustomShortcut { return settings.CustomShortcutsOf(a.Store.Snapshot()) },
 		SetCustomShortcuts: a.setCustomShortcuts,
 		InstallFromRegistry: func(name, constraint string) {
+			recoverDraft := a.Settings.RegistryInstallRecovery(name, constraint)
 			go func() {
 				defer a.onMain(func() {
 					if a.Settings.Actions.Invalidate != nil {
@@ -892,6 +893,7 @@ func New(opts Options) *App {
 				})
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
 				if err != nil {
+					a.onMain(recoverDraft)
 					log.Printf("floter: could not install %s: %v", name, err)
 					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(name) })
 					return
@@ -901,6 +903,7 @@ func New(opts Options) *App {
 					approved = a.confirmInstallPermissions(prepared.Approval)
 					if !approved {
 						prepared.Cancel()
+						a.onMain(recoverDraft)
 						return
 					}
 				}

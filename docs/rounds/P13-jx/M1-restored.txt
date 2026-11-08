@@ -1,0 +1,16 @@
+=== RUN   TestInstallRecoveryDownload
+=== RUN   TestInstallRecoveryDownload/light
+2026/11/08 11:40:46 floter: could not install review-current: extensions: the registry answered 503 Service Unavailable for review-current
+=== RUN   TestInstallRecoveryDownload/dark
+2026/11/08 11:40:46 floter: could not install review-current: extensions: the registry answered 503 Service Unavailable for review-current
+--- PASS: TestInstallRecoveryDownload (0.89s)
+    --- PASS: TestInstallRecoveryDownload/light (0.48s)
+    --- PASS: TestInstallRecoveryDownload/dark (0.42s)
+=== RUN   TestInstallRecoveryCancel
+=== RUN   TestInstallRecoveryCancel/light
+=== RUN   TestInstallRecoveryCancel/dark
+--- PASS: TestInstallRecoveryCancel (0.80s)
+    --- PASS: TestInstallRecoveryCancel/light (0.42s)
+    --- PASS: TestInstallRecoveryCancel/dark (0.38s)
+PASS
+ok  	floter/internal/shell	1.706s
