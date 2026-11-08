@@ -65,7 +65,7 @@
 
 | 开盘 ref | SHA | 判断 | 处置 |
 | --- | --- | --- | --- |
-| stash@{0} | d74161692d | reverse=1，独有第四批代码、测试与9行报告 | `git apply -3` 四文件无冲突接回；门槛通过后单独提交、归档原对象再drop |
+| stash@{0} | d74161692d | reverse=1，独有第四批代码、测试与9行报告 | `git apply -3` 四文件无冲突接回；门槛通过后由1b5eae96单独提交推送，原对象归档后drop |
 | stash@{1} | 422483b4 | reverse=1，早期keycap WIP | 沿用已归档语义审计，保留 |
 | stash@{2} | 8af94a07 | reverse=1，早期rows/slider WIP | 保留 |
 | stash@{3} | 7e4aa710 | reverse=1，早期卸载布局 | 保留 |
@@ -168,3 +168,5 @@
 本次从03:11到完整门槛约18分钟，接续已有三批六项，未把中断等待计作开发时长，也未增加无关项目凑时长。首次实施三批分别推送 `18326336 / 41dadd06 / 9b5f1b01`；第四批独立接续提交随本报告推送，之后只补交接SHA与stash处置。
 
 原始证据：[本轮开盘](P13-jw/round-baseline.txt)、[接续基线](P13-jw/resume-baseline.txt)、[普通全量](P13-jw/full-test.txt)、[verbose全量](P13-jw/full-verbose.txt)、[取消race](P13-jw/cancel-race.txt)、[M4a红](P13-jw/M4a-red.txt)、[M4b红](P13-jw/M4b-red.txt)、[源码MD5](P13-jw/final-source.md5)、[抢救原patch](P13-jw-orphan.diff)。每个平台完整日志及exit文件也在本轮目录，不只保留终端口述数字。
+
+第四批与全部证据已由 **1b5eae96** 独立提交并推送，四批八项全部在远端。原抢救对象完整保留于 `refs/archive/floter/P13-jw/d74161692d24451218ea90c79668cda02c4bade0`，两份产品文件reverse-check通过后drop；活动stash **9→8**，其余八条SHA未变、逐条保留。报告/测试的补强差异与原始patch共同留档。后续提交只更新本段、当前进度与交接记录。
