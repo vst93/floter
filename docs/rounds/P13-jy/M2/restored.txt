@@ -1,0 +1,90 @@
+=== RUN   TestLocalDraftNewConnectionDefaultsToTerminal
+--- PASS: TestLocalDraftNewConnectionDefaultsToTerminal (0.25s)
+=== RUN   TestToolCallbackPickerKeepsNewDraft
+=== RUN   TestToolCallbackPickerKeepsNewDraft/light
+=== RUN   TestToolCallbackPickerKeepsNewDraft/dark
+--- PASS: TestToolCallbackPickerKeepsNewDraft (0.28s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/light (0.15s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/dark (0.12s)
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/light
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/dark
+--- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty (0.26s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.11s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.15s)
+=== RUN   TestToolCallbackSaveKeepsNewEditor
+=== RUN   TestToolCallbackSaveKeepsNewEditor/light
+=== RUN   TestToolCallbackSaveKeepsNewEditor/dark
+--- PASS: TestToolCallbackSaveKeepsNewEditor (0.22s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/light (0.12s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/dark (0.10s)
+=== RUN   TestToolCallbackConnectKeepsNewEditor
+=== RUN   TestToolCallbackConnectKeepsNewEditor/light
+=== RUN   TestToolCallbackConnectKeepsNewEditor/dark
+--- PASS: TestToolCallbackConnectKeepsNewEditor (0.20s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/light (0.08s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/dark (0.11s)
+=== RUN   TestToolCallbackLookupKeepsNewEditor
+=== RUN   TestToolCallbackLookupKeepsNewEditor/light
+=== RUN   TestToolCallbackLookupKeepsNewEditor/dark
+--- PASS: TestToolCallbackLookupKeepsNewEditor (0.21s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/light (0.11s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/dark (0.11s)
+=== RUN   TestToolCallbackLookupRechecksEligibility
+=== RUN   TestToolCallbackLookupRechecksEligibility/light
+=== RUN   TestToolCallbackLookupRechecksEligibility/dark
+--- PASS: TestToolCallbackLookupRechecksEligibility (0.16s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/light (0.09s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/dark (0.07s)
+=== RUN   TestToolRecoveryRestoresCompleteDraft
+=== RUN   TestToolRecoveryRestoresCompleteDraft/light
+=== RUN   TestToolRecoveryRestoresCompleteDraft/dark
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptlight
+=== RUN   TestToolRecoveryRestoresCompleteDraft/scriptdark
+--- PASS: TestToolRecoveryRestoresCompleteDraft (0.65s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/light (0.19s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/dark (0.16s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/scriptlight (0.15s)
+    --- PASS: TestToolRecoveryRestoresCompleteDraft/scriptdark (0.15s)
+=== RUN   TestToolRecoveryKeepsNewerForm
+=== RUN   TestToolRecoveryKeepsNewerForm/typed
+=== RUN   TestToolRecoveryKeepsNewerForm/cleared
+=== RUN   TestToolRecoveryKeepsNewerForm/folded
+=== RUN   TestToolRecoveryKeepsNewerForm/edit
+--- PASS: TestToolRecoveryKeepsNewerForm (0.56s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/typed (0.13s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/cleared (0.19s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/folded (0.17s)
+    --- PASS: TestToolRecoveryKeepsNewerForm/edit (0.08s)
+=== RUN   TestToolRecoveryBusyConnection
+=== RUN   TestToolRecoveryBusyConnection/light
+=== RUN   TestToolRecoveryBusyConnection/dark
+--- PASS: TestToolRecoveryBusyConnection (0.54s)
+    --- PASS: TestToolRecoveryBusyConnection/light (0.24s)
+    --- PASS: TestToolRecoveryBusyConnection/dark (0.30s)
+PASS
+ok  	floter/internal/settingsui	3.397s
+=== RUN   TestToolConnectionPrepareRecovery
+=== RUN   TestToolConnectionPrepareRecovery/light
+2026/11/08 12:23:03 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverylight202360952/003/missing-program cannot be run
+=== RUN   TestToolConnectionPrepareRecovery/dark
+2026/11/08 12:23:08 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverydark2348201875/003/missing-program cannot be run
+--- PASS: TestToolConnectionPrepareRecovery (8.50s)
+    --- PASS: TestToolConnectionPrepareRecovery/light (4.42s)
+    --- PASS: TestToolConnectionPrepareRecovery/dark (4.08s)
+=== RUN   TestToolConnectionCancelRecovery
+=== RUN   TestToolConnectionCancelRecovery/light
+=== RUN   TestToolConnectionCancelRecovery/dark
+--- PASS: TestToolConnectionCancelRecovery (5.27s)
+    --- PASS: TestToolConnectionCancelRecovery/light (2.68s)
+    --- PASS: TestToolConnectionCancelRecovery/dark (2.59s)
+=== RUN   TestToolConnectionCommitRecovery
+=== RUN   TestToolConnectionCommitRecovery/light
+2026/11/08 12:23:16 floter: could not connect 工作区工具: extensions: no manifest
+=== RUN   TestToolConnectionCommitRecovery/dark
+2026/11/08 12:23:18 floter: could not connect 工作区工具: extensions: no manifest
+--- PASS: TestToolConnectionCommitRecovery (5.12s)
+    --- PASS: TestToolConnectionCommitRecovery/light (2.57s)
+    --- PASS: TestToolConnectionCommitRecovery/dark (2.54s)
+PASS
+ok  	floter/internal/shell	18.913s

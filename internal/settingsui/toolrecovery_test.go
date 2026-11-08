@@ -123,3 +123,56 @@ func TestToolRecoveryKeepsNewerForm(t *testing.T) {
 		})
 	}
 }
+
+func TestToolRecoveryBusyConnection(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := localDraftApp()
+			a.beginEdit("", callbackTool("weather"))
+			calls := 0
+			a.Actions.ConnectLocalTool = func(CustomTool) { calls++; a.BeginPackageInstall("custom") }
+			tt := toolRecoveryFrame(t, a, dark)
+			if err := tt.Click(a.copy().LocalToolConnect); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(a.copy().LocalToolConnect) {
+				t.Error("pending connection has no visible progress")
+			}
+			toolRecoveryDump(t, tt, "connect-wait", dark)
+			if err := tt.Click(a.copy().LocalToolAdd); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			localFormFocus(t, tt, a.copy().LocalToolName)
+			tt.Type("新工具")
+			tt.Frame()
+			if err := tt.Click(a.copy().LocalToolConnect); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if calls != 1 || !a.toolOpen || a.toolName != "新工具" {
+				t.Errorf("busy connection consumed next draft: calls=%d open=%v name=%q", calls, a.toolOpen, a.toolName)
+			}
+			// A second complete draft also cannot submit while the first waits.
+			a.beginEdit("", callbackTool("next"))
+			tt.Frame()
+			if err := tt.Click(a.copy().LocalToolConnect); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if calls != 1 {
+				t.Errorf("busy connection dispatched %d requests", calls)
+			}
+			a.FinishPackageInstall("custom")
+			tt.Frame()
+			if err := tt.Click(a.copy().LocalToolConnect); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if calls != 2 {
+				t.Errorf("unlocked connection calls=%d", calls)
+			}
+		})
+	}
+}

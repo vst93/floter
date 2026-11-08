@@ -19,7 +19,7 @@
 
 ## 验证与设计约束
 
-开盘全量基线正在实测，未填推算数字。首次LANG未覆盖环境LC_ALL=C.UTF-8导致已知字体pin失败，终止该次并使用LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4重跑，保留原始日志。旧测试函数实际3413。
+开盘中文全量基线实测6029 PASS/0 FAIL/exit0、3413函数。首次LANG未覆盖环境LC_ALL=C.UTF-8导致已知字体pin失败，终止该次并使用LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4重跑，保留原始日志。
 
 门槛：gofmt -l cmd internal为空；三平台go vet ./...和go build ./...；普通与verbose全量go test -count=1 ./...，记录PASS/FAIL和退出状态。每批定向检查用于小步提交，最终全门槛一轮一次。
 

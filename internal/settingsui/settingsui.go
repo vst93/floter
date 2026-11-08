@@ -5732,7 +5732,14 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 	form := a.toolFormKey
 	c = c.Key(a.toolFormKey)
 	a.section(c, copy.LocalToolTitle, copy.LocalToolHint, func() {
-		if a.actionButton(c, copy.LocalToolAdd).Clicked() {
+		var add ui.Element
+		ui.Row(c).Gap(c.Theme().Space(2)).Children(func() {
+			add = a.actionButton(c, copy.LocalToolAdd)
+			if !a.toolOpen && a.packageInstallBusy["custom"] {
+				a.busyActionButton(c, copy.LocalToolConnect, "connect.custom")
+			}
+		})
+		if add.Clicked() {
 			a.toolOpen = !a.toolOpen
 			a.toolDisclosure++
 			// Opening a fresh form clears the previous refusal, so the new one
@@ -5930,7 +5937,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		if a.toolEditing != "" {
 			action = copy.LocalToolSave
 		}
-		requested := a.actionButton(c, action).Clicked()
+		var submit ui.Element
+		if a.toolEditing == "" && a.packageInstallBusy["custom"] {
+			submit = a.busyActionButton(c, action, "connect.custom")
+		} else {
+			submit = a.actionButton(c, action)
+		}
+		requested := submit.Clicked()
 		a.toolName, a.toolProgram, a.toolCommand = name, program, command
 		a.toolArgs, a.toolVersionArgs, a.toolVersion = args, versionArgs, version
 		a.toolDescription = description

@@ -1,0 +1,49 @@
+=== RUN   TestToolRecoveryBusyConnection
+=== RUN   TestToolRecoveryBusyConnection/light
+    toolrecovery_test.go:165: busy connection dispatched 2 requests
+    toolrecovery_test.go:170: ui: no element shows "连接"
+=== RUN   TestToolRecoveryBusyConnection/dark
+    toolrecovery_test.go:165: busy connection dispatched 2 requests
+    toolrecovery_test.go:170: ui: no element shows "连接"
+--- FAIL: TestToolRecoveryBusyConnection (0.71s)
+    --- FAIL: TestToolRecoveryBusyConnection/light (0.45s)
+    --- FAIL: TestToolRecoveryBusyConnection/dark (0.26s)
+FAIL
+FAIL	floter/internal/settingsui	0.736s
+=== RUN   TestToolConnectionPrepareRecovery
+=== RUN   TestToolConnectionPrepareRecovery/light
+2026/11/08 12:22:37 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverylight3269986699/003/missing-program cannot be run
+    toolrecovery_test.go:131: prepare recovery=0 settled=1, want one each
+    toolrecovery_test.go:146: cannot focus 程序
+=== RUN   TestToolConnectionPrepareRecovery/dark
+2026/11/08 12:22:40 floter: could not prepare the local tool 工作区工具: extensions: the connection request is not usable: /tmp/TestToolConnectionPrepareRecoverydark4191800003/003/missing-program cannot be run
+    toolrecovery_test.go:131: prepare recovery=0 settled=1, want one each
+    toolrecovery_test.go:146: cannot focus 程序
+--- FAIL: TestToolConnectionPrepareRecovery (7.15s)
+    --- FAIL: TestToolConnectionPrepareRecovery/light (3.70s)
+    --- FAIL: TestToolConnectionPrepareRecovery/dark (3.45s)
+=== RUN   TestToolConnectionCancelRecovery
+=== RUN   TestToolConnectionCancelRecovery/light
+    toolrecovery_test.go:131: cancel recovery=0 settled=1, want one each
+    toolrecovery_test.go:146: cannot focus 程序
+=== RUN   TestToolConnectionCancelRecovery/dark
+    toolrecovery_test.go:131: cancel recovery=0 settled=1, want one each
+    toolrecovery_test.go:146: cannot focus 程序
+--- FAIL: TestToolConnectionCancelRecovery (8.19s)
+    --- FAIL: TestToolConnectionCancelRecovery/light (3.47s)
+    --- FAIL: TestToolConnectionCancelRecovery/dark (4.72s)
+=== RUN   TestToolConnectionCommitRecovery
+=== RUN   TestToolConnectionCommitRecovery/light
+2026/11/08 12:22:52 floter: could not connect 工作区工具: extensions: no manifest
+    toolrecovery_test.go:131: commit recovery=0 settled=1, want one each
+    toolrecovery_test.go:146: cannot focus 程序
+=== RUN   TestToolConnectionCommitRecovery/dark
+2026/11/08 12:22:56 floter: could not connect 工作区工具: extensions: no manifest
+    toolrecovery_test.go:131: commit recovery=0 settled=1, want one each
+    toolrecovery_test.go:146: cannot focus 程序
+--- FAIL: TestToolConnectionCommitRecovery (8.67s)
+    --- FAIL: TestToolConnectionCommitRecovery/light (3.60s)
+    --- FAIL: TestToolConnectionCommitRecovery/dark (5.07s)
+FAIL
+FAIL	floter/internal/shell	24.021s
+FAIL

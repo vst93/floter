@@ -863,7 +863,16 @@ func New(opts Options) *App {
 		NotifySuccess: func(text string) {
 			a.onMain(func() { a.notifySuccess(text) })
 		},
-		ConnectLocalTool:   a.connectLocalTool,
+		ConnectLocalTool: func(tool settingsui.CustomTool) {
+			if !a.Settings.BeginPackageInstall("custom") {
+				return
+			}
+			recoverDraft := a.Settings.LocalToolRecovery()
+			go func() {
+				defer a.onMain(func() { a.Settings.FinishPackageInstall("custom") })
+				a.runLocalToolConnection(tool, recoverDraft)
+			}()
+		},
 		EditCustomTool:     a.editCustomTool,
 		ToolForEdit:        a.toolForEdit,
 		Freshness:          a.integrationFreshness,
@@ -3200,6 +3209,7 @@ func (a *App) runLocalToolConnection(tool settingsui.CustomTool, recoverDraft fu
 	entry, err := prepared.Commit(approved)
 	if err != nil {
 		log.Printf("floter: could not connect %s: %v", tool.Name, err)
+		a.onMain(recoverDraft)
 		a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
 		return
 	}
