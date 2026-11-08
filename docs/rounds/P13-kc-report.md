@@ -33,3 +33,7 @@
 3. 删除尾项：含20个城市选项的长声明删尾后，前驱ID留在Y−134.80005 → 前驱字段组一次reveal → 深浅删尾、前驱继续编辑通过。删除唯一声明另作回归，原来与现在都通过，不计修复。
 
 第二批定向 **9 PASS / 0 FAIL / exit0**，gofmt空、settingsui vet净。M2四个深浅场景实红 `editing outlet outside viewport`；MD5还原成功，touch后9 PASS。旧V/B/S断言0/0/0。
+
+第二批 **2ab81ce0** 已推送。
+
+4. 活跃声明撤回：外部刷新撤回当前第三张记录，焦点回Add，但Add被裁成0×0 → 仅原活跃记录消失时，Add一次滚入视口 → 深浅撤回、Enter再增一条、自由滚轮通过。M3两场景实红 `editing outlet outside viewport: rect={X:675.8 Y:51.399998 W:0 H:0}`；MD5还原、touch后 **3 PASS / 0 FAIL / exit0**；gofmt空、settingsui vet净。

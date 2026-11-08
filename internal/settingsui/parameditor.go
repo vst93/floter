@@ -124,7 +124,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 		// Discovery may withdraw the active declaration without clicking its
 		// remove key. Return only its keyboard to the existing Add outlet.
 		if hadFocus && !c.Resolve(*focused).Valid() {
-			add.Focus()
+			add.Focus().ScrollIntoView()
 		}
 	}()
 	// `.extension-param-editor__hint`: one caption line under the heading, in

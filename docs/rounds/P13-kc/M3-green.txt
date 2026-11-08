@@ -1,0 +1,8 @@
+=== RUN   TestDeclarationVisibilityWithdraw
+=== RUN   TestDeclarationVisibilityWithdraw/light
+=== RUN   TestDeclarationVisibilityWithdraw/dark
+--- PASS: TestDeclarationVisibilityWithdraw (0.17s)
+    --- PASS: TestDeclarationVisibilityWithdraw/light (0.14s)
+    --- PASS: TestDeclarationVisibilityWithdraw/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.175s

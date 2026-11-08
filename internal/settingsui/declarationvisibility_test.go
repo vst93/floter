@@ -159,3 +159,5 @@ func TestDeclarationVisibilityAdd(t *testing.T) { checkDeclarationListVisibility
 func TestDeclarationVisibilityRemoveNext(t *testing.T) { checkDeclarationListVisibility(t, "next") }
 func TestDeclarationVisibilityRemoveTail(t *testing.T) { checkDeclarationListVisibility(t, "tail") }
 func TestDeclarationVisibilityRemoveOnly(t *testing.T) { checkDeclarationListVisibility(t, "only") }
+
+func TestDeclarationVisibilityWithdraw(t *testing.T) { checkDeclarationListVisibility(t, "withdraw") }

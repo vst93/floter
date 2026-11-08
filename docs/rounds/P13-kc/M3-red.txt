@@ -1,0 +1,11 @@
+=== RUN   TestDeclarationVisibilityWithdraw
+=== RUN   TestDeclarationVisibilityWithdraw/light
+    declarationvisibility_test.go:137: editing outlet outside viewport: rect={X:675.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2136.6997
+=== RUN   TestDeclarationVisibilityWithdraw/dark
+    declarationvisibility_test.go:137: editing outlet outside viewport: rect={X:675.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=2136.6997
+--- FAIL: TestDeclarationVisibilityWithdraw (0.13s)
+    --- FAIL: TestDeclarationVisibilityWithdraw/light (0.10s)
+    --- FAIL: TestDeclarationVisibilityWithdraw/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.134s
+FAIL
