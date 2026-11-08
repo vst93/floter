@@ -1,0 +1,71 @@
+diff --git a/docs/rounds/P13-kj-report.md b/docs/rounds/P13-kj-report.md
+index 2e149cf8..c80c8dee 100644
+--- a/docs/rounds/P13-kj-report.md
++++ b/docs/rounds/P13-kj-report.md
+@@ -45,3 +45,10 @@
+ 6. 程序/脚本模式：现象→从后续字段返回类型选择时，当前分段的上半圈被裁掉；改动→组外围一次显现19px；验证→深浅实环测在当前30px分段，原92px组宽、方向键切模式及草稿回归均保留。
+ 
+ 第二批已推送85efe527，83 PASS。第三批门槛按batch3.txt原始日志记录；V/B/S仍0/0/0。
++
++## 第四批：选择程序与脚本语言
++
++7. 选择程序：现象→从后一个字段返回选择按钮，上半圈被滚动裁剪；改动→按钮自身19px一次显现净空；验证→深浅外扩环、55px宽、Enter只派发一次选择，取消后原路径出口回归。
++8. 脚本语言：现象→返回语言下拉时上沿焦点环完全消失；改动→语言行一次显现净空，保留语言提示与运行时状态；验证→深浅完整环、220px触发器宽、键盘选择下一语言且原书写脚本保留。
++
++第三批已推送ce5083d0，89 PASS。第四批相关门槛按batch4.txt记录。八项跨本地程序表单与脚本语言组件已完成实现，完整门槛、静息对照与正式mutation仍在后续。
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index a84963dc..24c5741e 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -5857,7 +5857,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
+ 							Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source))
+ 					})
+ 					if a.Actions.ChooseProgram != nil {
+-						if a.rememberModeContent(c, false, a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button)).Clicked() {
++						var choose ui.Element
++						outputFocusOutlet(c.Key("local-choose-outlet"), func() {
++							choose = a.rememberModeContent(c, false, a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button))
++						})
++						if choose.Clicked() {
+ 							before := a.toolCallbackState()
+ 							picked, err := a.Actions.ChooseProgram()
+ 							if a.toolCallbackState() != before {
+@@ -6462,15 +6466,18 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
+ 	for _, option := range scriptlang.Languages {
+ 		options = append(options, i18n.Option{ID: option.ID, Label: option.Label})
+ 	}
+-	languagePicker := a.choose(c.Key("local-language"), copy.LocalToolLanguage, copy.LocalToolLanguageHint, options, *language, func(id string) {
+-		// The editor owns the text now: switching language only names the new
+-		// one. The template swap for an untouched draft happens in the
+-		// editor's own sync (see scriptEditorView), against the buffer it
+-		// holds — including a switch away from a written script, which keeps
+-		// it as the old form did.
+-		*language = id
+-	}, func() {
+-		a.scriptRuntimeNote(c, a.scriptRuntimeLine(*language))
++	var languagePicker ui.Element
++	outputFocusOutlet(c.Key("local-language-outlet"), func() {
++		languagePicker = a.choose(c.Key("local-language"), copy.LocalToolLanguage, copy.LocalToolLanguageHint, options, *language, func(id string) {
++			// The editor owns the text now: switching language only names the new
++			// one. The template swap for an untouched draft happens in the
++			// editor's own sync (see scriptEditorView), against the buffer it
++			// holds — including a switch away from a written script, which keeps
++			// it as the old form did.
++			*language = id
++		}, func() {
++			a.scriptRuntimeNote(c, a.scriptRuntimeLine(*language))
++		})
+ 	})
+ 	a.rememberModeContent(c, true, languagePicker)
+ 	// The editor is a stacked row: a script wants the row's full width and
+diff --git a/internal/settingsui/toolfieldedge_test.go b/internal/settingsui/toolfieldedge_test.go
+index dc8ff291..3f792153 100644
+--- a/internal/settingsui/toolfieldedge_test.go
++++ b/internal/settingsui/toolfieldedge_test.go
+@@ -143,3 +143,6 @@ func TestToolFieldEdgeVersionArgs(t *testing.T) { checkToolFieldEdge(t, "version
+ 
+ func TestToolFieldEdgeDescription(t *testing.T) { checkToolFieldEdge(t, "description") }
+ func TestToolFieldEdgeMode(t *testing.T)        { checkToolFieldEdge(t, "mode") }
++
++func TestToolFieldEdgeChoose(t *testing.T)   { checkToolFieldEdge(t, "choose") }
++func TestToolFieldEdgeLanguage(t *testing.T) { checkToolFieldEdge(t, "language") }

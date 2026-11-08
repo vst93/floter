@@ -1,0 +1,421 @@
+=== RUN   TestContentRecoveryEmptyScriptCopy
+=== RUN   TestContentRecoveryEmptyScriptCopy/light
+=== RUN   TestContentRecoveryEmptyScriptCopy/dark
+--- PASS: TestContentRecoveryEmptyScriptCopy (0.14s)
+    --- PASS: TestContentRecoveryEmptyScriptCopy/light (0.11s)
+    --- PASS: TestContentRecoveryEmptyScriptCopy/dark (0.03s)
+=== RUN   TestContentRecoveryEmptyScriptExport
+=== RUN   TestContentRecoveryEmptyScriptExport/light
+=== RUN   TestContentRecoveryEmptyScriptExport/dark
+--- PASS: TestContentRecoveryEmptyScriptExport (0.06s)
+    --- PASS: TestContentRecoveryEmptyScriptExport/light (0.03s)
+    --- PASS: TestContentRecoveryEmptyScriptExport/dark (0.03s)
+=== RUN   TestContentRecoveryPlanCommandEmpty
+=== RUN   TestContentRecoveryPlanCommandEmpty/light
+=== RUN   TestContentRecoveryPlanCommandEmpty/dark
+--- PASS: TestContentRecoveryPlanCommandEmpty (0.15s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/light (0.07s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/dark (0.08s)
+=== RUN   TestContentRecoveryPlanCommandRestored
+=== RUN   TestContentRecoveryPlanCommandRestored/light
+=== RUN   TestContentRecoveryPlanCommandRestored/dark
+--- PASS: TestContentRecoveryPlanCommandRestored (0.15s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/light (0.08s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/dark (0.08s)
+=== RUN   TestContentVisibilityPickerError
+=== RUN   TestContentVisibilityPickerError/light
+=== RUN   TestContentVisibilityPickerError/dark
+--- PASS: TestContentVisibilityPickerError (0.04s)
+    --- PASS: TestContentVisibilityPickerError/light (0.02s)
+    --- PASS: TestContentVisibilityPickerError/dark (0.02s)
+=== RUN   TestContentVisibilityPickerCancel
+=== RUN   TestContentVisibilityPickerCancel/light
+=== RUN   TestContentVisibilityPickerCancel/dark
+--- PASS: TestContentVisibilityPickerCancel (0.04s)
+    --- PASS: TestContentVisibilityPickerCancel/light (0.02s)
+    --- PASS: TestContentVisibilityPickerCancel/dark (0.02s)
+=== RUN   TestContentVisibilityPickerSuccess
+=== RUN   TestContentVisibilityPickerSuccess/light
+=== RUN   TestContentVisibilityPickerSuccess/dark
+--- PASS: TestContentVisibilityPickerSuccess (0.04s)
+    --- PASS: TestContentVisibilityPickerSuccess/light (0.02s)
+    --- PASS: TestContentVisibilityPickerSuccess/dark (0.02s)
+=== RUN   TestContentVisibilityPickerWithdraw
+=== RUN   TestContentVisibilityPickerWithdraw/light
+=== RUN   TestContentVisibilityPickerWithdraw/dark
+--- PASS: TestContentVisibilityPickerWithdraw (0.04s)
+    --- PASS: TestContentVisibilityPickerWithdraw/light (0.02s)
+    --- PASS: TestContentVisibilityPickerWithdraw/dark (0.02s)
+=== RUN   TestContentVisibilityCopyRetired
+=== RUN   TestContentVisibilityCopyRetired/command-withdraw/light
+=== RUN   TestContentVisibilityCopyRetired/command-withdraw/dark
+=== RUN   TestContentVisibilityCopyRetired/command-empty/light
+=== RUN   TestContentVisibilityCopyRetired/command-empty/dark
+=== RUN   TestContentVisibilityCopyRetired/plan-withdraw/light
+=== RUN   TestContentVisibilityCopyRetired/plan-withdraw/dark
+=== RUN   TestContentVisibilityCopyRetired/script-withdraw/light
+=== RUN   TestContentVisibilityCopyRetired/script-withdraw/dark
+=== RUN   TestContentVisibilityCopyRetired/script-empty/light
+=== RUN   TestContentVisibilityCopyRetired/script-empty/dark
+--- PASS: TestContentVisibilityCopyRetired (0.25s)
+    --- PASS: TestContentVisibilityCopyRetired/command-withdraw/light (0.02s)
+    --- PASS: TestContentVisibilityCopyRetired/command-withdraw/dark (0.02s)
+    --- PASS: TestContentVisibilityCopyRetired/command-empty/light (0.02s)
+    --- PASS: TestContentVisibilityCopyRetired/command-empty/dark (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/plan-withdraw/light (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/plan-withdraw/dark (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/script-withdraw/light (0.03s)
+    --- PASS: TestContentVisibilityCopyRetired/script-withdraw/dark (0.02s)
+    --- PASS: TestContentVisibilityCopyRetired/script-empty/light (0.02s)
+    --- PASS: TestContentVisibilityCopyRetired/script-empty/dark (0.02s)
+=== RUN   TestContentVisibilityLinkRetired
+=== RUN   TestContentVisibilityLinkRetired/connect/light
+=== RUN   TestContentVisibilityLinkRetired/connect/dark
+=== RUN   TestContentVisibilityLinkRetired/register/light
+=== RUN   TestContentVisibilityLinkRetired/register/dark
+--- PASS: TestContentVisibilityLinkRetired (0.05s)
+    --- PASS: TestContentVisibilityLinkRetired/connect/light (0.02s)
+    --- PASS: TestContentVisibilityLinkRetired/connect/dark (0.01s)
+    --- PASS: TestContentVisibilityLinkRetired/register/light (0.01s)
+    --- PASS: TestContentVisibilityLinkRetired/register/dark (0.01s)
+=== RUN   TestContentVisibilityPreservesOtherEditor
+=== RUN   TestContentVisibilityPreservesOtherEditor/choose/light
+    copyvisibility_test.go:162: choose retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/choose/dark
+    copyvisibility_test.go:162: choose retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/command/light
+    copyvisibility_test.go:162: command retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/command/dark
+    copyvisibility_test.go:162: command retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/plan/light
+    copyvisibility_test.go:162: plan retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/plan/dark
+    copyvisibility_test.go:162: plan retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/script/light
+    copyvisibility_test.go:162: script retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/script/dark
+    copyvisibility_test.go:162: script retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/export/light
+    copyvisibility_test.go:162: export retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/export/dark
+    copyvisibility_test.go:162: export retirement stole current editor or scroll: 224.7
+--- FAIL: TestContentVisibilityPreservesOtherEditor (0.14s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/choose/light (0.02s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/choose/dark (0.01s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/command/light (0.01s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/command/dark (0.02s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/plan/light (0.02s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/plan/dark (0.01s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/script/light (0.01s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/script/dark (0.01s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/export/light (0.01s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/export/dark (0.01s)
+=== RUN   TestEditorRingLabel
+=== RUN   TestEditorRingLabel/light
+    editorring_test.go:78: label rect={X:195.79999 Y:70.400024 W:161 H:30} scroll=945.89996
+    editorring_test.go:84: label top RGB spread=160
+    editorring_test.go:84: label bottom RGB spread=160
+=== RUN   TestEditorRingLabel/dark
+    editorring_test.go:78: label rect={X:195.79999 Y:70.400024 W:161 H:30} scroll=945.89996
+    editorring_test.go:84: label top RGB spread=112
+    editorring_test.go:84: label bottom RGB spread=112
+--- PASS: TestEditorRingLabel (0.14s)
+    --- PASS: TestEditorRingLabel/light (0.07s)
+    --- PASS: TestEditorRingLabel/dark (0.07s)
+=== RUN   TestEditorRingID
+=== RUN   TestEditorRingID/light
+    editorring_test.go:78: id rect={X:364.8 Y:70.400024 W:161 H:30} scroll=945.89996
+    editorring_test.go:84: id top RGB spread=160
+    editorring_test.go:84: id bottom RGB spread=160
+=== RUN   TestEditorRingID/dark
+    editorring_test.go:78: id rect={X:364.8 Y:70.400024 W:161 H:30} scroll=945.89996
+    editorring_test.go:84: id top RGB spread=112
+    editorring_test.go:84: id bottom RGB spread=112
+--- PASS: TestEditorRingID (0.14s)
+    --- PASS: TestEditorRingID/light (0.07s)
+    --- PASS: TestEditorRingID/dark (0.07s)
+=== RUN   TestEditorRingPlaceholder
+=== RUN   TestEditorRingPlaceholder/light
+    editorring_test.go:78: placeholder rect={X:195.79999 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: placeholder top RGB spread=160
+    editorring_test.go:84: placeholder bottom RGB spread=160
+=== RUN   TestEditorRingPlaceholder/dark
+    editorring_test.go:78: placeholder rect={X:195.79999 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: placeholder top RGB spread=112
+    editorring_test.go:84: placeholder bottom RGB spread=112
+--- PASS: TestEditorRingPlaceholder (0.15s)
+    --- PASS: TestEditorRingPlaceholder/light (0.07s)
+    --- PASS: TestEditorRingPlaceholder/dark (0.08s)
+=== RUN   TestEditorRingDefault
+=== RUN   TestEditorRingDefault/light
+    editorring_test.go:78: default rect={X:364.8 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: default top RGB spread=160
+    editorring_test.go:84: default bottom RGB spread=160
+=== RUN   TestEditorRingDefault/dark
+    editorring_test.go:78: default rect={X:364.8 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: default top RGB spread=112
+    editorring_test.go:84: default bottom RGB spread=112
+--- PASS: TestEditorRingDefault (0.15s)
+    --- PASS: TestEditorRingDefault/light (0.07s)
+    --- PASS: TestEditorRingDefault/dark (0.07s)
+=== RUN   TestEditorRingFlag
+=== RUN   TestEditorRingFlag/light
+    editorring_test.go:78: flag rect={X:533.8 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: flag top RGB spread=160
+    editorring_test.go:84: flag bottom RGB spread=160
+=== RUN   TestEditorRingFlag/dark
+    editorring_test.go:78: flag rect={X:533.8 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: flag top RGB spread=112
+    editorring_test.go:84: flag bottom RGB spread=112
+--- PASS: TestEditorRingFlag (0.16s)
+    --- PASS: TestEditorRingFlag/light (0.08s)
+    --- PASS: TestEditorRingFlag/dark (0.08s)
+=== RUN   TestEditorRingOptions
+=== RUN   TestEditorRingOptions/light
+    editorring_test.go:78: options rect={X:195.8 Y:70.39996 W:499 H:64} scroll=1087.9
+    editorring_test.go:84: options bottom RGB spread=160
+    editorring_test.go:84: options top RGB spread=160
+=== RUN   TestEditorRingOptions/dark
+    editorring_test.go:78: options rect={X:195.8 Y:70.39996 W:499 H:64} scroll=1087.9
+    editorring_test.go:84: options top RGB spread=112
+    editorring_test.go:84: options bottom RGB spread=112
+--- PASS: TestEditorRingOptions (0.18s)
+    --- PASS: TestEditorRingOptions/light (0.09s)
+    --- PASS: TestEditorRingOptions/dark (0.09s)
+=== RUN   TestEditorRingCommand
+=== RUN   TestEditorRingCommand/light
+    editorring_test.go:78: command rect={X:529.8 Y:70.40001 W:160 H:30} scroll=386.69998
+    editorring_test.go:84: command top RGB spread=160
+    editorring_test.go:84: command bottom RGB spread=160
+=== RUN   TestEditorRingCommand/dark
+    editorring_test.go:78: command rect={X:529.8 Y:70.40001 W:160 H:30} scroll=386.69998
+    editorring_test.go:84: command top RGB spread=112
+    editorring_test.go:84: command bottom RGB spread=112
+--- PASS: TestEditorRingCommand (0.07s)
+    --- PASS: TestEditorRingCommand/light (0.04s)
+    --- PASS: TestEditorRingCommand/dark (0.04s)
+=== RUN   TestEditorRingVersion
+=== RUN   TestEditorRingVersion/light
+    editorring_test.go:78: version rect={X:569.8 Y:70.39996 W:120 H:30} scroll=551.7
+    editorring_test.go:84: version top RGB spread=160
+    editorring_test.go:84: version bottom RGB spread=160
+=== RUN   TestEditorRingVersion/dark
+    editorring_test.go:78: version rect={X:569.8 Y:70.39996 W:120 H:30} scroll=551.7
+    editorring_test.go:84: version top RGB spread=112
+    editorring_test.go:84: version bottom RGB spread=112
+--- PASS: TestEditorRingVersion (0.09s)
+    --- PASS: TestEditorRingVersion/light (0.05s)
+    --- PASS: TestEditorRingVersion/dark (0.04s)
+=== RUN   TestContentVisibilityExportRetired
+=== RUN   TestContentVisibilityExportRetired/withdraw/light
+=== RUN   TestContentVisibilityExportRetired/withdraw/dark
+=== RUN   TestContentVisibilityExportRetired/blank/light
+=== RUN   TestContentVisibilityExportRetired/blank/dark
+--- PASS: TestContentVisibilityExportRetired (0.10s)
+    --- PASS: TestContentVisibilityExportRetired/withdraw/light (0.02s)
+    --- PASS: TestContentVisibilityExportRetired/withdraw/dark (0.02s)
+    --- PASS: TestContentVisibilityExportRetired/blank/light (0.03s)
+    --- PASS: TestContentVisibilityExportRetired/blank/dark (0.03s)
+=== RUN   TestContentVisibilityExportReturn
+=== RUN   TestContentVisibilityExportReturn/sync/light
+=== RUN   TestContentVisibilityExportReturn/sync/dark
+=== RUN   TestContentVisibilityExportReturn/async/light
+=== RUN   TestContentVisibilityExportReturn/async/dark
+--- PASS: TestContentVisibilityExportReturn (0.10s)
+    --- PASS: TestContentVisibilityExportReturn/sync/light (0.02s)
+    --- PASS: TestContentVisibilityExportReturn/sync/dark (0.02s)
+    --- PASS: TestContentVisibilityExportReturn/async/light (0.02s)
+    --- PASS: TestContentVisibilityExportReturn/async/dark (0.03s)
+=== RUN   TestContentRecoveryModeOutput
+=== RUN   TestContentRecoveryModeOutput/light
+=== RUN   TestContentRecoveryModeOutput/dark
+--- PASS: TestContentRecoveryModeOutput (0.04s)
+    --- PASS: TestContentRecoveryModeOutput/light (0.02s)
+    --- PASS: TestContentRecoveryModeOutput/dark (0.02s)
+=== RUN   TestContentRecoveryModePlatform
+=== RUN   TestContentRecoveryModePlatform/light
+=== RUN   TestContentRecoveryModePlatform/dark
+--- PASS: TestContentRecoveryModePlatform (0.03s)
+    --- PASS: TestContentRecoveryModePlatform/light (0.02s)
+    --- PASS: TestContentRecoveryModePlatform/dark (0.02s)
+=== RUN   TestContentRecoveryModeAdvanced
+=== RUN   TestContentRecoveryModeAdvanced/light
+=== RUN   TestContentRecoveryModeAdvanced/dark
+--- PASS: TestContentRecoveryModeAdvanced (0.14s)
+    --- PASS: TestContentRecoveryModeAdvanced/light (0.07s)
+    --- PASS: TestContentRecoveryModeAdvanced/dark (0.07s)
+=== RUN   TestToolRefusalVisibilityParameter
+=== RUN   TestToolRefusalVisibilityParameter/id/light
+=== RUN   TestToolRefusalVisibilityParameter/id/dark
+=== RUN   TestToolRefusalVisibilityParameter/duplicate/light
+=== RUN   TestToolRefusalVisibilityParameter/duplicate/dark
+=== RUN   TestToolRefusalVisibilityParameter/options/light
+=== RUN   TestToolRefusalVisibilityParameter/options/dark
+=== RUN   TestToolRefusalVisibilityParameter/flag/light
+=== RUN   TestToolRefusalVisibilityParameter/flag/dark
+=== RUN   TestToolRefusalVisibilityParameter/badflag/light
+=== RUN   TestToolRefusalVisibilityParameter/badflag/dark
+=== RUN   TestToolRefusalVisibilityParameter/number/light
+=== RUN   TestToolRefusalVisibilityParameter/number/dark
+=== RUN   TestToolRefusalVisibilityParameter/boolean/light
+=== RUN   TestToolRefusalVisibilityParameter/boolean/dark
+=== RUN   TestToolRefusalVisibilityParameter/select/light
+=== RUN   TestToolRefusalVisibilityParameter/select/dark
+--- PASS: TestToolRefusalVisibilityParameter (1.49s)
+    --- PASS: TestToolRefusalVisibilityParameter/id/light (0.10s)
+    --- PASS: TestToolRefusalVisibilityParameter/id/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/duplicate/light (0.10s)
+    --- PASS: TestToolRefusalVisibilityParameter/duplicate/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/options/light (0.10s)
+    --- PASS: TestToolRefusalVisibilityParameter/options/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/flag/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/flag/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/badflag/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/badflag/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/number/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/number/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/boolean/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/boolean/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/select/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/select/dark (0.09s)
+=== RUN   TestScriptRuntimeLineSaysCheckingUntilTheProbeLands
+--- PASS: TestScriptRuntimeLineSaysCheckingUntilTheProbeLands (0.00s)
+=== RUN   TestScriptRuntimeProbeIsCachedPerLanguage
+--- PASS: TestScriptRuntimeProbeIsCachedPerLanguage (0.00s)
+=== RUN   TestScriptEditorDrawsLineNumbers
+--- PASS: TestScriptEditorDrawsLineNumbers (0.11s)
+=== RUN   TestScriptEditorTakesAnOutsideDraft
+--- PASS: TestScriptEditorTakesAnOutsideDraft (0.12s)
+=== RUN   TestScriptEditorFollowsTheLanguageSwitch
+--- PASS: TestScriptEditorFollowsTheLanguageSwitch (0.15s)
+=== RUN   TestScriptEditorHandsTheUsersTypingOn
+--- PASS: TestScriptEditorHandsTheUsersTypingOn (0.17s)
+=== RUN   TestScriptExportName
+--- PASS: TestScriptExportName (0.00s)
+=== RUN   TestToolFieldEdgeName
+=== RUN   TestToolFieldEdgeName/light
+    toolfieldedge_test.go:84: name rect={X:449.8 Y:70.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.7
+=== RUN   TestToolFieldEdgeName/dark
+    toolfieldedge_test.go:84: name rect={X:449.8 Y:70.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.7
+--- PASS: TestToolFieldEdgeName (0.08s)
+    --- PASS: TestToolFieldEdgeName/light (0.04s)
+    --- PASS: TestToolFieldEdgeName/dark (0.04s)
+=== RUN   TestToolFieldEdgeProgram
+=== RUN   TestToolFieldEdgeProgram/light
+    toolfieldedge_test.go:84: program rect={X:386.8 Y:70.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+=== RUN   TestToolFieldEdgeProgram/dark
+    toolfieldedge_test.go:84: program rect={X:386.8 Y:70.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+--- PASS: TestToolFieldEdgeProgram (0.08s)
+    --- PASS: TestToolFieldEdgeProgram/light (0.04s)
+    --- PASS: TestToolFieldEdgeProgram/dark (0.04s)
+=== RUN   TestToolFieldEdgeArgs
+=== RUN   TestToolFieldEdgeArgs/light
+    toolfieldedge_test.go:84: args rect={X:469.8 Y:70.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=441.69998
+=== RUN   TestToolFieldEdgeArgs/dark
+    toolfieldedge_test.go:84: args rect={X:469.8 Y:70.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=441.69998
+--- PASS: TestToolFieldEdgeArgs (0.10s)
+    --- PASS: TestToolFieldEdgeArgs/light (0.05s)
+    --- PASS: TestToolFieldEdgeArgs/dark (0.05s)
+=== RUN   TestToolFieldEdgeVersionArgs
+=== RUN   TestToolFieldEdgeVersionArgs/light
+    toolfieldedge_test.go:84: versionargs rect={X:529.8 Y:70.400024 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=496.69998
+=== RUN   TestToolFieldEdgeVersionArgs/dark
+    toolfieldedge_test.go:84: versionargs rect={X:529.8 Y:70.400024 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=496.69998
+--- PASS: TestToolFieldEdgeVersionArgs (0.11s)
+    --- PASS: TestToolFieldEdgeVersionArgs/light (0.05s)
+    --- PASS: TestToolFieldEdgeVersionArgs/dark (0.05s)
+=== RUN   TestToolFieldEdgeDescription
+=== RUN   TestToolFieldEdgeDescription/light
+    toolfieldedge_test.go:84: description rect={X:449.8 Y:70.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=603.7
+=== RUN   TestToolFieldEdgeDescription/dark
+    toolfieldedge_test.go:84: description rect={X:449.8 Y:70.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=603.7
+--- PASS: TestToolFieldEdgeDescription (0.12s)
+    --- PASS: TestToolFieldEdgeDescription/light (0.06s)
+    --- PASS: TestToolFieldEdgeDescription/dark (0.06s)
+=== RUN   TestToolFieldEdgeMode
+=== RUN   TestToolFieldEdgeMode/light
+    toolfieldedge_test.go:84: mode rect={X:600.8 Y:73.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=273.69998
+=== RUN   TestToolFieldEdgeMode/dark
+    toolfieldedge_test.go:84: mode rect={X:600.8 Y:73.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=273.69998
+--- PASS: TestToolFieldEdgeMode (0.09s)
+    --- PASS: TestToolFieldEdgeMode/light (0.05s)
+    --- PASS: TestToolFieldEdgeMode/dark (0.04s)
+=== RUN   TestToolFieldEdgeChoose
+=== RUN   TestToolFieldEdgeChoose/light
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:70.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+=== RUN   TestToolFieldEdgeChoose/dark
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:70.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+--- PASS: TestToolFieldEdgeChoose (0.10s)
+    --- PASS: TestToolFieldEdgeChoose/light (0.05s)
+    --- PASS: TestToolFieldEdgeChoose/dark (0.05s)
+=== RUN   TestToolFieldEdgeLanguage
+=== RUN   TestToolFieldEdgeLanguage/light
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:84.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=318.69998
+=== RUN   TestToolFieldEdgeLanguage/dark
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:84.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=318.69998
+--- PASS: TestToolFieldEdgeLanguage (0.10s)
+    --- PASS: TestToolFieldEdgeLanguage/light (0.05s)
+    --- PASS: TestToolFieldEdgeLanguage/dark (0.05s)
+=== RUN   TestToolRefusalVisibilityName
+=== RUN   TestToolRefusalVisibilityName/light/connect
+=== RUN   TestToolRefusalVisibilityName/light/edit
+=== RUN   TestToolRefusalVisibilityName/dark/connect
+=== RUN   TestToolRefusalVisibilityName/dark/edit
+--- PASS: TestToolRefusalVisibilityName (0.22s)
+    --- PASS: TestToolRefusalVisibilityName/light/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityName/light/edit (0.05s)
+    --- PASS: TestToolRefusalVisibilityName/dark/connect (0.05s)
+    --- PASS: TestToolRefusalVisibilityName/dark/edit (0.05s)
+=== RUN   TestToolRefusalVisibilityCommand
+=== RUN   TestToolRefusalVisibilityCommand/light/connect
+=== RUN   TestToolRefusalVisibilityCommand/light/edit
+=== RUN   TestToolRefusalVisibilityCommand/dark/connect
+=== RUN   TestToolRefusalVisibilityCommand/dark/edit
+--- PASS: TestToolRefusalVisibilityCommand (0.23s)
+    --- PASS: TestToolRefusalVisibilityCommand/light/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityCommand/light/edit (0.06s)
+    --- PASS: TestToolRefusalVisibilityCommand/dark/connect (0.05s)
+    --- PASS: TestToolRefusalVisibilityCommand/dark/edit (0.05s)
+=== RUN   TestToolRefusalVisibilityVersion
+=== RUN   TestToolRefusalVisibilityVersion/light/connect
+=== RUN   TestToolRefusalVisibilityVersion/light/edit
+=== RUN   TestToolRefusalVisibilityVersion/dark/connect
+=== RUN   TestToolRefusalVisibilityVersion/dark/edit
+--- PASS: TestToolRefusalVisibilityVersion (0.26s)
+    --- PASS: TestToolRefusalVisibilityVersion/light/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityVersion/light/edit (0.07s)
+    --- PASS: TestToolRefusalVisibilityVersion/dark/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityVersion/dark/edit (0.06s)
+=== RUN   TestToolRefusalVisibilityProgram
+=== RUN   TestToolRefusalVisibilityProgram/light/connect
+=== RUN   TestToolRefusalVisibilityProgram/light/edit
+=== RUN   TestToolRefusalVisibilityProgram/dark/connect
+=== RUN   TestToolRefusalVisibilityProgram/dark/edit
+--- PASS: TestToolRefusalVisibilityProgram (0.25s)
+    --- PASS: TestToolRefusalVisibilityProgram/light/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityProgram/light/edit (0.06s)
+    --- PASS: TestToolRefusalVisibilityProgram/dark/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityProgram/dark/edit (0.06s)
+=== RUN   TestToolRefusalVisibilityScript
+=== RUN   TestToolRefusalVisibilityScript/light/connect
+=== RUN   TestToolRefusalVisibilityScript/light/edit
+=== RUN   TestToolRefusalVisibilityScript/dark/connect
+=== RUN   TestToolRefusalVisibilityScript/dark/edit
+--- PASS: TestToolRefusalVisibilityScript (0.26s)
+    --- PASS: TestToolRefusalVisibilityScript/light/connect (0.07s)
+    --- PASS: TestToolRefusalVisibilityScript/light/edit (0.06s)
+    --- PASS: TestToolRefusalVisibilityScript/dark/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityScript/dark/edit (0.06s)
+=== RUN   TestToolRefusalVisibilityPlatform
+=== RUN   TestToolRefusalVisibilityPlatform/light/connect
+=== RUN   TestToolRefusalVisibilityPlatform/light/edit
+=== RUN   TestToolRefusalVisibilityPlatform/dark/connect
+=== RUN   TestToolRefusalVisibilityPlatform/dark/edit
+--- PASS: TestToolRefusalVisibilityPlatform (0.25s)
+    --- PASS: TestToolRefusalVisibilityPlatform/light/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityPlatform/light/edit (0.06s)
+    --- PASS: TestToolRefusalVisibilityPlatform/dark/connect (0.06s)
+    --- PASS: TestToolRefusalVisibilityPlatform/dark/edit (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	6.937s
+FAIL

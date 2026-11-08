@@ -1,0 +1,16 @@
+name light: 90746 changed pixels
+program light: 87298 changed pixels
+args light: 77955 changed pixels
+versionargs light: 78572 changed pixels
+description light: 90602 changed pixels
+mode light: 94953 changed pixels
+choose light: 87289 changed pixels
+language light: 99345 changed pixels
+name dark: 90817 changed pixels
+program dark: 87482 changed pixels
+args dark: 78133 changed pixels
+versionargs dark: 78757 changed pixels
+description dark: 90784 changed pixels
+mode dark: 95267 changed pixels
+choose dark: 87476 changed pixels
+language dark: 99184 changed pixels

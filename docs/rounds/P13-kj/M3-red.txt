@@ -1,0 +1,35 @@
+=== RUN   TestContentVisibilityPreservesOtherEditor
+=== RUN   TestContentVisibilityPreservesOtherEditor/choose/light
+    copyvisibility_test.go:162: choose retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/choose/dark
+    copyvisibility_test.go:162: choose retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/command/light
+    copyvisibility_test.go:162: command retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/command/dark
+    copyvisibility_test.go:162: command retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/plan/light
+    copyvisibility_test.go:162: plan retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/plan/dark
+    copyvisibility_test.go:162: plan retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/script/light
+    copyvisibility_test.go:162: script retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/script/dark
+    copyvisibility_test.go:162: script retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/export/light
+    copyvisibility_test.go:162: export retirement stole current editor or scroll: 224.7
+=== RUN   TestContentVisibilityPreservesOtherEditor/export/dark
+    copyvisibility_test.go:162: export retirement stole current editor or scroll: 224.7
+--- FAIL: TestContentVisibilityPreservesOtherEditor (0.83s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/choose/light (0.34s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/choose/dark (0.05s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/command/light (0.05s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/command/dark (0.05s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/plan/light (0.05s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/plan/dark (0.05s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/script/light (0.06s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/script/dark (0.05s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/export/light (0.08s)
+    --- FAIL: TestContentVisibilityPreservesOtherEditor/export/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.846s
+FAIL

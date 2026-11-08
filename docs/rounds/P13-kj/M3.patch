@@ -1,0 +1,6 @@
+diff --git a/internal/settingsui/outputfocus.go b/internal/settingsui/outputfocus.go
+--- a/internal/settingsui/outputfocus.go
++++ b/internal/settingsui/outputfocus.go
+@@ -14 +14 @@
+-	if focused && !*was && (len(reveal) == 0 || reveal[0]()) {
++	if focused && !*was {

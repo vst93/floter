@@ -1,0 +1,27 @@
+=== RUN   TestToolFieldEdgeChoose
+=== RUN   TestToolFieldEdgeChoose/light
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:51.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=350.69998
+    toolfieldedge_test.go:93: choose top active edge missing at [662 49]: blue-red=1
+    toolfieldedge_test.go:97: choose active edge intersects 16px fade: rect={X:634.8 Y:51.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolFieldEdgeChoose/dark
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:51.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=350.69998
+    toolfieldedge_test.go:93: choose top active edge missing at [662 49]: blue-red=2
+    toolfieldedge_test.go:97: choose active edge intersects 16px fade: rect={X:634.8 Y:51.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestToolFieldEdgeChoose (0.45s)
+    --- FAIL: TestToolFieldEdgeChoose/light (0.29s)
+    --- FAIL: TestToolFieldEdgeChoose/dark (0.16s)
+=== RUN   TestToolFieldEdgeLanguage
+=== RUN   TestToolFieldEdgeLanguage/light
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:51.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=351.69998
+    toolfieldedge_test.go:93: language top active edge missing at [579 49]: blue-red=1
+    toolfieldedge_test.go:97: language active edge intersects 16px fade: rect={X:469.8 Y:51.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestToolFieldEdgeLanguage/dark
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:51.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=351.69998
+    toolfieldedge_test.go:93: language top active edge missing at [579 49]: blue-red=2
+    toolfieldedge_test.go:97: language active edge intersects 16px fade: rect={X:469.8 Y:51.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestToolFieldEdgeLanguage (0.31s)
+    --- FAIL: TestToolFieldEdgeLanguage/light (0.16s)
+    --- FAIL: TestToolFieldEdgeLanguage/dark (0.15s)
+FAIL
+FAIL	floter/internal/settingsui	0.770s
+FAIL

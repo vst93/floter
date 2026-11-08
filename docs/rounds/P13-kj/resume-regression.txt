@@ -1,0 +1,142 @@
+=== RUN   TestContentVisibilityPickerError
+=== RUN   TestContentVisibilityPickerError/light
+=== RUN   TestContentVisibilityPickerError/dark
+--- PASS: TestContentVisibilityPickerError (0.40s)
+    --- PASS: TestContentVisibilityPickerError/light (0.30s)
+    --- PASS: TestContentVisibilityPickerError/dark (0.10s)
+=== RUN   TestContentVisibilityPickerCancel
+=== RUN   TestContentVisibilityPickerCancel/light
+=== RUN   TestContentVisibilityPickerCancel/dark
+--- PASS: TestContentVisibilityPickerCancel (0.23s)
+    --- PASS: TestContentVisibilityPickerCancel/light (0.13s)
+    --- PASS: TestContentVisibilityPickerCancel/dark (0.10s)
+=== RUN   TestContentVisibilityPickerSuccess
+=== RUN   TestContentVisibilityPickerSuccess/light
+=== RUN   TestContentVisibilityPickerSuccess/dark
+--- PASS: TestContentVisibilityPickerSuccess (0.22s)
+    --- PASS: TestContentVisibilityPickerSuccess/light (0.10s)
+    --- PASS: TestContentVisibilityPickerSuccess/dark (0.12s)
+=== RUN   TestContentVisibilityPickerWithdraw
+=== RUN   TestContentVisibilityPickerWithdraw/light
+=== RUN   TestContentVisibilityPickerWithdraw/dark
+--- PASS: TestContentVisibilityPickerWithdraw (0.26s)
+    --- PASS: TestContentVisibilityPickerWithdraw/light (0.13s)
+    --- PASS: TestContentVisibilityPickerWithdraw/dark (0.13s)
+=== RUN   TestContentVisibilityPreservesOtherEditor
+=== RUN   TestContentVisibilityPreservesOtherEditor/choose/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/choose/dark
+=== RUN   TestContentVisibilityPreservesOtherEditor/command/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/command/dark
+=== RUN   TestContentVisibilityPreservesOtherEditor/plan/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/plan/dark
+=== RUN   TestContentVisibilityPreservesOtherEditor/script/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/script/dark
+=== RUN   TestContentVisibilityPreservesOtherEditor/export/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/export/dark
+--- PASS: TestContentVisibilityPreservesOtherEditor (0.51s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/choose/light (0.04s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/choose/dark (0.04s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/command/light (0.04s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/command/dark (0.04s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/plan/light (0.05s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/plan/dark (0.05s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/script/light (0.08s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/script/dark (0.04s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/export/light (0.06s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/export/dark (0.05s)
+=== RUN   TestCustomActionRefreshReturnsToPicker
+=== RUN   TestCustomActionRefreshReturnsToPicker/light/command
+=== RUN   TestCustomActionRefreshReturnsToPicker/light/elsewhere
+=== RUN   TestCustomActionRefreshReturnsToPicker/dark/command
+=== RUN   TestCustomActionRefreshReturnsToPicker/dark/elsewhere
+--- PASS: TestCustomActionRefreshReturnsToPicker (0.60s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/light/command (0.10s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/light/elsewhere (0.06s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/dark/command (0.20s)
+    --- PASS: TestCustomActionRefreshReturnsToPicker/dark/elsewhere (0.23s)
+=== RUN   TestToolFieldEdgeName
+=== RUN   TestToolFieldEdgeName/light
+    toolfieldedge_test.go:84: name rect={X:449.8 Y:70.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.7
+=== RUN   TestToolFieldEdgeName/dark
+    toolfieldedge_test.go:84: name rect={X:449.8 Y:70.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.7
+--- PASS: TestToolFieldEdgeName (0.27s)
+    --- PASS: TestToolFieldEdgeName/light (0.14s)
+    --- PASS: TestToolFieldEdgeName/dark (0.13s)
+=== RUN   TestToolFieldEdgeProgram
+=== RUN   TestToolFieldEdgeProgram/light
+    toolfieldedge_test.go:84: program rect={X:386.8 Y:70.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+=== RUN   TestToolFieldEdgeProgram/dark
+    toolfieldedge_test.go:84: program rect={X:386.8 Y:70.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+--- PASS: TestToolFieldEdgeProgram (0.27s)
+    --- PASS: TestToolFieldEdgeProgram/light (0.12s)
+    --- PASS: TestToolFieldEdgeProgram/dark (0.15s)
+=== RUN   TestToolFieldEdgeArgs
+=== RUN   TestToolFieldEdgeArgs/light
+    toolfieldedge_test.go:84: args rect={X:469.8 Y:70.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=441.69998
+=== RUN   TestToolFieldEdgeArgs/dark
+    toolfieldedge_test.go:84: args rect={X:469.8 Y:70.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=441.69998
+--- PASS: TestToolFieldEdgeArgs (0.32s)
+    --- PASS: TestToolFieldEdgeArgs/light (0.19s)
+    --- PASS: TestToolFieldEdgeArgs/dark (0.14s)
+=== RUN   TestToolFieldEdgeVersionArgs
+=== RUN   TestToolFieldEdgeVersionArgs/light
+    toolfieldedge_test.go:84: versionargs rect={X:529.8 Y:70.400024 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=496.69998
+=== RUN   TestToolFieldEdgeVersionArgs/dark
+    toolfieldedge_test.go:84: versionargs rect={X:529.8 Y:70.400024 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=496.69998
+--- PASS: TestToolFieldEdgeVersionArgs (0.35s)
+    --- PASS: TestToolFieldEdgeVersionArgs/light (0.16s)
+    --- PASS: TestToolFieldEdgeVersionArgs/dark (0.19s)
+=== RUN   TestToolFieldEdgeDescription
+=== RUN   TestToolFieldEdgeDescription/light
+    toolfieldedge_test.go:84: description rect={X:449.8 Y:70.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=603.7
+=== RUN   TestToolFieldEdgeDescription/dark
+    toolfieldedge_test.go:84: description rect={X:449.8 Y:70.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=603.7
+--- PASS: TestToolFieldEdgeDescription (0.45s)
+    --- PASS: TestToolFieldEdgeDescription/light (0.23s)
+    --- PASS: TestToolFieldEdgeDescription/dark (0.21s)
+=== RUN   TestToolFieldEdgeMode
+=== RUN   TestToolFieldEdgeMode/light
+    toolfieldedge_test.go:84: mode rect={X:600.8 Y:73.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=273.69998
+=== RUN   TestToolFieldEdgeMode/dark
+    toolfieldedge_test.go:84: mode rect={X:600.8 Y:73.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=273.69998
+--- PASS: TestToolFieldEdgeMode (0.30s)
+    --- PASS: TestToolFieldEdgeMode/light (0.14s)
+    --- PASS: TestToolFieldEdgeMode/dark (0.16s)
+=== RUN   TestToolFieldEdgeChoose
+=== RUN   TestToolFieldEdgeChoose/light
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:70.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+=== RUN   TestToolFieldEdgeChoose/dark
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:70.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+--- PASS: TestToolFieldEdgeChoose (0.35s)
+    --- PASS: TestToolFieldEdgeChoose/light (0.18s)
+    --- PASS: TestToolFieldEdgeChoose/dark (0.17s)
+=== RUN   TestToolFieldEdgeLanguage
+=== RUN   TestToolFieldEdgeLanguage/light
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:84.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=318.69998
+=== RUN   TestToolFieldEdgeLanguage/dark
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:84.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=318.69998
+--- PASS: TestToolFieldEdgeLanguage (0.32s)
+    --- PASS: TestToolFieldEdgeLanguage/light (0.16s)
+    --- PASS: TestToolFieldEdgeLanguage/dark (0.16s)
+=== RUN   TestToolPickerRecoveryError
+=== RUN   TestToolPickerRecoveryError/light
+=== RUN   TestToolPickerRecoveryError/dark
+--- PASS: TestToolPickerRecoveryError (0.22s)
+    --- PASS: TestToolPickerRecoveryError/light (0.12s)
+    --- PASS: TestToolPickerRecoveryError/dark (0.10s)
+=== RUN   TestToolPickerRecoveryCancel
+=== RUN   TestToolPickerRecoveryCancel/light
+=== RUN   TestToolPickerRecoveryCancel/dark
+--- PASS: TestToolPickerRecoveryCancel (0.20s)
+    --- PASS: TestToolPickerRecoveryCancel/light (0.11s)
+    --- PASS: TestToolPickerRecoveryCancel/dark (0.10s)
+=== RUN   TestToolPickerRecoveryPicked
+=== RUN   TestToolPickerRecoveryPicked/light
+=== RUN   TestToolPickerRecoveryPicked/dark
+--- PASS: TestToolPickerRecoveryPicked (0.18s)
+    --- PASS: TestToolPickerRecoveryPicked/light (0.09s)
+    --- PASS: TestToolPickerRecoveryPicked/dark (0.08s)
+=== RUN   TestToolPickerRecoveryStaleError
+--- PASS: TestToolPickerRecoveryStaleError (0.08s)
+PASS
+ok  	floter/internal/settingsui	5.636s

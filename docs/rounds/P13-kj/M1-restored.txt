@@ -1,0 +1,50 @@
+=== RUN   TestToolFieldEdgeName
+=== RUN   TestToolFieldEdgeName/light
+    toolfieldedge_test.go:84: name rect={X:449.8 Y:70.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.7
+=== RUN   TestToolFieldEdgeName/dark
+    toolfieldedge_test.go:84: name rect={X:449.8 Y:70.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.7
+--- PASS: TestToolFieldEdgeName (0.44s)
+    --- PASS: TestToolFieldEdgeName/light (0.29s)
+    --- PASS: TestToolFieldEdgeName/dark (0.15s)
+=== RUN   TestToolFieldEdgeProgram
+=== RUN   TestToolFieldEdgeProgram/light
+    toolfieldedge_test.go:84: program rect={X:386.8 Y:70.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+=== RUN   TestToolFieldEdgeProgram/dark
+    toolfieldedge_test.go:84: program rect={X:386.8 Y:70.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+--- PASS: TestToolFieldEdgeProgram (0.31s)
+    --- PASS: TestToolFieldEdgeProgram/light (0.17s)
+    --- PASS: TestToolFieldEdgeProgram/dark (0.14s)
+=== RUN   TestToolFieldEdgeArgs
+=== RUN   TestToolFieldEdgeArgs/light
+    toolfieldedge_test.go:84: args rect={X:469.8 Y:70.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=441.69998
+=== RUN   TestToolFieldEdgeArgs/dark
+    toolfieldedge_test.go:84: args rect={X:469.8 Y:70.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=441.69998
+--- PASS: TestToolFieldEdgeArgs (0.36s)
+    --- PASS: TestToolFieldEdgeArgs/light (0.17s)
+    --- PASS: TestToolFieldEdgeArgs/dark (0.20s)
+=== RUN   TestToolFieldEdgeVersionArgs
+=== RUN   TestToolFieldEdgeVersionArgs/light
+    toolfieldedge_test.go:84: versionargs rect={X:529.8 Y:70.400024 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=496.69998
+=== RUN   TestToolFieldEdgeVersionArgs/dark
+    toolfieldedge_test.go:84: versionargs rect={X:529.8 Y:70.400024 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=496.69998
+--- PASS: TestToolFieldEdgeVersionArgs (0.40s)
+    --- PASS: TestToolFieldEdgeVersionArgs/light (0.22s)
+    --- PASS: TestToolFieldEdgeVersionArgs/dark (0.18s)
+=== RUN   TestToolFieldEdgeDescription
+=== RUN   TestToolFieldEdgeDescription/light
+    toolfieldedge_test.go:84: description rect={X:449.8 Y:70.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=603.7
+=== RUN   TestToolFieldEdgeDescription/dark
+    toolfieldedge_test.go:84: description rect={X:449.8 Y:70.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=603.7
+--- PASS: TestToolFieldEdgeDescription (0.46s)
+    --- PASS: TestToolFieldEdgeDescription/light (0.21s)
+    --- PASS: TestToolFieldEdgeDescription/dark (0.25s)
+=== RUN   TestToolFieldEdgeMode
+=== RUN   TestToolFieldEdgeMode/light
+    toolfieldedge_test.go:84: mode rect={X:600.8 Y:73.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=273.69998
+=== RUN   TestToolFieldEdgeMode/dark
+    toolfieldedge_test.go:84: mode rect={X:600.8 Y:73.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=273.69998
+--- PASS: TestToolFieldEdgeMode (0.32s)
+    --- PASS: TestToolFieldEdgeMode/light (0.16s)
+    --- PASS: TestToolFieldEdgeMode/dark (0.17s)
+PASS
+ok  	floter/internal/settingsui	2.311s

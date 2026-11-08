@@ -1,0 +1,24 @@
+=== RUN   TestContentVisibilityPreservesOtherEditor
+=== RUN   TestContentVisibilityPreservesOtherEditor/choose/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/choose/dark
+=== RUN   TestContentVisibilityPreservesOtherEditor/command/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/command/dark
+=== RUN   TestContentVisibilityPreservesOtherEditor/plan/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/plan/dark
+=== RUN   TestContentVisibilityPreservesOtherEditor/script/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/script/dark
+=== RUN   TestContentVisibilityPreservesOtherEditor/export/light
+=== RUN   TestContentVisibilityPreservesOtherEditor/export/dark
+--- PASS: TestContentVisibilityPreservesOtherEditor (0.64s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/choose/light (0.19s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/choose/dark (0.05s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/command/light (0.05s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/command/dark (0.04s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/plan/light (0.05s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/plan/dark (0.04s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/script/light (0.06s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/script/dark (0.05s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/export/light (0.06s)
+    --- PASS: TestContentVisibilityPreservesOtherEditor/export/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.653s

@@ -1,0 +1,18 @@
+=== RUN   TestToolFieldEdgeChoose
+=== RUN   TestToolFieldEdgeChoose/light
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:70.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+=== RUN   TestToolFieldEdgeChoose/dark
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:70.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+--- PASS: TestToolFieldEdgeChoose (0.40s)
+    --- PASS: TestToolFieldEdgeChoose/light (0.27s)
+    --- PASS: TestToolFieldEdgeChoose/dark (0.13s)
+=== RUN   TestToolFieldEdgeLanguage
+=== RUN   TestToolFieldEdgeLanguage/light
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:84.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=318.69998
+=== RUN   TestToolFieldEdgeLanguage/dark
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:84.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=318.69998
+--- PASS: TestToolFieldEdgeLanguage (0.26s)
+    --- PASS: TestToolFieldEdgeLanguage/light (0.13s)
+    --- PASS: TestToolFieldEdgeLanguage/dark (0.12s)
+PASS
+ok  	floter/internal/settingsui	0.673s

@@ -1,0 +1,4 @@
+=== RUN   TestKJRestingGeometry
+--- PASS: TestKJRestingGeometry (0.93s)
+PASS
+ok  	floter/internal/settingsui	0.947s

@@ -5811,8 +5811,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.fixedRow(c, copy.LocalToolId, a.toolEditing)
 			}
 			a.row(c, copy.LocalToolName, "", func() {
+				var nameField ui.Element
 				outputFocusOutlet(c.Key("local-name-outlet"), func() {
-					a.extensionField(c, &name, customFieldMetrics).Bind(&a.contentFocus(c, "name").source).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+					nameField = a.extensionField(c, &name, customFieldMetrics).Bind(&a.contentFocus(c, "name").source).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+				}, func() bool {
+					// A restored editor already has its own reveal path. Do not
+					// turn a later frame into a second scroll after the user moves.
+					return nameField.FocusVisible()
 				})
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldName)
@@ -5857,7 +5862,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 							Placeholder(copy.LocalToolProgramPlaceholder).Bind(&pickerFocus.source))
 					})
 					if a.Actions.ChooseProgram != nil {
-						if a.rememberModeContent(c, false, a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button)).Clicked() {
+						var choose ui.Element
+						outputFocusOutlet(c.Key("local-choose-outlet"), func() {
+							choose = a.rememberModeContent(c, false, a.actionButton(c, copy.LocalToolChoose).Bind(&pickerFocus.button))
+						})
+						if choose.Clicked() {
 							before := a.toolCallbackState()
 							picked, err := a.Actions.ChooseProgram()
 							if a.toolCallbackState() != before {
@@ -6462,15 +6471,18 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 	for _, option := range scriptlang.Languages {
 		options = append(options, i18n.Option{ID: option.ID, Label: option.Label})
 	}
-	languagePicker := a.choose(c.Key("local-language"), copy.LocalToolLanguage, copy.LocalToolLanguageHint, options, *language, func(id string) {
-		// The editor owns the text now: switching language only names the new
-		// one. The template swap for an untouched draft happens in the
-		// editor's own sync (see scriptEditorView), against the buffer it
-		// holds — including a switch away from a written script, which keeps
-		// it as the old form did.
-		*language = id
-	}, func() {
-		a.scriptRuntimeNote(c, a.scriptRuntimeLine(*language))
+	var languagePicker ui.Element
+	outputFocusOutlet(c.Key("local-language-outlet"), func() {
+		languagePicker = a.choose(c.Key("local-language"), copy.LocalToolLanguage, copy.LocalToolLanguageHint, options, *language, func(id string) {
+			// The editor owns the text now: switching language only names the new
+			// one. The template swap for an untouched draft happens in the
+			// editor's own sync (see scriptEditorView), against the buffer it
+			// holds — including a switch away from a written script, which keeps
+			// it as the old form did.
+			*language = id
+		}, func() {
+			a.scriptRuntimeNote(c, a.scriptRuntimeLine(*language))
+		})
 	})
 	a.rememberModeContent(c, true, languagePicker)
 	// The editor is a stacked row: a script wants the row's full width and
