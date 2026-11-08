@@ -457,12 +457,13 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	chosen := index
 	changed := false
 	a.stackedRow(c, field.Label, field.Help, func() {
-		control.SegmentedFill(c, a.tokens(c), labels, chosen, func(i int) {
+		picker := control.SegmentedFill(c, a.tokens(c), labels, chosen, func(i int) {
 			if i >= 0 && i < len(field.Options) {
 				chosen = i
 				changed = true
 			}
 		}, keys).Label(field.Label).Bind(a.pluginEditorRef(field.Key))
+		pluginFieldOutlet(c, picker)
 	})
 	if changed {
 		sheet.Change(field.Key, field.Options[chosen].Value)
@@ -493,6 +494,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 				label := pluginOptionLabel(option, a.copy().ConfigNone)
 				box := ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, "").Label(label).MaxWidthPercent(100)
 				box.Children(func() { ui.Text(c, label).MinWidth(0).SingleLine() })
+				pluginFieldOutlet(c, box)
 				if box.Focused() {
 					box.Bind(focus)
 				}
@@ -518,6 +520,25 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 		}
 		sheet.Change(field.Key, next)
 	}
+}
+
+// Reveal the existing keyboard ink once on entry. The sheet's fade is 3u;
+// the native ring extends 3px, with 1px for fractional raster placement.
+// An absolute, pointer-transparent envelope
+// preserves the field's layout and hit area, including wrapped options.
+func pluginFieldOutlet(c *ui.Context, field ui.Element) {
+	clearance := float32(math.Ceil(float64(c.Theme().Space(3)))) + 4
+	var envelope ui.Element
+	field.Children(func() {
+		envelope = ui.Box(c.Key("plugin-focus-envelope")).Absolute().
+			Top(-clearance).Bottom(-clearance).Left(0).Right(0).PassThrough()
+	})
+	was := ui.Local(field, "plugin-field-focused", func() bool { return false })
+	focused := field.FocusWithin()
+	if focused && !*was {
+		envelope.ScrollIntoView()
+	}
+	*was = focused
 }
 
 // sheetSlider is the old build's capacity row: the label and help above, the
