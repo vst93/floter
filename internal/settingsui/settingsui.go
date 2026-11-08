@@ -7927,6 +7927,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				TextColor(a.tokens(c).TextStrong)
 			ui.Text(c, copy.RunValuesHint).FontSize(a.tokens(c).Caption).TextColor(theme.TextMuted)
 		})
+		feedback := ""
 		a.runParamsBox(c, func() {
 			occurrences := map[string]int{}
 			for index, param := range integration.Params {
@@ -7961,7 +7962,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				}
 				// The row's own reason, printed under it inside the card.
 				below := []func(){}
+				feedback += strconv.Quote(label) + strconv.Quote(sublabel)
 				if issue, ok := issueByIndex[index]; ok {
+					feedback += strconv.Quote(paramValueIssueMessage(copy, issue))
 					below = append(below, func() {
 						ui.Text(c, paramValueIssueMessage(copy, issue)).
 							FontSize(a.tokens(c).Caption).TextColor(theme.Danger).
@@ -7976,7 +7979,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					on := truthyValue(values[param.ID])
 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var sw ui.Element
-						a.formViewportOutlet(c.Key("run-switch-outlet"), func() {
+						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback, func() {
 							sw = a.switchControl(c, &on).Label(label)
 							bindFocus(sw)
 						})
@@ -8027,7 +8030,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 								lockedControl(input.TextColor(a.tokens(c).Disabled))
 							}
 						}
-						a.formViewportOutlet(c.Key("run-input-outlet"), draw)
+						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback, draw)
 					}, below...)
 					if !locked {
 						values[param.ID] = value
