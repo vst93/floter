@@ -35,3 +35,9 @@ for dark in ['dark','light']:
         draw.text((8,y+4),name,fill='black'); board.paste(im,(0,y+24)); y+=im.height+24
     board.save(dest/f'overview-{dark}.png')
 print(f'{len(pairs)} state comparisons; all rest pairs byte-identical')
+for tone in ['dark', 'light']:
+    for state, box in [('text-top', (452, 40, 704, 116)), ('multi-option', (285, 18, 342, 92))]:
+        parts = [Image.open(root/f'floter-P13-km-{state}-{tone}-{stage}.png').crop(box) for stage in ['before','after']]
+        crop = Image.new('RGB',(parts[0].width*2,parts[0].height))
+        for index, part in enumerate(parts): crop.paste(part,(index*part.width,0))
+        crop.resize((crop.width*4,crop.height*4), Image.Resampling.NEAREST).save(dest/f'{state}-{tone}-detail4x.png')

@@ -1,0 +1,4 @@
+error: patch failed: internal/settingsui/uninstall_test.go:4
+error: internal/settingsui/uninstall_test.go: patch does not apply
+error: patch failed: internal/settingsui/uninstall.go:75
+error: internal/settingsui/uninstall.go: patch does not apply

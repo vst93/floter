@@ -1,0 +1,115 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.037s
+ok  	floter/internal/apps	0.395s
+ok  	floter/internal/browser	0.100s
+ok  	floter/internal/calc	0.050s
+ok  	floter/internal/calculator	0.036s
+ok  	floter/internal/ci	12.692s
+ok  	floter/internal/clipboard	0.164s
+ok  	floter/internal/control	0.273s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.008s
+ok  	floter/internal/drops	0.008s
+ok  	floter/internal/extensions	63.700s
+ok  	floter/internal/extensions/recommended	0.489s
+ok  	floter/internal/frameaudit	0.170s
+ok  	floter/internal/glassmap	0.012s
+ok  	floter/internal/homepath	0.005s
+ok  	floter/internal/i18n	3.038s
+ok  	floter/internal/inputtext	0.081s
+ok  	floter/internal/inventory	0.217s
+ok  	floter/internal/launcher	87.667s
+ok  	floter/internal/motion	0.034s
+ok  	floter/internal/pathid	0.101s
+ok  	floter/internal/pathlist	0.021s
+ok  	floter/internal/pinyin	0.090s
+ok  	floter/internal/plist	0.080s
+ok  	floter/internal/plugincfg	0.016s
+ok  	floter/internal/progname	0.007s
+ok  	floter/internal/progtype	0.034s
+ok  	floter/internal/scriptlang	0.043s
+ok  	floter/internal/semver	0.048s
+ok  	floter/internal/settings	5.876s
+--- FAIL: TestChoiceBoundaryMultiLabelFocus (0.02s)
+    --- FAIL: TestChoiceBoundaryMultiLabelFocus/light (0.01s)
+        choiceboundary_test.go:79: checkbox 文件 did not take focus
+    --- FAIL: TestChoiceBoundaryMultiLabelFocus/dark (0.01s)
+        choiceboundary_test.go:79: checkbox 文件 did not take focus
+--- FAIL: TestChoiceBoundaryMultiDuplicate (0.02s)
+    --- FAIL: TestChoiceBoundaryMultiDuplicate/light (0.01s)
+        choiceboundary_test.go:142: duplicate multi value submitted: <nil>
+    --- FAIL: TestChoiceBoundaryMultiDuplicate/dark (0.01s)
+        choiceboundary_test.go:142: duplicate multi value submitted: <nil>
+--- FAIL: TestChoiceBoundaryEmptyChoiceName (0.18s)
+    --- FAIL: TestChoiceBoundaryEmptyChoiceName/config-multiselect/light (0.02s)
+        choiceboundary_test.go:293: empty config multi ID changed: "apps"
+    --- FAIL: TestChoiceBoundaryEmptyChoiceName/config-multiselect/dark (0.00s)
+        choiceboundary_test.go:293: empty config multi ID changed: "apps"
+--- FAIL: TestChoiceIdentityMultiKeyboard (0.01s)
+    --- FAIL: TestChoiceIdentityMultiKeyboard/light (0.01s)
+        choiceidentity_test.go:46: checkbox 文件 did not take focus
+    --- FAIL: TestChoiceIdentityMultiKeyboard/dark (0.01s)
+        choiceidentity_test.go:46: checkbox 文件 did not take focus
+--- FAIL: TestChoiceIdentityMultiFocusFollowsOption (0.01s)
+    --- FAIL: TestChoiceIdentityMultiFocusFollowsOption/light (0.01s)
+        choiceidentity_test.go:67: checkbox 文件 did not take focus
+    --- FAIL: TestChoiceIdentityMultiFocusFollowsOption/dark (0.01s)
+        choiceidentity_test.go:67: checkbox 文件 did not take focus
+--- FAIL: TestChoiceIdentityMultiRangeFollowsOption (0.02s)
+    --- FAIL: TestChoiceIdentityMultiRangeFollowsOption/light (0.01s)
+        choicerange_test.go:26: reordered range selected the wrong options: [书签]
+    --- FAIL: TestChoiceIdentityMultiRangeFollowsOption/dark (0.01s)
+        choicerange_test.go:26: reordered range selected the wrong options: [书签]
+--- FAIL: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement (0.04s)
+    --- FAIL: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light (0.03s)
+        choicerange_test.go:56: new anchor did not extend a range: [书签]
+    --- FAIL: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark (0.01s)
+        choicerange_test.go:56: new anchor did not extend a range: [书签]
+--- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired (0.03s)
+    --- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired/light (0.01s)
+        choicerefresh_test.go:174: reappeared option resurrected its old range: [书签]
+    --- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired/dark (0.01s)
+        choicerefresh_test.go:174: reappeared option resurrected its old range: [书签]
+--- FAIL: TestChoiceRefreshMultiMovedFocusVisible (0.04s)
+    --- FAIL: TestChoiceRefreshMultiMovedFocusVisible/light (0.01s)
+        choicerefresh_test.go:286: checkbox 文件 did not take focus
+    --- FAIL: TestChoiceRefreshMultiMovedFocusVisible/dark (0.03s)
+        choicerefresh_test.go:286: checkbox 文件 did not take focus
+--- FAIL: TestTheConfigMultiselectExtendsARangeOnShift (0.33s)
+    configform_test.go:895: the Shift-range selected [gamma], want alpha…gamma
+--- FAIL: TestConflictRecoveryDefaultsRetireOldSelectionRange (0.13s)
+    --- FAIL: TestConflictRecoveryDefaultsRetireOldSelectionRange/light (0.06s)
+        conflictrecovery_test.go:134: defaults-range resurrected old range: [], want [应用]
+    --- FAIL: TestConflictRecoveryDefaultsRetireOldSelectionRange/dark (0.07s)
+        conflictrecovery_test.go:134: defaults-range resurrected old range: [], want [应用]
+--- FAIL: TestConflictRecoveryExternalSelectionRetiresOldRange (0.02s)
+    --- FAIL: TestConflictRecoveryExternalSelectionRetiresOldRange/light (0.01s)
+        conflictrecovery_test.go:134: external-range resurrected old range: [书签], want [应用 书签]
+    --- FAIL: TestConflictRecoveryExternalSelectionRetiresOldRange/dark (0.01s)
+        conflictrecovery_test.go:134: external-range resurrected old range: [书签], want [应用 书签]
+--- FAIL: TestSchemaRefreshRemovedMultiRetiresAnchor (0.02s)
+    --- FAIL: TestSchemaRefreshRemovedMultiRetiresAnchor/light (0.01s)
+        schemarefresh_test.go:252: removed field resurrected a stale range: [书签]
+        schemarefresh_test.go:259: restored multi could not start a fresh range: [书签]
+    --- FAIL: TestSchemaRefreshRemovedMultiRetiresAnchor/dark (0.01s)
+        schemarefresh_test.go:252: removed field resurrected a stale range: [书签]
+        schemarefresh_test.go:259: restored multi could not start a fresh range: [书签]
+--- FAIL: TestConfigurationForm (0.18s)
+    view_test.go:2726: nothing was saved
+FAIL
+FAIL	floter/internal/settingsui	594.266s
+ok  	floter/internal/shell	424.040s
+ok  	floter/internal/shortcuts	0.014s
+ok  	floter/internal/spawn	0.196s
+ok  	floter/internal/statefile	0.029s
+ok  	floter/internal/terminalui	41.239s
+ok  	floter/internal/termsession	4.555s
+ok  	floter/internal/textlines	0.010s
+ok  	floter/internal/theme	0.186s
+ok  	floter/internal/tools	0.029s
+ok  	floter/internal/usage	0.007s
+ok  	floter/internal/valuedomain	0.010s
+ok  	floter/internal/versioning	0.005s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.009s
+FAIL
