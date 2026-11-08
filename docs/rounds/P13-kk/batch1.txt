@@ -1,0 +1,166 @@
+=== RUN   TestLocalFormRingAdd
+=== RUN   TestLocalFormRingAdd/light
+    localformring_test.go:80: add rect={X:675.8 Y:473 W:28 H:28} scroll=453.29996
+=== RUN   TestLocalFormRingAdd/dark
+    localformring_test.go:80: add rect={X:675.8 Y:473 W:28 H:28} scroll=453.29996
+--- PASS: TestLocalFormRingAdd (0.42s)
+    --- PASS: TestLocalFormRingAdd/light (0.30s)
+    --- PASS: TestLocalFormRingAdd/dark (0.13s)
+=== RUN   TestLocalFormRingRemove
+=== RUN   TestLocalFormRingRemove/light
+    localformring_test.go:80: remove rect={X:666.8 Y:473.00006 W:28 H:28} scroll=633.2999
+=== RUN   TestLocalFormRingRemove/dark
+    localformring_test.go:80: remove rect={X:666.8 Y:473.00006 W:28 H:28} scroll=633.2999
+--- PASS: TestLocalFormRingRemove (0.33s)
+    --- PASS: TestLocalFormRingRemove/light (0.17s)
+    --- PASS: TestLocalFormRingRemove/dark (0.17s)
+=== RUN   TestLocalFormRingRequired
+=== RUN   TestLocalFormRingRequired/light
+    localformring_test.go:80: required rect={X:195.8 Y:485.99994 W:38 H:15} scroll=626.80005
+=== RUN   TestLocalFormRingRequired/dark
+    localformring_test.go:80: required rect={X:195.8 Y:485.99994 W:38 H:15} scroll=626.80005
+--- PASS: TestLocalFormRingRequired (0.32s)
+    --- PASS: TestLocalFormRingRequired/light (0.17s)
+    --- PASS: TestLocalFormRingRequired/dark (0.15s)
+=== RUN   TestLocalFormRingKind
+=== RUN   TestLocalFormRingKind/light
+    localformring_test.go:80: kind rect={X:541.8 Y:471 W:22 H:30} scroll=545.2999
+=== RUN   TestLocalFormRingKind/dark
+    localformring_test.go:80: kind rect={X:541.8 Y:471 W:22 H:30} scroll=545.2999
+--- PASS: TestLocalFormRingKind (0.26s)
+    --- PASS: TestLocalFormRingKind/light (0.13s)
+    --- PASS: TestLocalFormRingKind/dark (0.12s)
+=== RUN   TestLocalFormRingOutput
+=== RUN   TestLocalFormRingOutput/light
+    localformring_test.go:80: output rect={X:552.8 Y:468 W:66 H:30} scroll=305.30002
+=== RUN   TestLocalFormRingOutput/dark
+    localformring_test.go:80: output rect={X:552.8 Y:468 W:66 H:30} scroll=305.30002
+--- PASS: TestLocalFormRingOutput (0.15s)
+    --- PASS: TestLocalFormRingOutput/light (0.08s)
+    --- PASS: TestLocalFormRingOutput/dark (0.07s)
+=== RUN   TestLocalFormRingSave
+=== RUN   TestLocalFormRingSave/light
+    localformring_test.go:80: save rect={X:434.3 Y:471 W:22 H:30} scroll=1322.3
+=== RUN   TestLocalFormRingSave/dark
+    localformring_test.go:80: save rect={X:434.3 Y:471 W:22 H:30} scroll=1322.3
+--- PASS: TestLocalFormRingSave (0.50s)
+    --- PASS: TestLocalFormRingSave/light (0.25s)
+    --- PASS: TestLocalFormRingSave/dark (0.25s)
+=== RUN   TestLocalFormRingAdvanced
+=== RUN   TestLocalFormRingAdvanced/light
+    localformring_test.go:80: advanced rect={X:645.8 Y:471 W:44 H:30} scroll=402.30002
+=== RUN   TestLocalFormRingAdvanced/dark
+    localformring_test.go:80: advanced rect={X:645.8 Y:471 W:44 H:30} scroll=402.30002
+--- PASS: TestLocalFormRingAdvanced (0.18s)
+    --- PASS: TestLocalFormRingAdvanced/light (0.09s)
+    --- PASS: TestLocalFormRingAdvanced/dark (0.09s)
+=== RUN   TestLocalFormRingPlatforms
+=== RUN   TestLocalFormRingPlatforms/light
+    localformring_test.go:80: platforms rect={X:490 Y:484.5 W:16 H:16} scroll=345.80002
+=== RUN   TestLocalFormRingPlatforms/dark
+    localformring_test.go:80: platforms rect={X:490 Y:484.5 W:16 H:16} scroll=345.80002
+--- PASS: TestLocalFormRingPlatforms (0.14s)
+    --- PASS: TestLocalFormRingPlatforms/light (0.07s)
+    --- PASS: TestLocalFormRingPlatforms/dark (0.07s)
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/light
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/dark
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/light
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/dark
+--- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll (0.08s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/light (0.02s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/dark (0.02s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/light (0.03s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/dark (0.02s)
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/light
+=== RUN   TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/dark
+--- PASS: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet (0.13s)
+    --- PASS: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/light (0.08s)
+    --- PASS: TestToolAdvancedLabelCollapseKeepsKeyboardOutlet/dark (0.06s)
+=== RUN   TestPermissionEdgeFilesystemRead
+=== RUN   TestPermissionEdgeFilesystemRead/light
+    permissionedge_test.go:52: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=481.30002
+    permissionedge_test.go:65: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=893.9
+=== RUN   TestPermissionEdgeFilesystemRead/dark
+    permissionedge_test.go:52: first target={X:643.4 Y:483 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=481.30002
+    permissionedge_test.go:65: return target={X:643.4 Y:70.400024 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=893.9
+--- PASS: TestPermissionEdgeFilesystemRead (0.22s)
+    --- PASS: TestPermissionEdgeFilesystemRead/light (0.11s)
+    --- PASS: TestPermissionEdgeFilesystemRead/dark (0.10s)
+=== RUN   TestPermissionEdgeFilesystemWrite
+=== RUN   TestPermissionEdgeFilesystemWrite/light
+    permissionedge_test.go:52: first target={X:643.4 Y:482.99994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.30005
+    permissionedge_test.go:65: return target={X:643.4 Y:70.39996 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=938.9
+=== RUN   TestPermissionEdgeFilesystemWrite/dark
+    permissionedge_test.go:52: first target={X:643.4 Y:482.99994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=526.30005
+    permissionedge_test.go:65: return target={X:643.4 Y:70.39996 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=938.9
+--- PASS: TestPermissionEdgeFilesystemWrite (0.22s)
+    --- PASS: TestPermissionEdgeFilesystemWrite/light (0.11s)
+    --- PASS: TestPermissionEdgeFilesystemWrite/dark (0.11s)
+=== RUN   TestToolFieldEdgeName
+=== RUN   TestToolFieldEdgeName/light
+    toolfieldedge_test.go:84: name rect={X:449.8 Y:70.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.7
+=== RUN   TestToolFieldEdgeName/dark
+    toolfieldedge_test.go:84: name rect={X:449.8 Y:70.399994 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=224.7
+--- PASS: TestToolFieldEdgeName (0.08s)
+    --- PASS: TestToolFieldEdgeName/light (0.04s)
+    --- PASS: TestToolFieldEdgeName/dark (0.04s)
+=== RUN   TestToolFieldEdgeProgram
+=== RUN   TestToolFieldEdgeProgram/light
+    toolfieldedge_test.go:84: program rect={X:386.8 Y:70.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+=== RUN   TestToolFieldEdgeProgram/dark
+    toolfieldedge_test.go:84: program rect={X:386.8 Y:70.40001 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+--- PASS: TestToolFieldEdgeProgram (0.09s)
+    --- PASS: TestToolFieldEdgeProgram/light (0.05s)
+    --- PASS: TestToolFieldEdgeProgram/dark (0.05s)
+=== RUN   TestToolFieldEdgeArgs
+=== RUN   TestToolFieldEdgeArgs/light
+    toolfieldedge_test.go:84: args rect={X:469.8 Y:70.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=441.69998
+=== RUN   TestToolFieldEdgeArgs/dark
+    toolfieldedge_test.go:84: args rect={X:469.8 Y:70.400024 W:220 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=441.69998
+--- PASS: TestToolFieldEdgeArgs (0.12s)
+    --- PASS: TestToolFieldEdgeArgs/light (0.06s)
+    --- PASS: TestToolFieldEdgeArgs/dark (0.06s)
+=== RUN   TestToolFieldEdgeVersionArgs
+=== RUN   TestToolFieldEdgeVersionArgs/light
+    toolfieldedge_test.go:84: versionargs rect={X:529.8 Y:70.400024 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=496.69998
+=== RUN   TestToolFieldEdgeVersionArgs/dark
+    toolfieldedge_test.go:84: versionargs rect={X:529.8 Y:70.400024 W:160 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=496.69998
+--- PASS: TestToolFieldEdgeVersionArgs (0.13s)
+    --- PASS: TestToolFieldEdgeVersionArgs/light (0.06s)
+    --- PASS: TestToolFieldEdgeVersionArgs/dark (0.06s)
+=== RUN   TestToolFieldEdgeDescription
+=== RUN   TestToolFieldEdgeDescription/light
+    toolfieldedge_test.go:84: description rect={X:449.8 Y:70.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=603.7
+=== RUN   TestToolFieldEdgeDescription/dark
+    toolfieldedge_test.go:84: description rect={X:449.8 Y:70.400024 W:240 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=603.7
+--- PASS: TestToolFieldEdgeDescription (0.15s)
+    --- PASS: TestToolFieldEdgeDescription/light (0.08s)
+    --- PASS: TestToolFieldEdgeDescription/dark (0.07s)
+=== RUN   TestToolFieldEdgeMode
+=== RUN   TestToolFieldEdgeMode/light
+    toolfieldedge_test.go:84: mode rect={X:600.8 Y:73.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=273.69998
+=== RUN   TestToolFieldEdgeMode/dark
+    toolfieldedge_test.go:84: mode rect={X:600.8 Y:73.40001 W:43 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=273.69998
+--- PASS: TestToolFieldEdgeMode (0.10s)
+    --- PASS: TestToolFieldEdgeMode/light (0.05s)
+    --- PASS: TestToolFieldEdgeMode/dark (0.05s)
+=== RUN   TestToolFieldEdgeChoose
+=== RUN   TestToolFieldEdgeChoose/light
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:70.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+=== RUN   TestToolFieldEdgeChoose/dark
+    toolfieldedge_test.go:84: choose rect={X:634.8 Y:70.40001 W:55 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=331.69998
+--- PASS: TestToolFieldEdgeChoose (0.11s)
+    --- PASS: TestToolFieldEdgeChoose/light (0.06s)
+    --- PASS: TestToolFieldEdgeChoose/dark (0.05s)
+=== RUN   TestToolFieldEdgeLanguage
+=== RUN   TestToolFieldEdgeLanguage/light
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:84.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=318.69998
+=== RUN   TestToolFieldEdgeLanguage/dark
+    toolfieldedge_test.go:84: language rect={X:469.8 Y:84.40001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=318.69998
+--- PASS: TestToolFieldEdgeLanguage (0.11s)
+    --- PASS: TestToolFieldEdgeLanguage/light (0.05s)
+    --- PASS: TestToolFieldEdgeLanguage/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	3.900s
