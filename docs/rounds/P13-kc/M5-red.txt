@@ -1,0 +1,29 @@
+=== RUN   TestModeOutletVisibilityProgram
+=== RUN   TestModeOutletVisibilityProgram/light
+    outletvisibility_test.go:119: editing outlet outside viewport: rect={X:597.8 Y:-1209.2002 W:92 H:36} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestModeOutletVisibilityProgram/dark
+    outletvisibility_test.go:119: editing outlet outside viewport: rect={X:597.8 Y:-1209.2002 W:92 H:36} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+--- FAIL: TestModeOutletVisibilityProgram (0.32s)
+    --- FAIL: TestModeOutletVisibilityProgram/light (0.26s)
+    --- FAIL: TestModeOutletVisibilityProgram/dark (0.06s)
+=== RUN   TestModeOutletVisibilityScript
+=== RUN   TestModeOutletVisibilityScript/light
+    outletvisibility_test.go:119: editing outlet outside viewport: rect={X:597.8 Y:-1209.2002 W:92 H:36} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+=== RUN   TestModeOutletVisibilityScript/dark
+    outletvisibility_test.go:119: editing outlet outside viewport: rect={X:597.8 Y:-1209.2002 W:92 H:36} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1553.3003
+--- FAIL: TestModeOutletVisibilityScript (0.15s)
+    --- FAIL: TestModeOutletVisibilityScript/light (0.07s)
+    --- FAIL: TestModeOutletVisibilityScript/dark (0.07s)
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/light
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/dark
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/light
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/dark
+--- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll (0.10s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/light (0.03s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/dark (0.02s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/light (0.03s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.577s
+FAIL

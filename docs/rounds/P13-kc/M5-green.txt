@@ -1,0 +1,24 @@
+=== RUN   TestModeOutletVisibilityProgram
+=== RUN   TestModeOutletVisibilityProgram/light
+=== RUN   TestModeOutletVisibilityProgram/dark
+--- PASS: TestModeOutletVisibilityProgram (0.35s)
+    --- PASS: TestModeOutletVisibilityProgram/light (0.26s)
+    --- PASS: TestModeOutletVisibilityProgram/dark (0.09s)
+=== RUN   TestModeOutletVisibilityScript
+=== RUN   TestModeOutletVisibilityScript/light
+=== RUN   TestModeOutletVisibilityScript/dark
+--- PASS: TestModeOutletVisibilityScript (0.22s)
+    --- PASS: TestModeOutletVisibilityScript/light (0.10s)
+    --- PASS: TestModeOutletVisibilityScript/dark (0.12s)
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/light
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/dark
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/light
+=== RUN   TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/dark
+--- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll (0.13s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/light (0.03s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/declaration/dark (0.03s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/light (0.03s)
+    --- PASS: TestOutletVisibilityLeavesSurvivingFocusAndScroll/mode/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.704s

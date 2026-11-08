@@ -130,3 +130,45 @@ func checkModeOutletVisibility(t *testing.T, script bool) {
 		})
 	}
 }
+
+func TestModeOutletVisibilityProgram(t *testing.T) { checkModeOutletVisibility(t, false) }
+func TestModeOutletVisibilityScript(t *testing.T)  { checkModeOutletVisibility(t, true) }
+
+func TestOutletVisibilityLeavesSurvivingFocusAndScroll(t *testing.T) {
+	for _, mode := range []bool{false, true} {
+		for _, dark := range []bool{false, true} {
+			t.Run(map[bool]string{false: "declaration", true: "mode"}[mode]+"/"+appearanceName(dark), func(t *testing.T) {
+				a := declarationVisibilityApp(t, dark, 5)
+				var setup func(*ui.Context)
+				tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) {
+					if setup != nil {
+						f := setup
+						setup = nil
+						f(c)
+					}
+				})
+				setup = func(c *ui.Context) { c.Resolve(a.contentFocus(c, "name").source).Focus() }
+				tt.Frame()
+				a.Body.Y = 500
+				tt.Frame()
+				before := a.Body.Y
+				if mode {
+					a.toolMode = routeScript
+				} else {
+					a.toolParams[0].Kind = extensions.ParamBoolean
+				}
+				tt.Frame()
+				tt.Frame()
+				if a.Body.Y != before || !tt.Focused(a.copy().LocalToolName) {
+					t.Errorf("background refresh stole surviving focus/scroll: %v -> %v", before, a.Body.Y)
+				}
+				tt.Key(ui.Cmd, ui.KeyA)
+				tt.Type("继续写名称")
+				tt.Frame()
+				if a.toolName != "继续写名称" {
+					t.Error("background refresh lost active edit")
+				}
+			})
+		}
+	}
+}

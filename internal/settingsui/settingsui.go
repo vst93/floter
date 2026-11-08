@@ -5830,9 +5830,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					}
 				}
 				if mode == routeScript {
-					programFocus.restore(c)
+					if programFocus.restore(c) {
+						picker.ScrollIntoView()
+					}
 				} else {
-					scriptFocus.restore(c)
+					if scriptFocus.restore(c) {
+						picker.ScrollIntoView()
+					}
 				}
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldMode)
