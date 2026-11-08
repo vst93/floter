@@ -1,0 +1,122 @@
+=== RUN   TestPluginFieldEdgeToggle
+=== RUN   TestPluginFieldEdgeToggle/light
+    pluginfieldedge_test.go:129: toggle top target={X:500.6 Y:16 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=375.6
+    pluginfieldedge_test.go:129: toggle bottom target={X:500.6 Y:226 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=165.6
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+=== RUN   TestPluginFieldEdgeToggle/dark
+    pluginfieldedge_test.go:129: toggle top target={X:500.6 Y:16 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=375.6
+    pluginfieldedge_test.go:129: toggle bottom target={X:500.6 Y:226 W:32.399998 H:18} viewport={X:0 Y:0 W:560 H:260} scroll=165.6
+    pluginfieldedge_test.go:187: range=587.1999 calls=1
+--- PASS: TestPluginFieldEdgeToggle (0.27s)
+    --- PASS: TestPluginFieldEdgeToggle/light (0.20s)
+    --- PASS: TestPluginFieldEdgeToggle/dark (0.07s)
+=== RUN   TestPluginFieldEdgeSelect
+=== RUN   TestPluginFieldEdgeSelect/light
+    pluginfieldedge_test.go:129: select top target={X:313 Y:14.999994 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=371.7
+    pluginfieldedge_test.go:129: select bottom target={X:313 Y:215.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=171.50002
+    pluginfieldedge_test.go:187: range=589.1999 calls=1
+=== RUN   TestPluginFieldEdgeSelect/dark
+    pluginfieldedge_test.go:129: select top target={X:313 Y:14.999994 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=371.7
+    pluginfieldedge_test.go:129: select bottom target={X:313 Y:215.2 W:220 H:29.8} viewport={X:0 Y:0 W:560 H:260} scroll=171.50002
+    pluginfieldedge_test.go:187: range=589.1999 calls=1
+--- PASS: TestPluginFieldEdgeSelect (0.15s)
+    --- PASS: TestPluginFieldEdgeSelect/light (0.08s)
+    --- PASS: TestPluginFieldEdgeSelect/dark (0.07s)
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.04s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.03s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.01s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.03s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.01s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.02s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.04s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginRefreshOutletRadio
+=== RUN   TestPluginRefreshOutletRadio/light
+    pluginrefreshoutlet_test.go:118: radio failure target={X:28 Y:213.40002 W:504 H:30.6} scroll=224.29999
+    pluginrefreshoutlet_test.go:125: radio heading target={X:28 Y:213.40004 W:504 H:30.6} scroll=257.69998
+    pluginrefreshoutlet_test.go:133: radio recovery target={X:28 Y:16.000011 W:504 H:30.6} scroll=429.3
+=== RUN   TestPluginRefreshOutletRadio/dark
+    pluginrefreshoutlet_test.go:118: radio failure target={X:28 Y:213.40002 W:504 H:30.6} scroll=224.29999
+    pluginrefreshoutlet_test.go:125: radio heading target={X:28 Y:213.40004 W:504 H:30.6} scroll=257.69998
+    pluginrefreshoutlet_test.go:133: radio recovery target={X:28 Y:16.000011 W:504 H:30.6} scroll=429.3
+--- PASS: TestPluginRefreshOutletRadio (0.23s)
+    --- PASS: TestPluginRefreshOutletRadio/light (0.12s)
+    --- PASS: TestPluginRefreshOutletRadio/dark (0.10s)
+=== RUN   TestPluginRefreshOutletCheckboxes
+=== RUN   TestPluginRefreshOutletCheckboxes/light
+    pluginrefreshoutlet_test.go:118: checkboxes failure target={X:28 Y:227.00003 W:504 H:17} scroll=210.69998
+    pluginrefreshoutlet_test.go:125: checkboxes heading target={X:28 Y:227.00005 W:504 H:17} scroll=244.09998
+    pluginrefreshoutlet_test.go:133: checkboxes recovery target={X:28 Y:16.000011 W:504 H:17} scroll=429.3
+=== RUN   TestPluginRefreshOutletCheckboxes/dark
+    pluginrefreshoutlet_test.go:118: checkboxes failure target={X:28 Y:227.00003 W:504 H:17} scroll=210.69998
+    pluginrefreshoutlet_test.go:125: checkboxes heading target={X:28 Y:227.00005 W:504 H:17} scroll=244.09998
+    pluginrefreshoutlet_test.go:133: checkboxes recovery target={X:28 Y:16.000011 W:504 H:17} scroll=429.3
+--- PASS: TestPluginRefreshOutletCheckboxes (0.17s)
+    --- PASS: TestPluginRefreshOutletCheckboxes/light (0.09s)
+    --- PASS: TestPluginRefreshOutletCheckboxes/dark (0.08s)
+=== RUN   TestPluginRefreshOutletText
+=== RUN   TestPluginRefreshOutletText/light
+    pluginrefreshoutlet_test.go:118: text failure target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=217.89998
+    pluginrefreshoutlet_test.go:125: text heading target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=251.29997
+    pluginrefreshoutlet_test.go:133: text recovery target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} scroll=430.3
+=== RUN   TestPluginRefreshOutletText/dark
+    pluginrefreshoutlet_test.go:118: text failure target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=217.89998
+    pluginrefreshoutlet_test.go:125: text heading target={X:36.2 Y:219.80003 W:487.6 H:25.199999} scroll=251.29997
+    pluginrefreshoutlet_test.go:133: text recovery target={X:36.2 Y:15.0000105 W:487.6 H:25.199999} scroll=430.3
+--- PASS: TestPluginRefreshOutletText (0.19s)
+    --- PASS: TestPluginRefreshOutletText/light (0.10s)
+    --- PASS: TestPluginRefreshOutletText/dark (0.10s)
+=== RUN   TestPluginRefreshOutletNumber
+=== RUN   TestPluginRefreshOutletNumber/light
+    pluginrefreshoutlet_test.go:118: number failure target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=193.99998
+    pluginrefreshoutlet_test.go:125: number heading target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=227.39998
+    pluginrefreshoutlet_test.go:133: number recovery target={X:478 Y:15.000007 W:46.8 H:25.199999} scroll=406.4
+=== RUN   TestPluginRefreshOutletNumber/dark
+    pluginrefreshoutlet_test.go:118: number failure target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=193.99998
+    pluginrefreshoutlet_test.go:125: number heading target={X:478 Y:219.80003 W:46.8 H:25.199999} scroll=227.39998
+    pluginrefreshoutlet_test.go:133: number recovery target={X:478 Y:15.000007 W:46.8 H:25.199999} scroll=406.4
+--- PASS: TestPluginRefreshOutletNumber (0.20s)
+    --- PASS: TestPluginRefreshOutletNumber/light (0.10s)
+    --- PASS: TestPluginRefreshOutletNumber/dark (0.10s)
+=== RUN   TestPluginRefreshOutletToggle
+=== RUN   TestPluginRefreshOutletToggle/light
+    pluginrefreshoutlet_test.go:118: toggle failure target={X:500.6 Y:226.00002 W:32.399998 H:18} scroll=191.4
+    pluginrefreshoutlet_test.go:125: toggle heading target={X:500.6 Y:226.00003 W:32.399998 H:18} scroll=224.79999
+    pluginrefreshoutlet_test.go:133: toggle recovery target={X:500.6 Y:16 W:32.399998 H:18} scroll=409
+=== RUN   TestPluginRefreshOutletToggle/dark
+    pluginrefreshoutlet_test.go:118: toggle failure target={X:500.6 Y:226.00002 W:32.399998 H:18} scroll=191.4
+    pluginrefreshoutlet_test.go:125: toggle heading target={X:500.6 Y:226.00003 W:32.399998 H:18} scroll=224.79999
+    pluginrefreshoutlet_test.go:133: toggle recovery target={X:500.6 Y:16 W:32.399998 H:18} scroll=409
+--- PASS: TestPluginRefreshOutletToggle (0.18s)
+    --- PASS: TestPluginRefreshOutletToggle/light (0.09s)
+    --- PASS: TestPluginRefreshOutletToggle/dark (0.09s)
+=== RUN   TestPluginRefreshOutletSelect
+=== RUN   TestPluginRefreshOutletSelect/light
+    pluginrefreshoutlet_test.go:118: select failure target={X:313 Y:215.20001 W:220 H:29.8} scroll=197.3
+    pluginrefreshoutlet_test.go:125: select heading target={X:313 Y:215.20001 W:220 H:29.8} scroll=230.7
+    pluginrefreshoutlet_test.go:133: select recovery target={X:313 Y:14.999994 W:220 H:29.8} scroll=405.1
+=== RUN   TestPluginRefreshOutletSelect/dark
+    pluginrefreshoutlet_test.go:118: select failure target={X:313 Y:215.20001 W:220 H:29.8} scroll=197.3
+    pluginrefreshoutlet_test.go:125: select heading target={X:313 Y:215.20001 W:220 H:29.8} scroll=230.7
+    pluginrefreshoutlet_test.go:133: select recovery target={X:313 Y:14.999994 W:220 H:29.8} scroll=405.1
+--- PASS: TestPluginRefreshOutletSelect (0.21s)
+    --- PASS: TestPluginRefreshOutletSelect/light (0.11s)
+    --- PASS: TestPluginRefreshOutletSelect/dark (0.11s)
+PASS
+ok  	floter/internal/settingsui	1.812s

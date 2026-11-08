@@ -1,0 +1,39 @@
+=== RUN   TestPluginRefreshOutletSlider
+=== RUN   TestPluginRefreshOutletSlider/light
+    pluginrefreshoutlet_test.go:118: slider failure target={X:28 Y:251.80002 W:451.8 H:18} scroll=185.9
+    pluginrefreshoutlet_test.go:118: slider failure refresh hides active ink: {X:28 Y:251.80002 W:451.8 H:18}
+    pluginrefreshoutlet_test.go:125: slider heading target={X:28 Y:285.2 W:451.8 H:18} scroll=185.9
+    pluginrefreshoutlet_test.go:125: slider heading refresh hides active ink: {X:28 Y:285.2 W:451.8 H:18}
+    pluginrefreshoutlet_test.go:133: slider recovery target={X:28 Y:-9.800007 W:451.8 H:18} scroll=455.1
+    pluginrefreshoutlet_test.go:133: slider recovery refresh hides active ink: {X:28 Y:-9.800007 W:451.8 H:18}
+=== RUN   TestPluginRefreshOutletSlider/dark
+    pluginrefreshoutlet_test.go:118: slider failure target={X:28 Y:251.80002 W:451.8 H:18} scroll=185.9
+    pluginrefreshoutlet_test.go:118: slider failure refresh hides active ink: {X:28 Y:251.80002 W:451.8 H:18}
+    pluginrefreshoutlet_test.go:125: slider heading target={X:28 Y:285.2 W:451.8 H:18} scroll=185.9
+    pluginrefreshoutlet_test.go:125: slider heading refresh hides active ink: {X:28 Y:285.2 W:451.8 H:18}
+    pluginrefreshoutlet_test.go:133: slider recovery target={X:28 Y:-9.800007 W:451.8 H:18} scroll=455.1
+    pluginrefreshoutlet_test.go:133: slider recovery refresh hides active ink: {X:28 Y:-9.800007 W:451.8 H:18}
+--- FAIL: TestPluginRefreshOutletSlider (0.25s)
+    --- FAIL: TestPluginRefreshOutletSlider/light (0.18s)
+    --- FAIL: TestPluginRefreshOutletSlider/dark (0.07s)
+=== RUN   TestPluginRefreshOutletAction
+=== RUN   TestPluginRefreshOutletAction/light
+    pluginrefreshoutlet_test.go:118: action failure target={X:473 Y:245.60002 W:60 H:25.199999} scroll=168.2
+    pluginrefreshoutlet_test.go:118: action failure refresh hides active ink: {X:473 Y:245.60002 W:60 H:25.199999}
+    pluginrefreshoutlet_test.go:125: action heading target={X:473 Y:279 W:60 H:25.199999} scroll=168.2
+    pluginrefreshoutlet_test.go:125: action heading refresh hides active ink: {X:473 Y:279 W:60 H:25.199999}
+    pluginrefreshoutlet_test.go:133: action recovery target={X:473 Y:-9.800012 W:60 H:25.199999} scroll=431.2
+    pluginrefreshoutlet_test.go:133: action recovery refresh hides active ink: {X:473 Y:-9.800012 W:60 H:25.199999}
+=== RUN   TestPluginRefreshOutletAction/dark
+    pluginrefreshoutlet_test.go:118: action failure target={X:473 Y:245.60002 W:60 H:25.199999} scroll=168.2
+    pluginrefreshoutlet_test.go:118: action failure refresh hides active ink: {X:473 Y:245.60002 W:60 H:25.199999}
+    pluginrefreshoutlet_test.go:125: action heading target={X:473 Y:279 W:60 H:25.199999} scroll=168.2
+    pluginrefreshoutlet_test.go:125: action heading refresh hides active ink: {X:473 Y:279 W:60 H:25.199999}
+    pluginrefreshoutlet_test.go:133: action recovery target={X:473 Y:-9.800012 W:60 H:25.199999} scroll=431.2
+    pluginrefreshoutlet_test.go:133: action recovery refresh hides active ink: {X:473 Y:-9.800012 W:60 H:25.199999}
+--- FAIL: TestPluginRefreshOutletAction (0.14s)
+    --- FAIL: TestPluginRefreshOutletAction/light (0.07s)
+    --- FAIL: TestPluginRefreshOutletAction/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.396s
+FAIL

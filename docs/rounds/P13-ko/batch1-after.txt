@@ -1,0 +1,26 @@
+=== RUN   TestPluginRefreshOutletRadio
+=== RUN   TestPluginRefreshOutletRadio/light
+    pluginrefreshoutlet_test.go:119: radio failure target={X:28 Y:213.40002 W:504 H:30.6} scroll=224.29999
+    pluginrefreshoutlet_test.go:126: radio heading target={X:28 Y:213.40004 W:504 H:30.6} scroll=257.69998
+    pluginrefreshoutlet_test.go:134: radio recovery target={X:28 Y:16.000011 W:504 H:30.6} scroll=429.3
+=== RUN   TestPluginRefreshOutletRadio/dark
+    pluginrefreshoutlet_test.go:119: radio failure target={X:28 Y:213.40002 W:504 H:30.6} scroll=224.29999
+    pluginrefreshoutlet_test.go:126: radio heading target={X:28 Y:213.40004 W:504 H:30.6} scroll=257.69998
+    pluginrefreshoutlet_test.go:134: radio recovery target={X:28 Y:16.000011 W:504 H:30.6} scroll=429.3
+--- PASS: TestPluginRefreshOutletRadio (0.43s)
+    --- PASS: TestPluginRefreshOutletRadio/light (0.33s)
+    --- PASS: TestPluginRefreshOutletRadio/dark (0.10s)
+=== RUN   TestPluginRefreshOutletCheckboxes
+=== RUN   TestPluginRefreshOutletCheckboxes/light
+    pluginrefreshoutlet_test.go:119: checkboxes failure target={X:28 Y:227.00003 W:43.600006 H:17} scroll=210.69998
+    pluginrefreshoutlet_test.go:126: checkboxes heading target={X:28 Y:227.00005 W:43.600006 H:17} scroll=244.09998
+    pluginrefreshoutlet_test.go:134: checkboxes recovery target={X:28 Y:16.000011 W:43.600006 H:17} scroll=429.3
+=== RUN   TestPluginRefreshOutletCheckboxes/dark
+    pluginrefreshoutlet_test.go:119: checkboxes failure target={X:28 Y:227.00003 W:43.600006 H:17} scroll=210.69998
+    pluginrefreshoutlet_test.go:126: checkboxes heading target={X:28 Y:227.00005 W:43.600006 H:17} scroll=244.09998
+    pluginrefreshoutlet_test.go:134: checkboxes recovery target={X:28 Y:16.000011 W:43.600006 H:17} scroll=429.3
+--- PASS: TestPluginRefreshOutletCheckboxes (0.18s)
+    --- PASS: TestPluginRefreshOutletCheckboxes/light (0.09s)
+    --- PASS: TestPluginRefreshOutletCheckboxes/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	0.631s

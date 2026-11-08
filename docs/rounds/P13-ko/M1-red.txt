@@ -1,0 +1,39 @@
+=== RUN   TestPluginRefreshOutletRadio
+=== RUN   TestPluginRefreshOutletRadio/light
+    pluginrefreshoutlet_test.go:118: radio failure target={X:28 Y:239.20001 W:504 H:30.6} scroll=198.5
+    pluginrefreshoutlet_test.go:118: radio failure refresh hides active ink: {X:28 Y:239.20001 W:504 H:30.6}
+    pluginrefreshoutlet_test.go:125: radio heading target={X:28 Y:272.6 W:504 H:30.6} scroll=198.5
+    pluginrefreshoutlet_test.go:125: radio heading refresh hides active ink: {X:28 Y:272.6 W:504 H:30.6}
+    pluginrefreshoutlet_test.go:133: radio recovery target={X:28 Y:-9.800007 W:504 H:30.6} scroll=455.1
+    pluginrefreshoutlet_test.go:133: radio recovery refresh hides active ink: {X:28 Y:-9.800007 W:504 H:30.6}
+=== RUN   TestPluginRefreshOutletRadio/dark
+    pluginrefreshoutlet_test.go:118: radio failure target={X:28 Y:239.20001 W:504 H:30.6} scroll=198.5
+    pluginrefreshoutlet_test.go:118: radio failure refresh hides active ink: {X:28 Y:239.20001 W:504 H:30.6}
+    pluginrefreshoutlet_test.go:125: radio heading target={X:28 Y:272.6 W:504 H:30.6} scroll=198.5
+    pluginrefreshoutlet_test.go:125: radio heading refresh hides active ink: {X:28 Y:272.6 W:504 H:30.6}
+    pluginrefreshoutlet_test.go:133: radio recovery target={X:28 Y:-9.800007 W:504 H:30.6} scroll=455.1
+    pluginrefreshoutlet_test.go:133: radio recovery refresh hides active ink: {X:28 Y:-9.800007 W:504 H:30.6}
+--- FAIL: TestPluginRefreshOutletRadio (0.45s)
+    --- FAIL: TestPluginRefreshOutletRadio/light (0.32s)
+    --- FAIL: TestPluginRefreshOutletRadio/dark (0.13s)
+=== RUN   TestPluginRefreshOutletCheckboxes
+=== RUN   TestPluginRefreshOutletCheckboxes/light
+    pluginrefreshoutlet_test.go:118: checkboxes failure target={X:28 Y:252.80002 W:504 H:17} scroll=184.9
+    pluginrefreshoutlet_test.go:118: checkboxes failure refresh hides active ink: {X:28 Y:252.80002 W:504 H:17}
+    pluginrefreshoutlet_test.go:125: checkboxes heading target={X:28 Y:286.2 W:504 H:17} scroll=184.9
+    pluginrefreshoutlet_test.go:125: checkboxes heading refresh hides active ink: {X:28 Y:286.2 W:504 H:17}
+    pluginrefreshoutlet_test.go:133: checkboxes recovery target={X:28 Y:-9.800007 W:504 H:17} scroll=455.1
+    pluginrefreshoutlet_test.go:133: checkboxes recovery refresh hides active ink: {X:28 Y:-9.800007 W:504 H:17}
+=== RUN   TestPluginRefreshOutletCheckboxes/dark
+    pluginrefreshoutlet_test.go:118: checkboxes failure target={X:28 Y:252.80002 W:504 H:17} scroll=184.9
+    pluginrefreshoutlet_test.go:118: checkboxes failure refresh hides active ink: {X:28 Y:252.80002 W:504 H:17}
+    pluginrefreshoutlet_test.go:125: checkboxes heading target={X:28 Y:286.2 W:504 H:17} scroll=184.9
+    pluginrefreshoutlet_test.go:125: checkboxes heading refresh hides active ink: {X:28 Y:286.2 W:504 H:17}
+    pluginrefreshoutlet_test.go:133: checkboxes recovery target={X:28 Y:-9.800007 W:504 H:17} scroll=455.1
+    pluginrefreshoutlet_test.go:133: checkboxes recovery refresh hides active ink: {X:28 Y:-9.800007 W:504 H:17}
+--- FAIL: TestPluginRefreshOutletCheckboxes (0.23s)
+    --- FAIL: TestPluginRefreshOutletCheckboxes/light (0.12s)
+    --- FAIL: TestPluginRefreshOutletCheckboxes/dark (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.698s
+FAIL

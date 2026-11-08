@@ -216,3 +216,82 @@ func TestPluginRefreshOutletSlider(t *testing.T) {
 func TestPluginRefreshOutletAction(t *testing.T) {
 	checkPluginRefreshOutlet(t, plugincfg.Action, "action")
 }
+
+func TestPluginRefreshWrappedOptionKeepsItsValue(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := noticeApp(t, dark)
+			sheet := PluginSheet{Schema: &plugincfg.Schema{Plugin: "export", Title: "导出设置", Fields: []plugincfg.Field{{Key: "formats", Kind: plugincfg.Checkboxes, Label: "导出格式"}}}, Values: plugincfg.Values{}}
+			field := &sheet.Schema.Fields[0]
+			for _, value := range []string{"csv", "json", "text", "markdown", "html", "xml", "yaml", "tsv", "log"} {
+				field.Options = append(field.Options, plugincfg.Option{Value: value, Label: "保留完整时间戳和来源的导出格式 " + value})
+			}
+			calls := 0
+			sheet.Change = func(key string, value any) {
+				if key != "formats" {
+					t.Errorf("wrong field %q", key)
+				}
+				calls++
+				sheet.Values[key] = value
+			}
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(a.tokens(c).Theme)
+				c.Root().Background(c.Theme().Background)
+				a.PluginSheet(c, sheet)
+			}, 320, 180)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			tt.Frame()
+			tt.Key(0, ui.KeyTab)
+			tt.Frame()
+			chosen := field.Options[0]
+			if !tt.Focused(chosen.Label) {
+				t.Fatal("cannot focus first option")
+			}
+			maxY := a.PluginScroll.MaxY
+			// Reorder the very same backing slice, then move the focused option back.
+			for _, last := range []bool{true, false} {
+				if last {
+					copy(field.Options, field.Options[1:])
+					field.Options[len(field.Options)-1] = chosen
+				} else {
+					copy(field.Options[1:], field.Options[:len(field.Options)-1])
+					field.Options[0] = chosen
+				}
+				tt.Frame()
+				tt.Frame()
+				if !tt.Focused(chosen.Label) {
+					t.Fatal("reorder lost option identity")
+				}
+				r := mustFind(t, tt, chosen.Label)
+				if r.H != 17 || r.Y-3 < 11 || r.Y+r.H+3 > 169 {
+					t.Errorf("reordered option clipped: %+v", r)
+				}
+				if a.PluginScroll.MaxY != maxY {
+					t.Fatal("reorder changed layout range")
+				}
+				stage := "wrapped-first"
+				if last {
+					stage = "wrapped-last"
+				}
+				pluginRefreshDump(t, tt, stage, dark)
+				tt.Key(0, ui.KeySpace)
+				tt.Frame()
+				if !reflect.DeepEqual(sheet.Values[field.Key], []string{chosen.Value}) {
+					t.Fatalf("Space wrote wrong choice: %v", sheet.Values)
+				}
+				if err := tt.Click(chosen.Label); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				if len(stringsOf(sheet.Values[field.Key])) != 0 {
+					t.Fatal("refresh envelope stole pointer")
+				}
+			}
+			if calls != 4 {
+				t.Fatalf("unexpected writes %d", calls)
+			}
+		})
+	}
+}

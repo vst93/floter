@@ -1,0 +1,39 @@
+=== RUN   TestPluginRefreshOutletText
+=== RUN   TestPluginRefreshOutletText/light
+    pluginrefreshoutlet_test.go:118: text failure target={X:36.2 Y:245.60002 W:487.6 H:25.199999} scroll=192.09999
+    pluginrefreshoutlet_test.go:118: text failure refresh hides active ink: {X:36.2 Y:245.60002 W:487.6 H:25.199999}
+    pluginrefreshoutlet_test.go:125: text heading target={X:36.2 Y:279 W:487.6 H:25.199999} scroll=192.09999
+    pluginrefreshoutlet_test.go:125: text heading refresh hides active ink: {X:36.2 Y:279 W:487.6 H:25.199999}
+    pluginrefreshoutlet_test.go:133: text recovery target={X:36.2 Y:-9.799976 W:487.6 H:25.199999} scroll=455.09998
+    pluginrefreshoutlet_test.go:133: text recovery refresh hides active ink: {X:36.2 Y:-9.799976 W:487.6 H:25.199999}
+=== RUN   TestPluginRefreshOutletText/dark
+    pluginrefreshoutlet_test.go:118: text failure target={X:36.2 Y:245.60002 W:487.6 H:25.199999} scroll=192.09999
+    pluginrefreshoutlet_test.go:118: text failure refresh hides active ink: {X:36.2 Y:245.60002 W:487.6 H:25.199999}
+    pluginrefreshoutlet_test.go:125: text heading target={X:36.2 Y:279 W:487.6 H:25.199999} scroll=192.09999
+    pluginrefreshoutlet_test.go:125: text heading refresh hides active ink: {X:36.2 Y:279 W:487.6 H:25.199999}
+    pluginrefreshoutlet_test.go:133: text recovery target={X:36.2 Y:-9.799976 W:487.6 H:25.199999} scroll=455.09998
+    pluginrefreshoutlet_test.go:133: text recovery refresh hides active ink: {X:36.2 Y:-9.799976 W:487.6 H:25.199999}
+--- FAIL: TestPluginRefreshOutletText (0.22s)
+    --- FAIL: TestPluginRefreshOutletText/light (0.14s)
+    --- FAIL: TestPluginRefreshOutletText/dark (0.08s)
+=== RUN   TestPluginRefreshOutletNumber
+=== RUN   TestPluginRefreshOutletNumber/light
+    pluginrefreshoutlet_test.go:118: number failure target={X:478 Y:245.60002 W:46.8 H:25.199999} scroll=168.2
+    pluginrefreshoutlet_test.go:118: number failure refresh hides active ink: {X:478 Y:245.60002 W:46.8 H:25.199999}
+    pluginrefreshoutlet_test.go:125: number heading target={X:478 Y:279 W:46.8 H:25.199999} scroll=168.2
+    pluginrefreshoutlet_test.go:125: number heading refresh hides active ink: {X:478 Y:279 W:46.8 H:25.199999}
+    pluginrefreshoutlet_test.go:133: number recovery target={X:478 Y:-9.800012 W:46.8 H:25.199999} scroll=431.2
+    pluginrefreshoutlet_test.go:133: number recovery refresh hides active ink: {X:478 Y:-9.800012 W:46.8 H:25.199999}
+=== RUN   TestPluginRefreshOutletNumber/dark
+    pluginrefreshoutlet_test.go:118: number failure target={X:478 Y:245.60002 W:46.8 H:25.199999} scroll=168.2
+    pluginrefreshoutlet_test.go:118: number failure refresh hides active ink: {X:478 Y:245.60002 W:46.8 H:25.199999}
+    pluginrefreshoutlet_test.go:125: number heading target={X:478 Y:279 W:46.8 H:25.199999} scroll=168.2
+    pluginrefreshoutlet_test.go:125: number heading refresh hides active ink: {X:478 Y:279 W:46.8 H:25.199999}
+    pluginrefreshoutlet_test.go:133: number recovery target={X:478 Y:-9.800012 W:46.8 H:25.199999} scroll=431.2
+    pluginrefreshoutlet_test.go:133: number recovery refresh hides active ink: {X:478 Y:-9.800012 W:46.8 H:25.199999}
+--- FAIL: TestPluginRefreshOutletNumber (0.13s)
+    --- FAIL: TestPluginRefreshOutletNumber/light (0.07s)
+    --- FAIL: TestPluginRefreshOutletNumber/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.367s
+FAIL

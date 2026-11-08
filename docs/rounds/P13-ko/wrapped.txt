@@ -1,0 +1,8 @@
+=== RUN   TestPluginRefreshWrappedOptionKeepsItsValue
+=== RUN   TestPluginRefreshWrappedOptionKeepsItsValue/light
+=== RUN   TestPluginRefreshWrappedOptionKeepsItsValue/dark
+--- PASS: TestPluginRefreshWrappedOptionKeepsItsValue (0.11s)
+    --- PASS: TestPluginRefreshWrappedOptionKeepsItsValue/light (0.10s)
+    --- PASS: TestPluginRefreshWrappedOptionKeepsItsValue/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.111s

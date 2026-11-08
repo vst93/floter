@@ -21,7 +21,7 @@
 
 ## 验证
 
-开盘完整verbose正在实跑；尚不以旧报告6570/3553代替本轮实测。逐两项定向测试、包vet通过即提交推送；轮末gofmt、三平台vet/build、普通/verbose全量。旧V/B/S断言零改，新增事件pin断言几何、焦点、写回归属、滚轮自由；深浅before/after真实ui.Tester PNG入/tmp及档案。
+开盘完整verbose实测6570 PASS / 0 FAIL / exit0，按开盘SHA09a47ae4统计3553测试函数。逐两项定向测试、包vet通过即提交推送；轮末gofmt、三平台vet/build、普通/verbose全量。旧V/B/S断言零改，新增事件pin断言几何、焦点、写回归属、滚轮自由；深浅before/after真实ui.Tester PNG入/tmp及档案。
 
 M1撤销Radio/Checkboxes刷新显现；M2撤销文本/数字刷新显现：注入→原始实红→恢复→md5sum -c→touch→复跑。不得放宽边界或跳测。
 
