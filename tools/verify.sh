@@ -11,16 +11,28 @@ mkdir -p "$logs"
 failed=0
 resume=${2:-}
 run() {
-  local name=$1 result
+  local name=$1 result attempt=0
   shift
   # Resume an externally interrupted invocation without repeating green gates.
   if [ "$resume" = --resume ] && [ -f "$logs/$name.exit" ] && [ "$(<"$logs/$name.exit")" = 0 ]; then
     printf 'PASS %-16s %s (completed)\n' "$name" "$logs/$name.log"
     return
   fi
+  if [ -f "$logs/$name.attempts" ]; then
+    read -r attempt <"$logs/$name.attempts"
+  fi
+  if [ "$attempt" -ge 2 ]; then
+    failed=$((failed + 1))
+    printf 'FAIL %-16s retry limit reached | %s/%s.log\n' "$name" "$logs" "$name"
+    return
+  fi
+  attempt=$((attempt + 1))
+  printf '%s\n' "$attempt" >"$logs/$name.attempts"
   "$@" >"$logs/$name.log" 2>&1
   result=$?
   printf '%s\n' "$result" >"$logs/$name.exit"
+  mkdir -p "$logs/attempt$attempt"
+  cp "$logs/$name.log" "$logs/$name.exit" "$logs/attempt$attempt/"
   if [ "$result" -eq 0 ]; then
     printf 'PASS %-16s %s\n' "$name" "$logs/$name.log"
   else

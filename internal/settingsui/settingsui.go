@@ -3155,7 +3155,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				// on every row (the old build's R39).
 				a.sectionHeading(c, copy.IntegrationsCommands, nil)
 				a.sectionHint(c, copy.IntegrationsCommandsHint)
-				a.commandList(c, copy, integration.ID, commands, approvalFeedback(integration), a.permissionFeedback(integration),
+				a.commandList(c, copy, integration.ID, commands, a.integrationLead, approvalFeedback(integration), a.permissionFeedback(integration),
 					strconv.Quote(integration.Description),
 					strconv.FormatBool(integration.Highlighted),
 					a.commandTransferFeedback(copy),
