@@ -385,9 +385,12 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 		// second filled card, so the form read as a bordered box inside the
 		// integration card rather than the reference's flat grid.
 		a.configToolbar(c, copy, integration, draft)
+		feedback := ""
 		for _, field := range integration.Config {
-			grid := a.configField(c, copy, integration, draft, field)
+			grid := a.configField(c, copy, integration, draft, field, feedback)
 			a.rememberOperationFocus(c, integration.ID, "field", grid)
+			feedback += strconv.Quote(field.Label) + strconv.Quote(field.Description) +
+				strconv.Quote(configProblemText(a.configFieldProblem(integration, field), copy))
 		}
 		if a.configError[integration.ID] != "" {
 			// The failure the shell reported on the Save is the reference's own
@@ -396,7 +399,7 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 			a.noticeLine(c, a.configError[integration.ID])
 		}
 		// Keep the actions' identity when a failure notice is inserted above it.
-		a.configActions(c.Key("config.actions"), copy, integration, draft)
+		a.configActions(c.Key("config.actions"), copy, integration, draft, feedback+strconv.Quote(a.configError[integration.ID]))
 	})
 }
 
@@ -529,7 +532,7 @@ func (a *App) noticeLine(c *ui.Context, sentence string) {
 // mark then the word) and whose end is the primary accent Save. It is
 // `justify-content: space-between`, so the two ends answer to the row's own
 // edges rather than to each other.
-func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft) {
+func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft, feedback ...string) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
@@ -542,7 +545,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		// P13-s（§6.2b-6）：`busy` 不再用组透明度：它只传给面，面走 `ControlDim`
 		// 并熄灯，字自己淡到 40%。
 		var defaults ui.Element
-		a.formViewportOutlet(c.Key("config-defaults-outlet"), func() {
+		a.formFeedbackOutlet(c.Key("config-defaults-outlet"), strings.Join(feedback, ""), func() {
 			defaults = a.extensionGlyphActionButton(c, "rotate-ccw", copy.ConfigDefaults,
 				t.Space(7.5), t.Space(3.75), tokens.Body, busy)
 		})
@@ -694,7 +697,7 @@ func configValuesEqual(a, b any) bool {
 // field wears, as the reference's `<b>` did. The 118px column and the 12px/
 // 4px gaps are the panel's literal px, taken through `cardSpace`, so the grid
 // keeps one geometry at every interface step.
-func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredLabel, hint string, control func() ui.Element) ui.Element {
+func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredLabel, hint string, control func() ui.Element, feedback ...string) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	grid := ui.Grid(c).FillWidth().
@@ -721,7 +724,7 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 		ui.Column(c).ColumnStart(2).MinWidth(0).Children(func() {
 			// Reveal the field beyond the page fade on entry. A list keeps its
 			// separate inner scroll position while its whole box becomes visible.
-			a.formViewportOutlet(c.Key("config-control-outlet"), func() { control() })
+			a.formFeedbackOutlet(c.Key("config-control-outlet"), strings.Join(feedback, ""), func() { control() })
 		})
 		if field.Description != "" {
 			ui.Text(c, field.Description).FontSize(tokens.Caption).FontWeight(500).
@@ -770,7 +773,7 @@ func (a *App) configSelectFace(c *ui.Context, e ui.Element, lit bool) ui.Element
 // old port drew each field as a settings row (label left, control right, the
 // description under the *label*), so a form's controls did not share one
 // column and the description sat on the wrong side of the field.
-func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft, field ConfigField) ui.Element {
+func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft, field ConfigField, feedback ...string) ui.Element {
 	// A schema reorder moves the field, not its keyboard selection or history.
 	kind := strings.ToLower(field.Type)
 	if draft.kinds == nil {
@@ -811,6 +814,9 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	}
 	locked := a.configLocked(integration.ID)
 	var grid ui.Element
+	fieldGrid := func(c *ui.Context, field ConfigField, label, requiredLabel, hint string, control func() ui.Element) ui.Element {
+		return a.configFieldGrid(c, field, label, requiredLabel, hint, control, feedback...)
+	}
 
 	switch kind {
 	case "boolean":
@@ -819,7 +825,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			on = value
 		}
 		changed := false
-		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
+		grid = fieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := a.switchControl(c, &on).Label(label)
 			if locked {
 				// P13-t（`docs/rounds/P13-t-spec.md`）：一道淡，不是两道——见
@@ -843,7 +849,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		current, _ := draft.values[field.Key].(string)
 		selected := configChoice{value: current, none: current == "" && !field.Required}
 		changed := false
-		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
+		grid = fieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := valueSelect(c, &selected, labels, values, current, a.tokens(c), !locked && len(values) > 0).Label(label).FillWidth().Radius(999)
 			e = a.configSelectFace(c, e, !locked && len(values) > 0)
 			if locked {
@@ -886,7 +892,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		// and the 66px floor — holding the tick options as rows inside it, rather
 		// than the loose ruled rows the old port drew. A list box reads as one
 		// control, which is what the reference's `select[multiple]` is.
-		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
+		grid = fieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			marker := ui.Box(c).Absolute().Size(0, 0).PassThrough()
 			focus := ui.Local(marker, "option.focus", func() ui.Handle { return ui.Handle{} })
 			hadFocus := focus.FocusWithin(c)
@@ -944,7 +950,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		}
 		edit := draft.liveText(field, value)
 		problem := configProblemText(a.configFieldProblem(integration, field), copy)
-		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
+		grid = fieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
 			e := a.extensionFieldLit(c, &edit, configFieldMetrics, !locked).Placeholder(field.Key).Label(label).FillWidth()
 			if problem != "" {
 				// The reference handed the bounds to the native control and let
@@ -1004,7 +1010,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		value, _ := draft.values[field.Key].(string)
 		edit := draft.liveText(field, value)
 		problem := configProblemText(a.configFieldProblem(integration, field), copy)
-		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
+		grid = fieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
 			e := a.extensionFieldLit(c, &edit, configFieldMetrics, !locked).Placeholder(field.Key).Label(label).FillWidth()
 			if kind == "password" {
 				e = e.Password()
