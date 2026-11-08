@@ -5890,7 +5890,10 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// The content actions sit where the reference put them: after the
 			// script box and the fields, before the output row
 			// (`CustomIntegrationDrawer.tsx:145-146`).
-			a.toolContentActions(c, copy, mode, command, program, args, script, language)
+			if !a.toolContentActions(c, copy, mode, command, program, args, script, language) {
+				interrupted = true
+				return
+			}
 			a.row(c.Key("local-output"), copy.LocalToolOutput, "", func() {
 				index := 0
 				if a.toolOutput == routeBackground {
@@ -6104,7 +6107,7 @@ func (a *App) toolIssueUnder(c *ui.Context, copy i18n.Settings, issues []extensi
 // write is otherwise silent. The value copied is read at press time from the
 // form's current draft, so it is what the user sees now rather than what the
 // form opened with.
-func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, command, program, args, script, language string) {
+func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, command, program, args, script, language string) bool {
 	// A confirmation ends with its operation group. Returning to the other
 	// kind of tool must not revive a copy from before the switch.
 	if (mode == routeScript && a.copiedContent != "script") || (mode != routeScript && a.copiedContent == "script") {
@@ -6112,18 +6115,24 @@ func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, comman
 		a.copiedContentUntil = time.Time{}
 	}
 	t := a.cardTheme(c)
+	current := true
 	a.actionRow(c, func() {
 		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 			if mode == routeScript {
-				a.contentAction(c, "script", copy.LocalToolCopyScript, copy.LocalToolScriptCopied, script)
-				a.exportScriptAction(c, copy, command, script, language)
+				current = a.contentAction(c, "script", copy.LocalToolCopyScript, copy.LocalToolScriptCopied, script)
+				if current {
+					current = a.exportScriptAction(c, copy, command, script, language)
+				}
 				return
 			}
-			a.contentAction(c, "command", copy.LocalToolCopyCommand, copy.LocalToolCommandCopied, strings.TrimSpace(command))
-			a.contentAction(c, "plan", copy.LocalToolCopyPlan, copy.LocalToolPlanCopied,
-				executionPlanJSON(program, args))
+			current = a.contentAction(c, "command", copy.LocalToolCopyCommand, copy.LocalToolCommandCopied, strings.TrimSpace(command))
+			if current {
+				current = a.contentAction(c, "plan", copy.LocalToolCopyPlan, copy.LocalToolPlanCopied,
+					executionPlanJSON(program, args))
+			}
 		})
 	})
+	return current
 }
 
 // exportScriptAction draws the reference's "Export script" button: the second
@@ -6131,15 +6140,18 @@ func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, comman
 // the user picks (`ExtensionsPanel.tsx:1951-1964`). It is absent when the host
 // wired no exporter, and inert while the script is blank — the reference
 // mounted it always but the write would have produced an empty file.
-func (a *App) exportScriptAction(c *ui.Context, copy i18n.Settings, command, script, language string) {
+func (a *App) exportScriptAction(c *ui.Context, copy i18n.Settings, command, script, language string) bool {
 	focus := a.contentFocus(c, "export")
 	if a.Actions.ExportScript == nil || strings.TrimSpace(script) == "" {
 		focus.restore(c)
-		return
+		return true
 	}
 	if a.rememberModeContent(c, true, a.actionButton(c, copy.LocalToolExportScript).Bind(&focus.button)).Clicked() {
+		before := a.toolCallbackState()
 		a.Actions.ExportScript(scriptExportName(a.toolEditing, command, language), script)
+		return a.toolCallbackState() == before
 	}
+	return true
 }
 
 // scriptExportName is the file name the save dialog offers for a script: the
@@ -6170,7 +6182,7 @@ func scriptExportName(id, command, language string) string {
 // 导出胶囊 x=305.0 → 315.0（10px）。一次状态反馈不许改动这一行的布局。
 // 现在胶囊的地板取两句里**更宽**的那一句（`MeasureText` 画的同一支画笔、同一档
 // 字号与字重），确认语换上时盒子一个像素都不动。
-func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
+func (a *App) contentAction(c *ui.Context, action, label, done, value string) bool {
 	// A sibling may disappear when its value is blank. Its position is not
 	// this operation's identity: focus and Enter must keep their own action.
 	c = c.Key(action)
@@ -6182,7 +6194,7 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
 		a.copiedContent, a.copiedContentValue = "", ""
 	}
 	if strings.TrimSpace(value) == "" {
-		return
+		return true
 	}
 	copied := a.contentCopied(action, c.Now())
 	if copied {
@@ -6191,7 +6203,7 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
 	floor := a.contentActionFloor(c, label, done)
 	if a.Actions.CopyText == nil {
 		a.disabledActionButton(c, label).MinWidth(floor)
-		return
+		return true
 	}
 	if copied {
 		label = done
@@ -6200,17 +6212,18 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
 	a.rememberModeContent(c, action == "script", button)
 	if button.Clicked() {
 		if a.Actions.CopyText != nil {
-			form, open := a.toolFormKey, a.toolOpen
+			before := a.toolCallbackState()
 			a.Actions.CopyText(value)
 			// A clipboard callback can open another tool before returning.
 			// Its success belongs to the form that supplied these bytes.
-			if a.toolFormKey != form || a.toolOpen != open || a.Actions.CopyText == nil {
-				return
+			if a.toolCallbackState() != before || a.Actions.CopyText == nil {
+				return false
 			}
 			a.copiedContent, a.copiedContentUntil = action, c.Now().Add(copiedContentDuration)
 			a.copiedContentValue = value
 		}
 	}
+	return true
 }
 
 // contentActionFloor is the width a copy pill keeps across its two states: the

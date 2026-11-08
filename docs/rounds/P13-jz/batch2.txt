@@ -1,0 +1,179 @@
+=== RUN   TestContentRecoveryEmptyScriptCopy
+=== RUN   TestContentRecoveryEmptyScriptCopy/light
+=== RUN   TestContentRecoveryEmptyScriptCopy/dark
+--- PASS: TestContentRecoveryEmptyScriptCopy (0.37s)
+    --- PASS: TestContentRecoveryEmptyScriptCopy/light (0.30s)
+    --- PASS: TestContentRecoveryEmptyScriptCopy/dark (0.07s)
+=== RUN   TestContentRecoveryEmptyScriptExport
+=== RUN   TestContentRecoveryEmptyScriptExport/light
+=== RUN   TestContentRecoveryEmptyScriptExport/dark
+--- PASS: TestContentRecoveryEmptyScriptExport (0.13s)
+    --- PASS: TestContentRecoveryEmptyScriptExport/light (0.07s)
+    --- PASS: TestContentRecoveryEmptyScriptExport/dark (0.06s)
+=== RUN   TestContentRecoveryPlanCommandEmpty
+=== RUN   TestContentRecoveryPlanCommandEmpty/light
+=== RUN   TestContentRecoveryPlanCommandEmpty/dark
+--- PASS: TestContentRecoveryPlanCommandEmpty (0.30s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/light (0.15s)
+    --- PASS: TestContentRecoveryPlanCommandEmpty/dark (0.15s)
+=== RUN   TestContentRecoveryPlanCommandRestored
+=== RUN   TestContentRecoveryPlanCommandRestored/light
+=== RUN   TestContentRecoveryPlanCommandRestored/dark
+--- PASS: TestContentRecoveryPlanCommandRestored (0.30s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/light (0.16s)
+    --- PASS: TestContentRecoveryPlanCommandRestored/dark (0.15s)
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/light
+=== RUN   TestCopyLifecycleNewEditorRejectsOldSuccess/dark
+--- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess (0.19s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/light (0.10s)
+    --- PASS: TestCopyLifecycleNewEditorRejectsOldSuccess/dark (0.09s)
+=== RUN   TestCopyLifecycleUnavailableContentIsInert
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/light
+=== RUN   TestCopyLifecycleUnavailableContentIsInert/dark
+--- PASS: TestCopyLifecycleUnavailableContentIsInert (0.13s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/light (0.07s)
+    --- PASS: TestCopyLifecycleUnavailableContentIsInert/dark (0.07s)
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/light/plan
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/command
+=== RUN   TestCopyLifecycleProgramModeRetiresSuccess/dark/plan
+--- PASS: TestCopyLifecycleProgramModeRetiresSuccess (0.44s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/command (0.11s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/light/plan (0.11s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/command (0.11s)
+    --- PASS: TestCopyLifecycleProgramModeRetiresSuccess/dark/plan (0.11s)
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/light/script
+=== RUN   TestCopyLifecycleScriptModeRetiresSuccess/dark/script
+--- PASS: TestCopyLifecycleScriptModeRetiresSuccess (0.27s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/light/script (0.13s)
+    --- PASS: TestCopyLifecycleScriptModeRetiresSuccess/dark/script (0.14s)
+=== RUN   TestCopyLifecycleFoldRetiresSuccess
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/light
+=== RUN   TestCopyLifecycleFoldRetiresSuccess/dark
+--- PASS: TestCopyLifecycleFoldRetiresSuccess (0.25s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/light (0.13s)
+    --- PASS: TestCopyLifecycleFoldRetiresSuccess/dark (0.13s)
+=== RUN   TestCopyLifecyclePageRetiresSuccess
+=== RUN   TestCopyLifecyclePageRetiresSuccess/light
+=== RUN   TestCopyLifecyclePageRetiresSuccess/dark
+--- PASS: TestCopyLifecyclePageRetiresSuccess (0.50s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/light (0.27s)
+    --- PASS: TestCopyLifecyclePageRetiresSuccess/dark (0.22s)
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/light
+=== RUN   TestCopyLifecycleAboutUnavailableIsInert/dark
+--- PASS: TestCopyLifecycleAboutUnavailableIsInert (0.08s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/light (0.05s)
+    --- PASS: TestCopyLifecycleAboutUnavailableIsInert/dark (0.04s)
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/light
+=== RUN   TestCopyLifecycleAboutPageRetiresSuccess/dark
+--- PASS: TestCopyLifecycleAboutPageRetiresSuccess (0.27s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/light (0.13s)
+    --- PASS: TestCopyLifecycleAboutPageRetiresSuccess/dark (0.14s)
+=== RUN   TestContentRecoveryModeOutput
+=== RUN   TestContentRecoveryModeOutput/light
+=== RUN   TestContentRecoveryModeOutput/dark
+--- PASS: TestContentRecoveryModeOutput (0.09s)
+    --- PASS: TestContentRecoveryModeOutput/light (0.04s)
+    --- PASS: TestContentRecoveryModeOutput/dark (0.04s)
+=== RUN   TestContentRecoveryModePlatform
+=== RUN   TestContentRecoveryModePlatform/light
+=== RUN   TestContentRecoveryModePlatform/dark
+--- PASS: TestContentRecoveryModePlatform (0.08s)
+    --- PASS: TestContentRecoveryModePlatform/light (0.05s)
+    --- PASS: TestContentRecoveryModePlatform/dark (0.03s)
+=== RUN   TestContentRecoveryModeAdvanced
+=== RUN   TestContentRecoveryModeAdvanced/light
+=== RUN   TestContentRecoveryModeAdvanced/dark
+--- PASS: TestContentRecoveryModeAdvanced (0.27s)
+    --- PASS: TestContentRecoveryModeAdvanced/light (0.13s)
+    --- PASS: TestContentRecoveryModeAdvanced/dark (0.14s)
+=== RUN   TestToolCallbackPickerKeepsNewDraft
+=== RUN   TestToolCallbackPickerKeepsNewDraft/light
+=== RUN   TestToolCallbackPickerKeepsNewDraft/dark
+--- PASS: TestToolCallbackPickerKeepsNewDraft (0.17s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/light (0.09s)
+    --- PASS: TestToolCallbackPickerKeepsNewDraft/dark (0.08s)
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/light
+=== RUN   TestToolCallbackPickerKeepsClosedDraftEmpty/dark
+--- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty (0.16s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/light (0.08s)
+    --- PASS: TestToolCallbackPickerKeepsClosedDraftEmpty/dark (0.08s)
+=== RUN   TestToolCallbackSaveKeepsNewEditor
+=== RUN   TestToolCallbackSaveKeepsNewEditor/light
+=== RUN   TestToolCallbackSaveKeepsNewEditor/dark
+--- PASS: TestToolCallbackSaveKeepsNewEditor (0.15s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/light (0.07s)
+    --- PASS: TestToolCallbackSaveKeepsNewEditor/dark (0.07s)
+=== RUN   TestToolCallbackConnectKeepsNewEditor
+=== RUN   TestToolCallbackConnectKeepsNewEditor/light
+=== RUN   TestToolCallbackConnectKeepsNewEditor/dark
+--- PASS: TestToolCallbackConnectKeepsNewEditor (0.12s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/light (0.06s)
+    --- PASS: TestToolCallbackConnectKeepsNewEditor/dark (0.06s)
+=== RUN   TestToolCallbackLookupKeepsNewEditor
+=== RUN   TestToolCallbackLookupKeepsNewEditor/light
+=== RUN   TestToolCallbackLookupKeepsNewEditor/dark
+--- PASS: TestToolCallbackLookupKeepsNewEditor (0.15s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/light (0.08s)
+    --- PASS: TestToolCallbackLookupKeepsNewEditor/dark (0.08s)
+=== RUN   TestToolCallbackLookupRechecksEligibility
+=== RUN   TestToolCallbackLookupRechecksEligibility/light
+=== RUN   TestToolCallbackLookupRechecksEligibility/dark
+--- PASS: TestToolCallbackLookupRechecksEligibility (0.10s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/light (0.05s)
+    --- PASS: TestToolCallbackLookupRechecksEligibility/dark (0.05s)
+=== RUN   TestLocalToolFormCopiesItsContent
+--- PASS: TestLocalToolFormCopiesItsContent (0.23s)
+=== RUN   TestLocalToolFormCopiesTheScript
+    toolcontent_test.go:145: copied script = "#!/usr/bin/env node\n\n// Floter provider script\n// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n// Read them with process.argv.slice(2).\n// 编辑器里声明的参数会作为 argv 传入，可用 process.argv.slice(2) 读取。\n"
+--- PASS: TestLocalToolFormCopiesTheScript (0.19s)
+=== RUN   TestLocalToolFormExportsTheScript
+--- PASS: TestLocalToolFormExportsTheScript (0.19s)
+=== RUN   TestToolCurrentPickerDraft
+=== RUN   TestToolCurrentPickerDraft/light/mode
+=== RUN   TestToolCurrentPickerDraft/light/fields
+=== RUN   TestToolCurrentPickerDraft/light/clear
+=== RUN   TestToolCurrentPickerDraft/dark/mode
+=== RUN   TestToolCurrentPickerDraft/dark/fields
+=== RUN   TestToolCurrentPickerDraft/dark/clear
+--- PASS: TestToolCurrentPickerDraft (0.45s)
+    --- PASS: TestToolCurrentPickerDraft/light/mode (0.07s)
+    --- PASS: TestToolCurrentPickerDraft/light/fields (0.08s)
+    --- PASS: TestToolCurrentPickerDraft/light/clear (0.08s)
+    --- PASS: TestToolCurrentPickerDraft/dark/mode (0.07s)
+    --- PASS: TestToolCurrentPickerDraft/dark/fields (0.08s)
+    --- PASS: TestToolCurrentPickerDraft/dark/clear (0.08s)
+=== RUN   TestToolCurrentPickerErrorKeyboard
+=== RUN   TestToolCurrentPickerErrorKeyboard/light
+=== RUN   TestToolCurrentPickerErrorKeyboard/dark
+--- PASS: TestToolCurrentPickerErrorKeyboard (0.13s)
+    --- PASS: TestToolCurrentPickerErrorKeyboard/light (0.07s)
+    --- PASS: TestToolCurrentPickerErrorKeyboard/dark (0.07s)
+=== RUN   TestToolCurrentCopyDraft
+=== RUN   TestToolCurrentCopyDraft/light/command
+=== RUN   TestToolCurrentCopyDraft/light/plan
+=== RUN   TestToolCurrentCopyDraft/light/script
+=== RUN   TestToolCurrentCopyDraft/dark/command
+=== RUN   TestToolCurrentCopyDraft/dark/plan
+=== RUN   TestToolCurrentCopyDraft/dark/script
+--- PASS: TestToolCurrentCopyDraft (0.59s)
+    --- PASS: TestToolCurrentCopyDraft/light/command (0.10s)
+    --- PASS: TestToolCurrentCopyDraft/light/plan (0.10s)
+    --- PASS: TestToolCurrentCopyDraft/light/script (0.09s)
+    --- PASS: TestToolCurrentCopyDraft/dark/command (0.10s)
+    --- PASS: TestToolCurrentCopyDraft/dark/plan (0.10s)
+    --- PASS: TestToolCurrentCopyDraft/dark/script (0.09s)
+=== RUN   TestToolCurrentExportDraft
+=== RUN   TestToolCurrentExportDraft/light
+=== RUN   TestToolCurrentExportDraft/dark
+--- PASS: TestToolCurrentExportDraft (0.18s)
+    --- PASS: TestToolCurrentExportDraft/light (0.09s)
+    --- PASS: TestToolCurrentExportDraft/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	6.502s

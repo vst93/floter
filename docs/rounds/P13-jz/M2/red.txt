@@ -1,0 +1,45 @@
+=== RUN   TestToolCurrentCopyDraft
+=== RUN   TestToolCurrentCopyDraft/light/command
+    toolcurrentcontent_test.go:37: command copy rewound newer draft: name="weather" command="weather" script=""
+    toolcurrentcontent_test.go:40: command copy confirmed stale bytes
+    toolcurrentcontent_test.go:44: ui: no element shows "复制命令"
+=== RUN   TestToolCurrentCopyDraft/light/plan
+    toolcurrentcontent_test.go:37: plan copy rewound newer draft: name="weather" command="weather" script=""
+    toolcurrentcontent_test.go:40: plan copy confirmed stale bytes
+    toolcurrentcontent_test.go:44: ui: no element shows "复制执行计划"
+=== RUN   TestToolCurrentCopyDraft/light/script
+    toolcurrentcontent_test.go:37: script copy rewound newer draft: name="weather" command="weather" script="print('old')\n"
+    toolcurrentcontent_test.go:40: script copy confirmed stale bytes
+    toolcurrentcontent_test.go:44: ui: no element shows "复制脚本内容"
+=== RUN   TestToolCurrentCopyDraft/dark/command
+    toolcurrentcontent_test.go:37: command copy rewound newer draft: name="weather" command="weather" script=""
+    toolcurrentcontent_test.go:40: command copy confirmed stale bytes
+    toolcurrentcontent_test.go:44: ui: no element shows "复制命令"
+=== RUN   TestToolCurrentCopyDraft/dark/plan
+    toolcurrentcontent_test.go:37: plan copy rewound newer draft: name="weather" command="weather" script=""
+    toolcurrentcontent_test.go:40: plan copy confirmed stale bytes
+    toolcurrentcontent_test.go:44: ui: no element shows "复制执行计划"
+=== RUN   TestToolCurrentCopyDraft/dark/script
+    toolcurrentcontent_test.go:37: script copy rewound newer draft: name="weather" command="weather" script="print('old')\n"
+    toolcurrentcontent_test.go:40: script copy confirmed stale bytes
+    toolcurrentcontent_test.go:44: ui: no element shows "复制脚本内容"
+--- FAIL: TestToolCurrentCopyDraft (0.54s)
+    --- FAIL: TestToolCurrentCopyDraft/light/command (0.27s)
+    --- FAIL: TestToolCurrentCopyDraft/light/plan (0.05s)
+    --- FAIL: TestToolCurrentCopyDraft/light/script (0.05s)
+    --- FAIL: TestToolCurrentCopyDraft/dark/command (0.06s)
+    --- FAIL: TestToolCurrentCopyDraft/dark/plan (0.05s)
+    --- FAIL: TestToolCurrentCopyDraft/dark/script (0.05s)
+=== RUN   TestToolCurrentExportDraft
+=== RUN   TestToolCurrentExportDraft/light
+    toolcurrentcontent_test.go:80: export rewound newer draft: command="weather" script="print('old')\n"
+    toolcurrentcontent_test.go:87: exports lost click snapshots: names=["weather-script.py" "weather-script.py"] contents=["print('old')\n" "print('old')\n"]
+=== RUN   TestToolCurrentExportDraft/dark
+    toolcurrentcontent_test.go:80: export rewound newer draft: command="weather" script="print('old')\n"
+    toolcurrentcontent_test.go:87: exports lost click snapshots: names=["weather-script.py" "weather-script.py"] contents=["print('old')\n" "print('old')\n"]
+--- FAIL: TestToolCurrentExportDraft (0.15s)
+    --- FAIL: TestToolCurrentExportDraft/light (0.08s)
+    --- FAIL: TestToolCurrentExportDraft/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	0.706s
+FAIL

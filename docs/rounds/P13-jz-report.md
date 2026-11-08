@@ -27,3 +27,12 @@
 2. **选择器错误键盘断路**：现象→报错后焦点仍在选择按钮，直接输入丢失；改动→保留一次既有警告并返回原程序输入，沿用焦点归属检查；验证→Tab/Enter触发权限错误后直接全选键入，路径成为/usr/bin/retry，深浅均通过。
 
 M1撤回两处保护后实红`picker rewound newer mode`、`picker rewound newer fields`、`picker refilled cleared path`、`picker error lost editable exit`、`picker error dropped keyboard correction`。MD5还原并touch后定向26 PASS / 0 FAIL / exit0，vet exit0；旧V/B/S断言修改0/0/0，无新增Skip。
+
+第一批d80da969已推送。
+
+### 第二批
+
+3. **复制把旧内容确认到新草稿**：现象→复制期间更新命令/执行计划/脚本，旧帧覆盖新输入且显示已复制；改动→三类内容操作统一复核原始草稿，失效后停止旧帧写回与确认；验证→三个真实复制按钮分别触发同步更新，深浅均保留全部新字段、没有旧确认，再次复制严格得到新内容。
+4. **导出后新脚本倒退**：现象→导出回调期间修改命令/脚本，回到表单又变旧，第二次导出仍是旧快照；改动→导出返回也复核草稿并停止旧帧写回，已派发内容不变；验证→连续两次导出分别为weather-script.py/旧脚本和forecast-script.py/新脚本，两套外观均严格相等。
+
+第二批与既有回调/复制生命周期/内容出口回归88 PASS / 0 FAIL / exit0，vet exit0。M2退回仅校验form身份，实红`command/plan/script copy rewound newer draft`、`copy confirmed stale bytes`、`export rewound newer draft`；MD5还原并touch后88 PASS / exit0。旧V/B/S断言修改0/0/0、新增Skip0。
