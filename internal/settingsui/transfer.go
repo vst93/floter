@@ -54,6 +54,34 @@ type ExcludedField struct {
 	FieldCount  int
 }
 
+// commandTransferFeedback observes only the report's visible content. Paths
+// and excluded-field counts are tooltip details and must not reclaim scrolling.
+func (a *App) commandTransferFeedback(copy i18n.Settings) string {
+	report := a.TransferReport
+	if report == nil {
+		return ""
+	}
+	var feedback strings.Builder
+	for _, excluded := range report.ExcludedFields {
+		feedback.WriteString(strconv.Quote(excluded.ExtensionID))
+	}
+	feedback.WriteByte(0)
+	if len(report.Failed) == 0 || report.Succeeded > 0 || report.Skipped > 0 {
+		feedback.WriteString(strconv.Quote(copy.IntegrationsImportSummary(report.Succeeded, report.Skipped)))
+	}
+	feedback.WriteByte(0)
+	for _, failure := range report.Failed {
+		feedback.WriteString(strconv.Quote(failure.ID))
+		feedback.WriteString(strconv.Quote(failure.Reason))
+	}
+	feedback.WriteByte(0)
+	for _, skipped := range report.SkippedDetails {
+		feedback.WriteString(strconv.Quote(skipped.ID))
+		feedback.WriteString(strconv.Quote(skipped.Reason))
+	}
+	return feedback.String()
+}
+
 // transferReport draws what the last import did: the excluded-fields warning,
 // then the summary of a clean run or the failure detail.
 func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {

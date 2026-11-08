@@ -2006,7 +2006,9 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 				a.emptyState(c, "package", copy.IntegrationsEmpty, "", a.cardSpace(t, 5), 0, false, nil)
 				return
 			}
-			a.extensionSection(c, copy.IntegrationsInstalled, len(integrations), func() {
+			// The report above can appear or disappear without replacing the
+			// installed list or its focused command editors.
+			a.extensionSection(c.Key("installed-integrations"), copy.IntegrationsInstalled, len(integrations), func() {
 				occurrences := make(map[string]int)
 				for _, integration := range integrations {
 					// Refreshes can reorder or insert rows while an answer holds
@@ -3147,6 +3149,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				a.commandList(c, copy, integration.ID, commands, approvalFeedback(integration), a.permissionFeedback(integration),
 					strconv.Quote(integration.Description),
 					strconv.FormatBool(integration.Highlighted),
+					a.commandTransferFeedback(copy),
 					strconv.FormatBool(hasFreshness),
 					strconv.FormatBool(hasFreshness && freshness.Source == extensions.FreshnessHealth),
 					strconv.FormatBool(!integration.Orphan && (configOwnerIsHost(integration) || configOwnerIsTool(integration))),

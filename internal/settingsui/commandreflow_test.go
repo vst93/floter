@@ -120,9 +120,16 @@ func checkCommandReflow(t *testing.T, control, source string) {
 				case "highlight":
 					in.Highlighted = step%2 == 0
 				case "transfer-report":
-					a.TransferReport = nil
-					if step%2 == 0 {
+					switch step {
+					case 0:
 						a.TransferReport = &ImportReport{Path: "/tmp/weather.json", Failed: []TransferFailure{{ID: in.ID, Reason: strings.Repeat("导入失败，请检查网络后重试。\n", 8)}}}
+					case 1:
+						a.TransferReport.Failed[0].Reason = "目录权限不足"
+						a.TransferReport.SkippedDetails = []TransferFailure{{ID: "local-weather", Reason: "已连接相同工具"}}
+					case 2:
+						a.TransferReport = nil
+					case 3:
+						a.TransferReport = &ImportReport{Succeeded: 1, ExcludedFields: []ExcludedField{{ExtensionID: in.ID, FieldCount: 1}}}
 					}
 				case "freshness":
 					hasFreshness = step%2 == 0
@@ -240,6 +247,15 @@ func checkCommandReflow(t *testing.T, control, source string) {
 			before := a.Body.Y
 			freshness.AtSeconds++
 			in.Name = strings.Repeat("更新后的天气查询工具名称", 20)
+			if a.TransferReport != nil {
+				copy := *a.TransferReport
+				copy.Path = "/tmp/another-backup.json"
+				copy.ExcludedFields = append([]ExcludedField(nil), copy.ExcludedFields...)
+				for i := range copy.ExcludedFields {
+					copy.ExcludedFields[i].FieldCount++
+				}
+				a.TransferReport = &copy
+			}
 			count := 2
 			freshness.CommandCount = &count
 			in.Config = append([]ConfigField(nil), in.Config...)
@@ -326,3 +342,10 @@ func TestCommandSwitchConfigErrorReflow(t *testing.T) {
 
 func TestCommandAliasHighlightReflow(t *testing.T)  { checkCommandReflow(t, "alias", "highlight") }
 func TestCommandSwitchHighlightReflow(t *testing.T) { checkCommandReflow(t, "switch", "highlight") }
+
+func TestCommandAliasTransferReportReflow(t *testing.T) {
+	checkCommandReflow(t, "alias", "transfer-report")
+}
+func TestCommandSwitchTransferReportReflow(t *testing.T) {
+	checkCommandReflow(t, "switch", "transfer-report")
+}
