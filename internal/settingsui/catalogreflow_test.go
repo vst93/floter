@@ -28,17 +28,30 @@ func catalogReflowDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 // Drive the same focused outlet through insertion, in-place edits, removal,
 // and restoration of the content preceding it. Pointer replacement alone
 // must not reclaim scrolling; neither may a hidden synthesized command.
-func checkCatalogReflow(t *testing.T, scenario, kind string) {
+func checkCatalogReflow(t *testing.T, scenario, kind string, lead ...string) {
 	t.Helper()
 	sources := []string{"approval"}
 	if strings.HasPrefix(scenario, "run-") {
 		sources = append(sources, "commands")
+	}
+	if len(lead) > 0 {
+		sources = lead
 	}
 	for _, source := range sources {
 		t.Run(source, func(t *testing.T) {
 			for _, dark := range []bool{false, true} {
 				t.Run(appearanceName(dark), func(t *testing.T) {
 					a, in := runVisibilityApp(t, dark)
+					var recommended []RecommendedTool
+					var detected []DetectedTool
+					if source == "recommended" {
+						a.Recommended = func() []RecommendedTool { return recommended }
+						a.Actions.ConnectRecommended = func(string) { t.Error("unexpected install") }
+					}
+					if source == "detected" {
+						a.Actions.Detected = func() []DetectedTool { return detected }
+						a.Actions.ConnectDetected = func(DetectedTool) { t.Error("unexpected connect") }
+					}
 					label, calls := a.copy().RunLabel, 0
 					a.Actions.RunWithParams = func(id string, values map[string]string) *extensions.ParamFailure {
 						calls++
@@ -122,6 +135,20 @@ func checkCatalogReflow(t *testing.T, scenario, kind string) {
 							case 2:
 								in.Commands = nil
 							}
+						} else if source == "recommended" || source == "detected" || source == "local" {
+							description := "查询附近城市天气"
+							if step == 1 {
+								description = strings.Repeat("未来一周的温度、降水与出行提示。\n", 12)
+							}
+							recommended = []RecommendedTool{{ID: "nearby", Name: "周边天气", Description: description}}
+							detected = []DetectedTool{{Name: "周边天气", Path: "/usr/bin/nearby", Description: description, RuntimeAvailable: true}}
+							if source == "local" {
+								a.Actions.ConnectLocalTool = func(CustomTool) { t.Error("unexpected local connect") }
+							}
+							if step == 2 {
+								recommended, detected = nil, nil
+								a.Actions.ConnectLocalTool = nil
+							}
 						} else {
 							switch step {
 							case 0, 3:
@@ -138,6 +165,9 @@ func checkCatalogReflow(t *testing.T, scenario, kind string) {
 						// Two representative states suffice to judge the visual change.
 						if step == 0 && kind == "text" && (scenario == "run-controls" && source == "commands" || scenario == "config-fields") {
 							catalogReflowDump(t, tt, scenario+"-"+source, dark)
+						}
+						if step == 1 && source == "recommended" && scenario == "run-controls" && kind == "text" {
+							leadReflowDump(t, tt, dark)
 						}
 						checkFeedbackVisible(t, tt, label)
 					}
@@ -209,6 +239,10 @@ func checkCatalogReflow(t *testing.T, scenario, kind string) {
 						in.Approval = &copy
 					}
 					in.Commands = append(in.Commands, Command{ID: "hidden-editor", Description: "not declared"})
+					// Equal values in fresh slices and hidden installed recommendations
+					// must not claim the scroll wheel after the reveal.
+					recommended = append(append([]RecommendedTool(nil), recommended...), RecommendedTool{ID: "hidden", Name: "已安装", Description: "隐藏推荐", Installed: true})
+					detected = append([]DetectedTool(nil), detected...)
 					tt.Frame()
 					tt.Frame()
 					if a.Body.Y != manual {

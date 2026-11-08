@@ -1009,6 +1009,10 @@ type App struct {
 	// TransferReport is what the last import did; nil until one runs, and
 	// cleared when the next transfer starts (the reference's `importReport`).
 	TransferReport *ImportReport
+	// Visible sections before the installed list can move its active forms.
+	// Rebuilt while drawing; hidden recommendations and callback addresses
+	// do not contribute, so equal refreshes preserve manual scrolling.
+	integrationLead string
 
 	// Sidebar holds the page list's identity, its choice and its focus.
 	Sidebar ui.ListState
@@ -1971,6 +1975,7 @@ func sessionMeta(session Session) []rowSegment {
 // it can take.
 func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
+	a.integrationLead = ""
 	integrations := a.installedIntegrations()
 	a.restoreMissingNoticeFocus(c, integrations)
 	a.pageColumn(c, func() {
@@ -2212,6 +2217,10 @@ func (a *App) recommendedRow(c *ui.Context, copy i18n.Settings) {
 	}
 	if len(pending) == 0 {
 		return
+	}
+	a.integrationLead += "recommended:"
+	for _, tool := range pending {
+		a.integrationLead += strconv.Quote(tool.Name) + strconv.Quote(tool.Description)
 	}
 	a.section(c, copy.IntegrationsRecommended, copy.IntegrationsRecommendedHint, func() {
 		a.card(c, func() {
@@ -5810,6 +5819,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 	if a.Actions.ConnectLocalTool == nil {
 		return
 	}
+	a.integrationLead += "local:"
 	if a.toolFormKey == nil {
 		a.toolFormKey = new(int)
 	}
@@ -7076,6 +7086,10 @@ func (a *App) detectedSection(c *ui.Context, copy i18n.Settings) {
 	if len(tools) == 0 {
 		return
 	}
+	a.integrationLead += "detected:"
+	for _, tool := range tools {
+		a.integrationLead += strconv.Quote(tool.Name) + strconv.Quote(tool.Description) + strconv.Quote(tool.Path)
+	}
 	a.extensionSection(c, copy.DetectedTitle, len(tools), func() {
 		a.extensionHint(c, copy.DetectedHint)
 		a.card(c, func() {
@@ -8045,7 +8059,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					on := truthyValue(values[param.ID])
 					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var sw ui.Element
-						a.formFeedbackOutlet(c.Key("run-switch-outlet"), feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() {
+						a.formFeedbackOutlet(c.Key("run-switch-outlet"), a.integrationLead+feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() {
 							sw = a.switchControl(c, &on).Label(label)
 							bindFocus(sw)
 						})
@@ -8074,7 +8088,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					}
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						var picker ui.Element
-						a.formFeedbackOutlet(c.Key("run-select-outlet"), feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() {
+						a.formFeedbackOutlet(c.Key("run-select-outlet"), a.integrationLead+feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() {
 							picker = a.segmentedControlKeyed(c, &index, param.Options, keys)
 							bindFocus(picker)
 						})
@@ -8096,7 +8110,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 								lockedControl(input.TextColor(a.tokens(c).Disabled))
 							}
 						}
-						a.formFeedbackOutlet(c.Key("run-input-outlet"), feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), draw)
+						a.formFeedbackOutlet(c.Key("run-input-outlet"), a.integrationLead+feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), draw)
 					}, below...)
 					if !locked {
 						values[param.ID] = value
