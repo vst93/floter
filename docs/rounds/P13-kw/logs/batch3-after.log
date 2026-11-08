@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasApprovalReflow
+=== RUN   TestCommandAliasApprovalReflow/light
+=== RUN   TestCommandAliasApprovalReflow/dark
+--- PASS: TestCommandAliasApprovalReflow (0.12s)
+    --- PASS: TestCommandAliasApprovalReflow/light (0.08s)
+    --- PASS: TestCommandAliasApprovalReflow/dark (0.03s)
+=== RUN   TestCommandSwitchApprovalReflow
+=== RUN   TestCommandSwitchApprovalReflow/light
+=== RUN   TestCommandSwitchApprovalReflow/dark
+--- PASS: TestCommandSwitchApprovalReflow (0.06s)
+    --- PASS: TestCommandSwitchApprovalReflow/light (0.03s)
+    --- PASS: TestCommandSwitchApprovalReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.179s

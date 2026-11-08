@@ -1,0 +1,4 @@
+error: patch failed: internal/settingsui/settingsui.go:26
+error: internal/settingsui/settingsui.go: patch does not apply
+error: patch failed: internal/settingsui/disablebar_test.go:213
+error: internal/settingsui/disablebar_test.go: patch does not apply

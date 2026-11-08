@@ -1,0 +1,19 @@
+=== RUN   TestCommandAliasCatalogReflow
+=== RUN   TestCommandAliasCatalogReflow/light
+    commandreflow_test.go:105: writes=0, want exactly one
+=== RUN   TestCommandAliasCatalogReflow/dark
+    commandreflow_test.go:105: writes=0, want exactly one
+--- FAIL: TestCommandAliasCatalogReflow (0.16s)
+    --- FAIL: TestCommandAliasCatalogReflow/light (0.12s)
+    --- FAIL: TestCommandAliasCatalogReflow/dark (0.04s)
+=== RUN   TestCommandAliasOrderReflow
+=== RUN   TestCommandAliasOrderReflow/light
+    commandreflow_test.go:105: writes=0, want exactly one
+=== RUN   TestCommandAliasOrderReflow/dark
+    commandreflow_test.go:105: writes=0, want exactly one
+--- FAIL: TestCommandAliasOrderReflow (0.07s)
+    --- FAIL: TestCommandAliasOrderReflow/light (0.03s)
+    --- FAIL: TestCommandAliasOrderReflow/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.234s
+FAIL

@@ -1,0 +1,27 @@
+=== RUN   TestCommandAliasApprovalReflow
+=== RUN   TestCommandAliasApprovalReflow/light
+    commandreflow_test.go:97: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:686 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:97: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:790 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:97: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:686 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasApprovalReflow/dark
+    commandreflow_test.go:97: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:686 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:97: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:790 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:97: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:686 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasApprovalReflow (0.16s)
+    --- FAIL: TestCommandAliasApprovalReflow/light (0.13s)
+    --- FAIL: TestCommandAliasApprovalReflow/dark (0.03s)
+=== RUN   TestCommandSwitchApprovalReflow
+=== RUN   TestCommandSwitchApprovalReflow/light
+    commandreflow_test.go:97: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:664 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:97: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:768 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:97: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:664 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandSwitchApprovalReflow/dark
+    commandreflow_test.go:97: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:664 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:97: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:768 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:97: feedback reflow hides active outlet "Enable 天气预报 in the launcher": target={X:649.4 Y:664 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandSwitchApprovalReflow (0.05s)
+    --- FAIL: TestCommandSwitchApprovalReflow/light (0.02s)
+    --- FAIL: TestCommandSwitchApprovalReflow/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.213s
+FAIL

@@ -1,0 +1,35 @@
+=== RUN   TestCommandAliasCatalogReflow
+=== RUN   TestCommandAliasCatalogReflow/light
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:624 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:495 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:624 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:495 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:105: writes=0, want exactly one
+=== RUN   TestCommandAliasCatalogReflow/dark
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:624 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:495 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:624 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:495 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:105: writes=0, want exactly one
+--- FAIL: TestCommandAliasCatalogReflow (0.16s)
+    --- FAIL: TestCommandAliasCatalogReflow/light (0.12s)
+    --- FAIL: TestCommandAliasCatalogReflow/dark (0.04s)
+=== RUN   TestCommandAliasOrderReflow
+=== RUN   TestCommandAliasOrderReflow/light
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:1527 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:495 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:1527 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:495 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:105: writes=0, want exactly one
+=== RUN   TestCommandAliasOrderReflow/dark
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:1527 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:495 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:1527 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:93: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:495 W:473 H:25} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:105: writes=0, want exactly one
+--- FAIL: TestCommandAliasOrderReflow (0.05s)
+    --- FAIL: TestCommandAliasOrderReflow/light (0.02s)
+    --- FAIL: TestCommandAliasOrderReflow/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.213s
+FAIL

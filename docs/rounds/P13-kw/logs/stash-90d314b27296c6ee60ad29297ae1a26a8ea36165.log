@@ -1,0 +1,6 @@
+error: patch failed: internal/launcher/search.go:657
+error: internal/launcher/search.go: patch does not apply
+error: patch failed: internal/launcher/launcher.go:431
+error: internal/launcher/launcher.go: patch does not apply
+error: patch failed: internal/launcher/actionbar.go:93
+error: internal/launcher/actionbar.go: patch does not apply

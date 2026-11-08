@@ -1,0 +1,23 @@
+=== RUN   TestCommandAliasCatalogReflow
+=== RUN   TestCommandAliasCatalogReflow/light
+    commandreflow_test.go:100: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:605 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:100: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:605 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasCatalogReflow/dark
+    commandreflow_test.go:100: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:605 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:100: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:605 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasCatalogReflow (0.20s)
+    --- FAIL: TestCommandAliasCatalogReflow/light (0.16s)
+    --- FAIL: TestCommandAliasCatalogReflow/dark (0.04s)
+=== RUN   TestCommandAliasOrderReflow
+=== RUN   TestCommandAliasOrderReflow/light
+    commandreflow_test.go:100: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:1508 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:100: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:1508 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestCommandAliasOrderReflow/dark
+    commandreflow_test.go:100: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:1508 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    commandreflow_test.go:100: feedback reflow hides active outlet "Alias for 天气预报": target={X:208.8 Y:1508 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestCommandAliasOrderReflow (0.05s)
+    --- FAIL: TestCommandAliasOrderReflow/light (0.03s)
+    --- FAIL: TestCommandAliasOrderReflow/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.256s
+FAIL

@@ -1,0 +1,14 @@
+=== RUN   TestCommandAliasCatalogReflow
+=== RUN   TestCommandAliasCatalogReflow/light
+=== RUN   TestCommandAliasCatalogReflow/dark
+--- PASS: TestCommandAliasCatalogReflow (0.19s)
+    --- PASS: TestCommandAliasCatalogReflow/light (0.16s)
+    --- PASS: TestCommandAliasCatalogReflow/dark (0.03s)
+=== RUN   TestCommandAliasOrderReflow
+=== RUN   TestCommandAliasOrderReflow/light
+=== RUN   TestCommandAliasOrderReflow/dark
+--- PASS: TestCommandAliasOrderReflow (0.07s)
+    --- PASS: TestCommandAliasOrderReflow/light (0.03s)
+    --- PASS: TestCommandAliasOrderReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.261s

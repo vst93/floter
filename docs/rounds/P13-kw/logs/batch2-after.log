@@ -1,0 +1,26 @@
+=== RUN   TestCommandAliasCatalogReflow
+=== RUN   TestCommandAliasCatalogReflow/light
+=== RUN   TestCommandAliasCatalogReflow/dark
+--- PASS: TestCommandAliasCatalogReflow (0.18s)
+    --- PASS: TestCommandAliasCatalogReflow/light (0.15s)
+    --- PASS: TestCommandAliasCatalogReflow/dark (0.03s)
+=== RUN   TestCommandAliasOrderReflow
+=== RUN   TestCommandAliasOrderReflow/light
+=== RUN   TestCommandAliasOrderReflow/dark
+--- PASS: TestCommandAliasOrderReflow (0.07s)
+    --- PASS: TestCommandAliasOrderReflow/light (0.04s)
+    --- PASS: TestCommandAliasOrderReflow/dark (0.03s)
+=== RUN   TestCommandSwitchCatalogReflow
+=== RUN   TestCommandSwitchCatalogReflow/light
+=== RUN   TestCommandSwitchCatalogReflow/dark
+--- PASS: TestCommandSwitchCatalogReflow (0.05s)
+    --- PASS: TestCommandSwitchCatalogReflow/light (0.03s)
+    --- PASS: TestCommandSwitchCatalogReflow/dark (0.03s)
+=== RUN   TestCommandSwitchOrderReflow
+=== RUN   TestCommandSwitchOrderReflow/light
+=== RUN   TestCommandSwitchOrderReflow/dark
+--- PASS: TestCommandSwitchOrderReflow (0.06s)
+    --- PASS: TestCommandSwitchOrderReflow/light (0.03s)
+    --- PASS: TestCommandSwitchOrderReflow/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.365s
