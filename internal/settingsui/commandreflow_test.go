@@ -323,3 +323,6 @@ func TestCommandAliasConfigErrorReflow(t *testing.T) { checkCommandReflow(t, "al
 func TestCommandSwitchConfigErrorReflow(t *testing.T) {
 	checkCommandReflow(t, "switch", "config-error")
 }
+
+func TestCommandAliasHighlightReflow(t *testing.T)  { checkCommandReflow(t, "alias", "highlight") }
+func TestCommandSwitchHighlightReflow(t *testing.T) { checkCommandReflow(t, "switch", "highlight") }
