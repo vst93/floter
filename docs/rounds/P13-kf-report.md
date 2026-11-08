@@ -39,3 +39,10 @@
 6. 正在阅读的集成从列表移除，输出未登记退出路径 → 纳入现有missing-notice恢复登记 → 深浅Close持焦可用，原结果记录不删除。
 
 第三批累计18 PASS / 0 FAIL，settingsui vet净。首次夹具漏接Actions.Close，不作为产品证据；接回真实页面出口后M2回注第二批产品，四场景实红`retired output lost page keyboard exit`，两产品文件MD5还原、touch后18 PASS。V/B/S旧断言0/0/0。
+
+第三批4ee579c0已推送。
+
+7. 新运行以前次结果为前缀或完全相同，复制会沿用前次选区 → 每次SetRunResult给予正文独立身份，当前读者焦点交接到新正文 → 深浅×相同/前缀四场景复制前残余选区为0；重新全选复制完整新结果，普通重绘保留当前选区。
+8. 截断标记新增或撤回会改变头部槽位，收起键失焦 → 收起键使用独立稳定身份 → 深浅×标记增删四场景保留原焦点，Enter恰好收起。
+
+第四批累计43 PASS / 0 FAIL（含14个用户已转移到Close的保护场景），settingsui vet净、gofmt空。M3回注第三批产品，八个场景实红`new run inherited previous result selection`或`run outlet outside viewport: label="收起输出" focused=false`；MD5还原、touch后43 PASS。旧V/B/S断言0/0/0。

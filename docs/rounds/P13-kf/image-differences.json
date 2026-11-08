@@ -1,0 +1,22 @@
+{
+  "expand/light": 46630,
+  "collapse/light": 2164,
+  "external-fold/light": 0,
+  "empty-result/light": 0,
+  "orphan/light": 0,
+  "removed/light": 0,
+  "new-result/light": 16664,
+  "same-result/light": 16664,
+  "truncation-added/light": 234,
+  "truncation-removed/light": 234,
+  "expand/dark": 46602,
+  "collapse/dark": 2164,
+  "external-fold/dark": 0,
+  "empty-result/dark": 0,
+  "orphan/dark": 0,
+  "removed/dark": 0,
+  "new-result/dark": 16688,
+  "same-result/dark": 16688,
+  "truncation-added/dark": 236,
+  "truncation-removed/dark": 236
+}

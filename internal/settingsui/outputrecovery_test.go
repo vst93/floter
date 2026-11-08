@@ -169,3 +169,110 @@ func checkOutputOwnerRetirement(t *testing.T, removed bool) {
 
 func TestOutputRecoveryOrphan(t *testing.T)  { checkOutputOwnerRetirement(t, false) }
 func TestOutputRecoveryRemoved(t *testing.T) { checkOutputOwnerRetirement(t, true) }
+
+func TestOutputRecoveryNewResultSelection(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, same := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/same=%v", appearanceName(dark), same), func(t *testing.T) {
+				a, in, tt, _ := outputRecoveryApp(t, dark, true)
+				old := outputRecoveryRead(t, a, in, tt)
+				fresh, name := old+"下一次运行：湿度 65%\n", "new-result"
+				if same {
+					fresh, name = old, "same-result"
+				}
+				a.SetRunResult(in.ID, RunResult{Stdout: fresh, Success: true})
+				tt.Frame()
+				tt.Frame()
+				outputRecoveryDump(t, tt, name, dark)
+				tt.SetClipboard("untouched")
+				tt.Command("copy")
+				if tt.Clipboard() != "untouched" {
+					t.Fatal("new run inherited previous result selection")
+				}
+				if !tt.Focused(fresh) {
+					t.Fatal("new result lost active reader")
+				}
+				tt.Command("selectAll")
+				tt.Command("copy")
+				if tt.Clipboard() != fresh {
+					t.Fatal("new result cannot select and copy complete text")
+				}
+				tt.Frame()
+				tt.SetClipboard("untouched")
+				tt.Command("copy")
+				if tt.Clipboard() != fresh {
+					t.Fatal("repaint erased current selection")
+				}
+			})
+		}
+	}
+}
+
+func TestOutputRecoveryTruncationRefresh(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, truncated := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/truncated=%v", appearanceName(dark), truncated), func(t *testing.T) {
+				a, in, tt, viewport := outputRecoveryApp(t, dark, true)
+				result, _ := a.LastRun(in.ID)
+				result.Truncated = truncated
+				a.SetRunResult(in.ID, result)
+				tt.Frame()
+				optionExitFocus(t, tt, a.copy().RunHideOutput)
+				result.Truncated = !truncated
+				a.SetRunResult(in.ID, result)
+				tt.Frame()
+				tt.Frame()
+				name := "truncation-added"
+				if truncated {
+					name = "truncation-removed"
+				}
+				outputRecoveryDump(t, tt, name, dark)
+				runVisible(t, a, tt, a.copy().RunHideOutput, *viewport)
+				tt.Key(0, ui.KeyEnter)
+				tt.Frame()
+				if a.outputOpen[in.ID] {
+					t.Fatal("truncation refresh broke close action")
+				}
+			})
+		}
+	}
+}
+
+func TestOutputRecoveryDoesNotReclaimOtherFocus(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, change := range []string{"expand", "fold", "empty", "orphan", "removed", "result", "truncated"} {
+			t.Run(appearanceName(dark)+"/"+change, func(t *testing.T) {
+				a, in, tt, _ := outputRecoveryApp(t, dark, change != "expand")
+				a.Actions.Close = func() {}
+				tt.Frame()
+				optionExitFocus(t, tt, a.copy().Close)
+				a.Body.Y = 100
+				tt.Frame()
+				switch change {
+				case "expand":
+					a.setRunOutputOpen(in.ID, true)
+				case "fold":
+					a.setRunOutputOpen(in.ID, false)
+				case "empty":
+					a.SetRunResult(in.ID, RunResult{Success: false})
+				case "orphan":
+					in.Orphan = true
+				case "removed":
+					rows := a.Integrations()[1:]
+					a.Integrations = func() []Integration { return rows }
+				case "result":
+					a.SetRunResult(in.ID, RunResult{Stdout: "new result", Success: false})
+				case "truncated":
+					result, _ := a.LastRun(in.ID)
+					result.Truncated = true
+					a.SetRunResult(in.ID, result)
+				}
+				tt.Frame()
+				tt.Frame()
+				if !tt.Focused(a.copy().Close) || a.Body.Y != 100 {
+					t.Fatalf("%s refresh reclaimed other focus or scroll: Y=%v", change, a.Body.Y)
+				}
+			})
+		}
+	}
+}

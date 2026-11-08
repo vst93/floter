@@ -1,0 +1,31 @@
+=== RUN   TestOutputRecoveryNewResultSelection
+=== RUN   TestOutputRecoveryNewResultSelection/light/same=false
+    outputrecovery_test.go:190: new run inherited previous result selection
+=== RUN   TestOutputRecoveryNewResultSelection/light/same=true
+    outputrecovery_test.go:190: new run inherited previous result selection
+=== RUN   TestOutputRecoveryNewResultSelection/dark/same=false
+    outputrecovery_test.go:190: new run inherited previous result selection
+=== RUN   TestOutputRecoveryNewResultSelection/dark/same=true
+    outputrecovery_test.go:190: new run inherited previous result selection
+--- FAIL: TestOutputRecoveryNewResultSelection (0.33s)
+    --- FAIL: TestOutputRecoveryNewResultSelection/light/same=false (0.22s)
+    --- FAIL: TestOutputRecoveryNewResultSelection/light/same=true (0.04s)
+    --- FAIL: TestOutputRecoveryNewResultSelection/dark/same=false (0.04s)
+    --- FAIL: TestOutputRecoveryNewResultSelection/dark/same=true (0.04s)
+=== RUN   TestOutputRecoveryTruncationRefresh
+=== RUN   TestOutputRecoveryTruncationRefresh/light/truncated=false
+    outputrecovery_test.go:230: run outlet outside viewport: label="收起输出" focused=false rect={X:655.8 Y:490 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=40.5
+=== RUN   TestOutputRecoveryTruncationRefresh/light/truncated=true
+    outputrecovery_test.go:230: run outlet outside viewport: label="收起输出" focused=false rect={X:655.8 Y:490 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=40.5
+=== RUN   TestOutputRecoveryTruncationRefresh/dark/truncated=false
+    outputrecovery_test.go:230: run outlet outside viewport: label="收起输出" focused=false rect={X:655.8 Y:490 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=40.5
+=== RUN   TestOutputRecoveryTruncationRefresh/dark/truncated=true
+    outputrecovery_test.go:230: run outlet outside viewport: label="收起输出" focused=false rect={X:655.8 Y:490 W:30 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=40.5
+--- FAIL: TestOutputRecoveryTruncationRefresh (0.13s)
+    --- FAIL: TestOutputRecoveryTruncationRefresh/light/truncated=false (0.03s)
+    --- FAIL: TestOutputRecoveryTruncationRefresh/light/truncated=true (0.03s)
+    --- FAIL: TestOutputRecoveryTruncationRefresh/dark/truncated=false (0.03s)
+    --- FAIL: TestOutputRecoveryTruncationRefresh/dark/truncated=true (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.469s
+FAIL

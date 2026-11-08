@@ -790,6 +790,7 @@ type App struct {
 	runOutputs   map[string]RunResult
 	outputOpen   map[string]bool
 	outputScroll map[string]*ui.ScrollState
+	outputKeys   map[string]*int // each completed run owns its selectable document
 
 	// The local-tool form's draft: what the user has typed, and the
 	// permissions they have ticked. It lives on the panel so a keystroke
@@ -7708,6 +7709,10 @@ func (a *App) SetRunResult(id string, result RunResult) {
 		a.runOutputs = map[string]RunResult{}
 	}
 	a.runOutputs[id] = result
+	if a.outputKeys == nil {
+		a.outputKeys = map[string]*int{}
+	}
+	a.outputKeys[id] = new(int)
 	// A result is a new document. Repaints and disclosure toggles retain the
 	// reading position; replacing this integration's capture starts at its head.
 	if scroll := a.outputScroll[id]; scroll != nil {
@@ -8225,7 +8230,7 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 							TextColor(tokens.TextTertiary)
 					}
 					ui.Row(c).Grow(1)
-					close := a.extensionIconButton(c, "chevron-down", copy.RunHideOutput, false)
+					close := a.extensionIconButton(c.Key("run-output-close"), "chevron-down", copy.RunHideOutput, false)
 					focus := a.noticeFocus(c, integration.ID, "output")
 					close.Bind(&focus.confirm)
 					if focus.cancel.Focused(c) {
@@ -8262,6 +8267,7 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 						FillWidth().MaxHeight(t.Space(45)).Children(func() {
 						view := launcher.OutputView{Text: ansi.Plain(result.Text()), Spans: ansi.Parse(result.Text())}
 						reader := a.noticeFocus(c, integration.ID, "output-text")
+						reading := reader.panel.Focused(c)
 						if view.Text == "" {
 							if reader.panel.Focused(c) {
 								c.Resolve(a.noticeFocus(c, integration.ID, "output").confirm).Focus().ScrollIntoView()
@@ -8269,10 +8275,13 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 							a.runOutputAside(c, tokens, copy.RunNoOutput, false)
 							return
 						}
-						ui.RichText(c, view.TextSpans(tokens.Appearance, tokens.TextStrong, tokens.Caption)...).
+						text := ui.RichText(c.Key(a.outputKeys[integration.ID]), view.TextSpans(tokens.Appearance, tokens.TextStrong, tokens.Caption)...).
 							Bind(&reader.panel).
 							Font(runOutputFont).FontSize(tokens.Caption).
 							TextColor(tokens.TextStrong).LineHeight(1.45).Wrap().Selectable()
+						if reading && !text.Focused() {
+							text.Focus()
+						}
 					})
 					// 底色是**不透明**的合成面：`runOutputFace` 是 `Sunken`，一枚跟着透明度滑块走
 					// 的薄罩（`ui.Color.Alpha` 是**乘**，所以把薄罩直接交给 `ScrollEdge`，0.85 会
