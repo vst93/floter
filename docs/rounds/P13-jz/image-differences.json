@@ -169,12 +169,12 @@
   },
   {
     "name": "picker-clear-dark",
-    "changed_pixels": 6662,
+    "changed_pixels": 1702,
     "bounds": [
-      35,
+      383,
       212,
       623,
-      562
+      242
     ],
     "size": [
       720,
@@ -183,12 +183,12 @@
   },
   {
     "name": "picker-clear-light",
-    "changed_pixels": 6655,
+    "changed_pixels": 1703,
     "bounds": [
-      35,
+      383,
       212,
       623,
-      562
+      242
     ],
     "size": [
       720,
@@ -197,12 +197,12 @@
   },
   {
     "name": "picker-error-dark",
-    "changed_pixels": 7465,
+    "changed_pixels": 2505,
     "bounds": [
-      35,
+      383,
       209,
       689,
-      562
+      245
     ],
     "size": [
       720,
@@ -211,12 +211,12 @@
   },
   {
     "name": "picker-error-light",
-    "changed_pixels": 7430,
+    "changed_pixels": 2478,
     "bounds": [
-      35,
+      383,
       209,
       689,
-      562
+      245
     ],
     "size": [
       720,
@@ -225,12 +225,12 @@
   },
   {
     "name": "picker-fields-dark",
-    "changed_pixels": 7891,
+    "changed_pixels": 2931,
     "bounds": [
-      35,
+      383,
       113,
       623,
-      562
+      505
     ],
     "size": [
       720,
@@ -239,12 +239,12 @@
   },
   {
     "name": "picker-fields-light",
-    "changed_pixels": 7884,
+    "changed_pixels": 2932,
     "bounds": [
-      35,
+      383,
       113,
       623,
-      562
+      505
     ],
     "size": [
       720,
@@ -281,7 +281,7 @@
   },
   {
     "name": "picker-mode-dark",
-    "changed_pixels": 112631,
+    "changed_pixels": 111441,
     "bounds": [
       20,
       157,
@@ -295,7 +295,7 @@
   },
   {
     "name": "picker-mode-light",
-    "changed_pixels": 111523,
+    "changed_pixels": 110289,
     "bounds": [
       20,
       157,

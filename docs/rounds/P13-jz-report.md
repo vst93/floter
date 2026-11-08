@@ -54,3 +54,87 @@ M1撤回两处保护后实红`picker rewound newer mode`、`picker rewound newer
 8. **跨页返回后复制确认复活**：现象→导航清除的已复制状态被旧回调重新点亮；改动→内容操作也验证页面代次；验证→真实侧栏往返后无旧确认，新的复制恰一次成功，两套外观通过。
 
 第四批新旧定向回归100 PASS / 0 FAIL / exit0、vet exit0。M4固定页面代次为0，实红`picker page accepted departed result`与`copy revived after page departure`；MD5还原并touch后6 PASS / exit0。八项已分别复现，不将夹具错误计为缺陷；旧V/B/S断言修改0/0/0、新增Skip0。
+
+第四批82a691f5已推送；四批每两项完成即提交。
+
+## 偷了什么
+
+实际读取qiaomu-design SKILL、user-preferences、craft-loop、preflight、chinese-typography，另按功能表单需要读Carbon模式和Apple DESIGN供体。唯一方向为轻便液态玻璃，采用已有方向打磨路径。Apple的单一交互蓝、8px矩形控件半径、平面/浮层阴影职责映射本仓token；不把Apple网页字号或负字距移植到中文表单。
+
+- 从craft-loop工艺密度菜单**#3品牌focus环**取“状态对应可操作输入”，落成错误后**1个程序输入焦点、额外等待0ms**；沿用原accent墨。
+- 从**#4签名交互**取“反馈有明确归属”，落成**1次操作只确认1份仍有效的草稿**；退出后晚返回确认**0次**，原复制确认时长**1600ms**不变。
+- 从**#12材质细节**取“材质服务可用状态”，沿用**1px受光边、0层新增阴影/玻璃**；内容过期就撤销确认，不加一层说明卡或通知。
+
+用户修已有功能与不扩张要求优先，不为凑满五项工艺增加装饰。**这轮为什么更轻、更有空间感**：焦点回到可编辑字段，反馈只依附当前有效内容，退出的表单不被旧操作重新点亮，底/面/浮无需新增层就能表达真实状态。
+
+## 两轮图像复核
+
+第一轮四视角记录：艺术总监看到旧“已复制”占据新草稿的动作位；工程师看到回调返回把新字段退回旧值；任务用户看到跨页回来仍接收旧选择；读者看到错误后蓝环留在按钮而无法直接修订路径。第二轮只收敛这四处：草稿归属、确认归属、退出代次、错误焦点。
+
+Linux ui.Tester的720×1500原始帧，另一个960×1600视图用于真实侧栏事件。48张原始PNG、24组深浅对照、4张最近邻4×局部；放大图用于检查边与焦点，不冒充原生高DPI。长画布是测试观察范围，不改产品高度链。
+
+肉眼复核：浅色错误图蓝环从“选择”按钮回到路径槽；深色模式图保留Python脚本和新内容；浅色导出图保留forecast与print('new')；折叠/导航图里的旧“命令已复制”恢复为正常操作标签，程序路径保持weather。框与受光边没有新增层。首两项初版before夹具的CopyText可用性与after不同，已用同一最终夹具和Go overlay重渲染；未修改工作树源码，MD5均OK，原五类断言仍实红。最终24组均有像素变化，最小**532像素**，见image-differences.json。再次查看4×错误出口，仅路径/选择按钮焦点有变化，无关复制按钮已保持一致。
+
+| 项 | 浅色对照 | 深色对照 |
+| --- | --- | --- |
+| 1 新草稿 | [图](P13-jz/picker-fields-light-comparison.png) | [图](P13-jz/picker-fields-dark-comparison.png) |
+| 2 错误键盘出口 | [图](P13-jz/picker-error-light-comparison.png) | [图](P13-jz/picker-error-dark-comparison.png) |
+| 3 复制归属 | [图](P13-jz/copy-command-light-comparison.png) | [图](P13-jz/copy-command-dark-comparison.png) |
+| 4 导出归属 | [图](P13-jz/export-draft-light-comparison.png) | [图](P13-jz/export-draft-dark-comparison.png) |
+| 5 折叠选择 | [图](P13-jz/picker-fold-light-comparison.png) | [图](P13-jz/picker-fold-dark-comparison.png) |
+| 6 折叠复制 | [图](P13-jz/copy-fold-light-comparison.png) | [图](P13-jz/copy-fold-dark-comparison.png) |
+| 7 导航选择 | [图](P13-jz/picker-page-light-comparison.png) | [图](P13-jz/picker-page-dark-comparison.png) |
+| 8 导航复制 | [图](P13-jz/copy-page-light-comparison.png) | [图](P13-jz/copy-page-dark-comparison.png) |
+
+## Preflight A / B / C / D2
+
+| 项 | 结论 |
+| --- | --- |
+| A1 渐变/纯黑/霓虹/渐变字 | 无新增，近黑/浅色token沿用 |
+| A2 非系统字体 | 中文系统字体优先，不套网页换字体规则 |
+| A3 斜体 | 无新增 |
+| A4 Hero | 不适用，原生设置表单 |
+| A5 三等分/万能卡片 | 无新增卡片 |
+| A6 假数据 | 产品无假指标，weather/forecast是隔离测试输入 |
+| A7 空词 | i18n零改，无新增产品文案 |
+| A8 眉批 | 无新增 |
+| A9 标题 | 既有标题完整可见 |
+| A10 Bento | 不适用 |
+| A11 装饰竖线 | 无新增 |
+| B1 读取/拨盘 | 3/2/7与已有功能表单一致 |
+| B2 主题 | 深浅分别设置，单图无混用 |
+| B3 记忆点 | 回来仍是当前草稿，旧反馈不复活 |
+| B4 动效气质 | 即时更新，无新动画 |
+| C1 目的/频率 | 键盘操作无额外动画 |
+| C2 all/ease-in/scale(0)/fade | 无新增 |
+| C3 时长/按压 | 新过渡0ms，复制确认仍1600ms；按压反馈沿用 |
+| C4 origin | 错误回原字段，通知出口不变 |
+| C5 reduced-motion | 新Tester设置ReduceMotion=true；未增加动效 |
+| C6 hover查询 | Go自绘不适用CSS媒体查询；指针模型不变 |
+| C7 布局动画 | 无新增 |
+| C8 重播keyframes | 无新增 |
+| C9 手势 | 未涉及 |
+| C10 Framer | 不适用Go自绘 |
+| C11 慢放 | 没有新动效，只核确定静态帧，不声称真机慢放 |
+| D2-1 字体 | 系统中文字体，无webfont |
+| D2-2 字号/行高/字重 | 通用≥14px/1.5仍不满足；原Caption9.9/正文10.8与行盒需拍板，本轮未越权改 |
+| D2-3 混排空格 | i18n零改，无新产品句子 |
+| D2-4 标点/对比 | 原标点/墨沿用，不声称所有次要墨达到7:1 |
+
+缺陷沉淀在§6.253和事件测试，不升级为全局审美规则。原生系统选择器未截图，回调更新使用确定性注入；折叠和导航由另一个Tester视图泵入实际按钮事件。Windows/macOS仅编译验证，不声称真机交互通过。
+
+## 仍待
+
+1. 下一轮首选已有本地工具脚本导出的等待与退出路径：保存对话框打开时重复点击、取消/失败后的当前状态。先用真实宿主saveFile回调复现，不改文件覆盖事务，不把代码线索当已确认bug。可沿同表单平台/权限选择的键盘出口继续查，不重复本轮回调草稿/导航归属。
+2. 生成工具编辑/转换覆盖、重复新包ID覆盖、重装事务、配置模板失败重试、另一端冲突、字号/行盒、accent禁用填充、未知多选/Radio、极小步长、176-9/161-4保存期草稿、终端S1b/S1c/S2尾继续需拍板。
+3. 八条早期WIP继续原样保留；旧ImageCopy/Rescan/memo pending时序线索沿用，本轮不放宽旧B断言。
+
+## 最终验收
+
+2026-11-08 **05:32:00 UTC**完整门槛完成。最终 **6101 PASS / 0 FAIL / 3433测试函数**，对开盘6069/3425为 **+32 PASS、+8函数**。普通与verbose全量分别完整exit0；gofmt输出空；linux/windows/darwin的vet/build全部exit0；定向race **32 PASS / 0 FAIL / exit0**；最终两份产品源码MD5均成功。
+
+V/B/S台账：旧视觉断言改动0、旧行为断言改动0、旧结构断言改动0；新增8个行为测试函数，旧测试删除0、新增Skip0。四组mutation均exit1且有上述真实断言报错；逐字节还原成功，touch后分别26/88/6/6 PASS。补拍overlay使用同一最终夹具再次触发M1五类失败，不改工作树源码，不另凑变异数量。
+
+四批提交均已推送：**d80da969 / aa358d54 / ea3a2950 / 82a691f5**。收尾仅补文档、完整日志和同夹具图片。首个时钟05:05:06至完整验收05:32:00为26分54秒（开盘读档在此前），短于45–75分钟目标；本轮八项及全部门槛已完成。一次apply_patch因同文件Delete/Add格式被拒绝，未改文件，随后用Update修正；未将工具错误或首版夹具错误计作产品缺陷。
+
+证据：[基线](P13-jz/baseline.txt)、[普通全量](P13-jz/full-test.txt)、[verbose全量](P13-jz/full-verbose.txt)、[race](P13-jz/focused-race.txt)、[源码MD5](P13-jz/final-source.md5)、[门槛退出](P13-jz/gates.exit)、[像素差](P13-jz/image-differences.json)、[同夹具补拍](P13-jz/same-fixture-before.txt)。每条命令的txt/exit、48原始PNG、24对照及四组mutation原始证据随本报告入仓。
