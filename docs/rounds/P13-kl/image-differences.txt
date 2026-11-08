@@ -1,0 +1,44 @@
+registry-name light: changed=99811
+registry-name light: resting PNG byte-identical
+registry-version light: changed=99631
+registry-version light: resting PNG byte-identical
+text light: changed=127291
+text light: resting PNG byte-identical
+text light: bottom changed=98886
+password light: changed=127264
+password light: resting PNG byte-identical
+password light: bottom changed=98859
+path light: changed=127291
+path light: resting PNG byte-identical
+path light: bottom changed=98886
+number light: changed=127210
+number light: resting PNG byte-identical
+number light: bottom changed=98805
+select light: changed=127448
+select light: resting PNG byte-identical
+select light: bottom changed=99044
+boolean light: changed=120308
+boolean light: resting PNG byte-identical
+boolean light: bottom changed=91822
+registry-name dark: changed=99803
+registry-name dark: resting PNG byte-identical
+registry-version dark: changed=99623
+registry-version dark: resting PNG byte-identical
+text dark: changed=127345
+text dark: resting PNG byte-identical
+text dark: bottom changed=98919
+password dark: changed=127318
+password dark: resting PNG byte-identical
+password dark: bottom changed=98892
+path dark: changed=127345
+path dark: resting PNG byte-identical
+path dark: bottom changed=98919
+number dark: changed=127264
+number dark: resting PNG byte-identical
+number dark: bottom changed=98838
+select dark: changed=127511
+select dark: resting PNG byte-identical
+select dark: bottom changed=99082
+boolean dark: changed=120360
+boolean dark: resting PNG byte-identical
+boolean dark: bottom changed=91837

@@ -1,0 +1,27 @@
+=== RUN   TestConfigFieldEdgeSelect
+=== RUN   TestConfigFieldEdgeSelect/light
+    configfieldedge_test.go:83: select target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: select top active edge missing: blue-red=1
+    configfieldedge_test.go:91: select active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestConfigFieldEdgeSelect/dark
+    configfieldedge_test.go:83: select target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: select top active edge missing: blue-red=2
+    configfieldedge_test.go:91: select active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestConfigFieldEdgeSelect (0.51s)
+    --- FAIL: TestConfigFieldEdgeSelect/light (0.35s)
+    --- FAIL: TestConfigFieldEdgeSelect/dark (0.16s)
+=== RUN   TestConfigFieldEdgeBoolean
+=== RUN   TestConfigFieldEdgeBoolean/light
+    configfieldedge_test.go:83: boolean target={X:325.8 Y:51.399994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: boolean top active edge missing: blue-red=1
+    configfieldedge_test.go:91: boolean active edge intersects fade: target={X:325.8 Y:51.399994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestConfigFieldEdgeBoolean/dark
+    configfieldedge_test.go:83: boolean target={X:325.8 Y:51.399994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=613.30005
+    configfieldedge_test.go:87: boolean top active edge missing: blue-red=2
+    configfieldedge_test.go:91: boolean active edge intersects fade: target={X:325.8 Y:51.399994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestConfigFieldEdgeBoolean (0.27s)
+    --- FAIL: TestConfigFieldEdgeBoolean/light (0.14s)
+    --- FAIL: TestConfigFieldEdgeBoolean/dark (0.13s)
+FAIL
+FAIL	floter/internal/settingsui	0.787s
+FAIL

@@ -36,5 +36,21 @@ for mode in ['light', 'dark']:
         assert before.read_bytes() == after.read_bytes(), (name, mode, 'rest changed')
         lines.append(f'{name} {mode}: resting PNG byte-identical')
         copyfile(after, root / f'{name}-{mode}-rest.png')
+        if not name.startswith('registry-'):
+            bottom = []
+            for tag in ['before', 'after']:
+                path = Path(f'/tmp/floter-P13-kl-{name}-bottom-{mode}-{tag}.png')
+                copyfile(path, root / f'{name}-bottom-{mode}-{tag}.png')
+                bottom.append(Image.open(path).convert('RGB'))
+            changed = sum(p != (0, 0, 0) for p in ImageChops.difference(*bottom).getdata())
+            assert changed > 0, (name, mode, 'bottom has no change')
+            lines.append(f'{name} {mode}: bottom changed={changed}')
+            comparison = Image.new('RGB', (1440, 548), '#ffffff')
+            draw = ImageDraw.Draw(comparison)
+            draw.text((12, 8), f'{name} bottom {mode} BEFORE', fill='#111111')
+            draw.text((732, 8), 'AFTER', fill='#111111')
+            comparison.paste(bottom[0], (0, 28))
+            comparison.paste(bottom[1], (720, 28))
+            comparison.save(root / f'{name}-bottom-{mode}-comparison.png')
     overview.save(root / f'overview-{mode}.png')
 (root / 'image-differences.txt').write_text('\n'.join(lines)+'\n')

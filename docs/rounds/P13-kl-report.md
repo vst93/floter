@@ -75,3 +75,20 @@ M1原样撤销两处接线，真实日志见M1-red；还原MD5与touch复验见M
 原始失败串：`path top active edge missing: blue-red=21`、`number active edge intersects fade: target={X:325.8 Y:51.399994 W:369 H:28}`。两产品/测试文件均由git apply -3接回，无冲突；本次定向与vet结果随批次日志落盘。
 
 本次第三批65 PASS / 0 FAIL / exit0，包vet exit0；旧V/B/S 0/0/0、新Skip0。抢救稿完整patch reverse-check通过，完整原对象归档引用核对一致，提交后drop活动stash；其余八条保留。接续HEAD完整基线仍在运行，不拿部分PASS数充当完整数字。
+
+第三批0a34638b已推送，98b34e773b已归档后drop，活动9→8。接续HEAD（2427b1ff编译的测试）完整基线已结束：6497 PASS / 0 FAIL / exit0、3531函数；原日志将归档为resume-baseline。
+
+## 第四批
+
+7. 配置下拉：现象→返回时顶外环进入淡区，深/浅蓝红差2/1，近乎消失；改动→单控件共享19px显现净空；验证→旧产品深浅均真实失败（batch4-before），修后验证上下外环、Down/End/Enter选South且只改当前字段。
+8. 配置开关：现象→相同事件使32.4×18开关的顶部外环缺失，深/浅蓝红差2/1；改动→沿用同一显现范围，开关尺寸与原环不变；验证→旧产品深浅均失败，修后Space只切当前开关，旁边值不变且滚轮仍自由。
+
+类型条件改为与现有configField一致的小写判断，排除自带滚动区的multiselect；空类型/大小写TEXT/未知类型沿用默认文本控件并补测，不另计修复项。旧V/B/S断言仍零改，新Skip零。
+
+第四批配置/安装/身份/返回/只读与表单回归98 PASS、包vet exit0。六类配置字段增加视口底端正向Tab抽查，八项及默认文本分支定向34 PASS；原严格像素阈值60与16px净空均保留，没有放宽断言。
+
+## 两类正式变异（本次重新实跑）
+
+- M1撤回registry两个输入的显现接线：`registry-name top active edge missing: blue-red=21`、`registry-version top active edge missing: blue-red=30`，四个深浅场景实红，exit1，见M1-resume-red.txt。
+- M2关闭配置控制列显现：六类字段与三种默认文本类型均实红，exit1。顶部例：`boolean top active edge missing: blue-red=2`；底部例：`text forward bottom active edge missing: blue-red=22`，见M2-red.txt。
+- 两产品文件均先保存MD5，回注后恢复原件；`md5sum -c`逐字节成功，随后touch并`-count=1`复跑34 PASS/0 FAIL/exit0。日志mutation-restore.txt、mutation-restored.txt，不依赖缓存。

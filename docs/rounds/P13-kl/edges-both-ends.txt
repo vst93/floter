@@ -1,0 +1,92 @@
+=== RUN   TestRegistryFieldEdgeName
+=== RUN   TestRegistryFieldEdgeName/light
+    configfieldedge_test.go:193: registry-name target={X:186.8 Y:70.4 W:292 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=118.6
+=== RUN   TestRegistryFieldEdgeName/dark
+    configfieldedge_test.go:193: registry-name target={X:186.8 Y:70.4 W:292 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=118.6
+--- PASS: TestRegistryFieldEdgeName (0.32s)
+    --- PASS: TestRegistryFieldEdgeName/light (0.24s)
+    --- PASS: TestRegistryFieldEdgeName/dark (0.08s)
+=== RUN   TestRegistryFieldEdgeVersion
+=== RUN   TestRegistryFieldEdgeVersion/light
+    configfieldedge_test.go:193: registry-version target={X:482.40002 Y:70.4 W:160 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=118.6
+=== RUN   TestRegistryFieldEdgeVersion/dark
+    configfieldedge_test.go:193: registry-version target={X:482.40002 Y:70.4 W:160 H:29.799995} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=118.6
+--- PASS: TestRegistryFieldEdgeVersion (0.15s)
+    --- PASS: TestRegistryFieldEdgeVersion/light (0.08s)
+    --- PASS: TestRegistryFieldEdgeVersion/dark (0.07s)
+=== RUN   TestConfigFieldEdgeText
+=== RUN   TestConfigFieldEdgeText/light
+    configfieldedge_test.go:83: text target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeText/dark
+    configfieldedge_test.go:83: text target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgeText (0.29s)
+    --- PASS: TestConfigFieldEdgeText/light (0.15s)
+    --- PASS: TestConfigFieldEdgeText/dark (0.13s)
+=== RUN   TestConfigFieldEdgePassword
+=== RUN   TestConfigFieldEdgePassword/light
+    configfieldedge_test.go:83: password target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgePassword/dark
+    configfieldedge_test.go:83: password target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgePassword (0.26s)
+    --- PASS: TestConfigFieldEdgePassword/light (0.13s)
+    --- PASS: TestConfigFieldEdgePassword/dark (0.13s)
+=== RUN   TestConfigFieldEdgePath
+=== RUN   TestConfigFieldEdgePath/light
+    configfieldedge_test.go:83: path target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgePath/dark
+    configfieldedge_test.go:83: path target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgePath (0.25s)
+    --- PASS: TestConfigFieldEdgePath/light (0.13s)
+    --- PASS: TestConfigFieldEdgePath/dark (0.13s)
+=== RUN   TestConfigFieldEdgeNumber
+=== RUN   TestConfigFieldEdgeNumber/light
+    configfieldedge_test.go:83: number target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeNumber/dark
+    configfieldedge_test.go:83: number target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgeNumber (0.25s)
+    --- PASS: TestConfigFieldEdgeNumber/light (0.12s)
+    --- PASS: TestConfigFieldEdgeNumber/dark (0.13s)
+=== RUN   TestConfigFieldEdgeSelect
+=== RUN   TestConfigFieldEdgeSelect/light
+    configfieldedge_test.go:83: select target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeSelect/dark
+    configfieldedge_test.go:83: select target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgeSelect (0.26s)
+    --- PASS: TestConfigFieldEdgeSelect/light (0.13s)
+    --- PASS: TestConfigFieldEdgeSelect/dark (0.13s)
+=== RUN   TestConfigFieldEdgeBoolean
+=== RUN   TestConfigFieldEdgeBoolean/light
+    configfieldedge_test.go:83: boolean target={X:325.8 Y:70.399994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeBoolean/dark
+    configfieldedge_test.go:83: boolean target={X:325.8 Y:70.399994 W:32.4 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgeBoolean (0.25s)
+    --- PASS: TestConfigFieldEdgeBoolean/light (0.12s)
+    --- PASS: TestConfigFieldEdgeBoolean/dark (0.13s)
+=== RUN   TestConfigFieldEdgeDefaultText
+=== RUN   TestConfigFieldEdgeDefaultText/type=
+=== RUN   TestConfigFieldEdgeDefaultText/type=/light
+    configfieldedge_test.go:83:  target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeDefaultText/type=/dark
+    configfieldedge_test.go:83:  target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeDefaultText/type=TEXT
+=== RUN   TestConfigFieldEdgeDefaultText/type=TEXT/light
+    configfieldedge_test.go:83: TEXT target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeDefaultText/type=TEXT/dark
+    configfieldedge_test.go:83: TEXT target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeDefaultText/type=custom
+=== RUN   TestConfigFieldEdgeDefaultText/type=custom/light
+    configfieldedge_test.go:83: custom target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+=== RUN   TestConfigFieldEdgeDefaultText/type=custom/dark
+    configfieldedge_test.go:83: custom target={X:325.8 Y:70.399994 W:369 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=594.30005
+--- PASS: TestConfigFieldEdgeDefaultText (0.80s)
+    --- PASS: TestConfigFieldEdgeDefaultText/type= (0.28s)
+        --- PASS: TestConfigFieldEdgeDefaultText/type=/light (0.14s)
+        --- PASS: TestConfigFieldEdgeDefaultText/type=/dark (0.14s)
+    --- PASS: TestConfigFieldEdgeDefaultText/type=TEXT (0.26s)
+        --- PASS: TestConfigFieldEdgeDefaultText/type=TEXT/light (0.13s)
+        --- PASS: TestConfigFieldEdgeDefaultText/type=TEXT/dark (0.13s)
+    --- PASS: TestConfigFieldEdgeDefaultText/type=custom (0.25s)
+        --- PASS: TestConfigFieldEdgeDefaultText/type=custom/light (0.13s)
+        --- PASS: TestConfigFieldEdgeDefaultText/type=custom/dark (0.13s)
+PASS
+ok  	floter/internal/settingsui	2.845s

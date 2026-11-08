@@ -90,6 +90,27 @@ func checkConfigFieldEdge(t *testing.T, kind string) {
 			if target.Y+inset < viewport.Y+16 || target.Y+target.H-inset > viewport.Y+viewport.H-16 {
 				t.Errorf("%s active edge intersects fade: target=%+v viewport=%+v", kind, target, viewport)
 			}
+			// Enter again from the preceding field with this control below the
+			// viewport. The bottom fade must preserve the same complete ink.
+			tt.Key(ui.Shift, ui.KeyTab)
+			tt.Frame()
+			a.Body.Y = absoluteY - viewport.Y - viewport.H + 8
+			tt.Frame()
+			tt.Key(0, ui.KeyTab)
+			tt.Frame()
+			configFieldEdgeDump(t, tt, kind+"-bottom", dark)
+			if !tt.Focused(field.Label) {
+				t.Fatal("forward entry lost field focus")
+			}
+			for side, y := range map[string]float32{"top": target.Y + inset, "bottom": target.Y + target.H - 1 - inset} {
+				r, _, b := rgbAt(tt.Image(), int(target.X+target.W/2), int(math.Round(float64(y))))
+				if b-r < 60 {
+					t.Errorf("%s forward %s active edge missing: blue-red=%d", kind, side, b-r)
+				}
+			}
+			if target.Y+inset < viewport.Y+16 || target.Y+target.H-inset > viewport.Y+viewport.H-16 {
+				t.Errorf("%s forward active edge intersects fade: target=%+v viewport=%+v", kind, target, viewport)
+			}
 			runVisibilityWheel(t, a, tt)
 			want := any("continued")
 			switch kind {
@@ -202,3 +223,12 @@ func TestConfigFieldEdgePassword(t *testing.T) { checkConfigFieldEdge(t, "passwo
 
 func TestConfigFieldEdgePath(t *testing.T)   { checkConfigFieldEdge(t, "path") }
 func TestConfigFieldEdgeNumber(t *testing.T) { checkConfigFieldEdge(t, "number") }
+
+func TestConfigFieldEdgeSelect(t *testing.T)  { checkConfigFieldEdge(t, "select") }
+func TestConfigFieldEdgeBoolean(t *testing.T) { checkConfigFieldEdge(t, "boolean") }
+
+func TestConfigFieldEdgeDefaultText(t *testing.T) {
+	for _, kind := range []string{"", "TEXT", "custom"} {
+		t.Run("type="+kind, func(t *testing.T) { checkConfigFieldEdge(t, kind) })
+	}
+}
