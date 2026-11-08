@@ -23,6 +23,8 @@
 
 高度链、原键盘派发、会话、设置写回、i18n与命令接线零改动；不用框架升级或新依赖。保存/3秒窗口/终端拍板项不动。
 
-开盘b838c37c，P13-kh收尾接续7777fb41。LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4；当前完整基线正在运行，完成后补实测。每批1–2项跑相关事件/像素与包vet后立即提交推送；最后全量gofmt、三平台vet/build、普通与verbose go test -count=1 ./...。保留全部旧B断言。
+开盘b838c37c，P13-kh收尾接续7777fb41。LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4；完整基线6413 PASS / 0 FAIL / exit0，全仓*_test.go中3503函数。每批1–2项跑相关事件/像素与包vet后立即提交推送；最后全量gofmt、三平台vet/build、普通与verbose go test -count=1 ./...。保留全部旧B断言。
+
+实测纠正：编辑器的活动边是框内1px，不是外扩环；首次Tab的低限20探针通过。真正缺陷是Shift+Tab返回上方字段时进入16px淡边，深色蓝红差21/另一侧112，浅30/另一侧160。最终八项严格验证16px净区与最低蓝红差60；不改旧断言。选择复用19px净空（16px淡边+现有共用余量），新增动画0ms。
 
 Mutation：M1撤回参数输入净空接线，让对应深浅边缘pin实红；M2撤回本地工具字段接线，让其pin实红。各自保存MD5→注入→红→原文件还原→md5sum -c→touch→复验。PNG由ui.Tester输出/tmp/floter-P13-ki-*.png并归档。

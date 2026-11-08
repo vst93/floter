@@ -1,0 +1,156 @@
+=== RUN   TestDeclarationVisibilityAdd
+=== RUN   TestDeclarationVisibilityAdd/light
+=== RUN   TestDeclarationVisibilityAdd/dark
+--- PASS: TestDeclarationVisibilityAdd (0.19s)
+    --- PASS: TestDeclarationVisibilityAdd/light (0.17s)
+    --- PASS: TestDeclarationVisibilityAdd/dark (0.02s)
+=== RUN   TestDeclarationVisibilityRemoveNext
+=== RUN   TestDeclarationVisibilityRemoveNext/light
+=== RUN   TestDeclarationVisibilityRemoveNext/dark
+--- PASS: TestDeclarationVisibilityRemoveNext (0.09s)
+    --- PASS: TestDeclarationVisibilityRemoveNext/light (0.05s)
+    --- PASS: TestDeclarationVisibilityRemoveNext/dark (0.04s)
+=== RUN   TestDeclarationVisibilityRemoveTail
+=== RUN   TestDeclarationVisibilityRemoveTail/light
+=== RUN   TestDeclarationVisibilityRemoveTail/dark
+--- PASS: TestDeclarationVisibilityRemoveTail (0.08s)
+    --- PASS: TestDeclarationVisibilityRemoveTail/light (0.04s)
+    --- PASS: TestDeclarationVisibilityRemoveTail/dark (0.04s)
+=== RUN   TestDeclarationVisibilityRemoveOnly
+=== RUN   TestDeclarationVisibilityRemoveOnly/light
+=== RUN   TestDeclarationVisibilityRemoveOnly/dark
+--- PASS: TestDeclarationVisibilityRemoveOnly (0.06s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/light (0.03s)
+    --- PASS: TestDeclarationVisibilityRemoveOnly/dark (0.03s)
+=== RUN   TestDeclarationVisibilityWithdraw
+=== RUN   TestDeclarationVisibilityWithdraw/light
+=== RUN   TestDeclarationVisibilityWithdraw/dark
+--- PASS: TestDeclarationVisibilityWithdraw (0.06s)
+    --- PASS: TestDeclarationVisibilityWithdraw/light (0.03s)
+    --- PASS: TestDeclarationVisibilityWithdraw/dark (0.03s)
+=== RUN   TestEditorRingLabel
+=== RUN   TestEditorRingLabel/light
+    editorring_test.go:78: label rect={X:195.79999 Y:70.400024 W:161 H:30} scroll=945.89996
+    editorring_test.go:84: label top RGB spread=160
+    editorring_test.go:84: label bottom RGB spread=160
+=== RUN   TestEditorRingLabel/dark
+    editorring_test.go:78: label rect={X:195.79999 Y:70.400024 W:161 H:30} scroll=945.89996
+    editorring_test.go:84: label top RGB spread=112
+    editorring_test.go:84: label bottom RGB spread=112
+--- PASS: TestEditorRingLabel (0.15s)
+    --- PASS: TestEditorRingLabel/light (0.08s)
+    --- PASS: TestEditorRingLabel/dark (0.08s)
+=== RUN   TestEditorRingID
+=== RUN   TestEditorRingID/light
+    editorring_test.go:78: id rect={X:364.8 Y:70.400024 W:161 H:30} scroll=945.89996
+    editorring_test.go:84: id top RGB spread=160
+    editorring_test.go:84: id bottom RGB spread=160
+=== RUN   TestEditorRingID/dark
+    editorring_test.go:78: id rect={X:364.8 Y:70.400024 W:161 H:30} scroll=945.89996
+    editorring_test.go:84: id top RGB spread=112
+    editorring_test.go:84: id bottom RGB spread=112
+--- PASS: TestEditorRingID (0.16s)
+    --- PASS: TestEditorRingID/light (0.08s)
+    --- PASS: TestEditorRingID/dark (0.08s)
+=== RUN   TestEditorRingPlaceholder
+=== RUN   TestEditorRingPlaceholder/light
+    editorring_test.go:78: placeholder rect={X:195.79999 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: placeholder top RGB spread=160
+    editorring_test.go:84: placeholder bottom RGB spread=160
+=== RUN   TestEditorRingPlaceholder/dark
+    editorring_test.go:78: placeholder rect={X:195.79999 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: placeholder top RGB spread=112
+    editorring_test.go:84: placeholder bottom RGB spread=112
+--- PASS: TestEditorRingPlaceholder (0.17s)
+    --- PASS: TestEditorRingPlaceholder/light (0.08s)
+    --- PASS: TestEditorRingPlaceholder/dark (0.08s)
+=== RUN   TestEditorRingDefault
+=== RUN   TestEditorRingDefault/light
+    editorring_test.go:78: default rect={X:364.8 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: default top RGB spread=160
+    editorring_test.go:84: default bottom RGB spread=160
+=== RUN   TestEditorRingDefault/dark
+    editorring_test.go:78: default rect={X:364.8 Y:70.400024 W:161 H:30} scroll=999.89996
+    editorring_test.go:84: default bottom RGB spread=112
+    editorring_test.go:84: default top RGB spread=112
+--- PASS: TestEditorRingDefault (0.17s)
+    --- PASS: TestEditorRingDefault/light (0.08s)
+    --- PASS: TestEditorRingDefault/dark (0.09s)
+=== RUN   TestParamRecoveryOptionsWithdrawn
+=== RUN   TestParamRecoveryOptionsWithdrawn/light
+=== RUN   TestParamRecoveryOptionsWithdrawn/dark
+--- PASS: TestParamRecoveryOptionsWithdrawn (0.04s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/light (0.03s)
+    --- PASS: TestParamRecoveryOptionsWithdrawn/dark (0.02s)
+=== RUN   TestParamRecoveryRemovedLast
+=== RUN   TestParamRecoveryRemovedLast/light
+=== RUN   TestParamRecoveryRemovedLast/dark
+--- PASS: TestParamRecoveryRemovedLast (0.02s)
+    --- PASS: TestParamRecoveryRemovedLast/light (0.01s)
+    --- PASS: TestParamRecoveryRemovedLast/dark (0.01s)
+=== RUN   TestParamRecoveryRemovedFirst
+=== RUN   TestParamRecoveryRemovedFirst/light
+=== RUN   TestParamRecoveryRemovedFirst/dark
+--- PASS: TestParamRecoveryRemovedFirst (0.03s)
+    --- PASS: TestParamRecoveryRemovedFirst/light (0.01s)
+    --- PASS: TestParamRecoveryRemovedFirst/dark (0.01s)
+=== RUN   TestDeclarationRefreshNumberDefault
+=== RUN   TestDeclarationRefreshNumberDefault/light
+=== RUN   TestDeclarationRefreshNumberDefault/dark
+--- PASS: TestDeclarationRefreshNumberDefault (0.18s)
+    --- PASS: TestDeclarationRefreshNumberDefault/light (0.09s)
+    --- PASS: TestDeclarationRefreshNumberDefault/dark (0.09s)
+=== RUN   TestDeclarationRefreshBooleanDefault
+=== RUN   TestDeclarationRefreshBooleanDefault/light
+=== RUN   TestDeclarationRefreshBooleanDefault/dark
+--- PASS: TestDeclarationRefreshBooleanDefault (0.18s)
+    --- PASS: TestDeclarationRefreshBooleanDefault/light (0.09s)
+    --- PASS: TestDeclarationRefreshBooleanDefault/dark (0.09s)
+=== RUN   TestDeclarationRefreshSelectDefault
+=== RUN   TestDeclarationRefreshSelectDefault/light
+=== RUN   TestDeclarationRefreshSelectDefault/dark
+--- PASS: TestDeclarationRefreshSelectDefault (0.19s)
+    --- PASS: TestDeclarationRefreshSelectDefault/light (0.09s)
+    --- PASS: TestDeclarationRefreshSelectDefault/dark (0.09s)
+=== RUN   TestDeclarationRefreshPlaceholderExit
+=== RUN   TestDeclarationRefreshPlaceholderExit/light
+=== RUN   TestDeclarationRefreshPlaceholderExit/dark
+--- PASS: TestDeclarationRefreshPlaceholderExit (0.03s)
+    --- PASS: TestDeclarationRefreshPlaceholderExit/light (0.01s)
+    --- PASS: TestDeclarationRefreshPlaceholderExit/dark (0.01s)
+=== RUN   TestToolRefusalVisibilityParameter
+=== RUN   TestToolRefusalVisibilityParameter/id/light
+=== RUN   TestToolRefusalVisibilityParameter/id/dark
+=== RUN   TestToolRefusalVisibilityParameter/duplicate/light
+=== RUN   TestToolRefusalVisibilityParameter/duplicate/dark
+=== RUN   TestToolRefusalVisibilityParameter/options/light
+=== RUN   TestToolRefusalVisibilityParameter/options/dark
+=== RUN   TestToolRefusalVisibilityParameter/flag/light
+=== RUN   TestToolRefusalVisibilityParameter/flag/dark
+=== RUN   TestToolRefusalVisibilityParameter/badflag/light
+=== RUN   TestToolRefusalVisibilityParameter/badflag/dark
+=== RUN   TestToolRefusalVisibilityParameter/number/light
+=== RUN   TestToolRefusalVisibilityParameter/number/dark
+=== RUN   TestToolRefusalVisibilityParameter/boolean/light
+=== RUN   TestToolRefusalVisibilityParameter/boolean/dark
+=== RUN   TestToolRefusalVisibilityParameter/select/light
+=== RUN   TestToolRefusalVisibilityParameter/select/dark
+--- PASS: TestToolRefusalVisibilityParameter (1.47s)
+    --- PASS: TestToolRefusalVisibilityParameter/id/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/id/dark (0.10s)
+    --- PASS: TestToolRefusalVisibilityParameter/duplicate/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/duplicate/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/options/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/options/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/flag/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/flag/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/badflag/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/badflag/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/number/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/number/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/boolean/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/boolean/dark (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/select/light (0.09s)
+    --- PASS: TestToolRefusalVisibilityParameter/select/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	3.295s

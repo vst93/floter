@@ -128,3 +128,6 @@ func checkEditorRing(t *testing.T, name string) {
 
 func TestEditorRingLabel(t *testing.T) { checkEditorRing(t, "label") }
 func TestEditorRingID(t *testing.T)    { checkEditorRing(t, "id") }
+
+func TestEditorRingPlaceholder(t *testing.T) { checkEditorRing(t, "placeholder") }
+func TestEditorRingDefault(t *testing.T)     { checkEditorRing(t, "default") }

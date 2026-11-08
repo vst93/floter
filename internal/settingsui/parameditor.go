@@ -248,7 +248,9 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				// value is its flag, so a field hint means nothing.
 				if kind != extensions.ParamBoolean {
 					a.paramField(c, "placeholder", copy.ParamsPlaceholder, func() {
-						a.extensionField(c, &placeholder, customFieldMetrics).Bind(&placeholderFocus.button).Label(copy.ParamsPlaceholder)
+						outputFocusOutlet(c.Key("param-placeholder-outlet"), func() {
+							a.extensionField(c, &placeholder, customFieldMetrics).Bind(&placeholderFocus.button).Label(copy.ParamsPlaceholder)
+						})
 					})
 				} else {
 					if placeholderFocus.restore(c) {
@@ -256,7 +258,9 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 					}
 				}
 				a.paramField(c, "default", copy.ParamsDefault, func() {
-					a.extensionField(c, &def, customFieldMetrics).Bind(&refusal.defaultValue).Label(copy.ParamsDefault)
+					outputFocusOutlet(c.Key("param-default-outlet"), func() {
+						a.extensionField(c, &def, customFieldMetrics).Bind(&refusal.defaultValue).Label(copy.ParamsDefault)
+					})
 				})
 				a.paramField(c, "flag", copy.ParamsFlag, func() {
 					a.extensionField(c, &flag, customFieldMetrics).Bind(&refusal.flag).Label(copy.ParamsFlag).Placeholder("--target")
