@@ -103,7 +103,9 @@ func checkReconnectChoiceCurrent(t *testing.T, change string) {
 	}
 }
 
-func TestReconnectChoiceCurrentManifest(t *testing.T) { checkReconnectChoiceCurrent(t, "manifest") }
-func TestReconnectChoiceCurrentPackage(t *testing.T)  { checkReconnectChoiceCurrent(t, "package") }
-func TestReconnectChoiceCurrentBinding(t *testing.T)  { checkReconnectChoiceCurrent(t, "binding") }
-func TestReconnectChoiceCurrentRoot(t *testing.T)     { checkReconnectChoiceCurrent(t, "root") }
+func TestReconnectChoiceCurrentManifest(t *testing.T)  { checkReconnectChoiceCurrent(t, "manifest") }
+func TestReconnectChoiceCurrentPackage(t *testing.T)   { checkReconnectChoiceCurrent(t, "package") }
+func TestReconnectChoiceCurrentBinding(t *testing.T)   { checkReconnectChoiceCurrent(t, "binding") }
+func TestReconnectChoiceCurrentRoot(t *testing.T)      { checkReconnectChoiceCurrent(t, "root") }
+func TestReconnectChoiceCurrentOwnership(t *testing.T) { checkReconnectChoiceCurrent(t, "ownership") }
+func TestReconnectChoiceCurrentRemoved(t *testing.T)   { checkReconnectChoiceCurrent(t, "removed") }

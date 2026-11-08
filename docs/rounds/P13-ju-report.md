@@ -41,3 +41,12 @@
 
 5. 现象：选择窗口等待时工具已绑回当前程序，旧答案仍覆盖该路径。改动：复核当前 ExecutablePath。验证：深浅实际选择事件，仓库逐字节不变、当前绑定保留、无“已重新连接”假通知；改前红 `obsolete binding choice rewrote current repository`。
 6. 现象：运行目录已更新，旧候选仍写入新运行时。改动：复核 RuntimeRoot 以及包/运行版本，选择归属随运行时变化退役。验证：深浅目录与仓库保留，原行解锁可再次重连；改前红 `obsolete root choice rewrote current repository`，并错误显示“检查工具 已重新连接”。
+
+第三批 22084c72 已提交；推送结果单独核对。
+
+## 第四批：失效问题的结果退役
+
+7. 现象：选择等待期间 ownership 已改为 managed，旧答案结束后报“检查工具 报告了问题”。改动：选择来源包含 RuntimeOwnership，旧问题安静结束。验证：深浅无仓库写入、done(nil)、无旧失败 toast；改前红 `obsolete ownership choice published a result`，实际错误 `extensions: only a system-owned integration can be reconnected: dev.floter.check`。
+8. 现象：选择等待期间工具已移除，回答旧问题还在空列表上报失败。改动：可读取当前仓库且目标已不存在时，退役原选择；真正的仓库读取失败仍走原错误出口。验证：深浅空仓库字节保留、done(nil)、无过期失败；改前红 `obsolete removed choice published a result`，实际错误 `extensions: no such integration`。
+
+八项均有独立事件断言，跨集成行操作、运行时选择和启动器搜索。所有before来自对应批次改前状态，不声称来自同一HEAD。旧V/B/S断言修改0/0/0，未新增Skip。

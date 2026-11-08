@@ -2200,7 +2200,8 @@ func (a *App) reconnectIntegration(id string, done func(error)) {
 		// The chooser can outlive a package refresh. Its answer belongs to
 		// the declaration it displayed, even if the cached list is unchanged.
 		current := extensions.LoadInventory(a.Paths)
-		if owner, present := current.WithID(id); known && present && reconnectChoiceSource(owner) != source {
+		if owner, present := current.WithID(id); known && current.RepositoryErr == nil &&
+			(!present || reconnectChoiceSource(owner) != source) {
 			a.RefreshIntegrations(context.Background())
 			a.onMain(func() {
 				if done != nil {
@@ -2240,6 +2241,7 @@ func reconnectChoiceSource(integration extensions.Integration) string {
 	data, _ := json.Marshal([]any{integration.Entry.ManifestPath,
 		integration.Entry.ExecutablePath, integration.Entry.RuntimeRoot,
 		integration.Entry.PackageVersion, integration.Entry.CurrentVersion,
+		integration.Entry.RuntimeOwnership,
 		integration.Manifest, integration.ManifestErr != nil})
 	return string(data)
 }
