@@ -25,7 +25,7 @@
 
 ## 门槛与变异
 
-中文 locale `LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4`。完整 baseline 正在实跑，完成后补实际 PASS/函数数；不借用上一轮数字。
+中文 locale `LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4`。开盘完整 baseline 实测 **5974 PASS / 0 FAIL、exit0**。测试函数数量以开盘提交树核对（运行期间已经加入本轮测试，不能误算为开盘函数）。
 
 全量一次：gofmt -l cmd internal；三平台 go vet ./...；go test -count=1 ./...；go test -count=1 -v ./... 计 PASS；三平台 go build ./...。每批仅定向回归与受影响包 vet，避免重复全量。
 

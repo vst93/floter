@@ -1,0 +1,14 @@
+=== RUN   TestInstallCurrentLocalPermissions
+=== RUN   TestInstallCurrentLocalPermissions/light
+=== RUN   TestInstallCurrentLocalPermissions/dark
+--- PASS: TestInstallCurrentLocalPermissions (0.58s)
+    --- PASS: TestInstallCurrentLocalPermissions/light (0.30s)
+    --- PASS: TestInstallCurrentLocalPermissions/dark (0.28s)
+=== RUN   TestInstallCurrentRecommendedPermissions
+=== RUN   TestInstallCurrentRecommendedPermissions/light
+=== RUN   TestInstallCurrentRecommendedPermissions/dark
+--- PASS: TestInstallCurrentRecommendedPermissions (0.49s)
+    --- PASS: TestInstallCurrentRecommendedPermissions/light (0.25s)
+    --- PASS: TestInstallCurrentRecommendedPermissions/dark (0.25s)
+PASS
+ok  	floter/internal/shell	1.085s

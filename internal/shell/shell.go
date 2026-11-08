@@ -2812,6 +2812,9 @@ func (a *App) connectRecommended(id string) {
 		}
 		entry, err := prepared.Commit(true)
 		if err != nil {
+			if errors.Is(err, extensions.ErrInstallChanged) {
+				return
+			}
 			log.Printf("floter: could not connect %s: %v", id, err)
 			a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
 			return
@@ -2949,6 +2952,9 @@ func (a *App) installPackageFolder(dir string) {
 		// (ExtensionsPanel.tsx:1554-1556).
 		entry, err := prepared.Commit(true)
 		if err != nil {
+			if errors.Is(err, extensions.ErrInstallChanged) {
+				return
+			}
 			log.Printf("floter: %s was not installed: %v", dir, err)
 			a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
 			return

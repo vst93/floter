@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"bytes"
 	"context"
 	"image/png"
 	"os"
@@ -184,3 +185,91 @@ func checkInstallCurrentBusy(t *testing.T, recommended bool) {
 
 func TestInstallCurrentLocalBusy(t *testing.T)       { checkInstallCurrentBusy(t, false) }
 func TestInstallCurrentRecommendedBusy(t *testing.T) { checkInstallCurrentBusy(t, true) }
+
+func checkInstallCurrentDeclaration(t *testing.T, recommended bool, change string) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			// Recommended materialization is confined to this test's own root.
+			t.Setenv("TMPDIR", t.TempDir())
+			f := newInstallCurrentFixture(t, dark)
+			started := make(chan extensions.Prepared, 2)
+			release := make(chan struct{})
+			resume := sync.OnceFunc(func() { close(release) })
+			defer resume()
+			review := func(p extensions.Prepared) bool { started <- p; <-release; return true }
+			f.a.reviewInstall, f.a.reviewRecommended = review, review
+			settled := make(chan struct{}, 8)
+			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
+			tt := installCurrentFrame(f, dark)
+			installCurrentClick(t, f, tt, recommended)
+			var p extensions.Prepared
+			select {
+			case p = <-started:
+			case <-time.After(6 * time.Second):
+				t.Fatal("install did not reach review")
+			}
+			adoptionWait(t, settled)
+			dir := f.dir
+			if recommended {
+				dirs, err := filepath.Glob(filepath.Join(os.TempDir(), "floter-recommended-*"))
+				if err != nil || len(dirs) != 1 {
+					t.Fatalf("review stage: %v %v", dirs, err)
+				}
+				dir = dirs[0]
+			}
+			current := p.Manifest
+			switch change {
+			case "permissions":
+				current.Permissions = append(append([]string{}, current.Permissions...), extensions.PermissionClipboardRead)
+				diagnosisWrite(t, filepath.Join(dir, "floter.extension.json"), current)
+			case "package":
+				// Keep the old manifest's bytes intact: only its package entry changes.
+				current.Name = "当前工作区工具"
+				diagnosisWrite(t, filepath.Join(dir, "current.json"), current)
+				diagnosisWrite(t, filepath.Join(dir, "package.json"), map[string]any{"name": "current-package", "version": "2.0.0", "floter": map[string]string{"manifest": "current.json"}})
+			}
+			before, err := os.ReadFile(f.a.Paths.RepositoryFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resume()
+			adoptionWait(t, settled)
+			after, err := os.ReadFile(f.a.Paths.RepositoryFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Advance(200 * time.Millisecond)
+			tt.Frame()
+			scenario := "local-" + change
+			if recommended {
+				scenario = "recommended-" + change
+			}
+			installCurrentDump(t, tt, scenario, dark)
+			if !bytes.Equal(before, after) {
+				t.Errorf("obsolete %s review rewrote repository", scenario)
+			}
+			if titles := noticeTitles(f.a); len(titles) != 0 {
+				t.Errorf("obsolete %s review published a result: %q", scenario, titles)
+			}
+			if t.Failed() {
+				return
+			}
+			// A new explicit review is still allowed to install the current package.
+			installCurrentClick(t, f, tt, recommended)
+			adoptionWait(t, settled)
+			adoptionWait(t, settled)
+			if _, ok := f.a.Integrations.Inventory().WithID(p.Manifest.ID); !ok {
+				t.Error("fresh review did not install")
+			}
+		})
+	}
+}
+
+func TestInstallCurrentLocalPermissions(t *testing.T) {
+	checkInstallCurrentDeclaration(t, false, "permissions")
+}
+func TestInstallCurrentRecommendedPermissions(t *testing.T) {
+	checkInstallCurrentDeclaration(t, true, "permissions")
+}

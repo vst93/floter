@@ -29,6 +29,9 @@ type installSpec struct {
 	// Approved says the user approved the manifest's permissions for this
 	// exact manifest.
 	Approved bool
+	// reviewedDigest binds a Prepared answer to the declaration shown in its
+	// review, even when the source directory changes while the user reads it.
+	reviewedDigest string
 	// ExecutablePath is the program the caller resolved, when the manifest
 	// names a system runtime by name and the program is not on the search
 	// path (the connect flow's own file).
@@ -192,6 +195,9 @@ func prepare(paths Paths, spec installSpec, cleanup func()) (Prepared, error) {
 // Name describes the prepared package.
 func (p Prepared) Name() string { return p.Manifest.Name }
 
+// ErrInstallChanged retires a review whose package declaration changed.
+var ErrInstallChanged = errors.New("extensions: the package declaration changed during review")
+
 // Commit installs the prepared package. approved says whether the user
 // approved the permissions RequiresApproval asked about; without it, a
 // package that declares permissions is refused.
@@ -214,6 +220,7 @@ func (p Prepared) Commit(approved bool) (Entry, error) {
 	}
 	spec := p.spec
 	spec.Approved = approved
+	spec.reviewedDigest = p.Digest
 	if p.ExecutablePath != "" {
 		spec.ExecutablePath = p.ExecutablePath
 	}
@@ -289,6 +296,9 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	digest, err := ManifestDigest(spec.ManifestPath)
 	if err != nil {
 		return Entry{}, err
+	}
+	if spec.reviewedDigest != "" && digest != spec.reviewedDigest {
+		return Entry{}, ErrInstallChanged
 	}
 
 	// Resolve the runtime before touching the disk: a package whose program

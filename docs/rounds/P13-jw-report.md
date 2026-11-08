@@ -29,3 +29,12 @@
 旧代码的四个深浅场景均实红，原始 before PNG 和 M1-before.txt 已生成。后续正式回注、MD5复原、门槛数字据实追加。
 
 第一批相关回归 **53 PASS / 0 FAIL**，settingsui/shell vet净。M1回注两个原入口，四场景实红；两文件MD5逐字节还原，touch后 **6 PASS**。浅色图目视：推荐行“接管”原位出现等待环并退淡，本地“选择…”保持可用；没有遮罩或新卡层。完整基线仍运行中，提交只引用已完成的定向数字。
+
+第一批 **18326336** 已推送。开盘全量完成：**5974 PASS / 0 FAIL，exit0**。
+
+### 第二批：声明字节变化使旧回答退役
+
+3. 现象：本地审核窗口打开后新增clipboard-read，确认仍安装并批准新增权限。改动：Prepared把审核摘要带到安装读盘边界，不一致退役；本地入口安静恢复。验证：真实选择Click→审核门控→磁盘变化→确认，仓库字节不变、旧通知0条，新审核仍可安装。
+4. 现象：推荐连接审核后暂存声明改变，同样把旧回答用给新权限。改动：共用摘要保护，推荐入口处理失效结果并恢复。验证：推荐行真实Click及其独立暂存目录变化，深浅两套同验。
+
+第二批相关 **86 PASS / 0 FAIL**，extensions/shell vet净。M2撤销摘要检查后四场景报 `obsolete local-permissions review rewrote repository` / `obsolete recommended-permissions review rewrote repository`；MD5还原、touch后 **6 PASS**。开盘树 `git grep -h '^func Test' 2cca8ae9 -- '*_test.go'` 实数 **3395**（上一轮报告写3393，本轮不沿用误差）。

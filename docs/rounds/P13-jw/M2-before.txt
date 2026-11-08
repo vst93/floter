@@ -1,0 +1,19 @@
+=== RUN   TestInstallCurrentLocalPermissions
+=== RUN   TestInstallCurrentLocalPermissions/light
+    installcurrent_test.go:251: obsolete local-permissions review rewrote repository
+=== RUN   TestInstallCurrentLocalPermissions/dark
+    installcurrent_test.go:251: obsolete local-permissions review rewrote repository
+--- FAIL: TestInstallCurrentLocalPermissions (0.84s)
+    --- FAIL: TestInstallCurrentLocalPermissions/light (0.49s)
+    --- FAIL: TestInstallCurrentLocalPermissions/dark (0.34s)
+=== RUN   TestInstallCurrentRecommendedPermissions
+=== RUN   TestInstallCurrentRecommendedPermissions/light
+    installcurrent_test.go:251: obsolete recommended-permissions review rewrote repository
+=== RUN   TestInstallCurrentRecommendedPermissions/dark
+    installcurrent_test.go:251: obsolete recommended-permissions review rewrote repository
+--- FAIL: TestInstallCurrentRecommendedPermissions (0.79s)
+    --- FAIL: TestInstallCurrentRecommendedPermissions/light (0.37s)
+    --- FAIL: TestInstallCurrentRecommendedPermissions/dark (0.42s)
+FAIL
+FAIL	floter/internal/shell	1.636s
+FAIL
