@@ -33,3 +33,11 @@ func TestLeadReflowRunChoices(t *testing.T) {
 		t.Run(kind, func(t *testing.T) { checkCatalogReflow(t, "run-controls", kind, "local", "recommended", "detected") })
 	}
 }
+
+func TestLeadReflowRunCancel(t *testing.T) {
+	checkCatalogReflow(t, "run-controls", "cancel", "local", "recommended", "detected")
+}
+
+func TestLeadReflowRunSubmit(t *testing.T) {
+	checkCatalogReflow(t, "run-submit", "text", "local", "recommended", "detected")
+}

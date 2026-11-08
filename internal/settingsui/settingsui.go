@@ -8139,7 +8139,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			// form keeps the user's in-progress edits — the reference's
 			// `runParamMemory`, session memory seeded only on a fresh open.
 			var cancel ui.Element
-			a.formFeedbackOutlet(c.Key("run-cancel-outlet"), feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() { cancel = a.actionButton(c, copy.RunCancel) })
+			a.formFeedbackOutlet(c.Key("run-cancel-outlet"), a.integrationLead+feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() { cancel = a.actionButton(c, copy.RunCancel) })
 			if hadFieldFocus && !c.Resolve(*fieldFocus).Valid() {
 				cancel.Focus().ScrollIntoView()
 			}
@@ -8149,7 +8149,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			}
 			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
 			var run ui.Element
-			a.formFeedbackOutlet(c.Key("run-submit-outlet"), feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
+			a.formFeedbackOutlet(c.Key("run-submit-outlet"), a.integrationLead+feedback+healthFeedback+a.permissionFeedback(integration)+catalogFeedback(integration), func() { run = a.extensionPrimaryButton(c, copy.RunLabel, runDisabled).Bind(submitFocus) })
 			if runDisabled && hadSubmitFocus {
 				cancel.Focus().ScrollIntoView()
 			}
