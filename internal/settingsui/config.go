@@ -445,7 +445,10 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 		ui.Text(c, status).FontSize(tokens.Caption).FontWeight(500).TextColor(ink)
 		ui.Row(c).AlignItems(ui.Center).Gap(t.Space(0.5)).Children(func() {
 			copyDisabled := a.Actions.CopyConfiguration == nil || busy
-			copyButton := a.extensionIconButton(c, "copy", copy.ConfigCopy, copyDisabled)
+			var copyButton ui.Element
+			a.formFeedbackOutlet(c.Key("config-copy-outlet"), integration.Error, func() {
+				copyButton = a.extensionIconButton(c, "copy", copy.ConfigCopy, copyDisabled)
+			})
 			a.rememberOperationFocus(c, integration.ID, "transfer", copyButton)
 			if copyButton.Clicked() && !copyDisabled {
 				a.startConfigOperation(integration.ID, "copy", func(done func(error)) {
@@ -453,7 +456,10 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 				})
 			}
 			exportDisabled := a.Actions.ExportConfiguration == nil || busy
-			exportButton := a.extensionIconButton(c, "file-down", copy.ConfigExport, exportDisabled)
+			var exportButton ui.Element
+			a.formFeedbackOutlet(c.Key("config-export-outlet"), integration.Error, func() {
+				exportButton = a.extensionIconButton(c, "file-down", copy.ConfigExport, exportDisabled)
+			})
 			a.rememberOperationFocus(c, integration.ID, "transfer", exportButton)
 			if exportButton.Clicked() && !exportDisabled {
 				a.startConfigOperation(integration.ID, "export", func(done func(error)) {
@@ -585,7 +591,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		// P13-aq：Save 的 disabled 现在由 `extensionPrimaryButton` 自己给（它同时负责
 		// 熄灯）；这里不再叠一道 `.Opacity(0.4)`——那是框架 0.5 之外的第二次淡。
 		var save ui.Element
-		a.formViewportOutlet(c.Key("config-save-outlet"), func() { save = a.extensionPrimaryButton(c, saveLabel, saveDisabled) })
+		a.formFeedbackOutlet(c.Key("config-save-outlet"), strings.Join(feedback, ""), func() { save = a.extensionPrimaryButton(c, saveLabel, saveDisabled) })
 		if save.Clicked() && !saveDisabled {
 			if a.configSaveBusy == nil {
 				a.configSaveBusy = map[string]bool{}

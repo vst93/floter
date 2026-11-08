@@ -3070,7 +3070,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// `ConfigSection` (see configOpenToolRow).
 			var opener ui.Handle
 			wasAsking := a.configDiscard[integration.ID]
-			opened := a.row(c, copy.ConfigSection, "", func() {
+			opened := a.row(c.Key("integration.config"), copy.ConfigSection, "", func() {
 				button := a.actionButton(c, copy.ConfigOpen).Bind(&opener)
 				a.restoreNotice(c, integration.ID, "discard", a.configDiscard[integration.ID], button)
 				if button.Clicked() {

@@ -314,3 +314,9 @@ func TestFormFeedbackConfigFields(t *testing.T) {
 	}
 }
 func TestFormFeedbackConfigDefaults(t *testing.T) { checkConfigFeedback(t, "defaults") }
+func TestFormFeedbackConfigSave(t *testing.T)     { checkConfigFeedback(t, "save") }
+func TestFormFeedbackConfigTransfer(t *testing.T) {
+	for _, kind := range []string{"copy", "export"} {
+		t.Run(kind, func(t *testing.T) { checkConfigFeedback(t, kind) })
+	}
+}
