@@ -179,3 +179,55 @@ func checkRunActionVisibility(t *testing.T, unavailable bool) {
 
 func TestRunVisibilitySubmitUnavailable(t *testing.T) { checkRunActionVisibility(t, true) }
 func TestRunVisibilityCancel(t *testing.T)            { checkRunActionVisibility(t, false) }
+
+func checkRunFormVisibility(t *testing.T, empty bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, in := runVisibilityApp(t, dark)
+			calls := 0
+			a.Actions.RunWithParams = func(id string, values map[string]string) *extensions.ParamFailure {
+				calls++
+				if !empty || id != in.ID || values != nil {
+					t.Error("retired inputs reached direct Run")
+				}
+				return nil
+			}
+			var viewport ui.Rect
+			tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) { viewport = c.Resolve(a.Body.Handle).Bounds() })
+			optionExitFocus(t, tt, "参数 1")
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("mine")
+			tt.Frame()
+			a.Body.Y = a.Body.MaxY
+			tt.Frame()
+			name := "form-closed"
+			if empty {
+				in.Params = nil
+				name = "form-empty"
+			} else {
+				a.runOpen[in.ID] = false
+			}
+			tt.Frame()
+			tt.Frame()
+			runVisibilityDump(t, tt, name, dark)
+			runVisible(t, a, tt, a.copy().RunAction, viewport)
+			if calls != 0 || a.runValues[in.ID]["p0"] != "mine" {
+				t.Fatal("form retirement changed session answers or ran command")
+			}
+			runVisibilityWheel(t, a, tt)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if empty {
+				if calls != 1 {
+					t.Fatal("direct Run not keyboard reachable")
+				}
+			} else if !a.runOpen[in.ID] || a.runValues[in.ID]["p0"] != "mine" {
+				t.Fatal("closed form cannot reopen edited answer")
+			}
+		})
+	}
+}
+
+func TestRunVisibilityFormClosed(t *testing.T)           { checkRunFormVisibility(t, false) }
+func TestRunVisibilityAllParametersRemoved(t *testing.T) { checkRunFormVisibility(t, true) }

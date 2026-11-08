@@ -34,3 +34,10 @@
 4. 取消运行表单：长表单折叠后原Run已持焦但scroll=689.30005处被完全裁剪 → 原返焦同时显现 → 深浅原入口可见，Enter能重开同一草稿，取消本身不运行。
 
 第二批定向6 PASS / 0 FAIL，settingsui vet净、gofmt空。M2回注第一批产品，四场景实红`run outlet outside viewport`；MD5还原、touch复验6 PASS。旧V/B/S断言0/0/0。
+
+第二批fe136ecc已推送。
+
+5. 运行表单外部关闭：当前字段消失，原Run返焦在scroll=689.30005下绘制面积0 → 仅run表单实际返焦事件显示原入口 → 深浅入口可见、原答案mine保留、Enter可重开，没有命令派发。
+6. 全部运行参数撤回：原Run变为无参运行入口，焦点仍藏在页外 → 同一已有返焦事件显示原入口 → 深浅Enter恰好调用一次当前ID，参数严格nil，未将保留的会话答案送入命令。
+
+第三批定向6 PASS / 0 FAIL，settingsui vet净、gofmt空。M3回注旧noticefocus.go，四场景实红`run outlet outside viewport`；MD5逐字节还原、touch复验6 PASS。其他notice种类沿原规则，旧V/B/S断言0/0/0。

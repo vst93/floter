@@ -1,0 +1,14 @@
+=== RUN   TestRunVisibilityFormClosed
+=== RUN   TestRunVisibilityFormClosed/light
+=== RUN   TestRunVisibilityFormClosed/dark
+--- PASS: TestRunVisibilityFormClosed (0.26s)
+    --- PASS: TestRunVisibilityFormClosed/light (0.20s)
+    --- PASS: TestRunVisibilityFormClosed/dark (0.05s)
+=== RUN   TestRunVisibilityAllParametersRemoved
+=== RUN   TestRunVisibilityAllParametersRemoved/light
+=== RUN   TestRunVisibilityAllParametersRemoved/dark
+--- PASS: TestRunVisibilityAllParametersRemoved (0.09s)
+    --- PASS: TestRunVisibilityAllParametersRemoved/light (0.04s)
+    --- PASS: TestRunVisibilityAllParametersRemoved/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.357s

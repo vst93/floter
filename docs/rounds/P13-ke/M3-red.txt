@@ -1,0 +1,19 @@
+=== RUN   TestRunVisibilityFormClosed
+=== RUN   TestRunVisibilityFormClosed/light
+    runvisibility_test.go:214: run outlet outside viewport: label="Run" focused=true rect={X:662.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=689.30005
+=== RUN   TestRunVisibilityFormClosed/dark
+    runvisibility_test.go:214: run outlet outside viewport: label="Run" focused=true rect={X:662.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=689.30005
+--- FAIL: TestRunVisibilityFormClosed (0.17s)
+    --- FAIL: TestRunVisibilityFormClosed/light (0.12s)
+    --- FAIL: TestRunVisibilityFormClosed/dark (0.05s)
+=== RUN   TestRunVisibilityAllParametersRemoved
+=== RUN   TestRunVisibilityAllParametersRemoved/light
+    runvisibility_test.go:214: run outlet outside viewport: label="Run" focused=true rect={X:662.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=689.30005
+=== RUN   TestRunVisibilityAllParametersRemoved/dark
+    runvisibility_test.go:214: run outlet outside viewport: label="Run" focused=true rect={X:662.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=689.30005
+--- FAIL: TestRunVisibilityAllParametersRemoved (0.09s)
+    --- FAIL: TestRunVisibilityAllParametersRemoved/light (0.05s)
+    --- FAIL: TestRunVisibilityAllParametersRemoved/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.272s
+FAIL

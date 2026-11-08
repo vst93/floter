@@ -112,6 +112,11 @@ func (a *App) restoreNotice(c *ui.Context, id, kind string, open bool, opener ui
 	if !opener.Valid() || opener.IsDisabled() {
 		opener = c.Resolve(*noticeExit(c))
 	}
+	// The run form can retire far from its disclosure in a scrolled list.
+	// Reveal only the existing return event; surviving focus keeps its scroll.
+	if kind == "run" && !open && a.noticeFocus(c, id, kind).panel.FocusWithin(c) {
+		opener.ScrollIntoView()
+	}
 	a.noticeFocus(c, id, kind).restore(c, open, opener)
 }
 
