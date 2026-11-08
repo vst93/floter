@@ -11,8 +11,10 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func TestLeadActionsAlias(t *testing.T)   { checkLeadAction(t, "alias") }
-func TestLeadActionsCommand(t *testing.T) { checkLeadAction(t, "command") }
+func TestLeadActionsAlias(t *testing.T)    { checkLeadAction(t, "alias") }
+func TestLeadActionsCommand(t *testing.T)  { checkLeadAction(t, "command") }
+func TestLeadActionsRun(t *testing.T)      { checkLeadAction(t, "run") }
+func TestLeadActionsDiagnose(t *testing.T) { checkLeadAction(t, "diagnose") }
 
 func checkLeadAction(t *testing.T, action string) {
 	t.Helper()

@@ -3269,7 +3269,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				// fact, so its crown goes out with the rest of the cluster. Exactly one
 				// pill is built either way.
 				var run ui.Element
-				a.formFeedbackOutlet(c.Key("row-run-output-outlet"), outputFeedback, func() {
+				a.formFeedbackOutlet(c.Key("row-run-output-outlet"), a.integrationLead+outputFeedback, func() {
 					switch {
 					case !runnable:
 						run = tokens.Tip(c, a.disabledActionButton(c, copy.RunAction), copy.RunActionUnavailable)
@@ -3332,7 +3332,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				}
 			}
 			if a.Actions.DiagnoseIntegration != nil {
-				a.formFeedbackOutlet(c.Key("row-check-output-outlet"), outputFeedback, func() {
+				a.formFeedbackOutlet(c.Key("row-check-output-outlet"), a.integrationLead+outputFeedback, func() {
 					checkOpener = rowAction(copy.IntegrationsCheck)
 				})
 				if checkOpener.Clicked() {
