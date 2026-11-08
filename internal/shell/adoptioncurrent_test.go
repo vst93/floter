@@ -173,3 +173,43 @@ func TestAdoptionCurrentPermissions(t *testing.T) { checkAdoptionCurrent(t, "per
 func TestAdoptionCurrentPackage(t *testing.T)     { checkAdoptionCurrent(t, "package") }
 func TestAdoptionCurrentRecord(t *testing.T)      { checkAdoptionCurrent(t, "record") }
 func TestAdoptionCurrentRemoved(t *testing.T)     { checkAdoptionCurrent(t, "removed") }
+func TestAdoptionCancel(t *testing.T)             { checkAdoptionCurrent(t, "cancel") }
+
+func TestAdoptionDeleteFailure(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
+			f := adoptionFixture(t, dark)
+			tt := healthRefreshFrame(t, f, "unused", dark)
+			settled := make(chan struct{}, 8)
+			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
+			if err := os.WriteFile(f.paths.RepositoryFile, []byte("{"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			adoptionClick(t, f, tt, true)
+			adoptionWait(t, settled)
+			adoptionWait(t, settled)
+			titles := noticeTitles(f.a)
+			tt.Frame()
+			tt.Frame()
+			adoptionDump(t, tt, "delete-failure", dark)
+			want := i18n.NotificationsFor("zh").IntegrationRemoveFailed(f.entry.ID)
+			if len(titles) != 1 || titles[0] != want {
+				t.Errorf("orphan deletion failure lost result: got=%q want=%q", titles, want)
+			}
+			if _, err := os.Stat(filepath.Dir(f.entry.ManifestPath)); err != nil {
+				t.Fatal("failed deletion lost package:", err)
+			}
+			diagnosisWrite(t, f.paths.RepositoryFile, map[string]any{"schemaVersion": 1, "extensions": map[string]extensions.Entry{}})
+			adoptionClick(t, f, tt, true)
+			adoptionWait(t, settled)
+			adoptionWait(t, settled)
+			f.a.Settings.Actions.Invalidate = nil
+			if _, err := os.Stat(filepath.Dir(f.entry.ManifestPath)); !os.IsNotExist(err) {
+				t.Errorf("retry did not delete package: %v", err)
+			}
+			if len(f.a.integrationList()) != 0 {
+				t.Error("successful retry left an orphan row")
+			}
+		})
+	}
+}

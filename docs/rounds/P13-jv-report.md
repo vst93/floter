@@ -49,3 +49,14 @@ M2第一次夹具运行时不可用，只复现过期失败通知，脚本因未
 6. 现象：权限确认期间包目录消失，旧回答报安装失败且孤包卡仍在。改动：提交前复核目录存在，ErrNoOrphan作为失效问题退出并刷新列表。验证：深浅目标行消失、仓库不改、旧失败通知0条。
 
 真实Click→确认门控→磁盘变化→答案返回；第三批红串、MD5还原、touch复验见M3原始日志。普通安装重复ID规则未变。
+
+8bfc5c98补齐后M2/M3均实红并逐字节还原，touch后各6 PASS；真实写盘红串分别为 `obsolete permissions/package/record adoption rewrote current repository`；移除为 `obsolete removed adoption published a result` 与 `removed package remains on screen`。
+
+## 第四批：取消与失败出口
+
+7. 现象：权限窗口选取消后显示“安装失败”。改动：不再以拒绝答案调用Commit，刷新当前事实后释放行。验证：取消仓库不改、通知0条、可以再次接管，重复宿主派发也只打开1个确认。
+8. 现象：删除孤包遇到仓库读取失败只有日志，页面无失败反馈。改动：复用已有IntegrationRemoveFailed通知。验证：真实删除Click遇到损坏仓库，恰好1条失败结果、包保留；修好仓库后同一入口重试成功、孤包卡消失。
+
+第四批以M4注入缺陷取得深浅before，修复后重新渲染；实测与提交记录收尾追加。
+
+第四批复验还抓到失败后Refresh损坏仓库把原孤包行清掉，重试按钮消失；第8项一并修正为通知后返回，保留已知原行，defer释放忙态。第一次M4还原日志exit1保留说明，不计通过。

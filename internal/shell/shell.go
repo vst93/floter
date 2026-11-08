@@ -1003,6 +1003,10 @@ func New(opts Options) *App {
 				if prepared.Approval.NeedsApproval() {
 					approved = a.confirmInstallPermissions(prepared.Approval)
 				}
+				if !approved {
+					a.RefreshIntegrations(context.Background())
+					return
+				}
 				entry, err := prepared.Commit(approved)
 				if errors.Is(err, extensions.ErrAdoptChanged) || errors.Is(err, extensions.ErrNotOrphan) || errors.Is(err, extensions.ErrNoOrphan) {
 					a.RefreshIntegrations(context.Background())
@@ -1028,6 +1032,8 @@ func New(opts Options) *App {
 				defer a.onMain(func() { a.Settings.FinishOrphanOperation(id) })
 				if err := extensions.DeleteOrphan(a.Paths, id); err != nil {
 					log.Printf("floter: could not delete %s: %v", id, err)
+					a.notifyFailure(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(id) })
+					return
 				}
 				a.RefreshIntegrations(context.Background())
 			}()
