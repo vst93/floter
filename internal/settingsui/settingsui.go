@@ -3315,13 +3315,19 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// still has its way back.
 			if integration.Broken {
 				if a.Actions.RepairIntegration != nil {
-					a.repairAction(c, integration.ID, copy.IntegrationsRecheck, copy.IntegrationsRecheck, a.Actions.RepairIntegration)
+					var recheck ui.Element
+					a.formFeedbackOutlet(c.Key("row-recheck-outlet"), a.integrationLead+outputFeedback, func() {
+						recheck = a.repairAction(c, integration.ID, copy.IntegrationsRecheck, copy.IntegrationsRecheck, a.Actions.RepairIntegration)
+					}, func() bool { return recheck.FocusVisible() })
 				}
 			} else {
 				switch integration.repairKind() {
 				case repairReconnect:
 					if a.Actions.ReconnectIntegration != nil {
-						a.repairAction(c, integration.ID, integration.repairLabel(copy), integration.repairTooltip(copy), a.Actions.ReconnectIntegration)
+						var reconnect ui.Element
+						a.formFeedbackOutlet(c.Key("row-reconnect-outlet"), a.integrationLead+outputFeedback, func() {
+							reconnect = a.repairAction(c, integration.ID, integration.repairLabel(copy), integration.repairTooltip(copy), a.Actions.ReconnectIntegration)
+						}, func() bool { return reconnect.FocusVisible() })
 					}
 				case repairHomepage:
 					if a.Actions.OpenHomepage != nil {
@@ -4233,11 +4239,10 @@ const repairGlyphName = "refresh"
 // this pair (`src/extensions/ExtensionRow.tsx:313-330,345-372`): one button
 // whose icon became a turning LoaderCircle and whose `disabled={busy}` face
 // stayed until `runMutation`'s `finally`.
-func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(string, func(error))) {
+func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(string, func(error))) ui.Element {
 	tokens := a.tokens(c)
 	if a.repairBusy[id] {
-		a.rememberOperationFocus(c, id, "repair", tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip))
-		return
+		return a.rememberOperationFocus(c, id, "repair", tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip))
 	}
 	// P13-cl（`docs/liquid-glass.md` §6.55）：这一枚键有三个状态——静息 / 另一操作在飞 /
 	// 自己在飞——而三个状态画的是两种内容：一行字，或一枚环加一行字。此前静息臂是
@@ -4264,6 +4269,7 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
 	if button.Clicked() {
 		a.startRepair(id, run)
 	}
+	return button
 }
 
 // rowBusy reports whether any operation on an integration is in flight, so the

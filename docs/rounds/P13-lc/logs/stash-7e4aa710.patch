@@ -1,0 +1,175 @@
+diff --git a/internal/settingsui/uninstall.go b/internal/settingsui/uninstall.go
+index ada7274f..605b6f22 100644
+--- a/internal/settingsui/uninstall.go
++++ b/internal/settingsui/uninstall.go
+@@ -75,14 +75,14 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
+ 		draft = UninstallComponents{RemoveHostConfig: true, RemoveToolData: true, RemoveArtifacts: true}
+ 		a.uninstallDraft[integration.ID] = draft
+ 	}
+-	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(0, t.Space(2), 0, 0).Children(func() {
++	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(4.25)).MinWidth(t.Space(105)).MaxWidth(t.Space(120)).Children(func() {
+ 		ui.Text(c, copy.IntegrationsUninstallTitle(integration.Name)).
+ 			FontSize(t.FontSize).Bold()
+ 		ui.Text(c, copy.IntegrationsUninstallDescription).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+ 		for _, part := range uninstallParts(copy, &draft) {
+ 			a.uninstallPartRow(c, part)
+ 		}
+-		ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
++		ui.Row(c).FillWidth().Gap(t.Space(1.75)).AlignItems(ui.Center).Children(func() {
+ 			if ui.Button(c, copy.PermissionsCancel).Clicked() {
+ 				a.uninstallOpen[integration.ID] = false
+ 				return
+@@ -117,7 +117,7 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) {
+ 	}
+ 	changed := false
+ 	ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Start).
+-		Padding(t.Space(3)).Radius(tokens.RadiusSM).
++		Padding(t.Space(3)).Radius(t.Space(2)).
+ 		Border(1, tokens.ControlEdge).Background(tokens.Control).Children(func() {
+ 		box := ui.Checkbox(c, &on, "").Label(part.Label)
+ 		if part.Fixed {
+@@ -125,7 +125,7 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) {
+ 		} else if box.Changed() {
+ 			changed = true
+ 		}
+-		ui.Column(c).Grow(1).Gap(1).Children(func() {
++		ui.Column(c).Grow(1).Gap(t.Space(1)).Children(func() {
+ 			ui.Text(c, part.Label).FontSize(t.FontSize + 1).FontWeight(600).TextColor(tokens.TextStrong)
+ 			if part.Hint != "" {
+ 				ui.Text(c, part.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+diff --git a/internal/settingsui/uninstall_test.go b/internal/settingsui/uninstall_test.go
+index a236a952..3bcca8f0 100644
+--- a/internal/settingsui/uninstall_test.go
++++ b/internal/settingsui/uninstall_test.go
+@@ -4,6 +4,8 @@ import (
+ 	"testing"
+ 
+ 	"floter/internal/i18n"
++
++	"github.com/egoist/mygo/ui"
+ )
+ 
+ // The componentized uninstall dialog is the reference's own four rows
+@@ -156,3 +158,122 @@ func TestComponentizedUninstallKeepsCancelFirst(t *testing.T) {
+ 		t.Errorf("Cancel (x=%v) is not before the confirm button (x=%v)", cancel.X, confirm.X)
+ 	}
+ }
++
++// The dialog's own box: the reference's `.extensions-dialog` carries 17px of
++// padding on every side (`ComponentizedUninstallDialog.css:17-23`), and the
++// uninstall variant is at least 420px wide (`.extensions-uninstall-dialog`).
++// The title's own X reads the padding-left; the dialog's own width reads the
++// min-width.
++func TestComponentizedUninstallDialogPaddingAndMinWidth(t *testing.T) {
++	en := i18n.For("en").Settings
++	a := newTestApp()
++	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) {}}
++	a.Integrations = func() []Integration {
++		return []Integration{{ID: "npm", Name: "NPM Tool", DistributionSource: "npm"}}
++	}
++	tt := render(t, a, 720, 1400)
++	if err := tt.Click("Integrations"); err != nil {
++		t.Fatalf("click Integrations: %v", err)
++	}
++	tt.Frame()
++	if err := tt.Click(en.IntegrationsUninstall + "…"); err != nil {
++		t.Fatalf("click the uninstall button: %v (texts %v)", err, tt.Texts())
++	}
++	tt.Frame()
++
++	title, ok := tt.Find(en.IntegrationsUninstallTitle("NPM Tool"))
++	if !ok {
++		t.Fatalf("the dialog is missing its title: %v", tt.Texts())
++	}
++
++	// Read the theme's Space value the same way the page does.
++	var space float32
++	ui.NewTester(func(c *ui.Context) { space = c.Theme().Space(1) }, 100, 100).Frame()
++	if space <= 0 {
++		t.Fatal("the theme's Space(1) read as zero: no theme captured")
++	}
++	wantPadding := space * 4.25 // 17px
++	if absFloat(title.X-wantPadding) > 0.5 {
++		t.Errorf("the dialog's padding-left is %.1f, want %.1f (17px)", title.X, wantPadding)
++	}
++	wantMinWidth := space * 105 // 420px
++	if title.W < wantMinWidth {
++		t.Errorf("the dialog is %.1f wide, want at least %.1f (420px)", title.W, wantMinWidth)
++	}
++}
++
++// The label and hint inside one component row are 4px apart — the reference's
++// `gap: 4px 12px` on `.extensions-uninstall-component`
++// (`ComponentizedUninstallDialog.css:37-44`). The hint's Y minus the label's
++// bottom edge reads that gap.
++func TestComponentizedUninstallLabelHintGap(t *testing.T) {
++	en := i18n.For("en").Settings
++	a := newTestApp()
++	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) {}}
++	a.Integrations = func() []Integration {
++		return []Integration{{ID: "npm", Name: "NPM Tool", DistributionSource: "npm"}}
++	}
++	tt := render(t, a, 720, 1400)
++	if err := tt.Click("Integrations"); err != nil {
++		t.Fatalf("click Integrations: %v", err)
++	}
++	tt.Frame()
++	if err := tt.Click(en.IntegrationsUninstall + "…"); err != nil {
++		t.Fatalf("click the uninstall button: %v (texts %v)", err, tt.Texts())
++	}
++	tt.Frame()
++
++	label, ok := tt.Find(en.UninstallHostConfig)
++	if !ok {
++		t.Fatalf("the dialog is missing the host configuration label: %v", tt.Texts())
++	}
++	hint, ok := tt.Find(en.UninstallHostConfigHint)
++	if !ok {
++		t.Fatalf("the dialog is missing the host configuration hint: %v", tt.Texts())
++	}
++	var space float32
++	ui.NewTester(func(c *ui.Context) { space = c.Theme().Space(1) }, 100, 100).Frame()
++	wantGap := space // 4px
++	gotGap := hint.Y - (label.Y + label.H)
++	if absFloat(gotGap-wantGap) > 0.5 {
++		t.Errorf("the label/hint gap is %.1f, want %.1f (4px)", gotGap, wantGap)
++	}
++}
++
++// The two action buttons are 7px apart — the reference's
++// `.extensions-dialog-actions { gap: 7px }`
++// (`ComponentizedUninstallDialog.css:68-72`). The confirm button's X minus
++// the cancel button's right edge reads that gap.
++func TestComponentizedUninstallButtonGap(t *testing.T) {
++	en := i18n.For("en").Settings
++	a := newTestApp()
++	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) {}}
++	a.Integrations = func() []Integration {
++		return []Integration{{ID: "npm", Name: "NPM Tool", DistributionSource: "npm"}}
++	}
++	tt := render(t, a, 720, 1400)
++	if err := tt.Click("Integrations"); err != nil {
++		t.Fatalf("click Integrations: %v", err)
++	}
++	tt.Frame()
++	if err := tt.Click(en.IntegrationsUninstall + "…"); err != nil {
++		t.Fatalf("click the uninstall button: %v (texts %v)", err, tt.Texts())
++	}
++	tt.Frame()
++
++	cancel, ok := tt.Find(en.PermissionsCancel)
++	if !ok {
++		t.Fatalf("the dialog is missing Cancel: %v", tt.Texts())
++	}
++	confirm, ok := tt.Find(en.IntegrationsUninstall)
++	if !ok {
++		t.Fatalf("the dialog is missing the confirm button: %v", tt.Texts())
++	}
++	var space float32
++	ui.NewTester(func(c *ui.Context) { space = c.Theme().Space(1) }, 100, 100).Frame()
++	wantGap := space * 1.75 // 7px
++	gotGap := confirm.X - (cancel.X + cancel.W)
++	if absFloat(gotGap-wantGap) > 0.5 {
++		t.Errorf("the button gap is %.1f, want %.1f (7px)", gotGap, wantGap)
++	}
++}
