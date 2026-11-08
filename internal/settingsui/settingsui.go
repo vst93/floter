@@ -3345,9 +3345,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// with them without a disconnect.
 			if integration.Generated && a.Actions.ReprobeCommands != nil {
 				var reprobe ui.Element
+				// Pointer focus must not move the target between press and release.
+				// Layout feedback still reveals either kind of existing focus.
 				a.formFeedbackOutlet(c.Key("row-reprobe-outlet"), a.integrationLead+outputFeedback, func() {
 					reprobe = rowAction(copy.IntegrationsReprobe)
-				})
+				}, func() bool { return reprobe.FocusVisible() })
 				if reprobe.Clicked() {
 					a.Actions.ReprobeCommands(integration.ID)
 				}
@@ -3356,7 +3358,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				var edit ui.Element
 				a.formFeedbackOutlet(c.Key("row-edit-outlet"), a.integrationLead+outputFeedback, func() {
 					edit = rowAction(copy.EditLabel)
-				})
+				}, func() bool { return edit.FocusVisible() })
 				if edit.Clicked() {
 					form := a.toolFormKey
 					tool, ok := a.Actions.ToolForEdit(integration.ID)
