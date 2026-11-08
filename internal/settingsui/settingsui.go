@@ -1994,12 +1994,16 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 			a.installFolderRow(c, copy)
 			// The PATH commands' own switch sits with the integrations, as the old
 			// panel had it: it decides whether the search offers them at all.
-			a.card(c, func() {
-				a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
-					settings.ShowCommandsInSearch(a.settings()),
-					func(on bool) {
-						a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
-					})
+			// Preceding sections may appear or retire without replacing this setting.
+			a.card(c.Key("commands-search"), func() {
+				var search ui.Element
+				a.formFeedbackOutlet(c.Key("commands-search-outlet"), a.integrationLead, func() {
+					search = a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
+						settings.ShowCommandsInSearch(a.settings()),
+						func(on bool) {
+							a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
+						})
+				}, func() bool { return search.FocusVisible() })
 			})
 			if len(integrations) == 0 {
 				// The reference's shared empty region (`ExtensionsPanel.tsx:2462,
@@ -3003,7 +3007,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 
 		if len(integration.Permissions) > 0 && !integration.Orphan {
 			labelClicked := a.row(c, copy.IntegrationsPermissions, a.permissionLine(integration, copy), func() {
-				if a.actionButton(c, copy.IntegrationsPermissions).Clicked() {
+				var permissions ui.Element
+				a.formFeedbackOutlet(c.Key("permissions-outlet"), a.integrationLead, func() {
+					permissions = a.actionButton(c, copy.IntegrationsPermissions)
+				}, func() bool { return permissions.FocusVisible() })
+				if permissions.Clicked() {
 					a.toggleAudit(integration.ID)
 				}
 			}, func() { a.permissionAudit(c, copy, integration) })

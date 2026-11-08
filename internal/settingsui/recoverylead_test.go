@@ -11,12 +11,14 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func TestRecoveryLeadRecheck(t *testing.T)   { checkRecoveryLead(t, "recheck") }
-func TestRecoveryLeadReconnect(t *testing.T) { checkRecoveryLead(t, "reconnect") }
-func TestRecoveryLeadHomepage(t *testing.T)  { checkRecoveryLead(t, "homepage") }
-func TestRecoveryLeadHealth(t *testing.T)    { checkRecoveryLead(t, "health") }
-func TestRecoveryLeadAdopt(t *testing.T)     { checkRecoveryLead(t, "adopt") }
-func TestRecoveryLeadDelete(t *testing.T)    { checkRecoveryLead(t, "delete") }
+func TestRecoveryLeadRecheck(t *testing.T)     { checkRecoveryLead(t, "recheck") }
+func TestRecoveryLeadReconnect(t *testing.T)   { checkRecoveryLead(t, "reconnect") }
+func TestRecoveryLeadHomepage(t *testing.T)    { checkRecoveryLead(t, "homepage") }
+func TestRecoveryLeadHealth(t *testing.T)      { checkRecoveryLead(t, "health") }
+func TestRecoveryLeadAdopt(t *testing.T)       { checkRecoveryLead(t, "adopt") }
+func TestRecoveryLeadDelete(t *testing.T)      { checkRecoveryLead(t, "delete") }
+func TestRecoveryLeadPermissions(t *testing.T) { checkRecoveryLead(t, "permissions") }
+func TestRecoveryLeadSearch(t *testing.T)      { checkRecoveryLead(t, "search") }
 
 // Exercise actual focus and activation, including pointer press/release. A
 // layout refresh must reveal the same owner without stealing later scrolling.
