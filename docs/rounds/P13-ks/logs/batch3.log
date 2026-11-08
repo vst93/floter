@@ -1,0 +1,26 @@
+=== RUN   TestFormFeedbackConfigDefaults
+=== RUN   TestFormFeedbackConfigDefaults/light
+=== RUN   TestFormFeedbackConfigDefaults/dark
+--- PASS: TestFormFeedbackConfigDefaults (0.32s)
+    --- PASS: TestFormFeedbackConfigDefaults/light (0.23s)
+    --- PASS: TestFormFeedbackConfigDefaults/dark (0.08s)
+=== RUN   TestFormFeedbackConfigSave
+=== RUN   TestFormFeedbackConfigSave/light
+=== RUN   TestFormFeedbackConfigSave/dark
+--- PASS: TestFormFeedbackConfigSave (0.18s)
+    --- PASS: TestFormFeedbackConfigSave/light (0.09s)
+    --- PASS: TestFormFeedbackConfigSave/dark (0.09s)
+=== RUN   TestFormPrefixConfigDefaults
+=== RUN   TestFormPrefixConfigDefaults/light
+=== RUN   TestFormPrefixConfigDefaults/dark
+--- PASS: TestFormPrefixConfigDefaults (0.16s)
+    --- PASS: TestFormPrefixConfigDefaults/light (0.08s)
+    --- PASS: TestFormPrefixConfigDefaults/dark (0.08s)
+=== RUN   TestFormPrefixConfigSave
+=== RUN   TestFormPrefixConfigSave/light
+=== RUN   TestFormPrefixConfigSave/dark
+--- PASS: TestFormPrefixConfigSave (0.15s)
+    --- PASS: TestFormPrefixConfigSave/light (0.07s)
+    --- PASS: TestFormPrefixConfigSave/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	0.837s

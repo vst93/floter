@@ -30,3 +30,6 @@
 4. 配置字段：现象→诊断行挤掉配置5，仍有焦点却W/H=0；改动→字段前置反馈纳入诊断/描述；验证→深浅继续输入continued仅写c4，c0的dirty草稿保留。相关48 PASS/exit0。浅色对照中配置5由屏外回到完整蓝环编辑槽，底部淡边未盖住输入。
 
 M2撤回工具配置行身份及包络，实红`feedback reflow hides active outlet "Open configuration" ... focused=false`和`action dispatched 0 times`；MD5还原、touch后3 PASS/exit0。M1/M2原始错误与MD5核对日志在logs，未修改旧B断言。
+
+5. 配置恢复默认：现象→宿主诊断出现后原默认按钮被裁出正文；改动→配置动作的前置反馈包含诊断/描述；验证→深浅增/删/再增仍可见，Enter把c0由dirty恢复stored，未经过保存回调。
+6. 配置保存：现象→同一诊断插入使仍聚焦的保存出口屏外；改动→共享原动作反馈接线；验证→深浅三次变化后Enter按原ID提交dirty一次，原异步保存规则不改。每项修复前独立实红，原始日志before.log。

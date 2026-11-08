@@ -188,9 +188,11 @@ func checkFormPrefix(t *testing.T, scenario, kind string) {
 	}
 }
 
-func TestFormPrefixRunSubmit(t *testing.T)    { checkFormPrefix(t, "run-submit", "text") }
-func TestFormPrefixToolOpen(t *testing.T)     { checkFormPrefix(t, "tool-open", "") }
-func TestFormPrefixConfigFields(t *testing.T) { checkFormPrefix(t, "config-fields", "text") }
+func TestFormPrefixRunSubmit(t *testing.T)      { checkFormPrefix(t, "run-submit", "text") }
+func TestFormPrefixToolOpen(t *testing.T)       { checkFormPrefix(t, "tool-open", "") }
+func TestFormPrefixConfigFields(t *testing.T)   { checkFormPrefix(t, "config-fields", "text") }
+func TestFormPrefixConfigDefaults(t *testing.T) { checkFormPrefix(t, "config-defaults", "") }
+func TestFormPrefixConfigSave(t *testing.T)     { checkFormPrefix(t, "config-save", "") }
 func TestFormPrefixRunControls(t *testing.T) {
 	for _, kind := range []string{"text", "number", "path", "boolean", "select", "cancel"} {
 		t.Run(kind, func(t *testing.T) { checkFormPrefix(t, "run-controls", kind) })

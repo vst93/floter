@@ -399,7 +399,8 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 			a.noticeLine(c, a.configError[integration.ID])
 		}
 		// Keep the actions' identity when a failure notice is inserted above it.
-		a.configActions(c.Key("config.actions"), copy, integration, draft, feedback+strconv.Quote(a.configError[integration.ID]))
+		a.configActions(c.Key("config.actions"), copy, integration, draft,
+			strconv.Quote(integration.Error)+strconv.Quote(integration.Description)+feedback+strconv.Quote(a.configError[integration.ID]))
 	})
 }
 
