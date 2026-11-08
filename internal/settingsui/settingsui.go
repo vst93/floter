@@ -5823,8 +5823,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					index = 1
 				}
 				programFocus, scriptFocus := a.contentFocus(c, "mode-program"), a.contentFocus(c, "mode-script")
-				picker := a.segmentedControl(c, &index, copy.LocalToolModeProgram, copy.LocalToolModeScript).
-					Label(copy.LocalToolMode).Bind(&programFocus.source).Bind(&scriptFocus.source)
+				var picker ui.Element
+				outputFocusOutlet(c.Key("local-mode-outlet"), func() {
+					picker = a.segmentedControl(c, &index, copy.LocalToolModeProgram, copy.LocalToolModeScript).
+						Label(copy.LocalToolMode).Bind(&programFocus.source).Bind(&scriptFocus.source)
+				})
 				if picker.Changed() {
 					if index == 0 {
 						mode = ""
@@ -5912,8 +5915,10 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// backend stores the honest empty rather than a generated sentence.
 			if mode != routeScript {
 				a.row(c, copy.LocalToolDescription, "", func() {
-					a.rememberModeContent(c, false, a.extensionField(c, &description, customFieldMetrics).Label(copy.LocalToolDescription).Width(240).Grow(1).
-						Placeholder(copy.LocalToolDescriptionPlaceholder))
+					outputFocusOutlet(c.Key("local-description-outlet"), func() {
+						a.rememberModeContent(c, false, a.extensionField(c, &description, customFieldMetrics).Label(copy.LocalToolDescription).Width(240).Grow(1).
+							Placeholder(copy.LocalToolDescriptionPlaceholder))
+					})
 				})
 			}
 			// The content actions sit where the reference put them: after the
