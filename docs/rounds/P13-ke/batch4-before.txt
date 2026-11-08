@@ -1,0 +1,19 @@
+=== RUN   TestConfigReturnVisibilityCancel
+=== RUN   TestConfigReturnVisibilityCancel/light
+    runvisibility_test.go:273: run outlet outside viewport: label="Configure" focused=true rect={X:631.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1270.3
+=== RUN   TestConfigReturnVisibilityCancel/dark
+    runvisibility_test.go:273: run outlet outside viewport: label="Configure" focused=true rect={X:631.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1270.3
+--- FAIL: TestConfigReturnVisibilityCancel (0.30s)
+    --- FAIL: TestConfigReturnVisibilityCancel/light (0.24s)
+    --- FAIL: TestConfigReturnVisibilityCancel/dark (0.06s)
+=== RUN   TestConfigReturnVisibilityDiscard
+=== RUN   TestConfigReturnVisibilityDiscard/light
+    runvisibility_test.go:273: run outlet outside viewport: label="Configure" focused=true rect={X:631.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=718.30005
+=== RUN   TestConfigReturnVisibilityDiscard/dark
+    runvisibility_test.go:273: run outlet outside viewport: label="Configure" focused=true rect={X:631.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=718.30005
+--- FAIL: TestConfigReturnVisibilityDiscard (0.13s)
+    --- FAIL: TestConfigReturnVisibilityDiscard/light (0.07s)
+    --- FAIL: TestConfigReturnVisibilityDiscard/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.435s
+FAIL

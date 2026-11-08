@@ -3087,7 +3087,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// Both answers remove the focused confirmation button. Hand the
 			// keyboard back to the existing disclosure in the same frame.
 			if wasAsking && !a.configDiscard[integration.ID] {
-				opener.Focus(c)
+				c.Resolve(opener).Focus().ScrollIntoView()
 			}
 			// The form can survive a schema refresh that removes just its
 			// focused editor. Return to its disclosure without touching values.

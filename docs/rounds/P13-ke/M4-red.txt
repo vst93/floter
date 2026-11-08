@@ -1,0 +1,41 @@
+=== RUN   TestConfigReturnVisibilityCancel
+=== RUN   TestConfigReturnVisibilityCancel/light
+    runvisibility_test.go:273: run outlet outside viewport: label="Configure" focused=true rect={X:631.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1270.3
+=== RUN   TestConfigReturnVisibilityCancel/dark
+    runvisibility_test.go:273: run outlet outside viewport: label="Configure" focused=true rect={X:631.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=1270.3
+--- FAIL: TestConfigReturnVisibilityCancel (0.22s)
+    --- FAIL: TestConfigReturnVisibilityCancel/light (0.16s)
+    --- FAIL: TestConfigReturnVisibilityCancel/dark (0.06s)
+=== RUN   TestConfigReturnVisibilityDiscard
+=== RUN   TestConfigReturnVisibilityDiscard/light
+    runvisibility_test.go:273: run outlet outside viewport: label="Configure" focused=true rect={X:631.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=718.30005
+=== RUN   TestConfigReturnVisibilityDiscard/dark
+    runvisibility_test.go:273: run outlet outside viewport: label="Configure" focused=true rect={X:631.8 Y:51.399998 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} scroll=718.30005
+--- FAIL: TestConfigReturnVisibilityDiscard (0.14s)
+    --- FAIL: TestConfigReturnVisibilityDiscard/light (0.07s)
+    --- FAIL: TestConfigReturnVisibilityDiscard/dark (0.07s)
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/dark
+--- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm (0.34s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/light (0.04s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/dark (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/light (0.04s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/dark (0.04s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/light (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/dark (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/light (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/dark (0.04s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/light (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.716s
+FAIL

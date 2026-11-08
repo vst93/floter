@@ -1,0 +1,36 @@
+=== RUN   TestConfigReturnVisibilityCancel
+=== RUN   TestConfigReturnVisibilityCancel/light
+=== RUN   TestConfigReturnVisibilityCancel/dark
+--- PASS: TestConfigReturnVisibilityCancel (0.26s)
+    --- PASS: TestConfigReturnVisibilityCancel/light (0.17s)
+    --- PASS: TestConfigReturnVisibilityCancel/dark (0.09s)
+=== RUN   TestConfigReturnVisibilityDiscard
+=== RUN   TestConfigReturnVisibilityDiscard/light
+=== RUN   TestConfigReturnVisibilityDiscard/dark
+--- PASS: TestConfigReturnVisibilityDiscard (0.19s)
+    --- PASS: TestConfigReturnVisibilityDiscard/light (0.09s)
+    --- PASS: TestConfigReturnVisibilityDiscard/dark (0.09s)
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/dark
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/light
+=== RUN   TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/dark
+--- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm (0.34s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/light (0.04s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/kind/dark (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/light (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/removed/dark (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/light (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/closed/dark (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/light (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/empty/dark (0.04s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/light (0.03s)
+    --- PASS: TestRunVisibilityRefreshDoesNotFollowUnfocusedForm/unavailable/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.798s

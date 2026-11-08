@@ -41,3 +41,10 @@
 6. 全部运行参数撤回：原Run变为无参运行入口，焦点仍藏在页外 → 同一已有返焦事件显示原入口 → 深浅Enter恰好调用一次当前ID，参数严格nil，未将保留的会话答案送入命令。
 
 第三批定向6 PASS / 0 FAIL，settingsui vet净、gofmt空。M3回注旧noticefocus.go，四场景实红`run outlet outside viewport`；MD5逐字节还原、touch复验6 PASS。其他notice种类沿原规则，旧V/B/S断言0/0/0。
+
+第三批95396bfb已推送。
+
+7. 取消配置撤回确认：长配置列表保留草稿后Configure已持焦，但scroll=1270.3处绘制面积0 → 原返焦同时显示Configure → 深浅入口可见，草稿mine及打开态保留，无保存；Space可重新打开确认。
+8. 确认配置撤回：丢弃后Configure已持焦但scroll=718.30005处被裁掉 → 原返焦同步显示入口 → 深浅入口可见，原存储值stored恢复，无保存；Space可重开配置。
+
+第四批含两个修复与十个非当前刷新保护场景，17 PASS / 0 FAIL，settingsui vet净、gofmt空。M4回注第三批settingsui.go，四个配置深浅场景实红`run outlet outside viewport`；MD5还原、touch复验17 PASS。用户已转去Close时五种运行刷新×深浅均保持原焦点与100px偏移，不追随后台变化。旧V/B/S断言0/0/0。

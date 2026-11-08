@@ -23,6 +23,8 @@ case "$1" in
         ;;
     tests)
         run full-test go test -count=1 ./...
+        ;;
+    verbose)
         run full-verbose go test -count=1 -v ./...
         rg -c -- '--- PASS' "$out/full-verbose.txt"
         ;;

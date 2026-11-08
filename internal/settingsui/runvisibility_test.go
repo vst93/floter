@@ -231,3 +231,97 @@ func checkRunFormVisibility(t *testing.T, empty bool) {
 
 func TestRunVisibilityFormClosed(t *testing.T)           { checkRunFormVisibility(t, false) }
 func TestRunVisibilityAllParametersRemoved(t *testing.T) { checkRunFormVisibility(t, true) }
+
+func checkConfigReturnVisibility(t *testing.T, discard bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, in := runVisibilityApp(t, dark)
+			in.Params = nil
+			a.Actions.RunWithParams = nil
+			in.ConfigValues = map[string]any{}
+			for i := 0; i < 12; i++ {
+				key := fmt.Sprintf("c%d", i)
+				in.Config = append(in.Config, ConfigField{Key: key, Label: fmt.Sprintf("设置 %d", i+1), Type: "text"})
+				in.ConfigValues[key] = "stored"
+			}
+			a.configOpen = map[string]bool{in.ID: true}
+			a.Actions.SaveConfiguration = func(string, map[string]any, func(error)) { t.Error("confirmation saved configuration") }
+			var viewport ui.Rect
+			tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) { viewport = c.Resolve(a.Body.Handle).Bounds() })
+			a.draft(*in).values["c0"] = "mine"
+			optionExitFocus(t, tt, a.copy().ConfigOpen)
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			if !tt.Focused(a.copy().ConfigCancel) {
+				t.Fatal("configuration question did not focus Cancel")
+			}
+			name := "config-cancel"
+			if discard {
+				tt.Key(0, ui.KeyTab)
+				if !tt.Focused(a.copy().ConfigDiscard) {
+					t.Fatal("Discard not keyboard reachable")
+				}
+				name = "config-discard"
+			}
+			a.Body.Y = a.Body.MaxY
+			tt.Frame()
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			tt.Frame()
+			runVisibilityDump(t, tt, name, dark)
+			runVisible(t, a, tt, a.copy().ConfigOpen, viewport)
+			if a.configDiscard[in.ID] || a.configOpen[in.ID] == discard {
+				t.Fatal("configuration confirmation changed its close rule")
+			}
+			want := "mine"
+			if discard {
+				want = "stored"
+			}
+			if a.draft(*in).values["c0"] != want {
+				t.Fatal("configuration confirmation changed draft ownership")
+			}
+			runVisibilityWheel(t, a, tt)
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			if discard && !a.configOpen[in.ID] || !discard && !a.configDiscard[in.ID] {
+				t.Fatal("configuration return cannot reopen by keyboard")
+			}
+		})
+	}
+}
+
+func TestConfigReturnVisibilityCancel(t *testing.T)  { checkConfigReturnVisibility(t, false) }
+func TestConfigReturnVisibilityDiscard(t *testing.T) { checkConfigReturnVisibility(t, true) }
+
+func TestRunVisibilityRefreshDoesNotFollowUnfocusedForm(t *testing.T) {
+	for _, change := range []string{"kind", "removed", "closed", "empty", "unavailable"} {
+		for _, dark := range []bool{false, true} {
+			t.Run(change+"/"+appearanceName(dark), func(t *testing.T) {
+				a, in := runVisibilityApp(t, dark)
+				a.Actions.Close = func() {}
+				tt := toolVisibilityFrame(t, a, dark)
+				optionExitFocus(t, tt, a.copy().Close)
+				a.Body.Y = 100
+				tt.Frame()
+				switch change {
+				case "kind":
+					in.Params[0].Kind = extensions.ParamNumber
+				case "removed":
+					in.Params = in.Params[1:]
+				case "closed":
+					a.runOpen[in.ID] = false
+				case "empty":
+					in.Params = nil
+				case "unavailable":
+					in.Running = false
+				}
+				tt.Frame()
+				tt.Frame()
+				if !tt.Focused(a.copy().Close) || a.Body.Y != 100 {
+					t.Fatalf("unfocused %s moved focus or scroll: %v", change, a.Body.Y)
+				}
+			})
+		}
+	}
+}
