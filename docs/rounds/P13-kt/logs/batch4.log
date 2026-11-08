@@ -1,0 +1,14 @@
+=== RUN   TestResultReflowRemove
+=== RUN   TestResultReflowRemove/light
+=== RUN   TestResultReflowRemove/dark
+--- PASS: TestResultReflowRemove (0.22s)
+    --- PASS: TestResultReflowRemove/light (0.18s)
+    --- PASS: TestResultReflowRemove/dark (0.04s)
+=== RUN   TestResultReflowToggle
+=== RUN   TestResultReflowToggle/light
+=== RUN   TestResultReflowToggle/dark
+--- PASS: TestResultReflowToggle (0.08s)
+    --- PASS: TestResultReflowToggle/light (0.04s)
+    --- PASS: TestResultReflowToggle/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.317s

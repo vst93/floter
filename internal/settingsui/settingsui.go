@@ -3350,7 +3350,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// some kinds skipped the bar, which handed npm and custom rows one
 			// question fewer than the reference asked.
 			if (a.Actions.UninstallIntegration != nil || a.Actions.UninstallComponents != nil) && !integration.Orphan {
-				removeOpener = rowAction(integration.removalLabel(copy))
+				a.formFeedbackOutlet(c.Key("row-remove-output-outlet"), outputFeedback, func() {
+					removeOpener = rowAction(integration.removalLabel(copy))
+				})
 				if removeOpener.Clicked() {
 					a.requestRemove(integration.ID)
 				}
@@ -3365,28 +3367,30 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// stops whatever is running; turning one on is no question at all.
 			if a.Actions.SetIntegrationEnabled != nil {
 				on := enabled
-				switch {
-				case a.toggleBusy[integration.ID] || a.disableBusy[integration.ID]:
-					// The write is in flight: the reference swapped the switch's
-					// thumb for a turning LoaderCircle and set `aria-busy` until
-					// `runMutation`'s `finally` (`settings-switch--loading`,
-					// `src/extensions/ExtensionRow.tsx:443-455`).
-					a.rememberOperationFocus(c, integration.ID, "toggle", a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable))
-				case busy || integration.Broken:
-					// Another operation is in flight, or the row is broken: the
-					// reference disabled the switch for both
-					// (`disabled={busy || extension.state === "broken"}`).
-					a.rememberOperationFocus(c, integration.ID, "toggle", disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable))
-				default:
-					disableOpener = a.rememberOperationFocus(c, integration.ID, "toggle", a.switchControl(c, &on).Label(copy.IntegrationsEnable))
-					if disableOpener.Changed() {
-						if !on {
-							a.requestDisable(integration.ID)
-						} else {
-							enabled, enableChanged = on, true
+				a.formFeedbackOutlet(c.Key("row-toggle-output-outlet"), outputFeedback, func() {
+					switch {
+					case a.toggleBusy[integration.ID] || a.disableBusy[integration.ID]:
+						// The write is in flight: the reference swapped the switch's
+						// thumb for a turning LoaderCircle and set `aria-busy` until
+						// `runMutation`'s `finally` (`settings-switch--loading`,
+						// `src/extensions/ExtensionRow.tsx:443-455`).
+						a.rememberOperationFocus(c, integration.ID, "toggle", a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable))
+					case busy || integration.Broken:
+						// Another operation is in flight, or the row is broken: the
+						// reference disabled the switch for both
+						// (`disabled={busy || extension.state === "broken"}`).
+						a.rememberOperationFocus(c, integration.ID, "toggle", disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable))
+					default:
+						disableOpener = a.rememberOperationFocus(c, integration.ID, "toggle", a.switchControl(c, &on).Label(copy.IntegrationsEnable))
+						if disableOpener.Changed() {
+							if !on {
+								a.requestDisable(integration.ID)
+							} else {
+								enabled, enableChanged = on, true
+							}
 						}
 					}
-				}
+				})
 			}
 		})
 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {

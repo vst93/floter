@@ -201,3 +201,6 @@ func checkResultReflow(t *testing.T, action string) {
 
 func TestResultReflowRun(t *testing.T)   { checkResultReflow(t, "run") }
 func TestResultReflowCheck(t *testing.T) { checkResultReflow(t, "check") }
+
+func TestResultReflowRemove(t *testing.T) { checkResultReflow(t, "remove") }
+func TestResultReflowToggle(t *testing.T) { checkResultReflow(t, "toggle") }
