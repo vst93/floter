@@ -1,0 +1,3 @@
+    locallayout_test.go:103: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:836.00024 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    locallayout_test.go:103: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:836.00024 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    locallayout_test.go:103: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:836.00024 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true

@@ -5895,6 +5895,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		if a.toolPermissions == nil {
 			a.toolPermissions = map[string]bool{}
 		}
+		// A failed request can restore this form while another tool owns focus.
+		// Describe rendered layout only; editable values must not reclaim scroll.
+		a.integrationLead += "local-open:"
 		// A fresh form starts limited to this machine's own platform (R7-5).
 		// An edit keeps whatever the integration declares, even nothing: the
 		// row then says a platform is required rather than silently inventing
