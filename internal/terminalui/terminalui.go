@@ -70,6 +70,7 @@ type Actions struct {
 // session that is not on screen is not gone — its program keeps running — and
 // the user can come back to it.
 type Session struct {
+	appearance terminalAppearance
 	// ID is the session's stable identity, handed out once at creation and
 	// never reused: the sessions list arms a close by identity, so a session
 	// that changed position — because one ahead of it was deleted — still
@@ -278,7 +279,7 @@ func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Sess
 	}
 	term = created
 	a.nextSessionID++
-	session = &Session{ID: a.nextSessionID, Term: term, Created: time.Now()}
+	session = &Session{ID: a.nextSessionID, Term: term, Created: time.Now(), appearance: appearanceOf(opts)}
 	return session, nil
 }
 
@@ -669,9 +670,7 @@ func (a *App) Refresh() {
 		if session.Term == nil {
 			continue
 		}
-		session.Term.SetFont(opts.Font)
-		session.Term.SetTheme(opts.Theme, opts.DarkTheme)
-		session.Term.SetCopyOnSelect(opts.CopyOnSelect)
+		session.appearance.apply(session.Term, opts)
 	}
 }
 

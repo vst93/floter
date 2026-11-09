@@ -13,6 +13,26 @@ import (
 // actually has data wins.
 const AutoTarget = "auto"
 
+// SearchProfiles searches every discovered profile in automatic mode and
+// every profile of a selected browser. An empty Default must not hide a
+// signed-in Edge Profile 1, or Chrome hide another browser's bookmarks.
+func SearchProfiles(profiles []Profile, target string) []Profile {
+	target = strings.TrimSpace(target)
+	if target == "" || target == AutoTarget {
+		return profiles
+	}
+	var selected []Profile
+	for _, profile := range profiles {
+		if profile.BrowserID == target {
+			selected = append(selected, profile)
+		}
+	}
+	if len(selected) == 0 {
+		return profiles
+	}
+	return selected
+}
+
 // DefaultProfile is the profile the launcher searches when the user has not
 // picked one.
 //

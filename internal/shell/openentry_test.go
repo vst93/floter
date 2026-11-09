@@ -63,22 +63,21 @@ func TestARepeatedSettingsEntryKeepsThePageTheUserChose(t *testing.T) {
 	}
 }
 
-// revealNeeded is the window side of the same rule: a surface switch is seen,
-// a window that is not on screen or not frontmost is brought forward, and a
-// window already showing the surface the press asks for is left alone.
+// Only hidden or unfocused windows need a native reveal; switching pages in
+// the focused window needs a redraw.
 func TestRevealNeeded(t *testing.T) {
 	cases := []struct {
 		name                     string
 		entering, visible, front bool
 		want                     bool
 	}{
-		{"a surface switch is always shown", true, true, true, true},
+		{"a visible surface switch needs only a redraw", true, true, true, false},
 		{"a hidden window comes forward", false, false, true, true},
 		{"a window behind another app comes forward", false, true, false, true},
 		{"the surface already in front is left alone", false, true, true, false},
 	}
 	for _, tc := range cases {
-		if got := revealNeeded(tc.entering, tc.visible, tc.front); got != tc.want {
+		if got := revealNeeded(tc.visible, tc.front); got != tc.want {
 			t.Errorf("%s: revealNeeded(%v,%v,%v) = %v, want %v",
 				tc.name, tc.entering, tc.visible, tc.front, got, tc.want)
 		}

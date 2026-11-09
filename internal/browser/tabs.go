@@ -117,6 +117,12 @@ func macAppName(browserID string) (string, bool) {
 		return "Brave Browser", true
 	case BrowserChromium:
 		return "Chromium", true
+	case BrowserVivaldi:
+		return "Vivaldi", true
+	case BrowserOpera:
+		return "Opera", true
+	case BrowserArc:
+		return "Arc", true
 	default:
 		return "", false
 	}

@@ -1,0 +1,5 @@
+ok  	floter/internal/ci	0.219s
+ok  	floter/internal/browser	0.015s
+ok  	floter/internal/shell	0.257s
+ok  	floter/internal/terminalui	0.036s
+ok  	floter/internal/plugincfg	0.038s [no tests to run]

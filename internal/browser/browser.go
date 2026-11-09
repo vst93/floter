@@ -41,6 +41,8 @@ const (
 	BrowserArc        = "arc"
 	BrowserFirefox    = "firefox"
 	BrowserSafari     = "safari"
+	BrowserVivaldi    = "vivaldi"
+	BrowserOpera      = "opera"
 	BrowserCustom     = "custom"
 )
 
@@ -132,7 +134,7 @@ func ProfilesIn(home, customBase string) []Profile {
 	if home == "" {
 		return nil
 	}
-	return profilesFor(runtime.GOOS, home, os.Getenv("APPDATA"), os.Getenv("LOCALAPPDATA"), customBase)
+	return profilesFor(runtime.GOOS, home, os.Getenv("APPDATA"), os.Getenv("LOCALAPPDATA"), customBase, os.Getenv("XDG_CONFIG_HOME"))
 }
 
 // profilesFor is the platform-independent discovery: the browser tables are
@@ -142,9 +144,9 @@ func ProfilesIn(home, customBase string) []Profile {
 //
 // customBase, when set, is searched as an extra Chromium base directory: the
 // browser plugin's "custom profile directory" setting.
-func profilesFor(goos, home, appData, localAppData, customBase string) []Profile {
+func profilesFor(goos, home, appData, localAppData, customBase string, configHome ...string) []Profile {
 	var profiles []Profile
-	for _, browser := range chromiumBrowsers(goos, home, localAppData) {
+	for _, browser := range browserLocations(goos, home, appData, localAppData, configHome...) {
 		profiles = append(profiles, chromiumProfiles(goos, browser.id, browser.name, browser.base)...)
 	}
 	if customBase != "" {
@@ -152,7 +154,7 @@ func profilesFor(goos, home, appData, localAppData, customBase string) []Profile
 		// profile inside it; a directory that is itself a profile is used as
 		// one.
 		if isProfileDir(filepath.Dir(customBase), filepath.Base(customBase)) && !looksLikeBaseDir(customBase) {
-			profiles = append(profiles, chromiumProfile(goos, BrowserCustom, "Custom", customBase, filepath.Base(customBase)))
+			profiles = append(profiles, chromiumProfile(goos, BrowserCustom, "Custom", filepath.Dir(customBase), filepath.Base(customBase)))
 		} else {
 			profiles = append(profiles, chromiumProfiles(goos, BrowserCustom, "Custom", customBase)...)
 		}
@@ -178,7 +180,7 @@ func profilesFor(goos, home, appData, localAppData, customBase string) []Profile
 			profiles = append(profiles, profile)
 		}
 	}
-	for _, dir := range subdirectories(firefoxRoot(goos, home, appData)) {
+	for _, dir := range firefoxDirectories(goos, home, appData) {
 		places := joinFor(goos, dir, "places.sqlite")
 		if exists(places) {
 			profiles = append(profiles, Profile{
@@ -192,7 +194,7 @@ func profilesFor(goos, home, appData, localAppData, customBase string) []Profile
 			})
 		}
 	}
-	return profiles
+	return uniqueProfiles(profiles)
 }
 
 // looksLikeBaseDir reports whether a directory holds Chromium profiles rather
@@ -250,24 +252,34 @@ func chromiumBrowsers(goos, home, localAppData string) []chromiumBrowser {
 			{BrowserBrave, "Brave", joinFor(goos, support, "BraveSoftware", "Brave-Browser")},
 			{BrowserChromium, "Chromium", joinFor(goos, support, "Chromium")},
 			{BrowserArc, "Arc", joinFor(goos, support, "Arc", "User Data")},
+			{BrowserVivaldi, "Vivaldi", joinFor(goos, support, "Vivaldi")},
+			{BrowserOpera, "Opera", joinFor(goos, support, "com.operasoftware.Opera")},
 		}
 	case "windows":
 		if localAppData == "" {
-			return nil
+			localAppData = joinFor(goos, home, "AppData", "Local")
 		}
 		return []chromiumBrowser{
 			{BrowserChrome, "Google Chrome", joinFor(goos, localAppData, "Google", "Chrome", "User Data")},
 			{BrowserEdge, "Microsoft Edge", joinFor(goos, localAppData, "Microsoft", "Edge", "User Data")},
+			{BrowserEdgeBeta, "Microsoft Edge Beta", joinFor(goos, localAppData, "Microsoft", "Edge Beta", "User Data")},
+			{BrowserEdgeDev, "Microsoft Edge Dev", joinFor(goos, localAppData, "Microsoft", "Edge Dev", "User Data")},
+			{BrowserEdgeCanary, "Microsoft Edge Canary", joinFor(goos, localAppData, "Microsoft", "Edge SxS", "User Data")},
 			{BrowserBrave, "Brave", joinFor(goos, localAppData, "BraveSoftware", "Brave-Browser", "User Data")},
 			{BrowserChromium, "Chromium", joinFor(goos, localAppData, "Chromium", "User Data")},
+			{BrowserVivaldi, "Vivaldi", joinFor(goos, localAppData, "Vivaldi", "User Data")},
 		}
 	case "linux":
 		config := joinFor(goos, home, ".config")
 		return []chromiumBrowser{
 			{BrowserChrome, "Google Chrome", joinFor(goos, config, "google-chrome")},
 			{BrowserEdge, "Microsoft Edge", joinFor(goos, config, "microsoft-edge")},
+			{BrowserEdgeBeta, "Microsoft Edge Beta", joinFor(goos, config, "microsoft-edge-beta")},
+			{BrowserEdgeDev, "Microsoft Edge Dev", joinFor(goos, config, "microsoft-edge-dev")},
 			{BrowserBrave, "Brave", joinFor(goos, config, "BraveSoftware", "Brave-Browser")},
 			{BrowserChromium, "Chromium", joinFor(goos, config, "chromium")},
+			{BrowserVivaldi, "Vivaldi", joinFor(goos, config, "vivaldi")},
+			{BrowserOpera, "Opera", joinFor(goos, config, "opera")},
 		}
 	default:
 		return nil
@@ -283,7 +295,7 @@ func firefoxRoot(goos, home, appData string) string {
 		return joinFor(goos, home, "Library", "Application Support", "Firefox", "Profiles")
 	case "windows":
 		if appData == "" {
-			return ""
+			appData = joinFor(goos, home, "AppData", "Roaming")
 		}
 		return joinFor(goos, appData, "Mozilla", "Firefox", "Profiles")
 	default:
@@ -295,9 +307,18 @@ func firefoxRoot(goos, home, appData string) string {
 // order: `Default` first, then `Profile N` by number, then the rest by name.
 func chromiumProfiles(goos, id, name, base string) []Profile {
 	dirs := chromiumProfileDirs(base)
+	// Opera and older portable builds keep data directly in their base.
+	if exists(joinFor(goos, base, "Bookmarks")) || exists(joinFor(goos, base, "History")) {
+		dirs = append([]string{"."}, dirs...)
+	}
 	profiles := make([]Profile, 0, len(dirs))
+	names := localStateProfileNames(base)
 	for _, dir := range dirs {
-		profiles = append(profiles, chromiumProfile(goos, id, name, base, dir))
+		profile := chromiumProfile(goos, id, name, base, dir)
+		if label := names[dir]; label != "" {
+			profile.Name = label
+		}
+		profiles = append(profiles, profile)
 	}
 	return profiles
 }
@@ -308,7 +329,7 @@ func chromiumProfile(goos, id, name, base, dir string) Profile {
 	return Profile{
 		BrowserID:     id,
 		Browser:       name,
-		Name:          localStateProfileName(base, dir),
+		Name:          dir,
 		Dir:           dir,
 		BaseDir:       base,
 		HistoryDB:     joinFor(goos, root, "History"),
@@ -385,9 +406,17 @@ func isProfileDir(base, name string) bool {
 // browser's `Local State` file, which is the only place it is recorded. A
 // missing or unreadable file falls back to the directory name.
 func localStateProfileName(base, dir string) string {
+	if name := localStateProfileNames(base)[dir]; name != "" {
+		return name
+	}
+	return dir
+}
+
+// Read Local State once per browser, rather than once per profile.
+func localStateProfileNames(base string) map[string]string {
 	data, err := os.ReadFile(filepath.Join(base, "Local State"))
 	if err != nil {
-		return dir
+		return nil
 	}
 	var state struct {
 		Profile struct {
@@ -396,13 +425,14 @@ func localStateProfileName(base, dir string) string {
 			} `json:"info_cache"`
 		} `json:"profile"`
 	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return dir
+	if json.Unmarshal(data, &state) != nil {
+		return nil
 	}
-	if name := strings.TrimSpace(state.Profile.InfoCache[dir].Name); name != "" {
-		return name
+	names := make(map[string]string, len(state.Profile.InfoCache))
+	for dir, entry := range state.Profile.InfoCache {
+		names[dir] = strings.TrimSpace(entry.Name)
 	}
-	return dir
+	return names
 }
 
 // maxRows is how many rows one profile contributes before matching: enough

@@ -439,8 +439,17 @@ func retentionOptions(copy i18n.Settings) []Option {
 // browser is uninstalled.
 func Browser(copy i18n.Settings, state settings.BrowserPlugin, targets []i18n.Option) (*Schema, Values) {
 	targetOptions := []Option{{Value: "auto", Label: copy.BrowserAuto}}
+	seen := map[string]bool{"auto": true}
 	for _, target := range targets {
-		targetOptions = append(targetOptions, Option{Value: target.ID, Label: target.Label})
+		if target.ID != "" && !seen[target.ID] {
+			targetOptions = append(targetOptions, Option{Value: target.ID, Label: target.Label})
+			seen[target.ID] = true
+		}
+	}
+	if target := settings.NormalizeBrowserTarget(state.Target); !seen[target] {
+		// Keep the saved choice visible while discovery is still running or
+		// the browser's data directory is temporarily unavailable.
+		targetOptions = append(targetOptions, Option{Value: target, Label: target})
 	}
 	sortOptions := optionsOf(copy.BrowserSortOrders)
 	fieldOptions := optionsOf(copy.BrowserSearchFields)

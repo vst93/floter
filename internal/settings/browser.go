@@ -35,7 +35,7 @@ type BrowserPlugin struct {
 	// mode fetches nothing.
 	Enabled bool
 	// Target is the browser a page opens in and the browser the launcher
-	// searches: a browser id, or `auto` for "the first one with data".
+	// searches: a browser id, or `auto` for all discovered browsers and profiles.
 	Target string
 	// CustomBaseDir is an extra profile directory to search, empty when none.
 	CustomBaseDir string

@@ -168,7 +168,7 @@ type Actions struct {
 type BrowserResults struct {
 	// Found is false when no browser profile was found at all.
 	Found bool
-	// Profile is the profile the search ran against.
+	// Profile is a representative profile of the selected browsers.
 	Profile browser.Profile
 	// Results are the bookmarks and history rows, already merged, ordered and
 	// capped.

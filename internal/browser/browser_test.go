@@ -105,7 +105,7 @@ func TestBrowserTablesPerPlatform(t *testing.T) {
 	home := "/home/u"
 	local := "/home/u/AppData/Local"
 	mac := chromiumBrowsers("darwin", home, local)
-	if len(mac) != 8 {
+	if len(mac) != 10 {
 		t.Fatalf("macOS table = %+v", mac)
 	}
 	wantMac := map[string]string{
@@ -117,6 +117,8 @@ func TestBrowserTablesPerPlatform(t *testing.T) {
 		"brave":       "/home/u/Library/Application Support/BraveSoftware/Brave-Browser",
 		"chromium":    "/home/u/Library/Application Support/Chromium",
 		"arc":         "/home/u/Library/Application Support/Arc/User Data",
+		"vivaldi":     "/home/u/Library/Application Support/Vivaldi",
+		"opera":       "/home/u/Library/Application Support/com.operasoftware.Opera",
 	}
 	for _, browser := range mac {
 		if want := wantMac[browser.id]; want != browser.base {
@@ -125,15 +127,15 @@ func TestBrowserTablesPerPlatform(t *testing.T) {
 	}
 
 	windows := chromiumBrowsers("windows", `C:\Users\u`, `C:\Users\u\AppData\Local`)
-	if len(windows) != 4 || windows[0].base != `C:\Users\u\AppData\Local\Google\Chrome\User Data` {
+	if len(windows) != 8 || windows[0].base != `C:\Users\u\AppData\Local\Google\Chrome\User Data` {
 		t.Errorf("windows table = %+v", windows)
 	}
-	if got := chromiumBrowsers("windows", home, ""); got != nil {
+	if got := chromiumBrowsers("windows", `C:\Users\u`, ""); len(got) != len(windows) || got[0].base != windows[0].base {
 		t.Errorf("windows without LOCALAPPDATA = %+v", got)
 	}
 
 	linux := chromiumBrowsers("linux", "/home/u", "")
-	if len(linux) != 4 || linux[0].base != "/home/u/.config/google-chrome" {
+	if len(linux) != 8 || linux[0].base != "/home/u/.config/google-chrome" {
 		t.Errorf("linux table = %+v", linux)
 	}
 	if got := chromiumBrowsers("plan9", home, local); got != nil {

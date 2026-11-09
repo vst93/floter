@@ -13,6 +13,18 @@ func copyFor(language string) i18n.Settings {
 	return i18n.For(language).Settings
 }
 
+func TestBrowserTargetRemainsVisibleWhileDiscoveryIsPending(t *testing.T) {
+	state := settings.DefaultBrowserPlugin()
+	state.Target = "edge"
+	for _, targets := range [][]i18n.Option{nil, {{ID: "edge", Label: "Microsoft Edge"}, {ID: "edge", Label: "Microsoft Edge"}}} {
+		schema, values := Browser(copyFor("en"), state, targets)
+		field, _ := schema.Field("target")
+		if len(field.Options) != 2 || field.Options[0].Value != "auto" || field.Options[1].Value != "edge" || values["target"] != "edge" {
+			t.Fatalf("pending or duplicate discovery lost saved target: %+v, %+v", field.Options, values)
+		}
+	}
+}
+
 func TestSectionsGroupConsecutiveFields(t *testing.T) {
 	schema, _ := Browser(copyFor("en"), settings.DefaultBrowserPlugin(), nil)
 	sections := Sections(schema)

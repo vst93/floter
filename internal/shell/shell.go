@@ -481,14 +481,9 @@ type App struct {
 	// poll records only what changed. It is the content's digest, not the
 	// clipboard's format list: two different screenshots carry the same list.
 	lastClipboardHash string
-	// browserProfiles is the discovered browser profiles, and browserMu
-	// guards it: the first search discovers them. browserBase is the custom
-	// base directory they were discovered with, so a settings change
-	// rediscovers.
-	browserProfiles []browser.Profile
-	browserBase     string
-	browserMu       sync.Mutex
-	browserLoaded   bool
+	// Browser discovery runs off the UI thread; readers share each scan.
+	browserMu    sync.Mutex
+	browserScans map[string]*browserScan
 	// LastClipboardSettings is the clipboard state the watcher was last
 	// synced with.
 	LastClipboardSettings settings.ClipboardSettings
@@ -1481,6 +1476,7 @@ func (a *App) Start() {
 	a.ApplyAppIcon()
 	a.watchClipboard()
 	a.Launcher.FocusSearch()
+	a.requestBrowserScan(browserState(s).customBaseDir, false)
 	a.scanApps()
 	a.scanTools()
 	a.scanToolCatalog()
@@ -2367,7 +2363,8 @@ func (a *App) searchBrowser(query string, done func(launcher.BrowserResults)) {
 	}
 	go func() {
 		profiles := a.browserProfileList(options.customBaseDir)
-		profile, found := browser.DefaultProfile(profiles, options.target)
+		selected := browser.SearchProfiles(profiles, options.target)
+		profile, found := browser.DefaultProfile(selected, browser.AutoTarget)
 		if !found {
 			a.onMain(func() { done(launcher.BrowserResults{}) })
 			return
@@ -2378,7 +2375,7 @@ func (a *App) searchBrowser(query string, done func(launcher.BrowserResults)) {
 		// Capping here instead would starve the mode's range chip: the cap would
 		// run before the chip narrows the set, so a browser full of bookmarks
 		// would leave the `history` chip with nothing to show.
-		results := browser.Search(context.Background(), []browser.Profile{profile}, query, browser.Options{
+		results := browser.Search(context.Background(), selected, query, browser.Options{
 			Days:      options.historyDays,
 			SortOrder: browser.SortOrder(options.sortOrder),
 			Field:     browser.SearchField(options.searchField),
@@ -2397,27 +2394,6 @@ func (a *App) searchBrowser(query string, done func(launcher.BrowserResults)) {
 		answer.Tabs = tabs
 		a.onMain(func() { done(answer) })
 	}()
-}
-
-// browserProfileList discovers the browser profiles once per custom base
-// directory: a settings change to that directory rediscovers.
-func (a *App) browserProfileList(customBase string) []browser.Profile {
-	a.browserMu.Lock()
-	defer a.browserMu.Unlock()
-	if a.browserLoaded && a.browserBase == customBase {
-		return a.browserProfiles
-	}
-	home := a.homeDir
-	if home == "" {
-		found, err := os.UserHomeDir()
-		if err != nil {
-			return nil
-		}
-		home = found
-	}
-	a.browserLoaded, a.browserBase = true, customBase
-	a.browserProfiles = browser.ProfilesIn(home, customBase)
-	return a.browserProfiles
 }
 
 // resetShortcuts restores the shipped bindings: the app's own map is dropped
@@ -3290,23 +3266,6 @@ func (a *App) setCommandAlias(extensionID, commandID, alias string) {
 	})
 }
 
-// browserTargets lists the browsers the browser plugin can be pointed at, as
-// the settings page's picker shows them: one entry per installed browser, in
-// discovery order.
-func (a *App) browserTargets() []i18n.Option {
-	profiles := a.browserProfileList(browserState(a.Store.Snapshot()).customBaseDir)
-	seen := map[string]bool{}
-	var options []i18n.Option
-	for _, profile := range profiles {
-		if profile.BrowserID == "" || seen[profile.BrowserID] {
-			continue
-		}
-		seen[profile.BrowserID] = true
-		options = append(options, i18n.Option{ID: profile.BrowserID, Label: profile.Browser})
-	}
-	return options
-}
-
 // openURL opens a page in the browser a result came from, so a search of one
 // browser does not open its pages in another. An unknown or empty browser id
 // opens it in the system's default browser.
@@ -3788,13 +3747,10 @@ func (a *App) Open(s Surface) {
 		a.Launcher.DisarmDelete()
 	}
 	a.Surf = s
-	// A surface swap is an arrival of its own: the card the user sees after the
-	// press is a different page in the same window, and the reference animated
-	// each surface's shell in (`shell-enter`, `base.css:1244-1256`). Only a real
-	// *entry* starts one — re-ordering the surface the user is already on is not
-	// a new page.
+	// A visible page switch is immediate. Whole-window entrance transforms
+	// delay the first readable frame and repaint the settings tree for 220ms.
 	if entering {
-		a.startShellEnter()
+		a.enterLive = false
 	}
 	switch s {
 	case SurfaceSettings:
@@ -3822,20 +3778,17 @@ func (a *App) Open(s Surface) {
 		a.Launcher.FocusSearch()
 	}
 	a.resize()
-	if a.Win == nil || revealNeeded(entering, a.Win.IsVisible(), a.Win.IsFocused()) {
+	if a.Win == nil || revealNeeded(a.Win.IsVisible(), a.Win.IsFocused()) {
 		a.Show()
+	} else {
+		a.Win.Invalidate()
 	}
 }
 
-// revealNeeded reports whether an entry into a surface has to bring the window
-// forward. A surface switch always does (the new page has to be seen), and so
-// does a window that is not on screen or not the frontmost window (the press
-// came from the tray, a shortcut, or a link, and the user is looking at
-// something else). A window already showing the surface the press asks for
-// needs nothing: showing and focusing it again is what made a held shortcut
-// strobe the panel (see Open).
-func revealNeeded(entering, visible, focused bool) bool {
-	return entering || !visible || !focused
+// A visible, focused window only needs a new frame when its page changes.
+// Showing/focusing it again adds synchronous window-manager work.
+func revealNeeded(visible, focused bool) bool {
+	return !visible || !focused
 }
 
 // The terminal's window is the one surface the user can resize, so a drag is
@@ -4254,7 +4207,7 @@ func (a *App) Show() {
 	// is overridden by the compositor. Float and centre the window we just
 	// focused, then place it again so the panel's own size lands on a floating
 	// window. No-op on every other compositor and platform.
-	if a.ensureHyprlandFloating() && rehome {
+	if rehome && a.ensureHyprlandFloating() {
 		a.placeWindow()
 	}
 	a.Win.Invalidate()
@@ -4727,47 +4680,40 @@ func (a *App) View(c *ui.Context) {
 		// user reported (「搜索页面左右两边各有一大块空白」). Filling cannot
 		// disagree with the window it fills; `cardWidth` stays for the
 		// geometry log and the height accounting only.
-		card := ui.Column(c).FillWidth().FillHeight().Radius(radius).Border(1, stroke).Clip()
+		card := ui.Column(c).FillWidth().FillHeight().Radius(radius).Clip()
+		if a.Surf != SurfaceTerminal {
+			card.Border(1, stroke)
+		}
 		// The card's own depth where the platform has no window-server shadow:
 		// Linux compositors disagree on whether an undecorated transparent
 		// window gets a native one, and a frameless Windows window's shadow
 		// follows the window's rectangle rather than the card's corners. macOS
 		// draws none — the window server casts it (see the window options).
-		switch runtime.GOOS {
-		case "linux":
-			card.Shadow(0, t.Space(1), t.Space(4.5), 0, surface.Tokens.ShadowAmbient)
-			card.Shadow(0, t.Space(0.25), t.Space(1.25), 0, surface.Tokens.ShadowContact)
-		case "windows":
-			if !material {
-				// A card that fills the window has no margin to cast into.
-				break
+		if a.Surf != SurfaceTerminal {
+			switch runtime.GOOS {
+			case "linux":
+				card.Shadow(0, t.Space(1), t.Space(4.5), 0, surface.Tokens.ShadowAmbient)
+				card.Shadow(0, t.Space(0.25), t.Space(1.25), 0, surface.Tokens.ShadowContact)
+			case "windows":
+				if !material {
+					// A card that fills the window has no margin to cast into.
+					break
+				}
+				card.Shadow(0, t.Space(1), t.Space(4), 0, surface.Tokens.ShadowAmbient)
+				card.Shadow(0, t.Space(0.25), t.Space(1), 0, surface.Tokens.ShadowContact)
 			}
-			card.Shadow(0, t.Space(1), t.Space(4), 0, surface.Tokens.ShadowAmbient)
-			card.Shadow(0, t.Space(0.25), t.Space(1), 0, surface.Tokens.ShadowContact)
 		}
-		// The settings and terminal panels sit *on* a surface, so they take the
-		// panel edge: base.css's `--glass-rim-shadow` on macOS, and the
-		// platform blocks' two strokes on Windows and Linux — where the Windows
-		// terminal panel switches to the quieter keycap pair. The launcher card
-		// is its own floating window and takes the *platform* edge instead — the
-		// two rim strokes `base.css` writes for Windows and Linux, with the
-		// focused rung of the top one, and nothing at all on macOS (see
-		// cardEdge and panelEdge). A desktop that asked for more contrast
-		// collapses Windows' pair into the one `--stroke-contrast` ring
-		// (`base.css:1576-1584`, the `@media (prefers-contrast: more)` block).
+		// Settings keep their panel edge; the terminal uses a plain canvas.
 		contrast := c.Preferences().HighContrast
-		if a.Surf != SurfaceLauncher {
-			drawPanelEdge(card, surface.Tokens, runtime.GOOS, a.Surf == SurfaceTerminal, contrast)
-		} else {
+		if a.Surf == SurfaceSettings {
+			drawPanelEdge(card, surface.Tokens, runtime.GOOS, false, contrast)
+		} else if a.Surf == SurfaceLauncher {
 			drawCardEdge(card, surface.Tokens, runtime.GOOS, focused, contrast)
 		}
-		// The launcher's blocks run edge to edge: the field row is full-bleed
-		// (`.collapsed-card__input-row`) and the panel below it is the card's
-		// own recess, so the surface owns no horizontal inset of its own —
-		// every block carries the 4u/16u its reference rule names. The other
-		// two surfaces are panels and keep the card's 2.5u gutter.
+		// Only settings have an inner gutter. Terminal padding belongs to the
+		// terminal's own appearance setting.
 		padX := t.Space(2.5)
-		if a.Surf == SurfaceLauncher {
+		if a.Surf != SurfaceSettings {
 			padX = 0
 		}
 		// The terminal has its own transparency control: the old build painted
@@ -4840,6 +4786,14 @@ func (a *App) View(c *ui.Context) {
 			if focused {
 				sheenTop, sheenBottom = surface.Tokens.SheenAtFocus(faceAlpha)
 			}
+			if a.Surf == SurfaceTerminal {
+				// One uninterrupted canvas, without a glass gutter or lit rim.
+				padTop, padBottom = 0, 0
+				faceTop = surface.Tokens.Theme.Background
+				faceTop = ui.RGBA(faceTop.R, faceTop.G, faceTop.B, faceAlpha)
+				faceBottom = faceTop
+				sheenTop, sheenBottom = ui.Transparent, ui.Transparent
+			}
 			face := ui.Column(c).Fill().Radius(radius).
 				LinearGradient(ui.LinearGradient{From: faceTop, To: faceBottom, Angle: 180}).DragWindow()
 			face.Children(func() {
@@ -4847,8 +4801,10 @@ func (a *App) View(c *ui.Context) {
 				// sheen-bottom)`): the lit face that keeps a translucent pane
 				// from reading as a flat wash. The off stop's sheen tokens are
 				// zero, so the same gradient draws nothing there.
-				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).PassThrough().
-					LinearGradient(ui.LinearGradient{From: sheenTop, To: sheenBottom, Angle: 180})
+				if a.Surf != SurfaceTerminal {
+					ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).PassThrough().
+						LinearGradient(ui.LinearGradient{From: sheenTop, To: sheenBottom, Angle: 180})
+				}
 				ui.Column(c).Fill().Padding(padTop, padX, padBottom, padX).Children(func() { a.surface(c) })
 			})
 		})
@@ -5060,6 +5016,9 @@ func (a *App) inset() (top, right, bottom, left float32) {
 // macOS suites, which is exactly how the port's own 10px/9px unit slip survived
 // (see inset). The values are the reference's `--u` multiples.
 func insetForOS(goos string, surf Surface) (top, right, bottom, left float32) {
+	if surf == SurfaceTerminal {
+		return 0, 0, 0, 0
+	}
 	if surf != SurfaceLauncher {
 		if goos == "linux" || goos == "windows" {
 			return 2.5, 2.5, 2.5, 2.5 // 10u

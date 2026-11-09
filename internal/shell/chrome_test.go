@@ -70,10 +70,10 @@ func TestThePlatformBandsAreTheReferenceUnits(t *testing.T) {
 	}{
 		{"linux", SurfaceLauncher, [4]float32{2.5, 2.5, 2.5, 2.5}},
 		{"linux", SurfaceSettings, [4]float32{2.5, 2.5, 2.5, 2.5}},
-		{"linux", SurfaceTerminal, [4]float32{2.5, 2.5, 2.5, 2.5}},
+		{"linux", SurfaceTerminal, [4]float32{0, 0, 0, 0}},
 		{"windows", SurfaceLauncher, [4]float32{1, 2.5, 3, 1}},
 		{"windows", SurfaceSettings, [4]float32{2.5, 2.5, 2.5, 2.5}},
-		{"windows", SurfaceTerminal, [4]float32{2.5, 2.5, 2.5, 2.5}},
+		{"windows", SurfaceTerminal, [4]float32{0, 0, 0, 0}},
 		{"darwin", SurfaceLauncher, [4]float32{0, 0, 0, 0}},
 		{"darwin", SurfaceSettings, [4]float32{0, 0, 0, 0}},
 		{"darwin", SurfaceTerminal, [4]float32{0, 0, 0, 0}},

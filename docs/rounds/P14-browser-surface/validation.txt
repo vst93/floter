@@ -1,0 +1,10 @@
+PASS gofmt            docs/rounds/P14-browser-surface-final/logs/gofmt.log
+PASS vet-linux        docs/rounds/P14-browser-surface-final/logs/vet-linux.log
+PASS vet-windows      docs/rounds/P14-browser-surface-final/logs/vet-windows.log
+PASS vet-darwin       docs/rounds/P14-browser-surface-final/logs/vet-darwin.log
+FAIL test             docs/rounds/P14-browser-surface-final/logs/test.log | --- FAIL: TestANoteRowsPlateDoesNotWearTheLitEdge (0.07s)     --- FAIL: TestANoteRowsPlateDoesNotWearTheLitEdge/light (0.07s) panic: runtime error: index out of range [-240] [recov
+FAIL verbose          docs/rounds/P14-browser-surface-final/logs/verbose.log |     sqlite_test.go:22: set FLOTER_SQLITE_TEST=1 to load the sqlite plugin's library     liquidglass_contract_test.go:101: the gap table has 1536 rows, 1536 of them carry a status
+PASS build-linux      docs/rounds/P14-browser-surface-final/logs/build-linux.log
+PASS build-windows    docs/rounds/P14-browser-surface-final/logs/build-windows.log
+PASS build-darwin     docs/rounds/P14-browser-surface-final/logs/build-darwin.log
+TOTAL PASS=3481 test_functions=3734 failed_gates=2
