@@ -8,8 +8,10 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func TestLocalLayoutOpen(t *testing.T) { checkLocalLayout(t, "open") }
-func TestLocalLayoutMode(t *testing.T) { checkLocalLayout(t, "mode") }
+func TestLocalLayoutOpen(t *testing.T)     { checkLocalLayout(t, "open") }
+func TestLocalLayoutMode(t *testing.T)     { checkLocalLayout(t, "mode") }
+func TestLocalLayoutAdvanced(t *testing.T) { checkLocalLayout(t, "advanced") }
+func TestLocalLayoutEditing(t *testing.T)  { checkLocalLayout(t, "editing") }
 
 // The host can restore a failed local connection while the user has already
 // continued into another tool. Layout feedback must follow the drawn content,

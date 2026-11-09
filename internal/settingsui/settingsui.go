@@ -5927,6 +5927,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// read-only row instead of offering an editable field. A fresh
 			// connection has no id yet, so the row is absent.
 			if a.toolEditing != "" {
+				a.integrationLead += "local-edit:" + strconv.Quote(a.toolEditing)
 				a.fixedRow(c, copy.LocalToolId, a.toolEditing)
 			}
 			a.row(c, copy.LocalToolName, "", func() {
@@ -6556,6 +6557,7 @@ func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
 	if !a.toolAdvanced {
 		return
 	}
+	a.integrationLead += "local-permissions:"
 	if a.toolPermissions == nil {
 		a.toolPermissions = map[string]bool{}
 	}
