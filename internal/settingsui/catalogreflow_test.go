@@ -42,6 +42,15 @@ func checkCatalogReflow(t *testing.T, scenario, kind string, lead ...string) {
 			for _, dark := range []bool{false, true} {
 				t.Run(appearanceName(dark), func(t *testing.T) {
 					a, in := runVisibilityApp(t, dark)
+					if strings.HasPrefix(source, "param-") {
+						a.Actions.ConnectLocalTool = func(CustomTool) { t.Error("unexpected local connect") }
+						// Reach the downstream control before opening a TextArea,
+						// whose Tab key deliberately inserts indentation.
+						a.toolOpen = false
+						a.toolName, a.toolCommand, a.toolProgram, a.toolVersion = "Weather", "weather", "/usr/bin/printf", "1.0.0"
+						a.toolPlatforms = map[string]bool{currentPlatform(): true}
+						a.toolParams = []toolParam{{ID: "city", Label: "城市", Kind: extensions.ParamSelect, Options: "北京\n上海"}}
+					}
 					var recommended []RecommendedTool
 					var detected []DetectedTool
 					if source == "recommended" {
@@ -125,8 +134,25 @@ func checkCatalogReflow(t *testing.T, scenario, kind string, lead ...string) {
 					}
 					tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) { c.Resolve(a.Body.Handle).Label("feedback-viewport") })
 					optionExitFocus(t, tt, label)
+					if strings.HasPrefix(source, "param-") {
+						a.toolOpen = true
+						tt.Frame()
+						r := mustFind(t, tt, label)
+						viewport := mustFind(t, tt, "feedback-viewport")
+						a.Body.Y += r.Y + r.H + 19 - viewport.Y - viewport.H
+						tt.Frame()
+					}
 					for step := 0; step < 4; step++ {
-						if source == "commands" {
+						if strings.HasPrefix(source, "param-") {
+							a.toolParams[0].ID, a.toolParams[0].Options = "city", "北京\n上海"
+							if step != 2 {
+								if source == "param-refusal" {
+									a.toolParams[0].ID = "bad id"
+								} else {
+									a.toolParams[0].Options = strings.Repeat("广州\n", 18) + "上海"
+								}
+							}
+						} else if source == "commands" {
 							switch step {
 							case 0, 3:
 								in.Commands = []Command{{ID: "forecast", Name: "天气预报", Declared: true, Enabled: true, Available: true}}
@@ -162,6 +188,19 @@ func checkCatalogReflow(t *testing.T, scenario, kind string, lead ...string) {
 							}
 						}
 						tt.Frame()
+						if step == 0 && source == "param-options" && scenario == "run-controls" && kind == "text" {
+							if tag := os.Getenv("FLOTER_P13LG_DUMP"); tag != "" {
+								f, err := os.Create("/tmp/floter-P13-lg-downstream-" + appearanceName(dark) + "-" + tag + ".png")
+								if err != nil {
+									t.Fatal(err)
+								}
+								err = png.Encode(f, tt.Image())
+								f.Close()
+								if err != nil {
+									t.Fatal(err)
+								}
+							}
+						}
 						// Two representative states suffice to judge the visual change.
 						if step == 0 && kind == "text" && (scenario == "run-controls" && source == "commands" || scenario == "config-fields") {
 							catalogReflowDump(t, tt, scenario+"-"+source, dark)
@@ -234,6 +273,9 @@ func checkCatalogReflow(t *testing.T, scenario, kind string, lead ...string) {
 					}
 					runVisibilityWheel(t, a, tt)
 					manual := a.Body.Y
+					if strings.HasPrefix(source, "param-") {
+						a.toolParams[0].Options = strings.ReplaceAll(a.toolParams[0].Options, "广州", "深圳")
+					}
 					if in.Approval != nil {
 						copy := *in.Approval
 						in.Approval = &copy
@@ -247,6 +289,17 @@ func checkCatalogReflow(t *testing.T, scenario, kind string, lead ...string) {
 					tt.Frame()
 					if a.Body.Y != manual {
 						t.Error("equivalent record or hidden command reclaimed manual scrolling")
+					}
+					if strings.HasPrefix(source, "param-") {
+						// Automatic wrapping is internal to this TextArea: without
+						// Lines(), its outer height only follows paragraph count.
+						// Long same-paragraph edits must not reclaim manual scrolling.
+						a.toolParams[0].Options = strings.ReplaceAll(a.toolParams[0].Options, "上海", strings.Repeat("上海", 100))
+						tt.Frame()
+						tt.Frame()
+						if a.Body.Y != manual {
+							t.Error("internal wrapping reclaimed manual scrolling")
+						}
 					}
 				})
 			}

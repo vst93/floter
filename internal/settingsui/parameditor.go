@@ -186,6 +186,9 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 			}
 		}
 	})
+	// Downstream controls share this viewport. Carry the rendered record signal
+	// to their feedback outlets; equal-height draft edits cannot reclaim scroll.
+	a.integrationLead += preceding
 	if added {
 		// Continue in the declaration just appended, even in a long list.
 		c.Resolve(labels[len(labels)-1]).Focus()
