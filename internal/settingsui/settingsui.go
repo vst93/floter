@@ -6106,6 +6106,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				})
 			}, func() {
 				if len(a.toolPlatforms) == 0 {
+					a.integrationLead += "local-platform-required:"
 					a.issueUnder(c, copy.LocalToolPlatformRequired)
 				}
 			})
@@ -6294,6 +6295,7 @@ func (a *App) toolIssueUnder(c *ui.Context, copy i18n.Settings, issues []extensi
 	}
 	for _, issue := range issues {
 		if issue.Field == field {
+			a.integrationLead += "local-issue:" + strconv.Quote(customIssueMessage(copy, issue.Key))
 			a.issueUnder(c, customIssueMessage(copy, issue.Key))
 			return
 		}
