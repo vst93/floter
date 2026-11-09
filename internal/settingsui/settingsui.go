@@ -2332,12 +2332,12 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 		Padding(0, 0, t.Space(1), 0).Children(func() {
 		var field ui.Element
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-			outputFocusOutlet(c.Key("registry-name-outlet"), func() {
+			a.formFeedbackOutlet(c.Key("registry-name-outlet"), a.integrationLead, func() {
 				field = a.textInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).FillWidth()
 			}, func() bool { return field.FocusVisible() })
 		})
-		outputFocusOutlet(c.Key("registry-version-outlet"), func() {
-			a.textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
+		a.formFeedbackOutlet(c.Key("registry-version-outlet"), a.integrationLead, func() {
+			a.textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Label(copy.IntegrationsVersionHint).Width(160)
 		})
 		var install ui.Element
 		switch {

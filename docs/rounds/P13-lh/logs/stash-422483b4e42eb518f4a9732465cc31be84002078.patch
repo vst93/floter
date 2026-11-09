@@ -1,0 +1,767 @@
+diff --git a/internal/launcher/glyphs.go b/internal/launcher/glyphs.go
+index 6caf75d0..216798db 100644
+--- a/internal/launcher/glyphs.go
++++ b/internal/launcher/glyphs.go
+@@ -53,6 +53,10 @@ var (
+ 	// `LauncherResults.tsx:752-754`).
+ 	glyphInfo   = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`)))
+ 	glyphWindow = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/>`)))
++	// glyphSearch is lucide's Search: the mark Raycast leads its search row
++	// with, 16px at stroke 2 in the secondary ink (`docs/raycast-design.md`
++	// §4.2). The launcher's field drew no mark at all before this slice.
++	glyphSearch = ui.MustParseSVG([]byte(glyphSource(`<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>`)))
+ 	glyphClose  = ui.MustParseSVG([]byte(glyphSource(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)))
+ 	// glyphChevronRight and glyphChevronDown are lucide's two disclosure marks,
+ 	// the pair the reference's run-output block leads and closes with
+@@ -253,16 +257,17 @@ func clipboardKindOf(entry *clipboardpkg.Entry) string {
+ func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
+ 	tokens := a.tokens(c)
+ 	t := c.Theme()
+-	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusSM).
++	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusXS).
+ 		AlignItems(ui.Center).Justify(ui.Center).Shrink(0)
+ 	if warm {
+ 		plate.Background(tokens.IconSurface)
+ 	} else {
+ 		plate.Background(tokens.Control)
+ 	}
+-	// The reference's `--elev-0` lens: without it the 28u cell is a flat
+-	// tint, and a column of them reads as eight controls rather than as one
+-	// glass surface (`.launcher-result__icon`).
++	// Raycast's plate is flat: the control lens is capped at 0.04 by the
++	// palette (`docs/raycast-design.md` §4.1), so the stack is still the stop's
++	// own (`--glass-lens-scale` grades it) but no longer reads as a lit pane of
++	// glass.
+ 	return tokens.Lens(plate)
+ }
+ 
+@@ -384,6 +389,8 @@ func Glyph(name string) (*ui.SVG, bool) {
+ 		return glyphImage, true
+ 	case "bookmark":
+ 		return glyphBookmark, true
++	case "search":
++		return glyphSearch, true
+ 	}
+ 	return nil, false
+ }
+diff --git a/internal/launcher/launcher.go b/internal/launcher/launcher.go
+index 7bfe66f4..3696ca2b 100644
+--- a/internal/launcher/launcher.go
++++ b/internal/launcher/launcher.go
+@@ -809,15 +809,13 @@ func (a *App) badge(accelerator, key string) string {
+ // joined string, so asking for a badge a frame already drew allocates nothing.
+ type badgeKey struct{ accelerator, key string }
+ 
+-// rowActionText is a row's trailing key slot — the numbered badge or a
+-// command row's `Tab` affordance — in the reference's own register
+-// (`.launcher-result__action`): the body step at weight 620, `--text-tertiary`
+-// (lifted to `--text-primary` on the selected row), with a fixed 30u minimum
+-// and a right-aligned box so the badges of a column line up. The port used the
+-// body-minus-one step in `--text-muted`, one register too quiet and one size
+-// too small, and the slot was content-sized rather than the reference's fixed
+-// 30u. The ⌘1-⌘0 family and the `Tab` hint are drawn by this one helper so
+-// the two cannot drift apart.
++// rowActionText is a row's trailing *text* slot — a command row's `Tab`
++// affordance and the armed-delete note. A key is not text: it goes through
++// `rowKeycap`, which draws the chord as the keycap plates
++// (`docs/raycast-design.md` §4.5). The reference's own `.launcher-result__action`
++// register is the body step at weight 620, `--text-tertiary` (lifted to
++// `--text-primary` on the selected row), with a fixed 30u minimum and a
++// right-aligned box so the slots of a column line up.
+ func (a *App) rowActionText(c *ui.Context, text string, selected bool) {
+ 	tokens := a.tokens(c)
+ 	t := c.Theme()
+@@ -829,17 +827,27 @@ func (a *App) rowActionText(c *ui.Context, text string, selected bool) {
+ 		MinWidth(t.Space(7.5)).TextAlign(ui.End).Shrink(0)
+ }
+ 
+-// barHintText is the action bar's own `⌘↩` hint, in the reference's
+-// `.launcher-action-bar__hint` register — one step quieter than a result row's
+-// trailing badge: the caption size at 500, `--text-tertiary`, in the
+-// terminal's monospace stack with the badge's own 2u/6u padding.
+-// (`.launcher-action-bar__hint`, `launcher.css:1608-1623`.)
++// rowKeycap is a row's trailing *key* slot: the chord drawn as Raycast draws it
++// — one 20x20 keycap per key, 2u apart, no `+` between them, in the tertiary
++// ink (`docs/raycast-design.md` §4.5). `⌘1` on macOS is two plates; `Ctrl+1`
++// elsewhere is two as well, because the words the badge spells are the same two
++// keys.
++func (a *App) rowKeycap(c *ui.Context, tokens theme.Tokens, badge string) {
++	keys := keycapLabels(badge)
++	row := ui.Row(c).Shrink(0).Gap(c.Theme().Space(keycapGapUnits)).AlignItems(ui.Center)
++	row.Children(func() {
++		for _, label := range keys {
++			keycap(c, tokens, c.Theme(), label)
++		}
++	})
++}
++
++// barHintText is the action bar's own key hint. It is the same keycap the rows
++// draw — the bar's chord is a key, not a label — one step quieter in the
++// reference's `.launcher-action-bar__hint` register (`.launcher-action-bar__hint`,
++// `launcher.css:1608-1623`).
+ func (a *App) barHintText(c *ui.Context, text string) {
+-	tokens := a.tokens(c)
+-	t := c.Theme()
+-	ui.Text(c, text).Font(a.settings().FontFamily).FontSize(tokens.Caption).
+-		FontWeight(500).TextColor(tokens.TextTertiary).
+-		Padding(0, t.Space(1.5)).Shrink(0)
++	a.rowKeycap(c, a.tokens(c), text)
+ }
+ 
+ // Feedback shows a line under the list, for a caller outside the launcher
+@@ -1170,8 +1178,13 @@ func (a *App) View(c *ui.Context) {
+ 		if a.configOpen() {
+ 			a.configBody(c, listEdge)
+ 		} else if len(results) == 0 {
++			// The empty state is Raycast's quiet page: the sentence in the
++			// primary ink at the emphasis step, centred in the band, with no
++			// plate, no accent and no mark of its own
++			// (`docs/raycast-design.md` §4.7).
+ 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
+-				ui.Text(c, a.emptyMessage(copy)).FontSize(t.FontSize).TextColor(t.TextMuted)
++				ui.Text(c, a.emptyMessage(copy)).FontSize(tk.Emphasis).
++					TextColor(tk.TextStrong).SingleLine()
+ 			})
+ 		} else {
+ 			// The list builds only the rows in view, so a catalog of
+@@ -1199,7 +1212,14 @@ func (a *App) View(c *ui.Context) {
+ 			ui.List(c.Key("launcher.results"), &a.List, barStart, func(i int) {
+ 				a.row(c, results[i], i)
+ 			}).Grow(1).FillWidth().MinHeight(0).
+-				Padding(listEdge, t.Space(1), t.Space(0.5), t.Space(1)).Label(copy.ResultsLabel).
++				// The list's own gutter is the row block's inset: Raycast's
++				// selected row is a rounded pill that does *not* run to the card's
++				// edge, so the block sits 8u in from it on both sides
++				// (`docs/raycast-design.md` §4.3). The gutter and the row's own
++				// padding are one sum — 8u + 8u is the 16u the row's icon column
++				// has always started on — so the column moves by nothing while the
++				// block's painted edge moves 4u in.
++				Padding(listEdge, t.Space(2), t.Space(0.5), t.Space(2)).Label(copy.ResultsLabel).
+ 				ScrollbarInsets(0, 4096, 0, 0)
+ 			a.actionBarFooter(c, results, barStart)
+ 		}
+@@ -1213,13 +1233,13 @@ func (a *App) View(c *ui.Context) {
+ 		// they passed under the field, which the user read as a shadow cast
+ 		// by the input.
+ 
+-		// The field block's own floor: one hairline, the reference's R31
+-		// 「输入框下方阴影可以只保留 1px」. The field row is a near-solid,
+-		// brighter block (`.collapsed-card__input-row`'s
+-		// `--glass-field` over `--surface-opaque`); the line is what says
+-		// where it ends.
++		// The field block's own floor: one *weak* hairline
++		// (`docs/raycast-design.md` §4.2). Raycast's search row is not a
++		// floating input box — it is the card's first band, and the line under
++		// it is the same rule a block draws inside itself, not the card's own
++		// 1px edge, so it takes the quieter rung.
+ 		ui.Box(c).Absolute().Top(fieldRow - 1).Left(0).Right(0).Height(1).PassThrough().
+-			Background(tk.Hairline)
++			Background(tk.HairlineSoft)
+ 
+ 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
+ 			Background(tk.FieldFill).Padding(0, t.Space(4)).
+@@ -1242,6 +1262,16 @@ func (a *App) View(c *ui.Context) {
+ 			// them, and only the band's own blank area starts a drag.
+ 			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
+ 				DragWindow().Background(ui.Transparent)
++			// The search row's own mark: a 16u magnifier at the row's left, in
++			// the secondary ink at stroke 2 (`docs/raycast-design.md` §4.2). It
++			// is the design's one piece of iconography on the field row, and it
++			// is what makes the band read as a search row rather than as a
++			// blank strip of card above a list.
++			if glyph, ok := Glyph("search"); ok {
++				ui.Icon(c, glyph).Size(16, 16).Shrink(0).
++					TextColor(tk.TextSecondary).
++					Margin(0, t.Space(1.5), 0, 0)
++			}
+ 			// The scope mark: the mode that owns the field, at its left — the
+ 			// icon says a plugin owns it and the muted word says which one
+ 			// (`.collapsed-card__scope` / `__scope-name`). The trigger word
+@@ -1922,13 +1952,21 @@ func (a *App) row(c *ui.Context, item Item, i int) {
+ 	// A block's title line: the list's own label, drawn in the row's own
+ 	// column, never selectable and never numbered.
+ 	if item.heading {
+-		// A block's title line: the body step at 1.4, weight 620, muted, with
+-		// its own 6u/4u padding pair — `.launcher-section-title`, which the
+-		// window charges as a band of its own rather than a row's floor.
++		// The group header is Raycast's: the caption step at weight 500 in the
++		// secondary ink, left-aligned with the row *text* rather than with the
++		// row's box (`docs/raycast-design.md` §4.4). Its **size** does not move
++		// — the task book's size rule admits a weight, a letter-spacing and a
++		// colour in this slice, never a register — so it keeps the body step and
++		// takes the reference's 500/secondary pair. The band the window charges
++		// is unchanged too (see headingPadding). The inset is the row block's own
++		// gutter (12u) plus the row's 4u padding plus the icon column's 28u and
++		// the 10u gap, so the label sits on the same column a row's title does.
++		tokens := a.tokens(c)
+ 		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3)).
+ 			Children(func() {
+-				ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(620).
+-					TextColor(t.TextMuted)
++				ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(500).
++					TextColor(tokens.TextSecondary).SingleLine().
++					Margin(0, 0, 0, t.Space(10.5))
+ 			})
+ 		return
+ 	}
+@@ -1943,7 +1981,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
+ 		// build's `--text-tertiary` on `.launcher-status__icon`.
+ 		tokens := a.tokens(c)
+ 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
+-			AlignItems(ui.Center).Padding(0, t.Space(3)).Gap(t.Space(2.5))
++			AlignItems(ui.Center).Padding(0, t.Space(2)).Gap(t.Space(2.5))
+ 		note.Children(func() {
+ 			// The 28u icon column, as `.launcher-status__icon` was: no plate,
+ 			// only the mark — and the mark is the reference's **literal** 14
+@@ -1982,7 +2020,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
+ 	subtitle := rowSubtitle(item)
+ 	row := ui.Row(c.Key(item.ID)).FillWidth().Focusable().MinHeight(floor).
+ 		AlignItems(ui.Center).
+-		Padding(0, t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).
++		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).Gap(t.Space(2.5)).
+ 		Transition(rowTransition)
+ 	// A history row is one step quieter than a match: the old build's
+ 	// `.launcher-result--history { opacity: 0.92 }`.
+@@ -2014,7 +2052,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
+ 		// that matched no application, say) keeps its own full rounding, which
+ 		// is the reference's no-scroller case.
+ 		if i > 0 {
+-			row.Radius(0, 0, tokens.RadiusMD, tokens.RadiusMD)
++			row.Radius(0, 0, tokens.RadiusSM, tokens.RadiusSM)
+ 		}
+ 	}
+ 	// The press is the one state a row takes on top of the tint: the control
+@@ -2032,29 +2070,31 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
+ 	}
+ 	switch {
+ 	case rowPressed:
+-		row.Background(t.SurfacePressed)
++		// A pressed row takes Raycast's heaviest neutral rung: it sinks *into*
++		// the card rather than lighting up (`docs/raycast-design.md` §4.3).
++		row.Background(tokens.RowPressed)
+ 	case i == a.Selected && isBar:
+-		// The action bar's own selection: the neutral raised pane the old
+-		// build's settings used (`.launcher-action-bar--selected` —
+-		// `--glass-raised-quiet` plus `--glass-raised-shadow`,
+-		// `main:src/styles/launcher.css:1579-1583`). It is the control-hover
+-		// lift with the raised pane's own shadow — the `--elev-2` contact cast
+-		// (`0 1px 2px rgba(0,0,0,0.2)`) and the 1px lit top rim
+-		// (`--glass-raised-rim`) — so the bar reads as a lit pane among the
+-		// transparent result rows rather than as a flat grey block, and the
+-		// `⌘↩` badge is what says it runs on Enter. The port had only the
+-		// bare hover fill: the bar was the one *selected* row with no lift.
+-		row.Background(tokens.RaisedQuiet)
+-		row.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
+-		row.InsetShadow(0, 1, 0, 0, tokens.LensRim)
++		// The action bar's own selection: the same neutral chosen-row fill a
++		// result takes. Raycast's footer row is not a different material from
++		// the list above it — the port gave it the settings surface's raised
++		// pane and a cast shadow, which read as a second control inside the
++		// footer.
++		row.Background(tokens.RowSelected)
+ 	case i == a.Selected:
+-		// The old build's selection: the accent's quietest tint rung, and the
+-		// emphasis is the row's own type — the title at 700 — rather than a
+-		// ring or a shadow. The tint places the row; the weight announces it.
+-		// The rung is `--accent-tint-quiet`, a *per-appearance* token (dark
+-		// 0.085, light 0.065), not one hard-coded alpha: quoting the dark
+-		// number painted the light appearance's selection too heavy.
+-		row.Background(tokens.AccentTintQuiet)
++		// The chosen row is a *neutral* fill: Raycast's selected result is
++		// 0.085 of white over the near-black card (0.06 of black over the light
++		// one), with no border, no ring and no glow, and the accent is not spent
++		// here at all (`docs/raycast-design.md` §1/§4.3). The emphasis is the
++		// fill plus the title's own weight (700) — the accent's tint
++		// (`AccentTintQuiet`) belongs to the settings surface now, not the list.
++		row.Background(tokens.RowSelected)
++	}
++	// The pointer's own rung: a hovered row that is *not* the choice takes the
++	// lighter fill, so the pointer over a row the keyboard is on does not paint
++	// a third state on top of the chosen one (the entry rule below hands the
++	// choice over anyway; this covers the frame the two are the same row).
++	if row.Hovered() && i != a.Selected && rowSelectable(item) && item.Run != nil {
++		row.Background(tokens.RowHover)
+ 	}
+ 	// R21 · the pointer takes the selection over on *entry*, exactly as
+ 	// `LauncherResults.tsx:859-862` does: entering a row selects it, while
+@@ -2205,18 +2245,12 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
+ 		// deliberately generic (「就笼统点，简洁点，让用户意识到可以按空格就行了」),
+ 		// a visual mark whose tooltip carries the sentence.
+ 		if item.direct {
+-			// The space keycap (R65): a bare `␣` on a 18u bevel — border,
+-			// control fill, keycap shadow — not a sentence. The whole
+-			// explanation lives in the row's tooltip.
+-			key := ui.Row(c).Shrink(0).MinWidth(t.Space(4.5)).Height(t.Space(4.5)).
+-				Padding(0, t.Space(1)).Radius(tokens.RadiusXS).
+-				Border(1, tokens.ControlEdge).Background(tokens.Control).
+-				AlignItems(ui.Center).Justify(ui.Center).
+-				Tooltip(copy.DirectOutputHint)
+-			key.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+-			key.Children(func() {
+-				ui.Text(c, "\u2423").FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
+-			})
++			// The space keycap (R65): a bare `␣` on the shared keycap plate —
++			// the same 20x20, radius-5, keycap-face-and-edge box every other
++			// key in the list draws (`docs/raycast-design.md` §4.5) — not a
++			// sentence. The whole explanation lives in the row's tooltip.
++			key := keycap(c, tokens, t, "\u2423")
++			key.Tooltip(copy.DirectOutputHint)
+ 		}
+ 		// The source word: the row's provenance, in a fixed slot at the row's
+ 		// right edge — the integration that contributed a command, the package
+@@ -2328,13 +2362,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
+ 			}
+ 		}
+ 		if number, ok := a.numbers[i]; ok {
+-			a.rowActionText(c, a.resultNumber(number), i == a.Selected)
++			a.rowKeycap(c, tokens, a.resultNumber(number))
+ 		}
+ 		if item.Shortcut != "" {
+ 			if isBar {
+ 				a.barHintText(c, item.Shortcut)
+ 			} else {
+-				a.rowActionText(c, item.Shortcut, i == a.Selected)
++				a.rowKeycap(c, tokens, item.Shortcut)
+ 			}
+ 		}
+ 	})
+@@ -2618,13 +2652,52 @@ func (a *App) actionBarFooter(c *ui.Context, results []Item, start int) {
+ 		return
+ 	}
+ 	t := c.Theme()
++	tokens := a.tokens(c)
+ 	band := t.Space(actionBarUnits * float32(len(results)-start))
+-	ui.Column(c).FillWidth().Shrink(0).Height(band).MinHeight(0).
+-		Padding(0, t.Space(1)).Children(func() {
++	footer := ui.Column(c).FillWidth().Shrink(0).Height(band).MinHeight(0).
++		Padding(0, t.Space(1))
++	footer.Children(func() {
+ 		for i := start; i < len(results); i++ {
+ 			a.row(c, results[i], i)
+ 		}
+ 	})
++	// The footer's own chrome is drawn *over* the band, never as a row of it:
++	// the band's height and the window's height chain are the same numbers they
++	// were (see actionBarUnits), so the two new marks cost the layout nothing.
++	footer.Children(func() {
++		// Raycast's footer rule: the *weak* hairline that separates the band from
++		// the list above it (`docs/raycast-design.md` §4.6). The footer is a
++		// block of the card, not a second card, so it takes the quieter rung —
++		// not the card's own 1px edge, and not the accent-tinted divider the port
++		// drew.
++		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(1).PassThrough().
++			Background(tokens.HairlineSoft)
++		// The panel's own legend at the footer's right edge: `⌘K`, the chord that
++		// opens Raycast's actions surface (`docs/raycast-design.md` §4.6). It is
++		// the same 20x20 keycap every key in the panel draws, so the footer's
++		// right edge and a row's tail speak one language.
++		//
++		// The chord is **not bound** in this build: the task book keeps the
++		// keyboard model untouched, and P8-b is where the actions surface it will
++		// open arrives. The gap is listed in docs/raycast-design.md.
++		ui.Row(c).Absolute().Top(0).Right(t.Space(1)).Height(band).PassThrough().
++			AlignItems(ui.Center).Children(func() {
++			keycap(c, tokens, t, footerActionsBadge())
++		})
++	})
++}
++
++// footerActionsBadge is the actions legend's own chord, in the platform's
++// spelling: `⌘K` where the app modifier is Command, `Ctrl+K` where it is
++// Control. It goes through the same `shortcuts.Badge` a real binding does, so
++// the footer's legend and a row's keycap cannot disagree about how this
++// platform writes a chord.
++func footerActionsBadge() string {
++	mod := "Ctrl"
++	if runtime.GOOS == "darwin" {
++		mod = "Cmd"
++	}
++	return shortcuts.Badge(mod+"+K", "K")
+ }
+ 
+ // defaultSelection is the row a fresh query starts on: the action bar when
+diff --git a/internal/theme/theme.go b/internal/theme/theme.go
+index ec21241f..eb828566 100644
+--- a/internal/theme/theme.go
++++ b/internal/theme/theme.go
+@@ -48,13 +48,29 @@ func Resolve(theme string, systemDark bool) Appearance {
+ 	}
+ }
+ 
+-// The radius scale from base.css, at scale 1: an inner chip, a control on a
+-// surface, a card holding controls, and the window or a full panel.
++// The radius scale, at scale 1, in Raycast's own steps (`docs/raycast-design.md`
++// §2): an icon plate, a row or a button, a block inside a panel, and the window
++// or a card.
++//
++//	radius  6  icon plate (XS)
++//	radius  8  row, button (SM)
++//	radius 10  block inside a panel (MD)
++//	radius 12  window, card (LG)
++//	radius  5  keycap (KeycapRadius)
++//
++// The ladder is literal px (as base.css wrote it): a corner does not follow
++// `--ui-scale` the way a font or a `--u` metric does.
+ const (
+ 	RadiusXS = 6
+-	RadiusSM = 9
+-	RadiusMD = 12
+-	RadiusLG = 14
++	RadiusSM = 8
++	RadiusMD = 10
++	RadiusLG = 12
++
++	// KeycapRadius is the corner a keycap draws: Raycast's 20x20 pressable
++	// legend, one step under the icon plate's. It has no rung of its own in the
++	// four-step ladder above — a keycap is smaller than any surface the ladder
++	// names — so it is its own number rather than an alias.
++	KeycapRadius = 5
+ 
+ 	// BodyUnits is the body text size in this codebase's own unit, `--text-body`
+ 	// one rung up: 12px at scale 1. Every size in this file's unit (a
+@@ -71,7 +87,7 @@ const (
+ )
+ 
+ // windowRadiusFor is the corner a surface that *is* the window draws: the
+-// design's 14px on all three platforms (`base.css:66`).
++// design's 12px on all three platforms (`docs/raycast-design.md` §2).
+ //
+ // Windows used to be the exception — base.css pins `--window-radius` to 8px
+ // inside `.platform-windows` (`:1492`) because DWM rounds every top-level window
+@@ -80,7 +96,7 @@ const (
+ // longer lets DWM round the window: `shell.dressWindowsFrame` asks for
+ // `DWMWCP_DONOTROUND` and takes the system border off as well, so the window's
+ // rectangle is square and the card's corner is the only corner on screen. That
+-// corner is the design's own 14px, the same figure macOS and Linux draw — which
++// corner is the design's own 12px, the same figure macOS and Linux draw — which
+ // is the point: the three platforms are meant to look like one app.
+ //
+ // The platform stays a parameter so the table is readable on any host.
+@@ -102,14 +118,16 @@ type Tokens struct {
+ 	RadiusXS float32
+ 	RadiusSM float32
+ 	RadiusMD float32
+-	// RadiusLG is the window or a full panel's corner: 14px.
++	// RadiusLG is the window or a full panel's corner: 12px.
+ 	RadiusLG float32
+ 	// WindowRadius is the corner a surface that *is* the window draws: the
+-	// launcher card, the settings card and the terminal panel. It is RadiusLG on
+-	// every platform — the window's own rectangle is square everywhere this
+-	// build runs, because DWM's rounding is switched off (see
++	// launcher card, the settings card and the terminal panel. It is RadiusLG
++	// (12) on every platform — the window's own rectangle is square everywhere
++	// this build runs, because DWM's rounding is switched off (see
+ 	// windowRadiusFor).
+ 	WindowRadius float32
++	// KeycapRadius is a keycap's corner: 5, the step under the icon plate's 6.
++	KeycapRadius float32
+ 
+ 	// InputStroke is the one edge a card or a control draws (base.css's
+ 	// `--input-stroke`), and InputStrokeActive its focused step — the lit
+@@ -124,6 +142,29 @@ type Tokens struct {
+ 	Control     ui.Color
+ 	ControlEdge ui.Color
+ 	Hairline    ui.Color
++	// HairlineSoft is the weaker of the design's two hairlines
++	// (`docs/raycast-design.md` §1): the rule between rows and inside a block,
++	// one step under the card's own edge. Hairline is the stronger rung, and it
++	// is the card's 1px border; this one is what the field row draws against
++	// the list and what the footer draws against the list above it.
++	HairlineSoft ui.Color
++	// RowHover, RowSelected and RowPressed are the launcher row's own three
++	// fills: Raycast's list is *neutral*, not accent-tinted — a hovered row is
++	// 0.045 of white over the near-black card, the chosen row 0.085, and a
++	// pressed row 0.11, with no border and no glow at any rung. They are their
++	// own tokens rather than the framework's `SurfaceHover`/`Selection` because
++	// the list's ladder has to be paintable on the card's glass at these exact
++	// alphas (see `Tokens.AccentTintQuiet` for the language this replaces: the
++	// chosen row used to be the accent's quiet tint).
++	RowHover    ui.Color
++	RowSelected ui.Color
++	RowPressed  ui.Color
++	// KeycapFace and KeycapEdge are the pressable legend's plate: the fill and
++	// its hairline (Raycast's 20x20 keycap, `docs/raycast-design.md` §4.5).
++	// They are not the `KeycapHighlight`/`KeycapShadow` pair — those are the
++	// Windows terminal panel's own rim, a different token for a different job.
++	KeycapFace ui.Color
++	KeycapEdge ui.Color
+ 	// ControlHover and ControlPress are the control ladder's two other
+ 	// rungs (base.css's `--glass-control-hover` / `--glass-control-press`):
+ 	// a pointer over a pane lifts it, a pointer down sinks it *below* the
+@@ -504,12 +545,19 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
+ 		RadiusMD:          RadiusMD,
+ 		RadiusLG:          RadiusLG,
+ 		WindowRadius:      windowRadiusFor(goos),
++		KeycapRadius:      KeycapRadius,
+ 		InputStroke:       stroke,
+ 		InputStrokeActive: strokeActive,
+ 		Control:           control,
+ 		ControlHover:      controlHover,
+ 		ControlPress:      controlPress,
+ 		ControlEdge:       controlEdge,
++		HairlineSoft:      p.hairlineSoft,
++		RowHover:          p.rowHover,
++		RowSelected:       p.rowSelected,
++		RowPressed:        p.rowPressed,
++		KeycapFace:        p.keycapFace,
++		KeycapEdge:        p.keycapEdge,
+ 		Track:             track,
+ 		TrackEdge:         p.trackEdge,
+ 		Field:             field,
+@@ -572,18 +620,18 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
+ func paletteFor(appearance Appearance) palette {
+ 	if appearance == Light {
+ 		return palette{
+-			background:    ui.Hex("#fafafc"),
+-			text:          ui.Hex("#1d1d1f"),
+-			textStrong:    ui.RGBA(23, 23, 26, 0.96),
+-			textMuted:     ui.RGBA(60, 60, 67, 0.78),
+-			textSecondary: ui.RGBA(60, 60, 67, 0.86),
+-			textTertiary:  ui.RGBA(60, 60, 67, 0.72),
+-			accent:        ui.Hex("#064aa6"),
+-			accentHover:   ui.Hex("#0a5ecb"),
+-			accentPressed: ui.Hex("#05408f"),
+-			accentText:    ui.Hex("#f7f9ff"),
+-			stroke:        ui.RGBA(0, 0, 0, 0.12),
+-			strokeActive:  ui.RGBA(10, 108, 255, 0.28),
++			background:    ui.Hex("#F7F7F8"),
++			text:          ui.Hex("#1B1B1D"),
++			textStrong:    ui.Hex("#1B1B1D"),
++			textMuted:     ui.Hex("#8E8E94"),
++			textSecondary: ui.Hex("#6B6B70"),
++			textTertiary:  ui.Hex("#8E8E94"),
++			accent:        ui.Hex("#E5484D"),
++			accentHover:   ui.Hex("#F0555A"),
++			accentPressed: ui.Hex("#CC3B40"),
++			accentText:    ui.Hex("#FFFFFF"),
++			stroke:        ui.RGBA(0, 0, 0, 0.09),
++			strokeActive:  ui.RGBA(229, 72, 77, 0.55),
+ 			control:       ui.RGBA(0, 0, 0, 0.05),
+ 			controlHover:  ui.RGBA(0, 0, 0, 0.075),
+ 			controlPress:  ui.RGBA(0, 0, 0, 0.032),
+@@ -591,32 +639,35 @@ func paletteFor(appearance Appearance) palette {
+ 			track:         ui.RGBA(0, 0, 0, 0.06),
+ 			trackEdge:     ui.RGBA(0, 0, 0, 0.08),
+ 			field:         ui.RGBA(255, 255, 255, 0.5),
+-			// One step under the control edge, as the dark palette's is: the
+-			// ladder says a row's hairline is *quieter* than a control's edge
+-			// (`stroke > controlEdge > hairline > control`), and the light
+-			// palette had the two at the same 0.1, so a row rule and a control
+-			// edge drew the same line — the last rung of the ladder with no
+-			// step in it.
+-			hairline:    ui.RGBA(0, 0, 0, 0.09),
+-			selection:   ui.RGBA(6, 74, 166, 0.1),
+-			focus:       ui.RGBA(6, 74, 166, 0.82),
+-			warning:     ui.Hex("#9c1f18"),
++			hairline:      ui.RGBA(0, 0, 0, 0.09),
++			// Raycast's weaker hairline (`docs/raycast-design.md` §1).
++			hairlineSoft: ui.RGBA(0, 0, 0, 0.055),
++			// The row's neutral ladder: hover 0.04, chosen 0.06, pressed 0.08.
++			rowHover:    ui.RGBA(0, 0, 0, 0.04),
++			rowSelected: ui.RGBA(0, 0, 0, 0.06),
++			rowPressed:  ui.RGBA(0, 0, 0, 0.08),
++			keycapFace:  ui.RGBA(0, 0, 0, 0.05),
++			keycapEdge:  ui.RGBA(0, 0, 0, 0.06),
++			selection:   ui.RGBA(229, 72, 77, 0.16),
++			focus:       ui.RGBA(229, 72, 77, 0.82),
++			warning:     ui.Hex("#9C1F18"),
+ 			scrollbar:   ui.RGBA(60, 60, 67, 0.24),
+-			opaque:      ui.RGBA(250, 250, 252, 0.995),
+-			fieldFill:   ui.RGBA(252, 252, 254, 0.997),
+-			lensRim:     ui.RGBA(255, 255, 255, 0.9),
+-			lensSheen:   ui.RGBA(255, 255, 255, 0.5),
+-			lensEdge:    ui.RGBA(0, 0, 0, 0.08),
+-			sheenTop:    ui.RGBA(255, 255, 255, 0.66),
+-			sheenBottom: ui.RGBA(255, 255, 255, 0.22),
+-			// base.css's `--sheen-top-active` / `--sheen-bottom-active`
+-			// (`:908-909` light, `:630-631` dark): the lit face the card wears
+-			// while it has the keyboard (`.collapsed-card:focus-within`,
+-			// `main:src/styles/launcher.css:136-144`).
+-			sheenTopActive:      ui.RGBA(255, 255, 255, 0.78),
+-			sheenBottomActive:   ui.RGBA(255, 255, 255, 0.28),
++			opaque:      ui.RGBA(247, 247, 248, 0.995),
++			fieldFill:   ui.RGBA(250, 250, 251, 0.997),
++			// The lens family, capped at 0.04: Raycast is a low-gloss design, so
++			// the control's own rim, sheen and shade are a whisper rather than the
++			// lens the old sheet drew (`docs/raycast-design.md` §4.1). The
++			// `[data-glass]` stop still grades them through `--glass-lens-scale`.
++			lensRim:     ui.RGBA(255, 255, 255, 0.04),
++			lensSheen:   ui.RGBA(255, 255, 255, 0.04),
++			lensEdge:    ui.RGBA(0, 0, 0, 0.04),
++			sheenTop:    ui.RGBA(255, 255, 255, 0.04),
++			sheenBottom: ui.RGBA(255, 255, 255, 0.01),
++			// The focus step of the same pair: a lit face, still inside the cap.
++			sheenTopActive:      ui.RGBA(255, 255, 255, 0.05),
++			sheenBottomActive:   ui.RGBA(255, 255, 255, 0.012),
+ 			shadowAmbient:       ui.RGBA(0, 0, 0, 0.18),
+-			shadowContact:       ui.RGBA(0, 0, 0, 0.12),
++			shadowContact:       ui.RGBA(0, 0, 0, 0.1),
+ 			edgeHighlight:       ui.RGBA(255, 255, 255, 0.92),
+ 			edgeHighlightActive: ui.RGBA(255, 255, 255, 0.96),
+ 			edgeShadow:          ui.RGBA(0, 0, 0, 0.07),
+@@ -625,15 +676,13 @@ func paletteFor(appearance Appearance) palette {
+ 			// the terminal panel's own rim on Windows.
+ 			keycapHighlight:  ui.RGBA(255, 255, 255, 0.9),
+ 			keycapShadow:     ui.RGBA(0, 0, 0, 0.09),
+-			accentEdge:       ui.RGBA(6, 74, 166, 0.36),
+-			accentEdgeStrong: ui.RGBA(6, 74, 166, 0.68),
+-			accentHalo:       ui.RGBA(6, 74, 166, 0.24),
+-			// `--accent-glow` (`base.css:955`): the light card's focus ring.
+-			accentGlow: ui.RGBA(6, 74, 166, 0.2),
+-			// The launcher selection's own rung: the light appearance steps the
+-			// tint down (base.css `--accent-tint-quiet: rgba(6, 74, 166, 0.065)`)
+-			// because the dark appearance's 0.085 reads heavier over white.
+-			accentTintQuiet: ui.RGBA(6, 74, 166, 0.065),
++			accentEdge:       ui.RGBA(229, 72, 77, 0.55),
++			accentEdgeStrong: ui.RGBA(229, 72, 77, 0.85),
++			accentHalo:       ui.RGBA(229, 72, 77, 0.2),
++			// `--accent-glow`: the light card's focus ring.
++			accentGlow: ui.RGBA(229, 72, 77, 0.12),
++			// The accent as a quiet fill (`rgba(229, 72, 77, 0.10)`).
++			accentTintQuiet: ui.RGBA(229, 72, 77, 0.1),
+ 			// The warm system-icon plane, the light appearance's amber (base.css
+ 			// `--system-icon-surface` / `--system-icon-surface-hover`).
+ 			iconSurface:      ui.RGBA(214, 118, 44, 0.13),
+@@ -642,43 +691,65 @@ func paletteFor(appearance Appearance) palette {
+ 		}
+ 	}
+ 	return palette{
+-		background:    ui.Hex("#121316"),
+-		text:          ui.Hex("#f2f3f5"),
+-		textStrong:    ui.RGBA(244, 245, 247, 0.96),
+-		textMuted:     ui.RGBA(238, 239, 242, 0.55),
+-		textSecondary: ui.RGBA(238, 239, 242, 0.74),
+-		textTertiary:  ui.RGBA(238, 239, 242, 0.48),
+-		accent:        ui.Hex("#8fb7ff"),
+-		accentHover:   ui.Hex("#a9c8ff"),
+-		accentPressed: ui.Hex("#7aa7ff"),
+-		accentText:    ui.Hex("#15171b"),
+-		stroke:        ui.RGBA(255, 255, 255, 0.11),
+-		strokeActive:  ui.RGBA(143, 183, 255, 0.24),
+-		control:       ui.RGBA(255, 255, 255, 0.075),
+-		controlHover:  ui.RGBA(255, 255, 255, 0.105),
+-		controlPress:  ui.RGBA(255, 255, 255, 0.05),
+-		controlEdge:   ui.RGBA(255, 255, 255, 0.1),
+-		track:         ui.RGBA(255, 255, 255, 0.09),
+-		trackEdge:     ui.RGBA(255, 255, 255, 0.075),
+-		field:         ui.RGBA(255, 255, 255, 0.03),
+-		hairline:      ui.RGBA(255, 255, 255, 0.09),
+-		selection:     ui.RGBA(143, 183, 255, 0.13),
+-		focus:         ui.RGBA(122, 167, 255, 0.78),
+-		warning:       ui.RGBA(255, 178, 164, 0.82),
+-		scrollbar:     ui.RGBA(238, 239, 242, 0.15),
+-		opaque:        ui.RGBA(26, 27, 30, 0.99),
+-		fieldFill:     ui.RGBA(33, 34, 37, 0.99),
+-		lensRim:       ui.RGBA(255, 255, 255, 0.15),
+-		lensSheen:     ui.RGBA(255, 255, 255, 0.06),
+-		lensEdge:      ui.RGBA(0, 0, 0, 0.15),
+-		sheenTop:      ui.RGBA(255, 255, 255, 0.046),
+-		sheenBottom:   ui.RGBA(255, 255, 255, 0.01),
+-		// The focus step of the same pair (`base.css:630-631`).
+-		sheenTopActive:    ui.RGBA(255, 255, 255, 0.056),
++		background:    ui.Hex("#0E0E10"),
++		text:          ui.Hex("#EDEDEF"),
++		textStrong:    ui.Hex("#EDEDEF"),
++		textMuted:     ui.Hex("#6E6E76"),
++		textSecondary: ui.Hex("#9A9AA0"),
++		textTertiary:  ui.Hex("#6E6E76"),
++		accent:        ui.Hex("#F5544E"),
++		accentHover:   ui.Hex("#FF6B62"),
++		accentPressed: ui.Hex("#DC4640"),
++		accentText:    ui.Hex("#1B1B1D"),
++		// The card's 1px edge is Raycast's *strong* hairline (`#FFFFFF` at
++		// 0.09, `docs/raycast-design.md` §1); the hairline rung below is the
++		// same number, because in Raycast's language a card's border and a
++		// section's rule are one hairline seen at two widths, not two colours.
++		stroke:       ui.RGBA(255, 255, 255, 0.09),
++		strokeActive: ui.RGBA(245, 84, 78, 0.55),
++		control:      ui.RGBA(255, 255, 255, 0.075),
++		controlHover: ui.RGBA(255, 255, 255, 0.105),
++		controlPress: ui.RGBA(255, 255, 255, 0.05),
++		controlEdge:  ui.RGBA(255, 255, 255, 0.1),
++		track:        ui.RGBA(255, 255, 255, 0.09),
++		trackEdge:    ui.RGBA(255, 255, 255, 0.075),
++		field:        ui.RGBA(255, 255, 255, 0.03),
++		hairline:     ui.RGBA(255, 255, 255, 0.09),
++		// Raycast's weaker hairline: the rule between rows and inside a block
++		// (0.055, `docs/raycast-design.md` §1).
++		hairlineSoft: ui.RGBA(255, 255, 255, 0.055),
++		// The row's own neutral ladder, in Raycast's numbers: hover 0.045, the
++		// chosen row 0.085, a pressed row 0.11. None of them is the accent —
++		// the list's selection is a neutral fill.
++		rowHover:    ui.RGBA(255, 255, 255, 0.045),
++		rowSelected: ui.RGBA(255, 255, 255, 0.085),
++		rowPressed:  ui.RGBA(255, 255, 255, 0.11),
++		// The keycap's plate: the fill and its hairline.
++		keycapFace: ui.RGBA(255, 255, 255, 0.075),
++		keycapEdge: ui.RGBA(255, 255, 255, 0.07),
++		selection:  ui.RGBA(245, 84, 78, 0.16),
++		focus:      ui.RGBA(245, 84, 78, 0.82),
++		warning:    ui.RGBA(255, 178, 164, 0.82),
++		scrollbar:  ui.RGBA(238, 239, 242, 0.15),
++		opaque:     ui.RGBA(20, 20, 22, 0.99),
++		fieldFill:  ui.RGBA(28, 28, 31, 0.99),
++		// The lens family, capped at 0.04: Raycast is a low-gloss design, so
++		// the control's own rim, sheen and shade are a whisper rather than the
++		// lens the old sheet drew (`docs/raycast-design.md` §4.1). The
++		// `[data-glass]` stop still grades them through `--glass-lens-scale`.
++		lensRim:     ui.RGBA(255, 255, 255, 0.04),
++		lensSheen:   ui.RGBA(255, 255, 255, 0.04),
++		lensEdge:    ui.RGBA(0, 0, 0, 0.04),
++		sheenTop:    ui.RGBA(255, 255, 255, 0.04),
++		sheenBottom: ui.RGBA(255, 255, 255, 0.01),
++		// The focus step of the same pair: a lit face, still inside the cap.
++		sheenTopActive:    ui.RGBA(255, 255, 255, 0.05),
+ 		sheenBottomActive: ui.RGBA(255, 255, 255, 0.012),
+-		shadowAmbient:     ui.RGBA(0, 0, 0, 0.3),
+-		shadowContact:     ui.RGBA(0, 0, 0, 0.2),
+-		edgeHighlight:     ui.RGBA(255, 255, 255, 0.15),
++		// Raycast's card cast: `0 18px 48px rgba(0,0,0,.55)` and
++		// `0 1px 2px rgba(0,0,0,.40)` (`docs/raycast-design.md` §4.1).
++		shadowAmbient: ui.RGBA(0, 0, 0, 0.55),
++		shadowContact: ui.RGBA(0, 0, 0, 0.4),
++		edgeHighlight: ui.RGBA(255, 255, 255, 0.15),
+ 		// The focused step (`base.css:633`): the rim nudged brighter while the
+ 		// card holds the keyboard, the same edge the stroke's active rung is.
+ 		edgeHighlightActive: ui.RGBA(255, 255, 255, 0.18),
+@@ -688,15 +759,16 @@ func paletteFor(appearance Appearance) palette {
+ 		// terminal panel's own rim on Windows, a step quieter than the edge.
+ 		keycapHighlight:  ui.RGBA(255, 255, 255, 0.07),
+ 		keycapShadow:     ui.RGBA(0, 0, 0, 0.28),
+-		accentEdge:       ui.RGBA(143, 183, 255, 0.3),
+-		accentEdgeStrong: ui.RGBA(143, 183, 255, 0.72),
+-		accentHalo:       ui.RGBA(143, 183, 255, 0.18),
+-		// `--accent-glow` (`base.css:687`): the same ring, quieter in the dark
+-		// appearance because it traces a whole panel rather than a dot.
+-		accentGlow: ui.RGBA(143, 183, 255, 0.08),
+-		// The launcher selection's own rung (base.css `--accent-tint-quiet:
+-		// rgba(143, 183, 255, 0.085)`).
+-		accentTintQuiet: ui.RGBA(143, 183, 255, 0.085),
++		accentEdge:       ui.RGBA(245, 84, 78, 0.55),
++		accentEdgeStrong: ui.RGBA(245, 84, 78, 0.85),
++		accentHalo:       ui.RGBA(245, 84, 78, 0.2),
++		// `--accent-glow`: the same ring, quieter. It is not drawn on the
++		// launcher card (`docs/raycast-design.md` §1): the launcher's selected
++		// row is neutral and the card carries no accent glow.
++		accentGlow: ui.RGBA(245, 84, 78, 0.1),
++		// The accent as a fill, at the quietest rung: Raycast's `rgba(245, 84,
++		// 78, 0.14)`, used by the three places §1 allows the accent a face.
++		accentTintQuiet: ui.RGBA(245, 84, 78, 0.14),
+ 		// The warm system-icon plane, the dark appearance's amber (base.css
+ 		// `--system-icon-surface` / `--system-icon-surface-hover`), and its
+ 		// own ink (`--system-icon-text`): a pale warm peach, not the warning
+@@ -757,6 +829,14 @@ type palette struct {
+ 	accentTintQuiet                                                         ui.Color
+ 	iconSurface, iconSurfaceHover                                           ui.Color
+ 	systemIconText                                                          ui.Color
++	// The Raycast surface set (`docs/raycast-design.md` §1/§4): the weak
++	// hairline and the launcher row's neutral three-rung state ladder, plus
++	// the pressable keycap's plate.
++	hairlineSoft           ui.Color
++	rowHover               ui.Color
++	rowSelected            ui.Color
++	rowPressed             ui.Color
++	keycapFace, keycapEdge ui.Color
+ }
+ 
+ // round1 rounds to one decimal, so a scaled metric stays a value a CSS
