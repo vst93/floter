@@ -2,6 +2,7 @@ package settingsui
 
 import (
 	"image/png"
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -86,20 +87,22 @@ func checkLocalOutletFeedback(t *testing.T, field string) {
 				case "placeholder", "kind":
 					r = mustFind(t, tt, label)
 					r.Y += r.H + 3
-					r.H = 28
-					if field == "kind" {
-						r.H = 30
-					}
+					r.H = 30
 				case "add", "remove", "required":
 					r = mustFind(t, tt, label)
 				}
-				if r.W <= 0 || r.H <= 0 || r.Y-3 < viewport.Y+16 || r.Y+r.H+3 > viewport.Y+viewport.H-16 {
+				// mygo paints snapped pixel edges (ui/paint.go:round). Compare
+				// those exact edges; one lost physical pixel must still fail.
+				pixel := func(v float32) int { return int(math.Round(float64(v))) }
+				if r.W <= 0 || r.H <= 0 || pixel(r.Y-3) < pixel(viewport.Y+16) || pixel(r.Y+r.H+3) > pixel(viewport.Y+viewport.H-16) {
 					t.Errorf("feedback hides %s: target=%+v viewport=%+v", field, r, viewport)
 				}
 			}
 			switch field {
 			case "kind":
+				tt.Key(0, ui.KeyDown)
 				tt.Key(0, ui.KeyEnd)
+				tt.Key(0, ui.KeyEnter)
 				tt.Frame()
 				if a.toolParams[0].Kind != paramKinds[len(paramKinds)-1] {
 					t.Error("kind keyboard outlet stopped working")
