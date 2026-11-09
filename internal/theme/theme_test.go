@@ -233,14 +233,17 @@ func TestSunkenFollowsTheOpacity(t *testing.T) {
 // emphasis) and every surface read cramped - 「整体 UI/UX 很 小气」.
 func TestLadderScalesWithTheStep(t *testing.T) {
 	large := For(settings.Settings{Theme: "dark", UIScale: "large"}, false)
-	if large.Display < 20.8 || large.Display > 21.0 {
-		t.Errorf("display at Large = %v, want 19 x 1.1", large.Display)
+	if large.Display < 24.1 || large.Display > 24.3 {
+		t.Errorf("display at Large = %v, want 22 x 1.1", large.Display)
 	}
-	if large.Title < 15.3 || large.Title > 15.5 {
-		t.Errorf("title at Large = %v, want 14 x 1.1", large.Title)
+	if large.Search != 19.8 {
+		t.Errorf("search at Large = %v, want 18 x 1.1", large.Search)
 	}
-	if large.Body < 13.1 || large.Body > 13.3 {
-		t.Errorf("body at Large = %v, want 12 x 1.1", large.Body)
+	if large.Title < 17.5 || large.Title > 17.7 {
+		t.Errorf("title at Large = %v, want 16 x 1.1", large.Title)
+	}
+	if large.Body < 15.3 || large.Body > 15.5 {
+		t.Errorf("body at Large = %v, want 14 x 1.1", large.Body)
 	}
 	// The shipped step: 0.9. Its registers land on base.css's own physical
 	// sizes — caption 10, body 11, emphasis 12, title 13, display 17 — within
@@ -252,11 +255,12 @@ func TestLadderScalesWithTheStep(t *testing.T) {
 		want   float64
 		expect float32
 	}{
-		{"caption", small.Caption, 10, 9.9},
-		{"body", small.Body, 11, 10.8},
-		{"emphasis", small.Emphasis, 12, 11.7},
-		{"title", small.Title, 13, 12.6},
-		{"display", small.Display, 17, 17.1},
+		{"caption", small.Caption, 11, 10.8},
+		{"body", small.Body, 13, 12.6},
+		{"emphasis", small.Emphasis, 14, 13.5},
+		{"title", small.Title, 14, 14.4},
+		{"display", small.Display, 20, 19.8},
+		{"search", small.Search, 16, 16.2},
 	} {
 		if d := float64(reg.got) - reg.want; d > 0.5 || d < -0.5 {
 			t.Errorf("the shipped step's %s = %v, want the reference's %v (one rung up x 0.9)",
@@ -266,7 +270,7 @@ func TestLadderScalesWithTheStep(t *testing.T) {
 		// the reference's sizes is satisfied by any rung that lands near it,
 		// and the regression this guards is the ladder sliding back down.
 		if reg.got != reg.expect {
-			t.Errorf("the shipped step's %s = %v, want %v (11/12/13/14/19 x 0.9)",
+			t.Errorf("the shipped step's %s = %v, want %v (12/14/15/16/22 x 0.9)",
 				reg.name, reg.got, reg.expect)
 		}
 	}
@@ -387,9 +391,9 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 			controlEdge:  ui.RGBA(0, 0, 0, 0.06),
 			hairline:     ui.RGBA(0, 0, 0, 0.09),
 			hairlineSoft: ui.RGBA(0, 0, 0, 0.055),
-			control:      ui.RGBA(0, 0, 0, 0.07),
-			controlHover: ui.RGBA(0, 0, 0, 0.105),
-			controlPress: ui.RGBA(0, 0, 0, 0.032),
+			control:      ui.RGBA(0, 0, 0, 0.035),
+			controlHover: ui.RGBA(0, 0, 0, 0.07),
+			controlPress: ui.RGBA(0, 0, 0, 0.02),
 			track:        ui.RGBA(0, 0, 0, 0.06),
 		},
 		{
@@ -398,9 +402,9 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 			controlEdge:  ui.RGBA(255, 255, 255, 0.07),
 			hairline:     ui.RGBA(255, 255, 255, 0.09),
 			hairlineSoft: ui.RGBA(255, 255, 255, 0.055),
-			control:      ui.RGBA(255, 255, 255, 0.10),
-			controlHover: ui.RGBA(255, 255, 255, 0.14),
-			controlPress: ui.RGBA(255, 255, 255, 0.05),
+			control:      ui.RGBA(255, 255, 255, 0.055),
+			controlHover: ui.RGBA(255, 255, 255, 0.10),
+			controlPress: ui.RGBA(255, 255, 255, 0.03),
 			track:        ui.RGBA(255, 255, 255, 0.09),
 		},
 	}
@@ -477,14 +481,9 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 				t.Errorf("the pointer ladder is flat: hover %.3f, rest %.3f, press %.3f",
 					alpha(tc.controlHover), alpha(tc.control), alpha(tc.controlPress))
 			}
-			// A control plane is a plane, not a hairline: it has to be a step a
-			// 1x display resolves over the frame it sits on.
-			//
-			// P12-a 重定基线：下界随「面」这一档一起抬（0.045 → 0.06）。0.045 是
-			// 旧「面」档 0.05 的下沿，而新面档是 0.07/0.10，门槛必须跟它走，否则
-			// 这条断言守的是旧设计的地板，不是新设计的。
-			if alpha(tc.control) < 0.06 {
-				t.Errorf("a control plane at %.3f is below the step a 1x display resolves", alpha(tc.control))
+			// A light translucent wash defines the control without covering the glass.
+			if alpha(tc.control) < 0.03 {
+				t.Errorf("a control plane at %.3f is below the visible wash floor", alpha(tc.control))
 			}
 			// And the ladder stays light-handed: the desktop that asked for more
 			// contrast must still get a visibly stronger edge, or this rung has
@@ -662,7 +661,7 @@ func TestTheFrameSheenIsTheFixedTokenNotTheTint(t *testing.T) {
 		for _, step := range []string{"frosted", "regular", "liquid"} {
 			spec := glassmap.SpecForOS(runtime.GOOS, step, opacity)
 			want := capAlpha(light.sheenTop, spec.TintAlpha)
-			got := at("light", opacity).SheenTop
+			got := For(settings.Settings{Theme: "light", GlassStep: step, MainOpacity: opacity}, true).SheenTop
 			if got != want {
 				t.Errorf("the light sheen at %s/%d%% = %v, want the capped fixed token %v",
 					step, opacity, got, want)
@@ -1255,8 +1254,8 @@ func TestTheThreeElevationRungsAreVisibleAndOrdered(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tk := ForPreferences(settings.Settings{Theme: "auto", GlassStep: "regular"}, tc.dark, ui.Preferences{})
 			// ① 面比底高一个看得见的台阶。0.07 是浅色那一档；深色是 0.10。
-			if a := alpha(tk.Control); a < 0.07 {
-				t.Errorf("the face rung (Control) is %.3f, below the 0.07 floor: it would read as the ground", a)
+			if a := alpha(tk.Control); a < 0.03 {
+				t.Errorf("the face rung (Control) is %.3f, below the 0.03 floor: it would read as the ground", a)
 			}
 			// ② 浮比面高。`Float` 是「窗框 tint + 0.10」，默认 47% 时是 0.57，
 			// 所以这条断言读的是「浮层的 alpha 高于面」，不是「等于某个数」。

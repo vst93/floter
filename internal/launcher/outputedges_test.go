@@ -149,9 +149,9 @@ func TestTheOutputViewportStartsOnItsFirstRow(t *testing.T) {
 			"breathing band is inside the clip, so it scrolls away (P13-ce)",
 			a.outputListRect.Y, first.Y)
 	}
-	// The bottom edge is where the page's own geometry puts it at the shipped
-	// step: P13-dv 重定基线 466（库存尺）→ 419.2（出货尺，帧高 488 → 439）。
-	if got, want := tenths(float64(a.outputListRect.Y+a.outputListRect.H)), tenths(419.2); got != want {
+	// The viewport ends above the 22px output footer at the active scale.
+	bottom := float64(tt.Image().Bounds().Dy()) - spaceU(5.5)
+	if got, want := tenths(float64(a.outputListRect.Y+a.outputListRect.H)), tenths(bottom); got != want {
 		t.Errorf("the viewport's bottom edge moved to y=%v, want %v",
 			float64(got)/10, float64(want)/10)
 	}
@@ -175,7 +175,7 @@ func TestTheOutputFoldRecedesTheSameAtBothEnds(t *testing.T) {
 	full := 0
 	for i := 0; i < len(a.outputRowRects); i++ {
 		box, ok := a.outputRowRects[i]
-		if !ok || visibleShare(box, a.outputListRect) != 1 {
+		if !ok || visibleShare(box, a.outputListRect) < 1-1e-5 {
 			continue
 		}
 		full = contrastIn(img, box, a.outputListRect)
@@ -192,7 +192,7 @@ func TestTheOutputFoldRecedesTheSameAtBothEnds(t *testing.T) {
 			continue
 		}
 		share := visibleShare(box, a.outputListRect)
-		if share <= 0 || share >= 1 {
+		if share <= 0 || share >= 1-1e-5 {
 			continue
 		}
 		if box.Y < a.outputListRect.Y {

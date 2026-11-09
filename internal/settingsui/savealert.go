@@ -149,7 +149,7 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 			ui.Icon(c, mustGlyph("alert")).Size(t.Space(4), t.Space(4)).TextColor(t.Warning)
 			ui.Text(c, copy.SaveFailedAlert).FontSize(t.FontSize).FontWeight(580).
 				TextColor(t.Warning).Grow(1)
-			button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(6), t.Space(6)).
+			button := ui.Row(c).Focusable().Shrink(0).Size(max(36, t.Space(9)), max(36, t.Space(9))).
 				Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 				Label(copy.Close)
 			// `.settings-save-alert button`: the reference's own alert button

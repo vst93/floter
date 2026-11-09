@@ -645,7 +645,7 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 					if run == nil {
 						return
 					}
-					button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+					button := ui.Row(c).Focusable().Shrink(0).Size(max(36, t.Space(9)), max(36, t.Space(9))).
 						Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 						Label(label)
 					// P13-ay：页头两枚 28u 方键的提示也戴 E2 浮面。
@@ -863,23 +863,7 @@ func (a *App) outputHint(copy i18n.Launcher, view *OutputView) string {
 func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	t := c.Theme()
 	if row.Group != "" && (i == 0 || row.Group != a.output.Rows[i-1].Group) {
-		// The same register as the launcher list's own section title: the body
-		// step at 1.4, weight 620, muted, with the 6u/4u band the rows use.
-		// Both surfaces print a group heading, and the reference's
-		// `.launcher-section-title` is one element, not two.
-		//
-		// P11-ac 重定基线：分组头落在**本表面结果行标题的那一列**上。旧值是行
-		// 左 padding 12u、没有任何图标列/gap 偏移，于是标签挂在 20u，比它自己的
-		// 标题（52u）左挂了 32u；旧注释写着「the 6u/12u/4u inset the rows use」，
-		// 而行根本没有 12u 的左 inset。现在左缩进是行自己的那一份：行内 padding
-		// 8u（下面的 `Padding(t.Space(1.5), t.Space(2))`）+ 图标列 28u
-		// （`iconPlate` 的 `Space(7)`）+ 该行自己的 gap 10u（`Gap(t.Space(2.5))`）
-		// = 38u 的 `Margin-left`，加上列表自己的 8u 即 54u。
-		//
-		// P11-ad 重定基线：这个和里那一项 gap 从 8u 改成 10u，与启动器列表的行
-		// 同一条内部节奏——同一张卡里的两种列表只有一条文字列（54u），不是一个
-		// 表面 52u、一个表面 54u。旧值 → 新值：`Margin-left` 36u → 38u，标题列
-		// 52u → 54u。
+		// Both lists share the body heading, icon column and text gap.
 		// P13-x · 分组头也是列表的一部分，所以它也参加折边（与 `row` 的分组头臂同一个
 		// 规则、同一个纯函数）。它是 `style` 的**兄弟**，折边切到它的时候它保持满墨——
 		// 实测 `Group B` 在只剩 8/22u 时墨是 134、12/22u 时 137，与整行可见时一样；
@@ -896,15 +880,17 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 			heading.Opacity(float32(fold))
 		}
 		heading.Children(func() {
-			ui.Text(c, row.Group).FontSize(t.FontSize).FontWeight(620).
-				TextColor(t.TextMuted).Margin(0, 0, 0, t.Space(9.5))
+			ui.Text(c, row.Group).FontSize(t.FontSize).FontWeight(400).
+				TextColor(t.TextMuted).Margin(0, 0, 0, t.Space(iconUnits+rowGapUnits))
 		})
 	}
-	// P11-ad 重定基线：行的 gap 8u → 10u，与启动器列表的行（`launcher.go` 的
-	// `Gap(t.Space(2.5))`）同一份。这一项同时管着图标列与文字列之间、文字列与
-	// 行尾控件之间，所以两种列表的整条横向节奏是同一个数：面板/卡片 8u + 行内
-	// padding 8u + 图标列 28u + gap 10u = 标题列 54u。
-	style := ui.Row(c.Key(row.ID)).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2.5))
+	// Result rows use the launcher's shared height and text column.
+	height := t.Space(rowUnits)
+	if row.Status || row.Disabled {
+		height = t.Space(launcherStatusUnits)
+	}
+	style := ui.Row(c.Key(row.ID)).FillWidth().MinHeight(height).AlignItems(ui.Center).
+		Padding(0, t.Space(2)).Radius(t.Radius).Gap(t.Space(rowGapUnits))
 	// P13-cg：`selected` 是「游标在这儿」，`chosen` 是「这是一个被选中的门」。
 	// 便条（`row.Status` / `row.Disabled`）可以被游标指到，但它不是门——
 	// 所以它拿面色不拿灯（见下面 switch 的 `case selected`）。
@@ -962,11 +948,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// 列表（P8-a）的选中行同一档 `tokens.RowSelected`，两套外观各自的 rung
 		// 由 token 自己分。旧值 → 新值：`AccentTintQuiet` → `RowSelected`。
 		style.Background(tokens.RowSelected)
-		// P12-b（§6.1 第 1-5 行）：捕获输出页的选中行与启动器列表的选中行是同
-		// 一条规则、同一个函数——`theme.Tokens.LitFace`（面 + 顶受光边 + 底对侧
-		// 暗线）。两张列表是同一张卡里的同一件东西，选中块不许一个「站起来」一个
-		// 「平躺」。
-		style = tokens.LitFace(style)
+		// Selection stays a flat neutral wash over the glass.
 	case selected:
 		// P13-cg · 只读游标：游标指着一行**便条**。它拿选中行的面（`RowSelected`，
 		// 与门那一支同一个 token——「选中」是一种状态，不是一种权限），但**不点灯**：
@@ -1006,7 +988,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 				if dim {
 					ink = tokens.TextTertiary
 				}
-				ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(ink)
+				ui.Icon(c, glyph).Size(t.Space(4.5), t.Space(4.5)).TextColor(ink)
 			}
 		})
 		ui.Column(c).Grow(1).Children(func() {
@@ -1014,46 +996,8 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 			if dim {
 				color = t.TextMuted
 			}
-			// P13-ci · 同一张卡里的两张列表只有一套排法：启动器的结果列表给
-			// 标题 580、副标题 510（`launcher.go` 的 `rowBody`），而这一页一直是
-			// 400 / 400。便条行因此**同墨同重**（实测浅色 113 / 113）：两行读起来
-			// 是两句等价的话，标题没有说它是标题。
-			//
-			// 字重是墨级差看不见的那一半（P13-ch §6.51）：`TextMuted` 一个字节
-			// 没动，分档全靠这一行。`chosen` 的 700 仍是「门被选中」的记号
-			// （P13-cg），与启动器列表的 700 同一档。
-			//
-			// **静息档的副标题不动**（仍是框架的 400）：本轮先量过「照抄启动器的 510」——
-			// 便条行标题/副标题的墨量差从 3669 掉到 1769（比 1.26 → 1.10），
-			// 因为 12px 那行的 110 档加在字少的一行上更显眼。启动器那边是
-			// `TextStrong 580 / TextMuted 510` 两个旋钮一起给；这一页两行同墨，
-			// 只有一个旋钮，副标题必须留在静息档，差才拉得开。**rank 是规则，
-			// 数字是每个面的。** 选中档的副标题在 P13-cj 才接到启动器的那一档上
-			// （见下）。
-			title := ui.Text(c, row.Title).FontSize(t.FontSize).TextColor(color).FontWeight(580)
-			// P13-cg：加粗与提墨是「门被选中」的记号，不是「游标在这儿」的记号——
-			// 一句便条不该因为被游标指到就变成标题。
-			if chosen {
-				title.FontWeight(700)
-			}
-			// P13-cj · 选中行的副标题提**一档墨**，不提字重（`docs/liquid-glass.md`
-			// §6.53）。改前这里是 `t.Text`：与标题**同墨**，两行只差字重一条腿
-			// （实测选中行 标题/副标题 的墨距都是 **214**，差 0 级），而同一张卡的
-			// 启动器列表在同一状态下把副标题留在标题下一档（**131**，差 80 级）。
-			// 现在两边都落在 `TextSecondary` 上：浅 **131** / 深 **111**，逐级相同。
-			//
-			// **不提字重**是这一页自己的读法：启动器那边的选中行副标题是 600，但
-			// 它的行有 40u 的 `MinHeight` 地板；这一页的行高是**内容撑的**，加一档
-			// 字重就换一个字体面，把选中行从 54px 压到 **53px**（实测），游标一移
-			// 整张列表跟着抖 1px。`outputsubtitle_test.go` 的第 ④ 臂钉的就是这个。
-			//
-			// P13-dx 重定基线（§6.93）：字号 `t.FontSize - 1` → `tokens.Body`。
-			// 旧值 9.8 不是这一页自己的墨，是**另一条寄存器**：启动器列表的副标题
-			// 画在 `t.FontSize`（10.8 = `tokens.Body`），这一页画在 9.8，于是同一个
-			// `TextSecondary` 在 9.8 上**覆盖不到自己的值**（实测墨距 119，token 自己
-			// 是 125）——选中的副标题在这一页从来没画出过它自己的颜色。9.8 也不在
-			// 字阶上（`Caption` 是 9.9）：小字是阶梯上的档，不是「比正文小一档」
-			// （§6.74）。行盒随之 42 → **44.8**，行是内容撑的，窗口高度链不动。
+			ui.Text(c, row.Title).FontSize(tokens.Emphasis).TextColor(color).FontWeight(400).SingleLine()
+
 			if row.Subtitle != "" {
 				subtitle := ui.Text(c, row.Subtitle).FontSize(tokens.Body).TextColor(t.TextMuted)
 				if chosen {
@@ -1065,7 +1009,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// launcher's own rows print it. Only rows the family can reach carry
 		// one, so a status note stays unnumbered.
 		if number, ok := a.outputNumbers[i]; ok {
-			a.rowActionText(c, a.resultNumber(number), chosen)
+			a.rowKeycap(c, tokens, a.resultNumber(number))
 		}
 	})
 	if style.Clicked() && row.Runnable() {
@@ -1199,8 +1143,9 @@ func (a *App) windowRows(results []Item) (rows []RowInfo, held, sections int) {
 // never draws shorter than three lines (the user's 「一个最小高度也要限制」) and
 // never taller than the ten-row list ceiling, scrolling inside itself past it.
 const (
-	pluginTextLineUnits = 6   // 24u
-	pluginTextMinUnits  = 18  // 72u, three lines
+	pluginTextLineUnits = 6  // 24u
+	pluginTextMinUnits  = 18 // 72u, three lines
+	pluginTextBandUnits = 10
 	pluginTextMaxUnits  = 100 // 400u, MAX_RESULTS × ROW_HEIGHT_TWO_LINE
 )
 
@@ -1215,7 +1160,7 @@ func pluginTextRows(text string) int {
 		lines = strings.Count(text, "\n") + 1
 	}
 	height := math.Max(pluginTextMinUnits, math.Min(float64(lines*pluginTextLineUnits), pluginTextMaxUnits))
-	return int(math.Ceil(height / rowUnits))
+	return int(math.Ceil(height / pluginTextBandUnits))
 }
 
 // outputRows is the band table for the captured-output view in front of the
@@ -1234,7 +1179,7 @@ func (a *App) outputRows() (rows []RowInfo, held, sections int) {
 		n := pluginTextRows(view.Text)
 		rows = make([]RowInfo, n)
 		for i := range rows {
-			rows[i].Band = rowUnits
+			rows[i].Band = pluginTextBandUnits
 		}
 		return rows, n, 0
 	}

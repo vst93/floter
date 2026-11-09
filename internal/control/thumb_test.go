@@ -75,13 +75,18 @@ func thumbProbe(t *testing.T, dark bool) thumbReading {
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	img := tt.Image()
+	chosen, ok := tt.Find("Bbb")
+	if !ok {
+		t.Fatal("chosen segment is missing")
+	}
 
 	segW := box.W / 3
 	// The chosen segment is the middle one; the unchosen column is the first,
 	// taken at its centre so neither stadium corner is in the reading.
 	thumbX := int(box.X + segW + segW/2)
 	trackX := int(box.X + segW/2)
-	mid := int(box.Y + box.H/2)
+	// Read above the centered labels to sample the faces, not glyph ink.
+	mid := int(chosen.Y + 6)
 	r := thumbReading{
 		ground: px(img, 2, 2),
 		card:   px(img, int(cardBox.X+cardBox.W/2), int(cardBox.Y)+2),
@@ -103,8 +108,8 @@ func thumbProbe(t *testing.T, dark bool) thumbReading {
 		}
 		return best
 	}
-	r.ringTop = bluest(int(box.Y)-1, int(box.Y)+3)
-	r.ringBottom = bluest(int(box.Y+box.H)-3, int(box.Y+box.H)+1)
+	r.ringTop = bluest(int(chosen.Y)-1, int(chosen.Y)+2)
+	r.ringBottom = bluest(int(chosen.Y+chosen.H)-2, int(chosen.Y+chosen.H)+1)
 	t.Logf("[%s] ground %v card %v track %v thumb %v ring(top) %v ring(bottom) %v box %+v",
 		name, r.ground, r.card, r.track, r.thumb, r.ringTop, r.ringBottom, r.box)
 	return r
@@ -173,17 +178,8 @@ func TestTheLightThumbIsTheSheetColour(t *testing.T) {
 	}
 }
 
-// TestTheChosenThumbKeepsItsAccentRing: the accent ring is the chosen slot's
-// identity line (§6.2b 9-11), and it is the reason that slot keeps the
-// four-layer `Lens` instead of demoting to `LitFace`. A near-white thumb must
-// not wash it out, so the ring has to stay a *blue* line: its blue-minus-red
-// spread must beat the face's own by ≥25 in both appearances (measured: light
-// 58 against 0, dark 31 against 4). Red-channel distance is the wrong ruler
-// here — on the dark appearance the ring is lighter on R by only 6 levels at
-// the bottom row while it is still plainly blue (B 145 against 107).
-//
-// Mutation: drop the `InsetShadow(0,0,0,1, AccentEdge)` line → red.
-func TestTheChosenThumbKeepsItsAccentRing(t *testing.T) {
+// Selection is a neutral face; blue remains reserved for keyboard focus.
+func TestTheChosenThumbKeepsItsNeutralEdge(t *testing.T) {
 	for _, appearance := range []struct {
 		name string
 		dark bool
@@ -195,9 +191,8 @@ func TestTheChosenThumbKeepsItsAccentRing(t *testing.T) {
 				where string
 				c     ui.Color
 			}{{"top", r.ringTop}, {"bottom", r.ringBottom}} {
-				if spread := int(ring.c.B) - int(ring.c.R) - faceSpread; spread < 25 {
-					t.Errorf("[%s] the %s accent ring is only %d levels bluer than the chosen slot's face (%v against %v): the "+
-						"ring is that slot's identity line, and a face that swallows it says nothing (liquid-glass.md §6.2b 9-11)",
+				if spread := int(ring.c.B) - int(ring.c.R) - faceSpread; absDiff(spread) > 5 {
+					t.Errorf("[%s] the %s selection edge is tinted by %d levels (%v against %v)",
 						appearance.name, ring.where, spread, ring.c, r.thumb)
 				}
 			}

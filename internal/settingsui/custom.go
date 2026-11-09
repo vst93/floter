@@ -309,7 +309,7 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 			}
 			field := a.textInput(c, &text).Bind(&focus.command).Label(copy.ShortcutsCommand).
 				Placeholder(copy.ShortcutsCommandHint).Width(220).Shrink(1).MinWidth(0).
-				MinHeight(t.Space(7)).Padding(0, t.Space(2.5)).Radius(999)
+				MinHeight(max(36, t.Space(9))).Padding(0, t.Space(2.5)).Radius(a.tokens(c).RadiusSM)
 			if field.Changed() {
 				if a.customEdits == nil {
 					a.customEdits = map[string]string{}
@@ -470,7 +470,7 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	}
 	chosen := ""
 	picker := a.fieldFace(c, valueSelect(c, &selected, labels, values, display, a.tokens(c), true, current).
-		Radius(999).Shrink(1).Label(copy.ShortcutsAction), true)
+		Radius(a.tokens(c).RadiusSM).Shrink(1).Label(copy.ShortcutsAction), true)
 	if picker.Changed() {
 		chosen = selected
 	}

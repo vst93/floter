@@ -780,16 +780,16 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 // this drop-down sits in the same form and locks with it, so it must go unlit
 // with the fields beside it (P13-cb).
 func (a *App) configSelect(c *ui.Context, selected *string, labels []string, label string, lit bool) ui.Element {
-	e := ui.Select(c, selected, labels).Label(label).FillWidth().Radius(999)
+	e := ui.Select(c, selected, labels).Label(label).FillWidth().Radius(a.tokens(c).RadiusSM)
 	if a.cardUnit > 0 {
-		e = e.MinHeight(28).Padding(4, 8)
+		e = e.MinHeight(36).Padding(7, 12)
 	}
 	return a.fieldFace(c, e, lit)
 }
 
 func (a *App) configSelectFace(c *ui.Context, e ui.Element, lit bool) ui.Element {
 	if a.cardUnit > 0 {
-		e = e.MinHeight(28).Padding(4, 8)
+		e = e.MinHeight(36).Padding(7, 12)
 	}
 	return a.fieldFace(c, e, lit)
 }
@@ -877,7 +877,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		selected := configChoice{value: current, none: current == "" && !field.Required}
 		changed := false
 		grid = fieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
-			e := valueSelect(c, &selected, labels, values, current, a.tokens(c), !locked && len(values) > 0).Label(label).FillWidth().Radius(999)
+			e := valueSelect(c, &selected, labels, values, current, a.tokens(c), !locked && len(values) > 0).Label(label).FillWidth().Radius(a.tokens(c).RadiusSM)
 			e = a.configSelectFace(c, e, !locked && len(values) > 0)
 			if locked {
 				// P13-t：一道淡（框架的 0.5），与同一张表单的字段、开关同档。
@@ -1218,32 +1218,14 @@ func configOptionMatches(options []string, word string) bool {
 	return false
 }
 
-// configMultiselectBox draws the multiselect field's one list box: the
-// reference's `.extension-config-field select[multiple]` shape — a field face,
-// a `--radius-sm` corner and the reference's 66px floor
-// (`extensions.css:2420-2423`) — with fn filling the tick rows inside it. It is
-// one element, not a column of rows, so the field reads as the single native
-// control the reference drew.
-//
-// P8-c 随 §0(b) 重定基线：面 `tokens.Field` + `FieldSlot` 凹痕叠层 → `Control`
-// 一档（与 `fieldFace`/`sheetFieldSlot` 同面）。同一个应用里字段只有一种材质：
-// `--glass-field-shadow` 在浅色下的白边是 0.85，与合约 §1 的 0.04 上限互斥，
-// 而列表箱跟其他字段是同一族控件。几何（66px 地板、`RadiusSM`、1px 边、
-// 4px/8px 的 padding 对）零改动。
-//
-// The box is a *viewport*, not a growing list: a native `select[multiple]` of
-// the reference's 66px keeps that height however many options it holds and
-// scrolls the rest under it, so a long option list cannot push the form's
-// actions off the card. The inner scroller is therefore capped at the 66px
-// viewport less the box's own 4px vertical padding, and a short list keeps the
-// same 66px floor rather than shrinking. The scroller rides the box's own
-// state, so a scroll stays where the user left it.
+// configMultiselectBox keeps about three comfortable option rows visible.
+// The remaining options scroll within the field rather than growing the form.
 func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, locked bool, fn func()) ui.Element {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
-	padY, padX := a.cardSpace(t, 1), a.cardSpace(t, 2)
-	border := float32(1) // the box's own 1px keyline, inside its 66px
-	viewport := a.cardSpace(t, 16.5)
+	padY, padX := a.cardSpace(t, 2), a.cardSpace(t, 3)
+	border := float32(1)
+	viewport := max(float32(132), a.cardSpace(t, 33))
 	box := ui.Column(c).FillWidth().MinHeight(viewport).
 		Padding(padY, padX).
 		Radius(tokens.RadiusSM).
@@ -1262,20 +1244,7 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, locked
 		ui.Scroll(c).FillWidth().MaxHeight(viewport - 2*padY - 2*border).TrackScroll(scroll).Children(func() {
 			ui.Column(c).FillWidth().Gap(a.cardSpace(t, 0.5)).Children(fn)
 		})
-		// P13-av（`docs/liquid-glass.md` §6.18）：56px 的视口两端原是平刀切——
-		// 一行 20px 的选项在视口上下两条边被水平切断。它是「滚动收口」这一族的
-		// 最后一块面（§6.16 / §6.17 的同族），所以边上也走 `glass.ScrollEdge`。
-		//
-		// 与那两处**故意不同**的两点：
-		// ① 边高取 3u(12px)。视口是原生 `select[multiple]` 的 66px 地板算出来的
-		//    56px（§6.16 的 4u 会吃掉它 21%），而一行的盒高是 20px——12px 只软化
-		//    它下面那六成，不会把一行读没。2u 实测不够：最坏值顶 44/106（41%）、
-		//    底 67/106（63%），底边压不住（P13-av 报告）。
-		// ② 门必须开在滚动位置 `0 < Y < MaxY` 上，与 §6.17 同一条：这块箱子的
-		//    66px 是原生地板，padding 不许长（长 1px 就从视口偷走一行），所以
-		//    §6.16 那条「边落在预留 padding 上」的几何自门控在这里不成立。
-		// `scroll` 可以是 nil（`configform_test` 的空滚动状态探针就传 nil）：那时
-		// 没有偏移可读，也就没有「哪一头在被切」这件事，两条边都不画。
+		// Fade only an edge that actually has more options beyond it.
 		face := configListEdgeFace(tokens, t)
 		// 两道边骑的是**视口**的两端，不是箱子的 padding 框：绝对定位的 y 从
 		// padding box 起算（`ui/layout.go` 的 `layoutAbsolute`），而 `.Clip()` 裁的
@@ -1300,20 +1269,9 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, locked
 	return box
 }
 
-// configListEdgeFace is the colour the list box's scroll edges lay down: its own
-// face, composited opaque.
-//
-// 为什么不直接把箱子的 `Control` 交给 `glass.ScrollEdge`：`Control` 是一层 0.07
-// 的薄罩，而 `ui.Color.Alpha` 是**乘**——那道 0.85 会被它自己的 0.07 乘成 0.06，
-// 边淡了个寂寞（§6.17 的 `runOutputEdgeFace` 是同一条反直觉的第一个受害处）。
-//
-// 为什么整条链一起压：箱子面不是一个字面值，而是一条——窗口地 → 设置体面板
-// （`Sunken`）→ 扩展卡（`Control`）→ 箱子自己（`Control`）。按顺序压完整条链的
-// 不透明结果才是这块箱子真正看上去的面；只混其中两层会得到近黑或近白。
+// configListEdgeFace keeps the list’s soft edge translucent over the shell.
 func configListEdgeFace(tokens theme.Tokens, t *ui.Theme) ui.Color {
-	pane := theme.FaceOver(t.Background, tokens.Sunken)
-	card := theme.FaceOver(pane, tokens.Control)
-	return theme.FaceOver(card, tokens.Control)
+	return tokens.Field
 }
 
 // configOptionRow draws one tick option inside the multiselect list box: the
@@ -1336,9 +1294,9 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 	}
 	// This list has a 12px fade, distinct from the page's 16px fade.
 	// Reveal the row and its 3px keyboard ring without enlarging its hit area:
-	// neighbouring rows are only 22px apart, so a padded parent steals clicks.
+	// focus envelopes must pass through pointer input to neighbouring rows.
 	row := ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
-		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5))
+		Gap(a.cardSpace(t, 2)).MinHeight(max(36, a.cardSpace(t, 9)))
 	var outlet ui.Element
 	position := ui.Local(row, "option.position", func() int { return -1 })
 	moved := len(index) > 0 && *position != index[0]
@@ -1356,7 +1314,7 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 		}
 		// CheckboxBase alone has neither a face nor a hit area. Keep the
 		// existing native checkbox's size, check mark and focus treatment.
-		box := ui.Checkbox(c, on, "").Label(label)
+		box := ui.Checkbox(c, on, "").Label(label).MinHeight(max(36, a.cardSpace(t, 9)))
 		if clicked {
 			box.Focus()
 		}

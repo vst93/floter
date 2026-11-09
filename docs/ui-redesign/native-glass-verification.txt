@@ -1,0 +1,23 @@
+Native background verification — macOS 27.3
+
+BEFORE
+=== RUN   TestNativeGlassBackground
+2026/11/09 19:13:50 floter: geometry surface=launcher os=darwin frame=720.0 card=720.0 window=720x580 inset.l=0.0 inset.r=0.0 material=true vibrancy=true
+2026/11/09 19:13:50 floter: geometry surface=launcher os=darwin frame=720.0 card=720.0 window=720x113 inset.l=0.0 inset.r=0.0 material=true vibrancy=true
+    nativeglass_darwin_test.go:95: regular: liquid glass still uses an NSVisualEffectView backing
+    nativeglass_darwin_test.go:95: liquid: liquid glass still uses an NSVisualEffectView backing
+    nativeglass_darwin_test.go:95: regular: liquid glass still uses an NSVisualEffectView backing
+--- FAIL: TestNativeGlassBackground (1.84s)
+FAIL
+FAIL	floter/internal/shell	2.556s
+FAIL
+
+AFTER
+=== RUN   TestNativeGlassBackground
+2026/11/09 19:19:02 floter: geometry surface=settings os=darwin frame=720.0 card=720.0 window=720x580 inset.l=0.0 inset.r=0.0 material=true vibrancy=true
+    nativeglass_darwin_test.go:109: regular: transparent window and root, clear native glass, active appearance
+    nativeglass_darwin_test.go:109: liquid: transparent window and root, clear native glass, active appearance
+    nativeglass_darwin_test.go:109: regular: transparent window and root, clear native glass, active appearance
+--- PASS: TestNativeGlassBackground (0.53s)
+PASS
+ok  	floter/internal/shell	1.205s

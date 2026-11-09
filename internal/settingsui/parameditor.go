@@ -35,16 +35,16 @@ import (
 // paramEditorHeading is `.extension-argument-editor__heading`'s floor (20px)
 // and the add key's box (`.extension-argument-editor__add`, 28px).
 const (
-	paramEditorHeadingMin = 5    // 20u
-	paramEditorIconBox    = 7    // 28u
-	paramEditorGlyph      = 3.25 // 13u
-	paramEditorFieldMin   = 35   // 140u
-	paramEditorPlatePad   = 2    // 8u
-	paramEditorPlateGap   = 1.5  // 6u
-	paramEditorCheckBox   = 3.5  // 14u
-	paramEditorCheckGap   = 1    // 4u
-	paramEditorOptionsMin = 16   // 64u
-	paramEditorEmptyMin   = 7    // 28u
+	paramEditorHeadingMin = 5   // 20u
+	paramEditorIconBox    = 9   // 36u
+	paramEditorGlyph      = 4.5 // 18u
+	paramEditorFieldMin   = 35  // 140u
+	paramEditorPlatePad   = 2   // 8u
+	paramEditorPlateGap   = 1.5 // 6u
+	paramEditorCheckBox   = 3.5 // 14u
+	paramEditorCheckGap   = 1   // 4u
+	paramEditorOptionsMin = 16  // 64u
+	paramEditorEmptyMin   = 7   // 28u
 )
 
 // paramEditorMono is the reference's textarea stack in the custom form
@@ -351,7 +351,7 @@ func (a *App) paramSelect(c *ui.Context, selected *string, labels []string, labe
 		values = identities[0]
 	}
 	e := valueSelect(c, selected, labels, values, *selected, a.tokens(c), len(labels) > 0).
-		Label(label).FillWidth().Radius(999)
+		Label(label).FillWidth().Radius(a.tokens(c).RadiusSM)
 	if a.cardUnit > 0 {
 		m := customFieldMetrics
 		e = e.MinHeight(m.minHeight).Padding(m.padY, m.padX)
@@ -368,7 +368,7 @@ func (a *App) paramRequiredToggle(c *ui.Context, copy i18n.Settings, required *b
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	on := *required
-	row := ui.CheckboxBase(c, required).Label(copy.ParamsRequired).
+	row := ui.CheckboxBase(c, required).Label(copy.ParamsRequired).MinHeight(max(36, t.Space(9))).
 		Gap(t.Space(paramEditorCheckGap)).AlignItems(ui.Center)
 	row.Children(func() {
 		box := ui.Box(c).Size(t.Space(paramEditorCheckBox), t.Space(paramEditorCheckBox)).Shrink(0)
@@ -397,7 +397,7 @@ func (a *App) paramIconButton(c *ui.Context, glyphName, label string) ui.Element
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).Label(label).
-		Size(t.Space(paramEditorIconBox), t.Space(paramEditorIconBox)).
+		Size(max(36, t.Space(paramEditorIconBox)), max(36, t.Space(paramEditorIconBox))).
 		Border(1, ui.Transparent).Radius(tokens.RadiusSM).
 		Background(ui.Transparent).Center().
 		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})

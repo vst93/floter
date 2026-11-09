@@ -298,7 +298,7 @@ var en = Copy{
 		GroupTransparency: "Transparency",
 		GroupUpdate:       "Updates",
 
-		Theme:            "Appearance",
+		Theme:            "Theme",
 		ThemeHint:        "Auto follows your system appearance.",
 		AppIcon:          "App icon",
 		AppIconHint:      "The icon shown in the menu bar / tray and on the taskbar. Dark is the default.",
@@ -306,8 +306,8 @@ var en = Copy{
 		LanguageHint:     "Applies immediately across the app.",
 		Material:         "Glass",
 		Glass:            "Liquid glass effect",
-		GlassHint:        "How much liquid glass there is: distortion, refraction and the lens quality of every control, from frosted glass to Apple's liquid glass at full strength. Independent of the transparency below.",
-		TransparencyHint: "How solid each window's background is, independent of the glass effect. At 100% the surface is near-opaque.",
+		GlassHint:        "Adjust the glass effect. Background transparency is controlled separately.",
+		TransparencyHint: "Higher values make the window background more opaque.",
 		MainOpacity:      "App transparency",
 		TerminalOpacity:  "Terminal transparency",
 
@@ -319,7 +319,7 @@ var en = Copy{
 		TransparencyUnavailable: "This window cannot show the desktop behind it: the system gives it no material to sit on, so the card is painted solid. Transparency is unavailable here.",
 
 		Scale:      "Interface size",
-		ScaleHint:  "Scales every interface element - text, buttons and inputs. Small is the default.",
+		ScaleHint:  "Adjust text and control sizes.",
 		ScaleSmall: "Small",
 		ScaleLarge: "Large",
 
@@ -1143,7 +1143,7 @@ var zh = Copy{
 		GroupTransparency: "透明度",
 		GroupUpdate:       "更新",
 
-		Theme:            "外观",
+		Theme:            "主题",
 		ThemeHint:        "自动模式跟随系统外观。",
 		AppIcon:          "应用图标",
 		AppIconHint:      "菜单栏 / 托盘以及任务栏上显示的图标。默认为深色。",
@@ -1151,8 +1151,8 @@ var zh = Copy{
 		LanguageHint:     "选择后立即生效。",
 		Material:         "玻璃",
 		Glass:            "液态玻璃效果",
-		GlassHint:        "液态玻璃的效果强度：扭曲、折射，以及所有控件的透镜质感，从磨砂玻璃到苹果液态玻璃拉满。与下方透明度相互独立。",
-		TransparencyHint: "每个窗口底色的实底程度，与玻璃效果相互独立。100% 时接近不透明。",
+		GlassHint:        "调整玻璃效果的强度，背景透明度可单独设置。",
+		TransparencyHint: "数值越高，窗口背景越不透明。",
 		MainOpacity:      "应用背景透明度",
 		TerminalOpacity:  "终端背景透明度",
 
@@ -1164,7 +1164,7 @@ var zh = Copy{
 		TransparencyUnavailable: "这个窗口无法透出桌面：系统没有给它可依附的背板材质，卡片只能画成实底。这里的透明度不可用。",
 
 		Scale:      "界面大小",
-		ScaleHint:  "缩放所有界面元素——文字、按钮与输入框。默认为「小」。",
+		ScaleHint:  "调整文字与控件的整体大小。",
 		ScaleSmall: "小",
 		ScaleLarge: "大",
 

@@ -93,7 +93,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	}
 	var current T
 	hasCurrent := false
-	b.Padding(t.Space(1.5), t.Space(3.5)).Gap(t.Space(1.5)).Radius(t.Radius).
+	b.MinHeight(max(36, t.Space(9))).Padding(t.Space(2), t.Space(3.5)).Gap(t.Space(1.5)).Radius(t.Radius).
 		Background(t.Surface).TextColor(t.Text).Border(1, t.Border).
 		Justify(ui.SpaceBetween).MinWidth(t.Space(35))
 	display := fallback
@@ -115,7 +115,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	if enabled {
 		sel.Popup(func(panel ui.Element) {
 			panel.Margin(t.Space(1), 0, 0, 0).Padding(t.Space(1)).Radius(t.Radius+2).
-				Background(t.Background).Border(1, t.Border).Shadow(0, 6, 20, 0, tokens.ShadowAmbient)
+				Background(tokens.Float).Border(1, tokens.ControlEdge).Shadow(0, 6, 20, 0, tokens.ShadowAmbient)
 			anchor, frame := b.Bounds(), c.Root().Bounds()
 			// Leave the same one-space gutter on both sides. A naturally
 			// window-wide popup loses its right border and the highlighted
@@ -127,11 +127,11 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 			// scroller also needs a bound so ScrollIntoView can move the list.
 			ui.Scroll(c).MaxHeight(max(0, room-t.Space(3)-2)).Shrink(1).Children(func() {
 				for i, value := range values {
-					item := sel.Item(value).Padding(t.Space(1.5), t.Space(2.5)).Radius(t.Radius)
+					item := sel.Item(value).MinHeight(max(36, t.Space(9))).Padding(t.Space(2), t.Space(3)).Radius(t.Radius)
 					switch {
 					case item.Highlighted():
 						current, hasCurrent = value, true
-						item.Background(t.Accent).TextColor(t.AccentText)
+						item.Background(tokens.RowSelected).TextColor(tokens.TextStrong)
 					case value == *selected:
 						item.Background(t.Surface)
 					}

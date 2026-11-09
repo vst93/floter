@@ -31,8 +31,8 @@ func TestTheFloatingPaneCarriesTheSameLiftOnEveryPlatform(t *testing.T) {
 		darwinLift float32
 		whyLabel   string
 	}{
-		{"regular", 10, 51, 0.22, 82, 0.1800, 0.2508,
-			"标准档的薄框：材质把框抬到 0.22，浮层跟着抬后的框走；旧值 darwin 26"},
+		{"regular", 10, 51, 0.10, 51, 0.1800, 0.1800,
+			"透明玻璃保留 10% 的背景，浮层仍高一档"},
 		{"regular", 47, 145, 0.47, 145, 0.3014, 0.3014,
 			"出厂的默认档：旧值 darwin 107（抬升 0.223）、linux 145（0.302）"},
 		{"liquid", 47, 145, 0.47, 145, 0.3014, 0.3014,

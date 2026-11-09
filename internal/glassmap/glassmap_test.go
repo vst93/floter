@@ -185,12 +185,8 @@ func TestTheOffStopKeepsAReadabilityFloor(t *testing.T) {
 	}
 }
 
-// MaterialVeil is the table the compensation reads: macOS has a material per
-// stop (shell.vibrancyForStop) and the three weights differ a lot, which is
-// exactly why the same slider read three ways. Windows and Linux carry 0 — one
-// backdrop for every stop, or none at all — so their tint needs no
-// compensation, and `off` carries none anywhere (it is the stop that removes
-// the material).
+// Only the explicit frosted material keeps the legacy fixed veil estimate.
+// Clear glass must not inherit the sidebar or under-window opacity floors.
 func TestMaterialVeilIsThePlatformsOwnWeight(t *testing.T) {
 	cases := []struct {
 		goos, step string
@@ -198,10 +194,8 @@ func TestMaterialVeilIsThePlatformsOwnWeight(t *testing.T) {
 	}{
 		{"darwin", "off", 0},
 		{"darwin", "frosted", 0.12},
-		{"darwin", "regular", 0.22},
-		{"darwin", "liquid", 0.34},
-		// The ladder is ordered: a denser material is a heavier veil, or the
-		// compensation would invert the stops' solidity.
+		{"darwin", "regular", 0},
+		{"darwin", "liquid", 0},
 		{"windows", "off", 0},
 		{"windows", "frosted", 0},
 		{"windows", "regular", 0},
@@ -216,10 +210,7 @@ func TestMaterialVeilIsThePlatformsOwnWeight(t *testing.T) {
 			t.Errorf("MaterialVeil(%q, %q) = %v, want %v", tc.goos, tc.step, got, tc.want)
 		}
 	}
-	if !(MaterialVeil("darwin", "frosted") < MaterialVeil("darwin", "regular") &&
-		MaterialVeil("darwin", "regular") < MaterialVeil("darwin", "liquid")) {
-		t.Error("the macOS veil ladder is not ordered frosted < regular < liquid")
-	}
+
 }
 
 // The compensation is the over-frame algebra read backwards: the fill plus the
@@ -249,11 +240,11 @@ func TestTheCompensationHoldsOnEveryPlatform(t *testing.T) {
 	}
 	// A veil past the slider's ask leaves the fill at zero rather than a
 	// negative alpha, and the composite is then the material's own weight.
-	thin := SpecForOS("darwin", "liquid", settings.MinWindowOpacity)
+	thin := SpecForOS("darwin", "frosted", settings.MinWindowOpacity)
 	if thin.TintAlpha != 0 {
-		t.Errorf("the liquid stop at the slider's bottom painted %v, want no fill under a 0.34 material", thin.TintAlpha)
+		t.Errorf("the frosted stop at the slider's bottom painted %v, want no fill under a 0.12 material", thin.TintAlpha)
 	}
-	if got, want := thin.Composite(), MaterialVeil("darwin", "liquid"); diff(got, want) {
+	if got, want := thin.Composite(), MaterialVeil("darwin", "frosted"); diff(got, want) {
 		t.Errorf("composite under a heavier material = %v, want the material's own %v", got, want)
 	}
 }
@@ -459,7 +450,7 @@ func TestTheTerminalSplitsItsAlphaBetweenFrameAndCanvas(t *testing.T) {
 	// A material denser than the slider's ask leaves no fill at all — the
 	// window's material is already the whole of the panel, and a negative alpha
 	// is not a colour — so both layers are 0 rather than one of them negative.
-	thin := SpecForOS("darwin", "liquid", settings.MinWindowOpacity)
+	thin := SpecForOS("darwin", "frosted", settings.MinWindowOpacity)
 	if thin.TerminalFrameAlpha() != 0 || thin.CanvasAlpha() != 0 {
 		t.Errorf("the terminal at the slider's bottom under a 0.34 material = %v/%v, want 0/0",
 			thin.TerminalFrameAlpha(), thin.CanvasAlpha())

@@ -345,7 +345,7 @@ func (a *App) detachedBar(c *ui.Context, detached *detachedOutput, tokens theme.
 			// clicks and dims to the reference's 0.5 opacity — and, as its
 			// `:hover:not(:disabled)` asks, never lights up either.
 			barButton := func(label string, enabled bool, run func()) ui.Element {
-				button := ui.Row(c).Focusable().Shrink(0).
+				button := ui.Row(c).Focusable().Shrink(0).MinHeight(max(36, t.Space(9))).
 					Padding(t.Space(detachedBarButtonY), t.Space(detachedBarButtonX)).
 					Radius(tokens.RadiusSM).Label(label).
 					// P13-gv（`docs/liquid-glass.md` §6.169）：这根条子上的键也有三档面，

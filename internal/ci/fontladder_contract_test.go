@@ -39,7 +39,7 @@ import (
 //	   自己的正文档（`t.FontSize`）、或者一个**命名的局部量**（由①兜住它从哪来）；
 //	③ 账不能空转：整包至少 30 处 `FontSize`，且例外名单里点名的函数仍然存在。
 var fontLadderRungs = map[string]bool{
-	"Caption": true, "Body": true, "Emphasis": true, "Title": true, "Display": true,
+	"Caption": true, "Body": true, "Emphasis": true, "Title": true, "Display": true, "Search": true,
 }
 
 // fontLadderExceptions are the two sizes in this package that are deliberately

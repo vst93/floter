@@ -22,10 +22,10 @@ import (
 // 在同一个主题、同一族字体下按两个寄存器**各画一次**的盒子；每条 pin 先断言两个寄存器
 // 在这一档上真的画得不一样（否则它看不见自己要钉的东西），再断言产品画的那个取的是阶梯。
 
-// TestTheResultRowsTitleIsTheLaddersTitle pins de-6: the result row's title is the
+// TestTheResultRowsTitleUsesTheMeasuredRung pins de-6: the result row's title is the
 // ladder's title rung, and the row box `View` measures for it is the same name.
-func TestTheResultRowsTitleIsTheLaddersTitle(t *testing.T) {
-	rungH := p13deProbeBox(t, "tiny", p13deProbe, func(tk theme.Tokens) float32 { return tk.Title })
+func TestTheResultRowsTitleUsesTheMeasuredRung(t *testing.T) {
+	rungH := p13deProbeBox(t, "tiny", p13deProbe, func(tk theme.Tokens) float32 { return tk.Emphasis })
 	oldH := p13deProbeBox(t, "tiny", p13deProbe, func(tk theme.Tokens) float32 { return tk.Theme.FontSize + 2 })
 	if rungH == oldH {
 		t.Fatalf("the tiny step draws the title rung and body+2 in the same %v line box over %q: this pin "+

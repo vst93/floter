@@ -89,18 +89,9 @@ const (
 	// names — so it is its own number rather than an alias.
 	KeycapRadius = 5
 
-	// BodyUnits is the body text size in this codebase's own unit, `--text-body`
-	// one rung up: 12px at scale 1. Every size in this file's unit (a
-	// `Space(n)` is four of them), so the framework theme's point size is set
-	// from it rather than from the framework's own default.
-	//
-	// The reference's own register is 11px *at its scale 1*; the shipped
-	// interface step is `small` (0.9), so the ladder is written one rung up and
-	// the shipped step lands on the reference's physical sizes (see the ladder
-	// in ForPlatform). Reading the design off the shipped step instead means
-	// every user sees the design at its own size without first finding
-	// 「界面大小」 — which is what made the whole app read as 小气.
-	BodyUnits = 12
+	// BodyUnits is the body size at scale 1. Type and spacing follow the user's
+	// scale; interactive controls keep a separate 36px minimum hit area.
+	BodyUnits = 14
 )
 
 // windowRadiusFor is the corner a surface that *is* the window draws: the
@@ -195,23 +186,8 @@ type Tokens struct {
 	// quiet pane (`--glass-raised-quiet`, an alias of ControlHover).
 	ControlHover ui.Color
 	ControlPress ui.Color
-	// Thumb is the segmented control's **chosen slot** — the one raised pane in
-	// the tree that lives *inside* a groove, so it cannot borrow the control
-	// ladder: `ControlHover` lifts a pane on the light appearance by washing it
-	// black (`0,0,0,0.105`), which over the groove's own face (232) lands at
-	// 207 — 24 levels *below* the groove it sits in. The same token points the
-	// other way on the dark appearance (white 0.14 over 58 → 86), so one token
-	// was saying "raised" and "sunk" on the two appearances at once, and the
-	// light one is the macOS 10.x read the user called out (「有点偏 macOS 旧
-	// 版本」).
-	//
-	// The two appearances therefore answer the same question differently, and
-	// both answers are the platform's: on the light sheet the thumb is the
-	// **sheet's own colour** punched through the groove (0.85 of white over the
-	// card's groove composites to 249 against the page's 247), which is the
-	// iOS/macOS segmented slider; on the dark sheet there is no brighter sheet
-	// to borrow (the page is 39), so the thumb is the lifted white wash the
-	// control ladder already uses (0.14, the shipped value — unchanged).
+	// Thumb lifts the chosen segment above its track in both appearances.
+	// A translucent white face stays distinct without hiding all the glass.
 	Thumb ui.Color
 	// Track is the groove a switch or a segmented control is looked into
 	// (base.css's `--glass-track`), TrackEdge the quieter hairline that groove
@@ -422,6 +398,8 @@ type Tokens struct {
 	Emphasis float32
 	Title    float32
 	Display  float32
+	// Search is the query field, between list titles and page headings.
+	Search float32
 }
 
 // For resolves the appearance and scales the metrics for a settings value,
@@ -470,13 +448,7 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		scale = 1
 	}
 	f := float32(scale)
-	// The old app's ladder is in its own unit: `--u: 1px * ui-scale` with
-	// `--text-body: 11px * ui-scale`, so a body line is eleven units and every
-	// `Space(n)` in this codebase is four of them (`--u * 4n`). The framework's
-	// default is 13 or 14 points, which is a quarter larger than this design
-	// and made every row taller than the one it copied; the body size is the
-	// old app's eleven units, and the ladder around it (caption, emphasis,
-	// title, display) follows from there.
+	// Scale type and spacing together once before handing them to controls.
 	t.FontSize = round1(BodyUnits * f)
 	t.Spacing = round1(t.Spacing * f)
 
@@ -585,25 +557,12 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		floatFill = ui.RGB(252, 252, 254)
 	}
 
-	// The ladder, at the step: the reference's own registers (caption 10, body
-	// 11, emphasis 12, title 13, display 17) one rung up (11/12/13/14/19), each
-	// scaled once here rather than spelled as an offset wherever a register is
-	// needed.
-	//
-	// One rung up is what makes the **shipped** step the reference's own sizes:
-	// `small` is 0.9, and 11/12/13/14/19 x 0.9 = 9.9/10.8/11.7/12.6/17.1, i.e.
-	// base.css's 10/11/12/13/17 within a tenth of a point. The ladder used to
-	// be the base numbers themselves, so the shipped step drew the design at
-	// 90% — a 9pt caption, a 10.8pt emphasis, a 15.3pt display — and every
-	// surface read cramped against the window it sat in (「整体 UI/UX 很
-	// 小气」). A step above the shipped one now draws *larger* than the
-	// reference rather than the reference shrinking below it: the ladder is a
-	// named size, the step is the user's magnification of it.
-	caption := round1(11 * f)
-	body := round1(12 * f)
-	emphasis := round1(13 * f)
-	title := round1(14 * f)
-	display := round1(19 * f)
+	// Caption / body / emphasis / title / display: 12 / 14 / 15 / 16 / 22.
+	caption := round1(12 * f)
+	body := round1(BodyUnits * f)
+	emphasis := round1(15 * f)
+	title := round1(16 * f)
+	display := round1(22 * f)
 
 	return Tokens{
 		Appearance:  appearance,
@@ -617,6 +576,7 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		Emphasis:    emphasis,
 		Title:       title,
 		Display:     display,
+		Search:      round1(18 * f),
 		Scale:       scale,
 		// The radius ladder is literal px, as base.css wrote it: a corner is
 		// not a `--u` metric and does not move with the interface step.
@@ -734,13 +694,10 @@ func paletteFor(appearance Appearance) palette {
 			// P11-z 重定基线：`ui.RGBA(229, 72, 77, 0.55)`（accent 0.55）→ 中性
 			// 0.16。聚焦是明度差，不是色相（见 `Tokens.InputStrokeActive`）。
 			strokeActive: ui.RGBA(0, 0, 0, 0.16),
-			// P12-a 重定基线（docs/liquid-glass.md §1）：面的台阶抬到一眼看得见。
-			// 旧值 → 新值：`0.05` → `0.07`。旧的 0.05 压在卡的 sheen 上只差 3~4 个亮度级，
-			// 用户读到的就是「所有东西挤在同一个 z 平面上」（总目标第二条：空间感）。
-			// 指针抬起的那一档跟着抬（0.075 → 0.105），两档之间的差仍是一档，不变成跳变。
-			control:      ui.RGBA(0, 0, 0, 0.07),
-			controlHover: ui.RGBA(0, 0, 0, 0.105),
-			controlPress: ui.RGBA(0, 0, 0, 0.032),
+			// Light washes preserve the material underneath each control.
+			control:      ui.RGBA(0, 0, 0, 0.035),
+			controlHover: ui.RGBA(0, 0, 0, 0.07),
+			controlPress: ui.RGBA(0, 0, 0, 0.02),
 			// A control's own edge is the keycap pair's hairline (§1: 0.06 light),
 			// one step under the card's strong 0.09.
 			controlEdge: ui.RGBA(0, 0, 0, 0.06),
@@ -754,7 +711,7 @@ func paletteFor(appearance Appearance) palette {
 			// 被切进去的那张纸更亮）。参考实现浅色档本来就是近白
 			// （`floter-main/src/styles/base.css:899`，`--glass-lens-rim-base: 0.9`）。
 			trackRim: ui.RGBA(255, 255, 255, 0.70),
-			field:    ui.RGBA(255, 255, 255, 0.5),
+			field:    ui.RGBA(255, 255, 255, 0.18),
 			hairline: ui.RGBA(0, 0, 0, 0.09),
 			// Raycast's weaker hairline (`docs/raycast-design.md` §1).
 			hairlineSoft: ui.RGBA(0, 0, 0, 0.055),
@@ -764,11 +721,8 @@ func paletteFor(appearance Appearance) palette {
 			rowPressed:  ui.RGBA(0, 0, 0, 0.08),
 			keycapFace:  ui.RGBA(0, 0, 0, 0.05),
 			keycapEdge:  ui.RGBA(0, 0, 0, 0.06),
-			// P13-r（docs/liquid-glass.md §6.2b-5）：凹槽里的选中格在浅色档必须是
-			// **纸自己的颜色**。0.85 的白压在卡面的凹槽（216）上复合到 249，页面是
-			// 247 —— 抬起的面就是那张纸穿过了凹槽（现代 macOS/iOS 的滑块）。旧值：
-			// 借 `ControlHover`（黑 0.105）→ 207，比凹槽面 232 还暗 24 级。
-			thumb: ui.RGBA(255, 255, 255, 0.85),
+			// A translucent raised face keeps the selected stop distinct.
+			thumb: ui.RGBA(255, 255, 255, 0.70),
 			// `::selection` 在参考里就是 `--accent-tint`（`main:src/styles/base.css:1300`）：
 			// 浅色 `rgba(6,74,166,0.10)`（`:946`）；`focus` 是 `--accent-ring`
 			// `rgba(6,74,166,0.82)`（`:956`）。旧值 → 新值：两条都随 accent 换色。
@@ -864,11 +818,10 @@ func paletteFor(appearance Appearance) palette {
 		// P11-z 重定基线：`ui.RGBA(245, 84, 78, 0.55)`（accent 0.55）→ 中性
 		// 0.16（见 `Tokens.InputStrokeActive`）。
 		strokeActive: ui.RGBA(255, 255, 255, 0.16),
-		// P12-a 重定基线（docs/liquid-glass.md §1）：面的台阶抬到一眼看得见。
-		// 旧值 → 新值：`0.075` → `0.10`、`0.105` → `0.14`（理由见浅色那一支）。
-		control:      ui.RGBA(255, 255, 255, 0.10),
-		controlHover: ui.RGBA(255, 255, 255, 0.14),
-		controlPress: ui.RGBA(255, 255, 255, 0.05),
+		// The dark appearance uses the same restrained hierarchy.
+		control:      ui.RGBA(255, 255, 255, 0.055),
+		controlHover: ui.RGBA(255, 255, 255, 0.10),
+		controlPress: ui.RGBA(255, 255, 255, 0.03),
 		// A control's own edge is the keycap pair's hairline (§1: 0.07 dark),
 		// one step under the card's strong 0.09.
 		controlEdge: ui.RGBA(255, 255, 255, 0.07),

@@ -1386,7 +1386,7 @@ func (a *App) Start() {
 		// The desktop behind the panel is what the glass reads: the old
 		// build's `backdrop-filter` smeared it (a WebKitGTK build composites
 		// the window's own backdrop), and this is the framework's material
-		// for the same thing - macOS's NSVisualEffectView, Windows 11's
+		// for the same thing - macOS's native glass, Windows 11's
 		// system backdrops. Linux has none, and there the glass tint and
 		// the haze veil are the whole of the material.
 		Vibrancy: windowVibrancyFor(runtime.GOOS, s.GlassStep),
@@ -4047,18 +4047,11 @@ func windowMaterialCall(goos, step string) (material mygo.Vibrancy, clearBackdro
 	return vibrancyForStop(goos, step), false
 }
 
-// vibrancyForStop is the window material for a platform and a glass stop. The
-// stop is the effect ladder, and the old build's `--glass-step-blur`
-// (10/22/28px) is the rung the framework can carry: the panel cannot run its
-// own `backdrop-filter`, so the backdrop's blur is the OS material, and a
-// stop that only moved the tint left `frosted` and `regular` reading the same
-// (「玻璃效果…看起来好像没什么区别」).
-//
-// macOS has a behind-window material per weight: `under-page` is the thinnest
-// (the frosted end), `under-window` the standard pane, and `sidebar` the
-// denser, more opaque end the liquid stop asks for. Windows 11 has only one
-// backdrop that blurs - Acrylic - so all stops keep it and the tint and lens
-// carry the ladder there. Linux has none.
+// vibrancyForStop uses native clear Liquid Glass for both liquid stops.
+// Traditional sidebar/under-window materials add a frosted backing beneath
+// the app's tint, so changing the tint's alpha cannot make that backing clear.
+// Before macOS 26, mygo falls back to the translucent HUD material. Windows
+// keeps Acrylic; Linux leaves composition to the desktop.
 func vibrancyForStop(goos, step string) mygo.Vibrancy {
 	// `off` means off on every platform, not only on macOS. The early return
 	// this used to take for Windows and Linux handed the `off` stop the
@@ -4077,10 +4070,8 @@ func vibrancyForStop(goos, step string) mygo.Vibrancy {
 	switch normalized {
 	case "frosted":
 		return mygo.VibrancyUnderPage
-	case "liquid":
-		return mygo.VibrancySidebar
 	default:
-		return mygo.VibrancyUnderWindow
+		return mygo.VibrancyGlassClear
 	}
 }
 
@@ -4099,6 +4090,9 @@ func (a *App) applyWindowMaterial(step string) {
 		return
 	}
 	a.Win.SetVibrancy(material)
+	// A launcher panel floats over another active app. Without this, AppKit
+	// frosts even clear glass whenever the panel's app is inactive.
+	a.Win.SetActiveAppearance(runtime.GOOS == "darwin" && material == mygo.VibrancyGlassClear)
 }
 
 // placeWindow centres the panel in a display's work area, in that display's own

@@ -664,7 +664,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 		// wide, right-aligned, tabular figures, no box of its own (the slot is
 		// the box).
 		text := draft
-		in := ui.TextInputBase(c, &text).Width(t.Space(13)).
+		in := ui.TextInputBase(c, &text).Width(t.Space(13)).MinHeight(max(36, t.Space(9)) - 2).
 			TextAlign(ui.End).FontFeatures("tnum").Label(field.Label).Bind(a.pluginEditorRef(field.Key))
 		if in.Changed() {
 			a.pluginNumberDrafts[key] = text
@@ -698,19 +698,12 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 	return slot, changed
 }
 
-// sheetFieldSlot draws the overlay's field box (R59, `plugin-config.css:97-118`):
-// the reference's 28u control — a text or number control's value lives inside
-// it; the control itself is the caller's child, so the slot never draws a
-// second surface under it.
-//
-// P8-b 重定基线：面 `--glass-field` + `--glass-field-shadow` 凹槽 → 合约 §6.1 的
-// 低光泽一档。几何（28u 高、`RadiusSM` 圆角、`ControlEdge` 发丝、8u 侧 padding）
-// 全部保留，只把面收敛到 `Control`/`KeycapFace` 一档：一个字段槽不需要额外的
-// 凹痕叠层，因为它坐在已经比卡更亮的面里。
+// sheetFieldSlot is the shared 36px field frame for text and number editors.
+// The editor inside it takes the available height, keeping the whole face usable.
 func (a *App) sheetFieldSlot(c *ui.Context) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	slot := ui.Row(c).MinHeight(t.Space(7)).AlignItems(ui.Center).
+	slot := ui.Row(c).MinHeight(max(36, t.Space(9))).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).Radius(tokens.RadiusSM)
 	// P12-c（§6.2 第 2-4 行）：弹层的字段槽与设置页的 `fieldFace` 是同一个
 	// 材质——同一个应用里字段只有一种面。`LitFace` 的顶受光边 + 底对侧暗线
@@ -722,20 +715,18 @@ func (a *App) sheetFieldSlot(c *ui.Context) ui.Element {
 	return a.fieldFace(c, slot, true)
 }
 
-// sheetTextField draws the overlay's own text control (R59,
-// `plugin-config.css:97-118`). It is deliberately not the framework's
-// `ui.TextInput`: the reference's field is a 28u slot cut into the glass — a
-// `--glass-field` fill, a `--glass-control-edge` hairline, the `--radius-sm`
-// corner, the body step and 8u of side padding, with the field's hairline and
-// inset shadow telling the user the value lives inside it. The input itself is
-// the framework's look-free base, so its own padding, surface and border do
-// not fight the slot.
+// sheetTextField uses a plain editor inside the shared field face. Returning
+// the editor keeps submission, focus and labels on the element that handles input.
 func (a *App) sheetTextField(c *ui.Context, placeholder string, value *string) ui.Element {
 	slot := a.sheetFieldSlot(c).FillWidth()
 	var input ui.Element
 	slot.Children(func() {
-		input = ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1)
+		input = ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1).
+			MinHeight(max(36, c.Theme().Space(9)) - 2)
 	})
+	if slot.Clicked() {
+		input.Focus()
+	}
 	a.pluginViewportOutlet(c, slot)
 	// Submitted and Label belong to the editor; input events do not bubble
 	// through the decorative slot.
@@ -757,7 +748,7 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 	t := c.Theme()
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
-		MinHeight(t.Space(7)).
+		MinHeight(max(36, t.Space(9))).
 		Padding(0, t.Space(2.5)).
 		// P13-gv（`docs/liquid-glass.md` §6.169）：弹层里的胶囊此前一帧跳到悬停面，
 		// 而同族的 `extensionActionFace` / `barButton` / `uninstallActionButton`
@@ -806,7 +797,7 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 		button = button.Scale(0.97, 0.97)
 	}
 	button.Children(func() {
-		ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink)
+		ui.Text(c, label).FontSize(tokens.Body).TextColor(ink)
 	})
 	if button.Clicked() {
 		run()

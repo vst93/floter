@@ -170,9 +170,12 @@ func TestTheContentPaneStillReadsAsAFaceUnderTheMaterial(t *testing.T) {
 						"(the recess is a visible-alpha step — liquid-glass.md §2.3)",
 						appearance, cell.label, pane, step, frame, veilFaceFloor)
 				}
-				if c := veilStep(control, pane); c < veilFaceFloor {
+				// Controls use a lighter wash than the content plane; their borders
+				// and labels provide the remaining definition.
+				const controlFaceFloor = 4
+				if c := veilStep(control, pane); c < controlFaceFloor {
 					t.Errorf("[%s] %s: the control %v sits %d levels above the pane %v, under the face floor %d",
-						appearance, cell.label, control, c, pane, veilFaceFloor)
+						appearance, cell.label, control, c, pane, controlFaceFloor)
 				}
 			}
 		})

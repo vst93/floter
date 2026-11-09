@@ -263,7 +263,7 @@ func TestTheActionBarIsChargedOutsideTheBudget(t *testing.T) {
 	// bar adds its 11.25u band on top.
 	withBar := append(rows(rowBudget), bar)
 	got := Geometry{Font: 14, Spacing: 4, Rows: withBar, Held: len(withBar)}.Height()
-	want := full + int(roundHalf(11.25*4))
+	want := full + int(roundHalf(actionBarUnits*4))
 	if got != want {
 		t.Errorf("ten results plus the bar = %d, want %d (the budget's rows and the bar's own band)", got, want)
 	}

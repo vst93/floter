@@ -266,48 +266,19 @@ func clipboardKindOf(entry *clipboardpkg.Entry) string {
 	return clipboardEntryKind(*entry)
 }
 
-// iconPlate is the 28u cell every row leads with: the resting control fill, a
-// small radius and a hairline shadow. A power action's plate is warm rather
-// than the neutral fill — the one launcher entry that cannot be undone by
-// closing a window, as the old build's `--system-icon-surface` said
-// (`.launcher-result__icon--system`). The warm face is the *system-icon plane*
-// token, not the warning ink at a low alpha: the port had quoted
-// `t.Warning.Alpha(0.14)`, which paints the label's own hue as the plate and
-// is the wrong colour on both appearances.
-//
-// dim is the plate's *"not a door"* register (P13-bb). A capture row that
-// cannot be run (`row.Status` / `row.Disabled`) is not a control the pointer
-// can take, so its plate must not wear the lit edge: `LensRim` on the top row
-// is the mark that says "this face can be touched" (`docs/liquid-glass.md` §3),
-// and the same pair is what P13-s / P13-ar / P13-aq / P13-ba took off the
-// disabled pill, the fixed uninstall card, the accent Save and the row-busy
-// key. The dim plate keeps only the counter-side line (`DimFace`) and **no fade
-// of its own**: the register is the material going unlit plus one ink rung on the
-// glyph (`output.go`'s `drawOutputRow`), never a second opacity on top of it
-// (P13-cp, `docs/liquid-glass.md` §6.59).
+// iconPlate gives built-in glyphs a quiet, flat surface in the shared icon column.
+// Applications and image thumbnails use their own artwork without this surface.
 func (a *App) iconPlate(c *ui.Context, warm, dim bool) ui.Element {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusXS).
+	plate := ui.Box(c).Size(t.Space(iconUnits), t.Space(iconUnits)).Radius(tokens.RadiusXS).
 		AlignItems(ui.Center).Justify(ui.Center).Shrink(0)
 	if warm {
 		plate.Background(tokens.IconSurface)
-	} else {
+	} else if !dim {
 		plate.Background(tokens.Control)
 	}
-	// P13-h · 这块板是 **E1** 的一个面，不是透镜：顶一条 `LensRim`、底一条
-	// `LensEdge`，**没有** `Lens` 的第四层（四边 `ControlEdge` 的环），也没有它
-	// 第二层那条宽 sheen —— `docs/liquid-glass.md` §2 把「画框分层」换成了
-	// 「面差 + 一条受光边」，而这块板在每一行都出现，环就是那个旧读法的来源。
-	//
-	// 这里原本写着「Raycast's plate is flat: the control lens is capped at 0.04」
-	// ——那句话在 P12-a 之后是假的：`LensRim` 已重定到 0.09（§1 的旧值→新值表），
-	// 于是这块 28u 的板每一行都在画一条受光边外加一个四边环。板仍然随玻璃档
-	// 升降：`LensRim`/`LensEdge` 正是 `--glass-lens-scale` 分级的那一族。
-	if dim {
-		return tokens.DimFace(plate)
-	}
-	return tokens.LitFace(plate)
+	return plate
 }
 
 // enterBadge is the key the action bar's row runs on: the select-result
@@ -434,20 +405,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 	return nil, false
 }
 
-// iconCell draws an application's own artwork (or a clipboard thumbnail) in
-// the row's icon cell: 23u of the plate's 28u, scaled past the cell and
-// cropped by it.
-//
-// The oversize is the old build's own compensation: macOS `.icns` artwork
-// carries a margin of its own, and at 23u inside a 28u plate the mark read as
-// 「很单薄」 beside the plated glyphs. `transform: scale(1.42)` with
-// `object-fit: cover` pulled that margin out and filled the cell; a clipped box
-// around an oversized image is the same picture here.
+// iconCell preserves the complete artwork, including its native transparent margin.
 func iconCell(c *ui.Context, t *ui.Theme, bitmap *ui.Bitmap) {
-	side := t.Space(5.75)
-	cell := ui.Box(c).Size(side, side).Radius(t.Space(0.75)).Clip().
-		AlignItems(ui.Center).Justify(ui.Center).Shrink(0)
-	cell.Children(func() {
-		ui.Image(c, bitmap).Size(side*1.42, side*1.42)
-	})
+	side := t.Space(iconUnits)
+	ui.Image(c, bitmap).Size(side, side).Shrink(0)
 }

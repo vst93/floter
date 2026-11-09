@@ -42,7 +42,9 @@ import (
 
 // flatFaceAllow lists the panes that paint a face and deliberately wear no line at
 // all. Each entry names the contract line; an empty map is the healthy reading.
-var flatFaceAllow = map[string]string{}
+var flatFaceAllow = map[string]string{
+	"launcher.keycap": "docs/ui-redesign.md: shortcut legends use a flat translucent fill, without embossed edges",
+}
 
 func hasAny(s string, marks []string) bool {
 	for _, m := range marks {

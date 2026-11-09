@@ -42,11 +42,11 @@ func TestTheFloatRungIsAStepOnTheFramesVisibleAlpha(t *testing.T) {
 		// macOS：材质把填充补薄，可见 alpha 仍是滑块的值 —— 浮层必须跟着可见 alpha。
 		{"darwin", "frosted", 10, 0.12, 0.22, "薄档：veil 12% 把 10% 的框抬到 0.12（slider 的低端被材质托住，§1）"},
 		{"darwin", "frosted", 47, 0.47, 0.57, "薄档的默认滑块：填充比 linux 薄（0.398），浮层不薄"},
-		{"darwin", "regular", 10, 0.22, 0.32, "标准档的薄框：旧值是 0.10，比它自己的框还淡"},
+		{"darwin", "regular", 10, 0.10, 0.20, "透明玻璃保留滑块低端"},
 		{"darwin", "regular", 47, 0.47, 0.57, "标准档的默认滑块：旧值 0.421，可见抬升只有 linux 的 74%"},
 		{"darwin", "regular", 100, 0.98, 1.00, "标准档顶格"},
-		{"darwin", "liquid", 10, 0.34, 0.44, "厚档的薄框：旧值 0.10 —— 三层材质里浮层最淡的那一格"},
-		{"darwin", "liquid", 25, 0.34, 0.44, "25% 仍被 veil 34% 托住：框的可见 alpha 不动，浮层也不动"},
+		{"darwin", "liquid", 10, 0.10, 0.20, "透明玻璃没有旧侧栏材质的 34% 下限"},
+		{"darwin", "liquid", 25, 0.25, 0.35, "25% 随滑块变化"},
 		{"darwin", "liquid", 47, 0.47, 0.57, "厚档的默认滑块：旧值 0.297，可见抬升 0.210（linux 的 70%）"},
 		{"darwin", "liquid", 70, 0.70, 0.80, "厚档的实框"},
 		{"darwin", "liquid", 90, 0.90, 1.00, "厚档的倒数第二档"},
@@ -100,7 +100,7 @@ func TestTheSameFrameYieldsTheSameFloatOnEveryPlatform(t *testing.T) {
 	}
 	// 反面臂：材质把框抬起来时（10% + veil），浮层跟着抬起后的框走，不是跟着滑块。
 	thinLinux := SpecForPreferencesOS("linux", "liquid", 10, false)
-	thinDarwin := SpecForPreferencesOS("darwin", "liquid", 10, false)
+	thinDarwin := SpecForPreferencesOS("darwin", "frosted", 10, false)
 	if !(thinDarwin.Composite() > thinLinux.Composite()) {
 		t.Fatalf("the material did not lift the thin frame: %v vs %v", thinDarwin.Composite(), thinLinux.Composite())
 	}

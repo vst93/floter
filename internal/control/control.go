@@ -6,19 +6,15 @@
 package control
 
 import (
+	"math"
+
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/theme"
 )
 
-// Segmented draws the reference's inline segmented control
-// (`.settings-options--inline`): a pill track holding pill segments, the chosen
-// one a neutral raised pane with an accent keyline — a *state of the control*,
-// not a primary action, so it spends no accent fill. The framework's own
-// Segmented is a rounded rectangle with a darkened chosen segment; this is the
-// reference's shape and material.
-//
-// labels[i] stands for option i; apply runs with the index the user chose.
+// Segmented draws centered choices in a quiet track, with a neutral selected
+// face. labels[i] stands for option i; apply receives the chosen index.
 func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
 	segmented(c, tokens, labels, current, apply, false, false)
 }
@@ -32,22 +28,14 @@ func SegmentedFill(c *ui.Context, tokens theme.Tokens, labels []string, current 
 	return segmented(c, tokens, labels, current, apply, true, false, keys...)
 }
 
-// SegmentedGlassFill is the material picker's own variant of the full-width
-// form: the reference's `.glass-intensity__segments` (`main:src/styles/
-// settings.css:792-799`) is the *only* segmented track whose labels are
-// centered rather than left-aligned as a row, and the only one whose horizontal
-// inset tightens from 9u to 6u. CSS's own comment names the reason — "A stop's
-// label is the effect's name; centered because the segment is a choice, not a
-// row" — so the base form keeps the row reading and this one carries the choice
-// reading. The rest of the segment material (30u floor, raised pane, accent
-// keyline) is unchanged.
+// SegmentedGlassFill keeps the material picker's API while sharing the same
+// label alignment and geometry as every other segmented control.
 func SegmentedGlassFill(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
 	segmented(c, tokens, labels, current, apply, true, true)
 }
 
 // segmented is the one implementation every form shares; fill only changes how
-// the track and its segments take their width, glass only the label's alignment
-// and the segment's horizontal inset.
+// the track and its segments take their width.
 func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill, glass bool, keys ...[]string) ui.Element {
 	t := c.Theme()
 	// The settings-side track's own inset: `.settings-options--inline { padding:
@@ -70,38 +58,23 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 // `pad` is the track's own inset from its segments and `gap` the room between
 // them. The settings pages' track is `2u` for both; the extension panel's
 // `.extension-custom-mode` writes a literal 3px pad and a 2px gap
-// (`extensions.css:1752`), so it passes its own pair in. The shape — the 999px
-// stadium and the accent-keyline chosen pane — is the same for both.
+// (`extensions.css:1752`), so it passes its own pair in. Both use the shared
+// control radius and a distinct chosen face.
 func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []string, fill, glass bool, pad, gap float32, keys ...[]string) ui.Element {
 	t := c.Theme()
 	parts := ui.SegmentedBase(c, selected, len(labels))
 	track := parts.Track
 	focus := ui.Local(track, "segment.focus", func() ui.Handle { return ui.Handle{} })
 	hadFocus := focus.Focused(c)
-	// The track is the reference's stadium: a 999px corner, not the ladder's
-	// control step (`.settings-options--inline { border-radius: 999px }`,
-	// `settings.css:1016-1029`; `.extension-custom-mode { border-radius: 999px }`,
-	// `extensions.css:1752`).
-	track.Shrink(0).Padding(pad).Gap(gap).Radius(999).
-		Background(tokens.Track)
+	// A quiet rounded track leaves the material detail on the chosen segment.
+	track.Shrink(0).Padding(pad).Gap(gap).Radius(tokens.RadiusSM).
+		Background(tokens.Control)
 	if fill {
 		track.FillWidth()
 	}
-	// The track is a groove the user looks into: the recessed lens, the same
-	// stack the raised panes carry read backwards (see `theme.Tokens.LensInset`,
-	// base.css's `--elev-track` / `--glass-lens-stack-inset`).
-	tokens.LensInset(track)
-	// The bare `.settings-option` writes `text-align: left` (`settings.css:1060`)
-	// with `padding: 0 9u` (`:1055`), so a segment is a row: its label starts at
-	// the inset and reads left to right. Only `.glass-intensity__segments`
-	// flips it to `text-align: center; justify-items: center` and tightens the
-	// inset to `0 6u` (`:792-799`).
-	inset := t.Space(2.25) // 9u
-	justify := ui.Start
-	if glass {
-		inset = t.Space(1.5) // 6u
-		justify = ui.Center
-	}
+	track.Border(1, tokens.HairlineSoft)
+	// Both standard options and material stops center their labels.
+	inset := t.Space(2)
 	track.Children(func() {
 		for i, label := range labels {
 			i, label := i, label
@@ -110,35 +83,21 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 			if len(keys) > 0 && i < len(keys[0]) {
 				c.Key(keys[0][i])
 			}
-			// The segment's box is the reference's `.settings-option`: a
-			// `min-height` of 30u (R43's tightened step) with a `padding: 0 9u`
-			// — the height comes from the floor, not from vertical padding, so
-			// every segment is one box high whether its label is short or long.
-			// `AlignItems(ui.Center)` is what puts the line box on the middle.
-			segment := parts.Segment(i).Padding(0, inset).MinHeight(t.Space(7.5)).
-				Radius(999).AlignItems(ui.Center).Justify(justify).Label(label)
+			// Keep a usable hit area even at the smallest interface scale.
+			segment := parts.Segment(i).Padding(0, inset).MinHeight(max(36, t.Space(9))).
+				Radius(tokens.RadiusSM).Border(1, ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Label(label)
 			if segment.Focused() {
 				segment.Bind(focus)
 			}
 			if fill {
-				segment.Grow(1)
+				width, _ := c.MeasureText(0, ui.Span{Text: label, Size: tokens.Body, Weight: 400})
+				segment.Basis(float32(math.Ceil(float64(width))) + 2*inset + 2).Grow(1).MinWidth(0)
 			}
 			switch {
 			case i == *selected:
-				// The chosen segment is a raised pane: the resting raised lens
-				// (`--elev-0`) plus the accent keyline that says "chosen", and
-				// deliberately not an accent fill. The framework's `ui.Button`-
-				// less pane the whole card language builds on is a flat tint;
-				// the lens is what makes the chosen slot read as glass.
-				//
-				// P13-r：面用 `Thumb`，**不能**借 `ControlHover`。凹槽里的这一格是树里
-				// 唯一「面长在槽里」的地方，而 `ControlHover` 在浅色档是黑洗：压在凹槽面
-				// 232 上得到 207，比它自己的槽还暗 24 级 —— 那是 macOS 10.x 的「槽里挖
-				// 深一层」，也是用户说的「偏旧版本」。`Thumb` 在浅色档是纸色（249 对页面
-				// 247），在深色档是原有的白洗（86 对槽 58）。
-				segment.Background(tokens.Thumb)
-				tokens.Lens(segment)
-				segment.InsetShadow(0, 0, 0, 1, tokens.AccentEdge)
+				// The selected face stays neutral. The framework draws a focus
+				// ring only when this segment receives keyboard focus.
+				segment.Background(tokens.Thumb).Border(1, tokens.HairlineSoft)
 			case segment.Pressed():
 				// P13-gt · 第三档。未选中的那一格此前只有悬停（`ControlHover`）：
 				// 按住的那一帧与悬停帧**逐像素相同**，于是「我这一下按到了吗」在
@@ -156,10 +115,10 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 			// Every segment's label is the reference's `.settings-option__label`:
 			// `color: var(--text-strong); font-weight: 580` for every segment,
 			// chosen or not (`main:src/styles/settings.css:1111-1120`). The chosen
-			// state is carried by the raised pane and the accent keyline above,
+			// state is carried by the neutral selected face above,
 			// never by dimming the label: an unchosen segment is not muted text.
 			segment.Children(func() {
-				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong).SingleLine()
+				ui.Text(c, label).FontSize(tokens.Body).FontWeight(400).TextColor(tokens.TextStrong).SingleLine().Ellipsis("…").MinWidth(0)
 			})
 		}
 	})

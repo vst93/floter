@@ -155,17 +155,13 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	stored := a.settings()
 	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, stored.GlassStep, stored.TerminalOpacity, c.Preferences().HighContrast)
 	session := a.Current()
-	panel := theme.FaceOver(t.Background, panelFill(stored.TerminalTheme, session != nil && session.Term != nil, spec, tokens))
+	panel := panelFill(stored.TerminalTheme, session != nil && session.Term != nil, spec, tokens)
 	ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(1.5)).PassThrough().
-		Material(glass.ScrollEdge{Bottom: true, Background: theme.FaceOver(panel, tokens.Control)})
+		Material(glass.ScrollEdge{Bottom: true, Background: tokens.Control.Over(panel)})
 }
 
-// drawerCellFloor is the reference's `minmax(230px, 1fr)` floor for a row's
-// grid cell (`.terminal-settings`, `terminal.css:654-658`): 230px in the old
-// build's unit is 57.5 of this build's `--u`, not the 60 (240px) the old port
-// rounded it to. It is a parameter of drawerGrid so a test can hold the shelf
-// it moves.
-const drawerCellFloor = 57.5
+// Wider cells leave room for labels, comfortable controls and numeric readouts.
+const drawerCellFloor = 66
 
 // paletteCellFloor is the palette row's own cell floor. The reference's grid
 // is uniform (`minmax(230px, 1fr)` for every row), but its palette row carries
@@ -373,7 +369,7 @@ func drawerReadout(c *ui.Context, tokens theme.Tokens, text string) ui.Element {
 	return ui.Text(c, text).
 		Font(terminalSettingValueFont).FontSize(tokens.Body).
 		TextColor(tokens.TextStrong).FontWeight(600).FontFeatures("tnum").
-		Grow(1).TextAlign(ui.End)
+		Grow(1).MinWidth(c.Theme().Space(14)).SingleLine().TextAlign(ui.End)
 }
 
 // drawerRow is one appearance row: its label at the start and its control at
@@ -385,7 +381,7 @@ func drawerReadout(c *ui.Context, tokens theme.Tokens, text string) ui.Element {
 func (a *App) drawerRow(c *ui.Context, minWidth float32, label string, build func()) bool {
 	t := c.Theme()
 	tokens := tokensOf(a, c)
-	row := ui.Row(c).Grow(1).MinWidth(minWidth).MinHeight(t.Space(7.5)).
+	row := ui.Row(c).Grow(1).MinWidth(minWidth).MinHeight(max(36, t.Space(9))).
 		Gap(t.Space(2.5)).AlignItems(ui.Center)
 	row.Children(func() {
 		ui.Text(c, label).FontSize(t.FontSize).FontWeight(560).

@@ -262,12 +262,12 @@ func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 	a := testApp()
 	recentPage(a, 2) // P11-bk: the empty page's rows are the recents
 	tt := renderShipped(t, a, false)
-	// The reference's column, in its own unit: 16u of row padding + the 28u icon
-	// cell + the 10u gap = 54u.
-	column := tenths(54 * designUnit())
+	// The reference's column, in its own unit: 16u of row padding + the 32u icon
+	// cell + the 12u gap = 60u.
+	column := tenths(60 * designUnit())
 	if caret, ok := tt.TextCaret(); ok {
 		if got := tenths(float64(caret.X)); got != column {
-			t.Errorf("the field's caret starts at x=%.1f, want the rows' title column %.1f (54u at 0.9)",
+			t.Errorf("the field's caret starts at x=%.1f, want the rows' title column %.1f (60u at 0.9)",
 				float64(got)/10, float64(column)/10)
 		}
 	} else {
@@ -275,7 +275,7 @@ func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 	}
 	if r, ok := tt.Find("Recent 00"); ok {
 		if got := tenths(float64(r.X)); got != column {
-			t.Errorf("a result title starts at x=%.1f, want the reference's %.1f (54u at 0.9)",
+			t.Errorf("a result title starts at x=%.1f, want the reference's %.1f (60u at 0.9)",
 				float64(got)/10, float64(column)/10)
 		}
 	} else {
@@ -747,7 +747,7 @@ func TestAFullListKeepsItsTenthResultAndTheFooter(t *testing.T) {
 		Font: a.Font, Spacing: a.Spacing, Rows: a.Rows[:bar], Held: bar,
 		TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
 	}.Height()
-	if band := float64(a.Spacing) * 11.25; height-withoutBar < int(band)-1 || height-withoutBar > int(band)+1 {
+	if band := float64(a.Spacing) * actionBarUnits; height-withoutBar < int(band)-1 || height-withoutBar > int(band)+1 {
 		t.Errorf("the bar adds %d to the window, want its own %.0f band", height-withoutBar, band)
 	}
 	// Sized to that height, the last result and the footer are both on screen:

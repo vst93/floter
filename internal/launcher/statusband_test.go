@@ -11,6 +11,7 @@ import (
 
 	"floter/internal/apps"
 	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // P11-az · **列表底部那条带（toast / 电源确认）要占列表的位置，不要浮在列表上。**
@@ -81,8 +82,8 @@ func TestTheStatusBandTakesItsSpaceFromTheList(t *testing.T) {
 	// band is docked (`height.go`'s `feedbackBand`, `Geometry.Feedback`). The
 	// fixture does what the shell does: it grows the window by exactly that
 	// band, then asks whether the list's last row is still under it.
-	const w, h = 720, 488
-	const bandPixels = 30 // 7.5u × 4 at the shipped step
+	w, h := InputWindowWidth, themedFrameHeight(maxResultSlots)
+	bandPixels := int(launcherStatusUnits * theme.For(settings.Default(), true).Theme.Spacing)
 
 	// Scroll to the end: that is the row the band could hide. (At the top the
 	// rows pass under the band by construction — a floating band over a

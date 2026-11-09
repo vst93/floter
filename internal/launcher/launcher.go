@@ -30,12 +30,12 @@ const (
 	InputWindowWidth = 720
 
 	// The collapsed launcher's height at scale 1, per platform: the card's own
-	// chrome (66u — the field's 56u row, the 4u breath under it and the panel's
+	// chrome (78u — the field’s 64u row, the 8u breath under it and the panel’s
 	// 4u/2u insets) in the shell's gutters: 10px a side on Linux, 4px + 12px
 	// vertically on Windows, none elsewhere.
-	inputWindowHeightLinux   = 86
-	inputWindowHeightWindows = 82
-	inputWindowHeightDefault = 66
+	inputWindowHeightLinux   = 98
+	inputWindowHeightWindows = 94
+	inputWindowHeightDefault = 78
 
 	// ResultsAreaHeight is the room under the input row for the result list:
 	// about four rows at the shipped interface size. The old shell grew the
@@ -1305,12 +1305,9 @@ func (a *App) View(c *ui.Context) {
 	// a fixed multiple of the size, and the window is charged what the text
 	// takes.
 	//
-	// P13-fe（`docs/liquid-glass.md` §6.126，§6.74 的 de-2 / de-3）：这两条此前量的是
-	// `t.FontSize + rowTitleStep` 与 `t.FontSize` —— 偏移量不随界面步长缩放，而画的
-	// 那一半（`row` 里的标题 / 副标题）改读阶梯档之后，量的与画的必须是**同一个名字**，
-	// 否则 tiny 档上盒子比墨高 1px（title 17 对 body+2 的 18），窗口为一行看不见的
-	// 字长了 1px。现在量 `tk.Title` / `tk.Body`，与 `row` 画的两个档逐字相同。
-	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: tk.Title}); height > 0 {
+	// Measure the same emphasis/body registers that the result rows draw.
+
+	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: tk.Emphasis}); height > 0 {
 		a.TitleLine = float64(height)
 	}
 	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: tk.Body}); height > 0 {
@@ -1417,7 +1414,7 @@ func (a *App) View(c *ui.Context) {
 			// 居中；② 停靠带出现时（按住 ⌘）列表一行不动，这句话却跟着往下跳 13.5px。
 			// 底沿现在与列表**同一个表达式**：面板自己的 tail + 带子。
 			ui.Column(c).FillWidth().Grow(1).Center().
-				Padding(listEdge, t.Space(3), t.Space(0.5)+a.statusBand(c), t.Space(3)).
+				Padding(listEdge, max(20, t.Space(5)), t.Space(0.5)+a.statusBand(c), max(20, t.Space(5))).
 				Children(func() {
 					// P11-cd：一句话都没有的空页不是空态，是一个安静的空页（见
 					// `emptyMessage`）：没有 needle、也没有最近启动时这里不画字，
@@ -1535,25 +1532,20 @@ func (a *App) View(c *ui.Context) {
 			// the mode is named. It keeps its natural width — it is a word, and a
 			// clipped word names nothing.
 			//
-			// With no owner the slot holds the reference's magnifier, at the very
-			// geometry every result row's icon plate uses: a 28u cell
-			// (`Space(7)`) and the row's 10u gap (`Space(2.5)`). So the query
-			// starts on 16u + 28u + 10u = 54u, which is the rows' **title** column
-			// (`TestTheFieldAndTheRowsShareTheReferenceTextColumn`): the field and
-			// the list share one text column instead of two. The mark is muted ink
-			// — the placeholder's own register — and spends no accent
-			// (docs/raycast-design.md §4.2 / §5).
+			// Search, group headings and result labels share a text column:
+			// 16px outer inset + 32px icon slot + 12px gap at standard scale.
+
 			if glyph, name, ok := a.scopeMark(copy); ok {
 				mark := ui.Row(c).Shrink(0).Gap(t.Space(1.5)).AlignItems(ui.Center).
-					Margin(0, t.Space(2.5), 0, 0)
+					Margin(0, t.Space(rowGapUnits), 0, 0)
 				mark.Children(func() {
 					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
 					ui.Text(c, name).FontSize(tk.Caption).TextColor(t.TextMuted)
 				})
 			} else if glyph, ok := Glyph("search"); ok {
-				slot := ui.Box(c).Shrink(0).Size(t.Space(7), t.Space(7)).
+				slot := ui.Box(c).Shrink(0).Size(t.Space(iconUnits), t.Space(iconUnits)).
 					AlignItems(ui.Center).Justify(ui.Center).
-					Margin(0, t.Space(2.5), 0, 0)
+					Margin(0, t.Space(rowGapUnits), 0, 0)
 				slot.Children(func() {
 					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
 				})
@@ -1562,12 +1554,9 @@ func (a *App) View(c *ui.Context) {
 				Bind(&a.Search).
 				Label(copy.Label).
 				Placeholder(copy.Placeholder).
-				// The query is the card's display register: the old build's
-				// `.collapsed-card__input` took `--text-display` (17px at
-				// scale 1) against the rows' body text — one step above —
-				// at weight 460.
-				FontSize(tk.Display).
-				FontWeight(460).
+				// The query is a quiet 18px register above the 15px result labels.
+				FontSize(tk.Search).
+				FontWeight(400).
 				Grow(1).
 				// The field answers two keys itself, before the editor takes
 				// them as edits: the history row's delete and the chord that
@@ -1667,13 +1656,6 @@ func (a *App) View(c *ui.Context) {
 						a.Selected = 0
 						a.FocusSearch()
 					})
-				} else {
-					// The empty field's own trailing hint (a port addition: the
-					// reference leaves the wording to the input's `placeholder`). It opens
-					// on the same 8u the trailing controls use, so the field's tail is one
-					// rhythm with no row-wide gap to lean on.
-					ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted).
-						Margin(0, 0, 0, t.Space(2))
 				}
 			}
 			// The field row's trailing control. In a built-in plugin mode it is
@@ -1928,7 +1910,7 @@ func (a *App) modeShortcuts() {
 func (a *App) rowControl(c *ui.Context, name, label string, run func()) {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	control := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
+	control := ui.Row(c).Focusable().Shrink(0).Size(max(36, t.Space(9)), max(36, t.Space(9))).
 		Radius(tokens.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).
 		Label(label).
 		Transition(ui.ElementTransition{Duration: theme.ColorStep, Colors: true})
@@ -2310,30 +2292,14 @@ func (a *App) trackPointer(panel ui.Element) {
 }
 
 // row builds one result: title, detail and an optional shortcut. The chosen
-// row wears the accent as a tint, as the old launcher's rows did.
+// row uses a neutral selection wash, shared with the settings sidebar.
 func (a *App) row(c *ui.Context, item Item, i int) {
 	t := c.Theme()
 	copy := StringsFor(a.settings().Language)
 	// A block's title line: the list's own label, drawn in the row's own
 	// column, never selectable and never numbered.
 	if item.heading {
-		// The group header is Raycast's: the caption step at weight 500 in the
-		// secondary ink, left-aligned with the row *text* rather than with the
-		// row's box (`docs/raycast-design.md` §4.4). Its **size** does not move
-		// — the task book's size rule admits a weight, a letter-spacing and a
-		// colour in this slice, never a register — so it keeps the body step and
-		// takes the reference's 500/secondary pair. The band the window charges
-		// is unchanged too (see headingPadding).
-		//
-		// P11-ac 重定基线：分组头落在**本表面结果行标题的那一列**上。旧的左缩进
-		// 是两个手写数（行的左 padding 12u + 文字的 `Margin-left` 42u），从来没
-		// 从「行的标题列」这个和里推出来；P8-a 把行块缩进 4u→8u、行内 padding
-		// 12u→8u 之后它们一个都没动，于是标签比它管辖的标题右挂了 8u（实测 62u
-		// vs 54u，旧注释却写着「sits on the same column a row's title does」）。
-		// 现在左缩进就是行自己的那一份：行内 padding 8u（`rowBody` 的
-		// `Padding(0, t.Space(2))`）+ 图标列 28u（`iconPlate` 的 `Space(7)`）+
-		// 行自己的 gap 10u（`rowBody` 的 `Gap(t.Space(2.5))`）= 38u 的
-		// `Margin-left`，加上列表 gutter 的 8u 即合约 §3 的 54u 文本列。
+		// Headings align with result labels after the shared icon slot and gap.
 		tokens := a.tokens(c)
 		// P13-x · 分组头也是列表的一部分，所以它也参加折边。它是 `rowBody` 的**兄弟**
 		// （下面那个 `return` 让它从来没经过 `rowBody` 的 `Opacity`），于是折边切到它
@@ -2353,9 +2319,9 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 			heading.Opacity(float32(fold))
 		}
 		heading.Children(func() {
-			ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(500).
+			ui.Text(c, item.Title).FontSize(tokens.Body).FontWeight(400).
 				TextColor(tokens.TextSecondary).SingleLine().
-				Margin(0, 0, 0, t.Space(9.5))
+				Margin(0, 0, 0, t.Space(iconUnits+rowGapUnits))
 		})
 		return
 	}
@@ -2406,7 +2372,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// 巧合。
 		tokens := a.tokens(c)
 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
-			AlignItems(ui.Center).Padding(0, t.Space(2)).Gap(t.Space(2.5))
+			AlignItems(ui.Center).Padding(0, t.Space(2)).Gap(t.Space(rowGapUnits))
 		note.Children(func() {
 			// The 28u icon column, as `.launcher-status__icon` was: no plate,
 			// only the mark — and the mark is the reference's **literal** 14
@@ -2420,7 +2386,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 			// 陈述齿之后，`TextTertiary`（浅 144 / 深 112）在浅色档反而比句子暗、在
 			// 深色档比句子**亮 52 级**，阶梯两个外观方向还相反。换 `TextSecondary`
 			// （145 / 133）后两个外观上图标都在句子之下（实测差 81 级，两套外观同值）。
-			ui.Box(c).Size(t.Space(7), t.Space(7)).Shrink(0).
+			ui.Box(c).Size(t.Space(iconUnits), t.Space(iconUnits)).Shrink(0).
 				AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 				if glyph, ok := Glyph("info"); ok {
 					ui.Icon(c, glyph).Size(14, 14).
@@ -2444,7 +2410,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	// The row's own box: one 40u height for every result, subtitle or not (see
+	// The row's own box: one 48px height for every result, subtitle or not (see
 	// rowUnits). A one-line row is not a shorter row — it is the same box with
 	// one line in it — so the height the window is charged is the height the
 	// row draws, and a row gaining a subtitle never resizes the window.
@@ -2452,7 +2418,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	subtitle := rowSubtitle(item)
 	row := ui.Row(c.Key(item.ID)).FillWidth().Focusable().MinHeight(floor).
 		AlignItems(ui.Center).
-		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).Gap(t.Space(2.5)).
+		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).Gap(t.Space(rowGapUnits)).
 		Transition(rowTransition)
 	// P11-bb：这一行上一帧的盒子。编号家族靠它判「这一行读得全吗」——
 	// 框架的 `Visible()` 只答「还有一个像素在框里」，而一个被裁掉九成的行
@@ -2542,21 +2508,16 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// pane and a cast shadow, which read as a second control inside the
 		// footer.
 		row.Background(tokens.RowSelected)
-		// P12-b（docs/liquid-glass.md §6.1 第 1-3 行）：页脚动作条的选中块是 E1
-		// —— 面（`RowSelected`）站起来的三个手段（面差 + 顶受光边 + 底对侧暗线，
-		// 见 `theme.Tokens.LitFace`）。E1 不画投影（§2 判据 2）。
-		row = tokens.LitFace(row)
+		// Selection stays a flat neutral wash over the glass.
 	case i == a.Selected:
 		// The chosen row is a *neutral* fill: Raycast's selected result is
 		// 0.085 of white over the near-black card (0.06 of black over the light
 		// one), with no border, no ring and no glow, and the accent is not spent
 		// here at all (`docs/raycast-design.md` §1/§4.3). The emphasis is the
-		// fill plus the title's own weight (700) — the accent's tint
+		// fill keeps the title's weight stable — the accent's tint
 		// (`AccentTintQuiet`) belongs to the settings surface now, not the list.
 		row.Background(tokens.RowSelected)
-		// P12-b（§6.1 第 1-2 行）：选中块 = E1 = 面 + 顶受光边 + 底对侧暗线
-		// （`theme.Tokens.LitFace`）。旧语言只有一块平涂，块与底挤在同一个 z 平面。
-		row = tokens.LitFace(row)
+		// Selection stays a flat neutral wash over the glass.
 	}
 	// The pointer's own rung: a hovered row that is *not* the choice takes the
 	// lighter fill, so the pointer over a row the keyboard is on does not paint
@@ -2589,36 +2550,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	// user was not looking at.
 	removed := false
 	row.Children(func() {
-		// The icon plate: every row leads with the same 28u cell — the resting
-		// control fill, a small radius and a hairline shadow — so a list of
-		// rows reads as one column whatever each row is. Its content is the
-		// row's own icon, a clipboard thumbnail, or a glyph from the closed
-		// set (see glyphs.go).
-		//
-		// Three families override the base rule, exactly as the reference's
-		// own CSS did:
-		//
-		//   * the browser list drops the plate and keeps a bare muted glyph
-		//     (`.launcher-result__icon--browser`, R30): eight identical grey
-		//     plates down a column read as eight controls, not eight links;
-		//   * the two power actions wear the warm system plane and its own
-		//     text colour (`.launcher-result__icon--system`);
-		//   * a recents (history) row wears `--surface-control` at muted ink
-		//     (`.launcher-result--history .launcher-result__icon`).
-		//
-		// The glyph ink follows the plate it sits on: `--text-secondary` for a
-		// plated row (the base `.launcher-result__icon` colour), `--text-muted`
-		// for a browser row. The port drew every glyph in `--text-muted` on a
-		// plate, one register too quiet for the reference.
+		// App artwork is already a shaped icon. Give it a clear 32px column,
+		// without a second plate or a crop that removes part of the artwork.
 		warm := strings.HasPrefix(item.ID, "power-")
 		browserRow := item.web != nil || item.tab != nil
-		// A browser row's cell is bare — transparent, unshadowed, no lens — so
-		// a column of links reads as text rather than as a toolbar
-		// (`.launcher-result__icon--browser`). iconPlate draws the plated cell
-		// every other family wears; the browser family takes a plain 28u box.
 		var plate ui.Element
-		if browserRow {
-			plate = ui.Box(c).Size(t.Space(7), t.Space(7)).Shrink(0).
+		if browserRow || item.icon != nil || item.thumb != nil {
+			plate = ui.Box(c).Size(t.Space(iconUnits), t.Space(iconUnits)).Shrink(0).
 				AlignItems(ui.Center).Justify(ui.Center)
 		} else {
 			plate = a.iconPlate(c, warm, false)
@@ -2628,25 +2566,20 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			case item.icon != nil:
 				if bitmap := a.appIcon(*item.icon); bitmap != nil {
 					iconCell(c, t, bitmap)
+				} else {
+					ui.Icon(c, glyphWindow).Size(t.Space(5), t.Space(5)).TextColor(tokens.TextSecondary)
 				}
 			case item.thumb != nil:
 				iconCell(c, t, item.thumb)
 			default:
 				if glyph, ok := rowGlyph(item); ok {
-					icon := ui.Icon(c, glyph).Size(t.Space(4), t.Space(4))
-					switch {
-					case warm:
-						// The warm plane's own ink (`--system-icon-text`), not the
-						// warning colour: the warning ink is a near-neutral red-grey
-						// reserved for a *label*, while the power plate's glyph is the
-						// amber ink the reference's `.launcher-result__icon--system`
-						// carried (`launcher.css:1234`).
-						icon.TextColor(tokens.SystemIconText)
-					case browserRow:
-						icon.TextColor(t.TextMuted)
-					default:
-						icon.TextColor(tokens.TextSecondary)
+					ink := tokens.TextSecondary
+					if warm {
+						ink = tokens.SystemIconText
+					} else if browserRow {
+						ink = t.TextMuted
 					}
+					ui.Icon(c, glyph).Size(t.Space(4.5), t.Space(4.5)).TextColor(ink)
 				}
 			}
 		})
@@ -2659,16 +2592,10 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			// title longer than its column is cut, never wrapped into extra
 			// lines the window never charged for.
 			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-				// The title is the ladder's title register (`--text-title`,
-				// one step above the body) at 580, and the selected row's
-				// emphasis is its own type: 700, as
-				// `.launcher-result--selected .launcher-result__title` did.
-				// P13-fe（§6.126，§6.74 的 de-6）：`t.FontSize + 2` 是偏移量，不随界面
-				// 步长缩放——出货档上它与 title 档重合（19 对 19），tiny 档上分家
-				// （18 对 17）。行盒那边（`View` 量 `a.TitleLine`）同一个名字，两半
-				// 必须同进同退。
-				title := ui.Text(c, item.Title).FontSize(tokens.Title).
-					FontWeight(580).TextColor(tokens.TextStrong).SingleLine()
+				// Selection is carried by the row wash; keep the label's width and
+				// weight stable as the keyboard moves through the list.
+				title := ui.Text(c, item.Title).FontSize(tokens.Emphasis).
+					FontWeight(400).TextColor(tokens.TextStrong).SingleLine()
 				// The action bar's title is the string the user is handing
 				// over — the command line, the URL, the path — so it is the
 				// terminal's own monospace at 520 (the old
@@ -2676,9 +2603,6 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				// row's subtitle, which keeps the interface face.
 				if isBar {
 					title.Font(a.settings().FontFamily).FontWeight(520)
-				}
-				if i == a.Selected {
-					title.FontWeight(700)
 				}
 				// A trailing value prints complete at the row's right edge —
 				// the calculator's answer, which the expression makes room
@@ -2695,13 +2619,11 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				}
 			})
 			if subtitle != "" {
-				// The subtitle is the body register at 510, quiet; the
-				// selected row lifts it one step and thickens it, as the old
-				// build's own selected subtitle did.
+				// Secondary text stays regular on selection, keeping line geometry stable.
 				line := ui.Text(c, subtitle).FontSize(t.FontSize).
-					FontWeight(510).TextColor(t.TextMuted).SingleLine()
+					FontWeight(400).TextColor(t.TextMuted).SingleLine()
 				if i == a.Selected {
-					line.TextColor(tokens.TextSecondary).FontWeight(600)
+					line.TextColor(tokens.TextSecondary)
 				}
 			}
 		})
@@ -2739,7 +2661,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// ellipsis eats on a narrow window, precisely when the answer matters.
 		if item.Source != "" {
 			source := ui.Text(c, item.Source).FontSize(t.FontSize).
-				FontWeight(510).TextColor(tokens.TextTertiary).SingleLine().
+				FontWeight(450).TextColor(tokens.TextTertiary).SingleLine().
 				MaxWidthPercent(30).TextAlign(ui.End)
 			// P13-ay：被截断的来源词，读全名的那条提示戴 E2 浮面。
 			tokens.Tip(c, source, item.Source)
@@ -2793,7 +2715,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				starLabel = copy.HistoryUnfavorite
 			}
 			star := ui.Row(c).Focusable().Shrink(0).
-				Size(t.Space(5), t.Space(5)).AlignItems(ui.Center).Justify(ui.Center).
+				Size(max(36, t.Space(9)), max(36, t.Space(9))).AlignItems(ui.Center).Justify(ui.Center).
 				Label(starLabel)
 			// P13-ay：星标的词也戴 E2 浮面。
 			tokens.Tip(c, star, starLabel)
@@ -3281,7 +3203,7 @@ func (a *App) feedbackRow(c *ui.Context) {
 	// separate token (`theme.Tokens.IconSurface`), and the warning variant's
 	// `--glass-raised-warm` is an alias of the very same value.
 	background := tokens.IconSurface
-	feedback := ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
+	feedback := ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(launcherStatusUnits)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).
 		// The row enters as the old build's `feedback-enter` did (its
@@ -3343,12 +3265,14 @@ func (a *App) heldHintRow(c *ui.Context) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	copy := a.copy()
-	ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
+	ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(launcherStatusUnits)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Children(func() {
+			ui.Box(c).Absolute().Top(0).Left(t.Space(3)).Right(t.Space(3)).Height(1).
+				Background(tokens.HairlineSoft)
+			ui.Text(c, copy.HeldTerminalHint).FontSize(tokens.Caption).FontWeight(400).
+				TextColor(tokens.TextSecondary).SingleLine()
 			a.rowKeycap(c, tokens, a.enterBadge())
-			ui.Text(c, copy.HeldTerminalHint).FontSize(t.FontSize).FontWeight(540).
-				TextColor(tokens.TextSecondary).Grow(1).SingleLine()
 		})
 }
 
@@ -3555,7 +3479,7 @@ func (a *App) scopeMark(copy i18n.Launcher) (*ui.SVG, string, bool) {
 // is a render-time transform under the same use.
 func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hint string, mark func(mark ui.Color), run func()) {
 	t := c.Theme()
-	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+	e := ui.Row(c).Focusable().Shrink(0).Size(max(36, t.Space(9)), max(36, t.Space(9))).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 		Label(label).Margin(0, 0, 0, t.Space(2)).
 		Transition(ui.ElementTransition{Duration: theme.ColorStep, Colors: true})

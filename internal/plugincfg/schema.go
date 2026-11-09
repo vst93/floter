@@ -277,32 +277,26 @@ func clamp(n, lo, hi float64) float64 {
 	return n
 }
 
-// The overlay's own chrome, in the old app's units (`--u`), from
-// `result-budget.ts`: the header line, the fields block's padding pair, a
-// section heading, and the gap before the next section's card.
+// The overlay’s chrome at scale 1: its header, padding and inter-group air.
 const (
 	headerUnits         = 28
-	fieldsPaddingUnits  = 16
-	sectionHeadingUnits = 25
-	sectionGapUnits     = 12
+	fieldsPaddingUnits  = 36
+	sectionHeadingUnits = 36
+	sectionGapUnits     = 28
 )
 
-// rowUnits is the height one field's row draws, in units: the worst case for
-// the kind, as the old build budgeted it. A trailing row (a switch, a select,
-// a number, an action) is the label and help stack plus its padding pair; a
-// stacked row (the kinds whose control wants the row's full width) adds the
-// control's own box. The drawn rows are given the same floor, so the budget
-// is a height the window can hold rather than one the row can be clipped by.
+// rowUnits budgets the larger controls, the label/help stack and row padding.
+// Long forms remain capped by the display and scroll inside the sheet.
 func rowUnits(kind Kind) float64 {
 	switch kind {
 	case Text:
-		return 85
+		return 112
 	case Radio:
-		return 91
+		return 116
 	case Slider, Checkboxes:
-		return 73
+		return 96
 	default:
-		return 49
+		return 72
 	}
 }
 
@@ -339,7 +333,12 @@ func (s *Schema) Height(scale float64, cap float64) float64 {
 	}
 	// Each section's card has a 1px edge top and bottom.
 	chrome := 2.0 * float64(len(Sections(s)))
-	height := math.Ceil(units*scale) + chrome
+	// Literal minimum hit areas do not shrink at the smaller interface steps.
+	extra := 0.0
+	for _, field := range s.Fields {
+		extra += math.Max(0, 60-rowUnits(field.Kind)*scale)
+	}
+	height := math.Ceil(units*scale+extra) + chrome
 	if cap > 0 && height > cap {
 		height = cap
 	}

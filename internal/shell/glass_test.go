@@ -415,9 +415,9 @@ func TestVibrancyFollowsTheGlassStop(t *testing.T) {
 	}{
 		{"darwin", "off", mygo.VibrancyNone},
 		{"darwin", "frosted", mygo.VibrancyUnderPage},
-		{"darwin", "regular", mygo.VibrancyUnderWindow},
-		{"darwin", "liquid", mygo.VibrancySidebar},
-		{"darwin", "jelly", mygo.VibrancySidebar}, // a legacy id migrates
+		{"darwin", "regular", mygo.VibrancyGlassClear},
+		{"darwin", "liquid", mygo.VibrancyGlassClear},
+		{"darwin", "jelly", mygo.VibrancyGlassClear}, // a legacy id migrates
 		{"windows", "frosted", mygo.VibrancyAcrylic},
 		{"windows", "liquid", mygo.VibrancyAcrylic},
 		// `off` removes the material on every platform, not only on macOS:

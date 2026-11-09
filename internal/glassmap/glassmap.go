@@ -22,7 +22,7 @@
 //
 //   - **Blur (10/22/28px).** The desktop behind the window is blurred by the
 //     window's vibrancy material, chosen per stop (shell.vibrancyForStop):
-//     macOS's NSVisualEffectView materials have a weight per stop, Windows 11
+//     macOS uses a frosted material or native clear Liquid Glass; Windows 11
 //     has only the one backdrop that blurs (Acrylic), and Linux has none —
 //     there the tint's own alpha is the whole of the material. So the blur
 //     ladder becomes the OS material.
@@ -86,10 +86,9 @@ type Spec struct {
 	// 影响」). It is carried so the contrast preference can lift the visible
 	// floor and re-derive the fill.
 	Target float32
-	// Material is the veil the window's backdrop material already lays over the
-	// desktop, 0..1 (see MaterialVeil): 0 where the platform has no material of
-	// its own, which is every stop on Linux and Windows in this build. It is the
-	// amount TintAlpha was compensated against, so Composite is exact.
+	// Material is the fixed veil estimate used to compensate TintAlpha.
+	// Zero also covers native clear glass, whose backdrop-dependent optical
+	// contribution cannot be represented by a fixed alpha (see MaterialVeil).
 	Material float32
 	// Blur is the stop's backdrop blur in DIPs, base.css's `--glass-step-blur`
 	// (10/22/28). The panel cannot run its own `backdrop-filter`, so this is
@@ -164,41 +163,17 @@ const ContrastFrameFloor = 0.86
 // near-flat pane while the pane keeps its stronger edge.
 const ContrastLensScale = 0.6
 
-// MaterialVeil is the veil the window's own backdrop material lays over the
-// desktop on its own, as a self-solidity 0..1, per platform and stop: the
-// weight the panel's tint does *not* have to carry.
-//
-// macOS is the one platform with a material per stop (shell.vibrancyForStop):
-// `under-page` is the thinnest (the frosted end), `under-window` the standard
-// pane, `sidebar` the densest. Those three materials are what made the same
-// 47% read three different ways — the material's own weight sat on top of a
-// tint that was the same number on every stop (「同一个透明度在三档下观感
-// 不同」) — so the mapping compensates for it instead of pretending it is not
-// there. Windows 11's Acrylic is one backdrop for every stop and Linux has no
-// material at all, so both carry 0 here: the tint is the whole of the glass and
-// needs no compensation. (Acrylic does add a veil of its own; it is left at 0
-// until the number can be calibrated against a real window, which is the same
-// rule the three macOS numbers follow — one table, one place to tune.)
-//
-// The numbers are the materials' own weights, not a sample of a wallpaper: a
-// material's opacity is a property of the material, so the table is what a
-// screenshot against a flat canvas would confirm. They are deliberately modest
-// — a veil of v caps the slider's low end at v (a tint cannot be negative),
-// so a heavy reading would make the bottom of the slider inert.
+// MaterialVeil retains the legacy estimate for the explicit frosted stop.
+// Clear Liquid Glass has no fixed sidebar/under-window tint to compensate:
+// its appearance depends on the backdrop and system preferences. Keeping the
+// old 22%/34% estimates would make the slider's low end inert and misreport
+// the app's background alpha. Zero means no fixed compensation, not that the
+// native effect has no optical contribution.
 func MaterialVeil(goos, step string) float32 {
-	if goos != "darwin" {
-		return 0
+	if goos == "darwin" && settings.NormalizeGlassStep(step) == "frosted" {
+		return 0.12
 	}
-	switch settings.NormalizeGlassStep(step) {
-	case "off":
-		return 0
-	case "frosted":
-		return 0.12 // under-page: the thinnest of the three
-	case "liquid":
-		return 0.34 // sidebar: the densest
-	default:
-		return 0.22 // under-window: the standard pane
-	}
+	return 0
 }
 
 // compensate is the fill alpha that composites with a material veil back to
@@ -295,11 +270,9 @@ func SpecForOS(goos, step string, mainOpacity uint8) Spec {
 	}
 }
 
-// Composite is the alpha the frame actually shows over the desktop: the fill
-// the app paints, composited with the veil the window's material paints for it.
-// It is the number the settings page prints (「有效不透明度」) and the number a
-// test can assert the slider against — the slider is the ask, this is the
-// answer.
+// Composite is the modeled background alpha: the app's tint plus any fixed
+// material estimate. Settings display it as an approximation; it does not
+// measure the backdrop-dependent appearance of the native glass effect.
 func (s Spec) Composite() float32 {
 	if !s.Translucent {
 		return 1

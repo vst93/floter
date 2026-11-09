@@ -15,54 +15,18 @@ import (
 // the geometry here is the theme's, so the drawn card and the charged
 // window are one decision.
 
-// The launcher's chrome, in the old app's units: the field's row, the breath
-// under it, the panel's top inset and its tail, and a row's own floor with and
-// without a subtitle. See `launcher.css` (`.collapsed-card__input-row` at 56u,
-// `.launcher-bottom`'s 4u/2u padding) and `result-budget.ts`.
+// Shared layout units keep the window charge and the rendered bands in sync.
 const (
-	fieldRowUnits = 14 // 56u
-	breathUnits   = 1  // 4u
-	// rowUnits is a result row's own box: `40u`. It is **one** box for every
-	// row — with a subtitle or without.
-	//
-	// The reference draws it that way: `.launcher-result` is
-	// `height: calc(var(--u) * 40)` (`launcher.css:1099-1104`), and the second
-	// constant beside it, `ROW_HEIGHT_COMPACT = 34` (`result-budget.ts:75`), is
-	// exported but read by nothing — no rule and no budget charges 34u. The port
-	// read the pair as a ladder and drew a one-line row at 34u, four and a half
-	// pixels short of the reference's box at the shipped step, which is the
-	// pinched row the user saw (「整体小气」) and a window that grew by 6u the
-	// moment a row gained a subtitle.
-	//
-	// One box is also the invariant `result-budget.ts` states: a row gaining a
-	// subtitle does not move the window, because every row is charged
-	// `ROW_HEIGHT_TWO_LINE` whether the list shows one line or two.
-	rowUnits = 10 // 40u
-	// launcherStatusUnits is a plugin's status note: the old build's
-	// `LAUNCHER_STATUS_UNITS`, 30u -- shorter than a compact result row, and
-	// charged by `Geometry.Height` for a row the view marks `Status`.
-	launcherStatusUnits = 7.5
-
-	// actionBarUnits is one action-bar row's band, the old build's
-	// `LAUNCHER_ACTION_BAR_UNITS` (45u). The footer is charged per row outside
-	// the ten-row budget and the view reserves exactly this band at the
-	// scroller's bottom edge (see `actionBarFooter`), so the window, the pinned
-	// footer and the list's own tail are one number.
-	//
-	// P13-et · 45u 是**三段**，不是两段：上呼吸 `actionBarBreathUnits`（3u）+
-	// 行本身 `rowUnits`（40u）+ 卡片的 `TailUnits`（2u）。第三段容易被漏掉，
-	// 因为带子是从「列表最后一行」量到**窗口底边**的，而窗口底边到卡片内容
-	// 盒底之间还隔着 shell 给启动器面单独设的那条 `padBottom`
-	// （`internal/shell/shell.go` 的 `padBottom = t.Space(launcher.TailUnits)`）。
-	// 也就是说行**不能**再要自己的 42u 地板：42 + 3 = 45 会把 tail 算第二遍，
-	// 行会长到 37.8 并落进那 2u 的 tail 里（选中的胶囊于是贴着窗口最下沿，
-	// 丢掉它自己的下呼吸）。实测行高 36、行底离窗口下沿 1.8（正好是 tail），
-	// 2.7 + 36 + 1.8 = 40.5 逐位相等。
-	actionBarUnits = 11.25
-
-	// actionBarBreathUnits is the air above an action-bar row: the old build's
-	// `margin-top: calc(var(--u) * 3)`. It is a constant, so the panel's bottom
-	// edge never jumps when the result count crosses zero (see `rowBody`).
+	fieldRowUnits = 16 // 64px at scale 1
+	breathUnits   = 2  // 8px below the search field
+	// Results keep the same height with or without a subtitle.
+	rowUnits    = 12 // 48px at scale 1
+	iconUnits   = 8  // 32px artwork, shared by the field and both result lists
+	rowGapUnits = 3  // 12px between the icon and text
+	// Enough room for the confirmation row’s 36px buttons and vertical air.
+	launcherStatusUnits = 12
+	// The footer includes its result row, the air above it and the shell tail.
+	actionBarUnits       = rowUnits + actionBarBreathUnits + TailUnits
 	actionBarBreathUnits = 0.75
 
 	// The rows' own registers, as `.launcher-result` declared them: the title
@@ -73,7 +37,7 @@ const (
 	// multiple of the size and cannot be made smaller than the font's own box
 	// — so the view measures them and the window is charged what the text
 	// takes.
-	rowTitleStep   = 2
+	rowTitleStep   = 1
 	headingPadding = 2.5 // 6u above, 4u below
 
 	// TopInsetUnits and TailUnits are the card's own padding above the field's
@@ -83,11 +47,7 @@ const (
 	TopInsetUnits = 1   // 4u
 	TailUnits     = 0.5 // 2u
 
-	// FieldRowUnits is the launcher's field-row band, 56u, exported so the
-	// settings card's header can name the same band rather than restating 14:
-	// the old build pinned the launcher's input row and the settings header to
-	// one height (R37, `SEARCH_FIELD_HEIGHT_UNITS`), so switching surfaces does
-	// not move the window's first band.
+	// FieldRowUnits also sizes the settings header so surface switches align.
 	FieldRowUnits = fieldRowUnits
 )
 
@@ -163,12 +123,9 @@ type RowInfo struct {
 	// Heading marks a block's title line, which is charged its own band
 	// rather than a result row's floor.
 	Heading bool
-	// Bar marks the action bar, whose own 3u breath above it and 42u band the
-	// window charges together, as the old build's 45u — the one row the panel
-	// charges a breath for.
+	// Bar marks a footer row, charged with its breathing room and shell tail.
 	Bar bool
-	// Status marks a plugin's status note, which the old build charged its own
-	// 30u band (`LAUNCHER_STATUS_UNITS`), shorter than a compact result row.
+	// Status marks a note that uses the shared status band.
 	Status bool
 	// Band, when positive, is the row's own band in spacing units, charged
 	// instead of the text-line arithmetic. The captured-output text form uses
@@ -222,7 +179,7 @@ type Geometry struct {
 	Config *plugincfg.Schema
 	// Sections is the number of section-title bands the list prints above its
 	// blocks. The ordinary list carries a heading as a `RowInfo.Heading` row
-	// (charged inside the ten-row budget); a captured-output list prices its
+	// (charged outside the result budget); a captured-output list prices its
 	// rows separately, so its headings are counted here and stand beside the
 	// rows rather than eating one of them.
 	Sections int
@@ -311,6 +268,10 @@ func (g Geometry) Height() int {
 	for i := 0; i < rows; i++ {
 		if i < len(g.Rows) {
 			drawn = append(drawn, g.Rows[i])
+			// Section headings have no result shortcut and do not spend a result slot.
+			if g.Rows[i].Heading && rows < len(g.Rows)-bars {
+				rows++
+			}
 			continue
 		}
 		drawn = append(drawn, RowInfo{Lines: 2}) // the worst case: a row with a subtitle
@@ -333,7 +294,7 @@ func (g Geometry) Height() int {
 			continue
 		}
 		if info.Status {
-			// A status note is its own 30u band (`LAUNCHER_STATUS_UNITS`),
+			// A status note uses the shared status band,
 			// shorter than a compact result row. One constant, not a second
 			// hand-written copy: the view draws the same band with it
 			// (`FeedbackBand`), so a change to the band moves both.

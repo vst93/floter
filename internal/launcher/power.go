@@ -150,7 +150,7 @@ func (a *App) confirmPowerRow(c *ui.Context) {
 	copy := a.copy()
 	t := c.Theme()
 	tokens := a.tokens(c)
-	ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
+	ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(launcherStatusUnits)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).Background(tokens.IconSurface).Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(t.Warning)
@@ -182,7 +182,7 @@ func (a *App) confirmPowerRow(c *ui.Context) {
 // hairline chips.
 func (a *App) confirmPowerButton(c *ui.Context, tokens theme.Tokens, label string, execute bool, run func()) {
 	t := c.Theme()
-	button := ui.Row(c).Focusable().Shrink(0).MinHeight(t.Space(6)).
+	button := ui.Row(c).Focusable().Shrink(0).MinHeight(max(36, t.Space(9))).
 		Padding(0, t.Space(2)).Radius(tokens.RadiusXS).
 		AlignItems(ui.Center).Justify(ui.Center).Label(label).
 		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})

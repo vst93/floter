@@ -464,29 +464,64 @@ func TestTheGeneralPageKeepsTheReferenceSectionGap(t *testing.T) {
 	}
 }
 
-func TestAppearanceChoicesStackUnderTheirLabels(t *testing.T) {
-	copy := i18n.For("en").Settings
-	a := New(newStore(t), Actions{})
-	tt := render(t, a, 720, 2800)
-
-	for _, row := range []struct {
-		name     string
-		label    string
-		segments []string
-	}{
-		{"theme", copy.ThemeHint, []string{copy.Themes[0].Label, copy.Themes[len(copy.Themes)-1].Label}},
-		{"language", copy.Language, []string{copy.Languages[0].Label, copy.Languages[1].Label}},
-		{"interface size", copy.Scale, []string{copy.Scales[0].Label, copy.Scales[len(copy.Scales)-1].Label}},
-	} {
-		label := mustFind(t, tt, row.label)
-		first := mustFind(t, tt, row.segments[0])
-		last := mustFind(t, tt, row.segments[1])
-		if first.Y < label.Y+label.H {
-			t.Errorf("the %s choice at %v is not under its label at %v: still a trailing control", row.name, first, label)
-		}
-		span := last.X + last.W - first.X
-		if span < label.W/2 {
-			t.Errorf("the %s choice spans %.0f, under half the row's %.0f: not the stacked full width", row.name, span, label.W)
+// Choice rows preserve readable labels and usable segments across language,
+// interface scale and window width. Narrow layouts may wrap the whole control.
+func TestAppearanceChoicesKeepReadableLayout(t *testing.T) {
+	for _, lang := range []string{"en", "zh"} {
+		for _, scale := range []string{"tiny", "small", "default", "large"} {
+			for _, width := range []int{620, 720} {
+				t.Run(lang+"/"+scale+"/"+strconv.Itoa(width), func(t *testing.T) {
+					s := settings.Default()
+					s.Language, s.UIScale = lang, scale
+					a := New(settings.NewStore(s), Actions{})
+					copy := i18n.For(lang).Settings
+					textWidths := map[string]float32{}
+					tt := ui.NewTester(func(c *ui.Context) {
+						tokens := a.tokens(c)
+						c.SetTheme(tokens.Theme)
+						a.View(c)
+						for i := range pageCount {
+							w, _ := c.MeasureText(0, ui.Span{Text: a.page(i).Title, Size: tokens.Body, Weight: 400})
+							textWidths[a.page(i).Title] = w
+						}
+						for _, options := range [][]i18n.Option{copy.Themes, copy.Languages, copy.Scales, copy.GlassSteps} {
+							for _, option := range options {
+								w, _ := c.MeasureText(0, ui.Span{Text: option.Label, Size: tokens.Body, Weight: 400})
+								textWidths[option.Label] = w
+							}
+						}
+					}, width, 3000)
+					tt.Frame()
+					for i := range pageCount {
+						title := a.page(i).Title
+						box := mustFind(t, tt, title)
+						if box.W+0.5 < textWidths[title] {
+							t.Errorf("sidebar truncates %q: %.1f / %.1f", title, box.W, textWidths[title])
+						}
+					}
+					for _, row := range []struct {
+						label   string
+						options []i18n.Option
+					}{
+						{copy.ThemeHint, copy.Themes}, {copy.Language, copy.Languages},
+						{copy.Scale, copy.Scales}, {copy.Glass, copy.GlassSteps},
+					} {
+						label := mustFind(t, tt, row.label)
+						for _, option := range row.options {
+							seg := mustFind(t, tt, option.Label)
+							if seg.X < label.X-1 || seg.X+seg.W > float32(width)-12 || seg.H < 36 {
+								t.Errorf("%q unusable segment: %+v", option.Label, seg)
+							}
+							if seg.W < textWidths[option.Label]+8 {
+								t.Errorf("%q text %.1f squeezed into %.1f", option.Label, textWidths[option.Label], seg.W)
+							}
+							if seg.Y < label.Y+label.H && seg.Y+seg.H > label.Y && seg.X < label.X+label.W+8 {
+								t.Errorf("%q overlaps label: %+v / %+v", option.Label, seg, label)
+							}
+						}
+					}
+				})
+			}
 		}
 	}
 }

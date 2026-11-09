@@ -312,7 +312,7 @@ func TestTheConfigMultiselectIsOneListBox(t *testing.T) {
 	)
 
 	// The box at the panel's own metric: its floor is the reference's literal
-	// 66px, whatever the interface step.
+	// 132px, whatever the interface step.
 	for _, step := range []string{"small", "large"} {
 		store := stepStore(t, step)
 		a.Store = store
@@ -329,8 +329,8 @@ func TestTheConfigMultiselectIsOneListBox(t *testing.T) {
 			rect = c.Resolve(ref).Bounds()
 		}, 400, 200)
 		tt.Frame()
-		if absFloat(rect.H-66) > 1 {
-			t.Errorf("[%s] the multiselect box is %vpx high, want the reference's 66px list-box floor", step, rect.H)
+		if absFloat(rect.H-132) > 1 {
+			t.Errorf("[%s] the multiselect box is %vpx high, want the comfortable 132px list-box floor", step, rect.H)
 		}
 	}
 
@@ -703,13 +703,13 @@ func TestTheConfigMultiselectScrollsInsideItsViewport(t *testing.T) {
 	a, _ := configFormApp(t, []ConfigField{{Key: "tags", Label: "Tags", Type: "multiselect"}}, map[string]any{})
 	short := ConfigField{Key: "short", Label: "Short", Type: "multiselect", Options: options(3)}
 	shortH := measure(a, short)
-	if absFloat(shortH-66) > 1 {
-		t.Errorf("a three-option box is %vpx high, want the reference's 66px floor", shortH)
+	if absFloat(shortH-132) > 1 {
+		t.Errorf("a three-option box is %vpx high, want the comfortable 132px floor", shortH)
 	}
 	long := ConfigField{Key: "long", Label: "Long", Type: "multiselect", Options: options(12)}
 	longH := measure(a, long)
-	if absFloat(longH-66) > 1 {
-		t.Errorf("a twelve-option box is %vpx high, want the same 66px viewport (the options scroll inside it)", longH)
+	if absFloat(longH-132) > 1 {
+		t.Errorf("a twelve-option box is %vpx high, want the same 132px viewport (the options scroll inside it)", longH)
 	}
 
 	// The live form's box scrolls: its content is taller than its viewport, so

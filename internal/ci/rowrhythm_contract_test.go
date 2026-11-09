@@ -12,28 +12,8 @@ import (
 	"testing"
 )
 
-// P13-bq · 设置页间距节奏的第一张账：行的纵向刻度只能是一档。
-//
-// `.pending-bugs.md` 从 P13-bo 起连着两轮把「通用队列 · 间距节奏」列成下一格，并且
-// 明写「先量设置卡片里 8/9/11/13u 的混用（**不许先改**）」。量下来那半张猜想在这条
-// 链上不成立（`docs/rounds/P13-bq-spec.md` 有全量读数）：设置卡的**行**只有一档
-// `t.Space(2.25)` = 9u / 36px，由 `cardRow` / `stackedRow` / `actionRow` 三条路共享；
-// `Space(2.75)`(11u) 与 `Space(3.25)`(13u) 在 `internal/settingsui` 里**一次都没出现作间距**
-// （全仓那两处都是 `Size(t.Space(3.25), t.Space(3.25))`，那是图标尺寸）。
-//
-// 所以这一条钉的不是「改哪一格」，是**别再长出第二格**：
-//
-//	① 三条行路的第一条间距语句必须是同一个 `Space(...)` 字面值（同族两个值 = 同一张卡
-//	   里两行不一样高，用户读到的是「这两行不是一种东西」）；
-//	② 它必须是 `Space(2.25)`（9u，参考 `.settings-row` 自己的那一档，见
-//	   `docs/raycast-design.md` §4 的既落地条目）；
-//	③ `internal/settingsui` 的**间距**参数里不许出现 `Space(2.75)` / `Space(3.25)`——
-//	   这两档在这个包里没有角色，出现即为「顺手加了一个中间值」。
-//
-// 判据是「方法名 + 参数位」，不是字面文本：只有 `Padding` / `Gap` / `GapX` / `GapY` /
-// `Margin` / `InsetShadow` 这些**间距方法**的第一参数位上的 `Space(...)` 进账，所以
-// `Size(t.Space(3.25), t.Space(3.25))`（图标）与 `max(t.Space(11), rowFloorPx)`
-// （行的**高度下限**，不是行的内边距）都不进这张账 —— 同一个数字在三条轴上不是一个东西。
+// Settings rows share one vertical padding step. The redesign raises it to
+// 12 scaled pixels, leaving air around the larger controls in every row shape.
 
 // rowRhythmFns are the settings card's three row paths: they are one rhythm and must
 // keep the same first vertical padding argument.
@@ -49,8 +29,8 @@ var rowRhythmSpacingMethods = []string{
 	"Padding", "Gap", "GapX", "GapY", "Margin", "MarginX", "MarginY", "InsetShadow",
 }
 
-// rowRhythmRowStep is the one vertical step a settings card row may wear (9u / 36px).
-const rowRhythmRowStep = 2.25
+// rowRhythmRowStep is the vertical inset, in theme spacing units.
+const rowRhythmRowStep = 3
 
 // rowRhythmSpaceAllow lists `<path>:<line>` of spacing arguments allowed to be one of the
 // two steps that have no role in this package. Empty, and it should stay that way: the
@@ -109,10 +89,8 @@ func TestTheSettingsRowsKeepOneVerticalStep(t *testing.T) {
 		}
 		for v := range got {
 			if v != rowRhythmRowStep {
-				t.Errorf("%s: the row's vertical step is Space(%s), want Space(2.25) — the "+
-					"reference's own `.settings-row` step (9u / 36px). Changing it moves "+
-					"every row's height, and the height ladder with it",
-					name, rowRhythmFormat(v))
+				t.Errorf("%s: the row's vertical step is Space(%s), want Space(%s) — the shared comfortable row inset",
+					name, rowRhythmFormat(v), rowRhythmFormat(rowRhythmRowStep))
 			}
 		}
 	}

@@ -9,16 +9,8 @@ import (
 	"floter/internal/theme"
 )
 
-// The keycap: Raycast's pressable legend, and the launcher's one way of
-// printing a key (`docs/raycast-design.md` §4.5).
-//
-// A `⌘1` result badge and the action bar's `⌘↩` are *keys*, not sentences: each
-// key is its own 20x20 plate with a 5px corner, the keycap face and its
-// hairline, the label in the caption step at weight 500 in the tertiary ink,
-// and a combination's keys sit 2u apart with no `+` between them. The port
-// printed the whole chord as one run of text in the row slot, which reads as a
-// label that happens to contain a symbol rather than as the key the user can
-// press.
+// Shortcut legends share a 20px flat surface and a 2px gap between keys.
+// They describe keyboard actions; pointer targets keep their larger hit areas.
 const (
 	// keycapUnits is a keycap's own box: 20u, i.e. `Space(5)`.
 	keycapUnits = 5
@@ -76,22 +68,18 @@ func splitGlyphRun(badge string) []string {
 	return out
 }
 
-// keycap draws one key: the 20x20 plate, its hairline, and the label centred
+// keycap draws one key: a flat 20x20 surface with its label centred
 // in it. A label wider than the plate — `Ctrl` on the platforms that spell the
 // modifiers in words — grows the plate along its own padding, because 20u is
 // the *legend's* size and a word must stay readable; the height never moves.
 func keycap(c *ui.Context, tokens theme.Tokens, t *ui.Theme, label string) ui.Element {
 	key := ui.Row(c).Shrink(0).MinWidth(t.Space(keycapUnits)).Height(t.Space(keycapUnits)).
 		Padding(0, t.Space(1)).Radius(tokens.KeycapRadius).
-		Border(1, tokens.KeycapEdge).Background(tokens.KeycapFace).
+		Background(tokens.Control).
 		AlignItems(ui.Center).Justify(ui.Center)
-	// P12-b（docs/liquid-glass.md §6.1 第 1-4 行）：键帽是这张卡上最小的一个**面**，
-	// 也是最应该「受光」的一个——它就是一颗被按下去的键。它戴的是 E1 的
-	// `LitFace`（顶受光边 + 底对侧暗线），不加投影（§2 判据 2）：键帽长在行上，
-	// 压不出影子。旧语言里它只有一圈 0.07 的 `KeycapEdge`，在 1x 屏上与行底分不开。
-	key = tokens.LitFace(key)
+	// A shortcut legend has a light flat fill; it is not a raised button.
 	key.Children(func() {
-		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(500).
+		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(400).
 			TextColor(tokens.TextTertiary).SingleLine().Shrink(0)
 	})
 	return key

@@ -135,8 +135,8 @@ func TestTheAboutFactsPutTheValueInTheEmphasisRung(t *testing.T) {
 					"reads label-then-value on one line", appearance, fact[1], value.X, name.X)
 			}
 			if i > 0 {
-				if pitch := name.Y - last; pitch < 44 || pitch > 46 {
-					t.Errorf("%s: row %d starts %v below the row above it, not the card's own 45px "+
+				if pitch := name.Y - last; pitch < rowFloorPx || pitch > rowFloorPx+2 {
+					t.Errorf("%s: row %d starts %v below the row above it, not the card's own 61px "+
 						"pitch — a one-line fact may not grow its row (§6.11)", appearance, i, pitch)
 				}
 			}

@@ -12,18 +12,9 @@ import (
 	"floter/internal/theme"
 )
 
-// The grouped-card language the old settings panel used, and macOS System
-// Settings with it: a section title with a one-line explanation under it,
-// then a flat card of rows — a label (and a grey second line) at the start,
-// the control at the end, a rule inset to the label's own column between
-// one row and the next. The card is a *plane*, never glass: the material
-// belongs to the window shell, and a card that blurred would be a second
-// material inside the one sheet the app allows.
-//
-// Four pieces, no third-party vocabulary: a section (title + hint + cards),
-// a card, a row, and the action — the right-aligned accent text the old
-// build used for "Edit…" and "Restore defaults". Every page keeps owning
-// its own state, handlers and stored keys; these are presentation only.
+// Settings share quiet section labels, frameless groups and generously spaced
+// rows. The window supplies the glass; controls and separators provide the
+// structure without covering it with another surface.
 
 // tokens resolves the card language's colors for the stored appearance,
 // scaled with the interface step exactly as the CSS variables were.
@@ -46,14 +37,9 @@ func (a *App) tokens(c *ui.Context) theme.Tokens {
 	return a.tokensMemo.Tokens(a.Store.Version(), t.Dark, c.Preferences(), a.settings)
 }
 
-// pageColumn is the column every settings page's body is drawn in: full
-// width, and the reference's page grid gap, `.settings-page { gap: 22u }`
-// (`settings.css:379-387`) — the room the reference's grid left between its
-// header and each section, and therefore between one section and the next.
-// All five pages share it so the gap has one definition; before P7-gs the
-// General page was the lone exception at 16u (Space(4)).
+// pageColumn keeps 28 scaled pixels between settings groups.
 func (a *App) pageColumn(c *ui.Context, fn func()) {
-	ui.Column(c).FillWidth().Gap(c.Theme().Space(5.5)).Children(fn)
+	ui.Column(c).FillWidth().Gap(c.Theme().Space(7)).Children(fn)
 }
 
 // section draws a titled group: the title, its one-line explanation, and
@@ -91,7 +77,7 @@ func (a *App) sectionGroup(c *ui.Context, title string, fn func()) ui.Element {
 // room inside its own box: the General page's material group is the reference's
 // one `.settings-section--material`, `padding: 10u 0` (`settings.css:767-772`).
 // The padding is *inside* the group box, so the page gap between the material
-// section and its neighbour stays the shared 22u (`pageColumn`) while the group
+// section and its neighbour stays the shared page gap (`pageColumn`) while the group
 // itself keeps the reference's own breathing room. A zero padding leaves the
 // plain group.
 //
@@ -170,25 +156,19 @@ func (a *App) sectionHeading(c *ui.Context, title string, action func()) ui.Elem
 // keeps the plain single-line heading the rest of the pane uses.
 func (a *App) sectionHeadingInline(c *ui.Context, title, inlineHint string, action func()) ui.Element {
 	t := a.cardTheme(c)
-	// P13-ek（`docs/liquid-glass.md` §6.106）：分组标题离它自己第一张卡的那一格是
-	// **这一对**的空气，不是整列的（§4.3）。此前它只有框架的 `Space(2)`（7.2px），
-	// 比同一组里两张卡之间的 9px **还紧**——标题读成「又一张卡」，不是「新的一组」。
-	// 所以抬的是一整档 8u，加在标题的**下边**：标题 → 卡 = 7.2 + 7.2 = `Space(4)`
-	// 14.4px，与浮层里同一格（§6.105）逐值相同；卡 → 它下面那句组注仍是 7.2px
-	// （那一对是「同一块」，§4.3 的相邻一档不许动）。
 	row := ui.Row(c).FillWidth().AlignItems(ui.End).Justify(ui.SpaceBetween).
-		Gap(t.Space(3)).Padding(0, t.Space(0.5), t.Space(2), t.Space(0.5))
+		Gap(t.Space(3)).Padding(0, t.Space(1))
 	row.Children(func() {
 		// `heading-main` is the reference's `display:grid; gap:1px`, so the
 		// inline hint rides one pixel under the title in the same column.
 		ui.Column(c).Grow(1).Gap(1).Children(func() {
 			// `.settings-section__label` is the ladder's title step at 620 in the
 			// strong colour.
-			ui.Text(c, title).FontSize(a.tokens(c).Title).FontWeight(620).TextColor(a.tokens(c).TextStrong)
+			ui.Text(c, title).FontSize(a.tokens(c).Caption).FontWeight(500).TextColor(a.tokens(c).TextSecondary)
 			if inlineHint != "" {
 				// `--inline` drops the 2u inset the group hint keeps, but is
 				// otherwise the same body step at 500 in the muted colour.
-				ui.Text(c, inlineHint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+				ui.Text(c, inlineHint).FontSize(a.tokens(c).Caption).FontWeight(400).TextColor(t.TextMuted)
 			}
 		})
 		if action != nil {
@@ -209,7 +189,7 @@ func (a *App) sectionHint(c *ui.Context, hint string) {
 	}
 	t := a.cardTheme(c)
 	ui.Row(c).FillWidth().Padding(0, t.Space(0.5)).Children(func() {
-		ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+		ui.Text(c, hint).FontSize(a.tokens(c).Caption).FontWeight(400).TextColor(t.TextMuted)
 	})
 }
 
@@ -262,7 +242,7 @@ func (a *App) extensionSection(c *ui.Context, title string, count int, fn func()
 	return a.sectionGroup(c, title, func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(t.Space(2)).
 			Padding(0, t.Space(1)).MinHeight(t.Space(4.5)).Children(func() {
-			ui.Text(c, title).FontSize(tokens.Body).FontWeight(620).TextColor(t.TextMuted)
+			ui.Text(c, title).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextSecondary)
 			if count < 0 {
 				return
 			}
@@ -270,7 +250,7 @@ func (a *App) extensionSection(c *ui.Context, title string, count int, fn func()
 				Padding(0, t.Space(1.75)).Radius(tokens.RadiusSM).Center()
 			chip.Children(func() {
 				ui.Text(c, strconv.Itoa(count)).FontSize(tokens.Caption).
-					FontWeight(600).TextColor(tokens.TextSecondary)
+					FontWeight(400).TextColor(tokens.TextSecondary)
 			})
 		})
 		fn()
@@ -299,16 +279,11 @@ func (a *App) extensionHint(c *ui.Context, hint string) {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
 	ui.Row(c).FillWidth().Padding(0, t.Space(1)).Children(func() {
-		ui.Text(c, hint).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextTertiary)
+		ui.Text(c, hint).FontSize(tokens.Caption).FontWeight(400).TextColor(tokens.TextTertiary)
 	})
 }
 
-// card draws one grouped card: the resting control plane, its hairline
-// edge, the card radius, and the clip that keeps the first and last rows
-// inside the rounded corners. It is the row counter's own frame: the rows
-// fn builds draw the rule *above* themselves except the first, so a card
-// never opens or ends on a rule and no caller has to say which row is
-// last.
+// card groups related rows without an outer border or background fill.
 func (a *App) card(c *ui.Context, fn func()) {
 	a.cardLabeled(c, "", fn)
 }
@@ -323,10 +298,9 @@ func (a *App) cardLabeled(c *ui.Context, label string, fn func()) {
 // cardGeometry draws a card whose rows wear geometry other than the settings
 // default. `inset` is every row's horizontal inset (the label column and the
 // separator's own margin), `titleFloor` is the height floor of the card's
-// *first* row alone — the settings card's 44u floor for every row under it —
+// *first* row alone — the shared row floor for every row under it —
 // and `lineGap` is the gap between a row's label and its sub-lines. A zero
-// value keeps the settings card's own numbers (a 14u inset, a 44u floor and a
-// 1px line gap), so `card` and `cardLabeled` are just this with zeroes.
+// value keeps the settings group’s 4u inset, 60px floor and 4px line gap, so `card` and `cardLabeled` are just this with zeroes.
 //
 // The integration card is the one caller that asks for the reference
 // extension row's own geometry instead: `.extension-row` is a 66px row with
@@ -350,25 +324,11 @@ func (a *App) cardGeometry(c *ui.Context, inset, titleFloor, lineGap float32, la
 		a.cardRows = saved
 		a.cardRowInset, a.cardTitleFloor, a.cardLineGap = savedInset, savedFloor, savedGap
 	}()
-	// The card wears the contract's plane (`docs/raycast-design.md` §6.1): the
-	// resting control fill, the *weak* hairline (`HairlineSoft`) as its edge,
-	// the panel-block radius step (10) and **no lens** — a low-gloss design
-	// 靠「面 + 线 + 字阶」分层，不靠高光（§1）。
-	//
-	// P8-b 重定基线：旧 `ControlEdge` + `Control` + `--elev-0` 透镜 →
-	// `HairlineSoft` + `Control`，镜片去掉；半径 10 保留。
+	// The shell supplies the glass; grouping does not add an opaque plane.
 	card := ui.Column(c).FillWidth().
-		Border(1, tokens.HairlineSoft).
 		Radius(tokens.RadiusMD).
-		Background(tokens.Control).
+		Background(ui.Transparent).
 		Clip()
-	// P12-c（`docs/liquid-glass.md` §6.2 第 2-3 行）：分组卡是 **E1 面**，不是
-	// 一块平涂。它此前只有 `Control` 的填充和一圈弱发丝边——边是「画框」，
-	// 而这一支要的是「块自己站起来」。`LitFace` 只加两条 1px 内线（顶受光边
-	// `LensRim`、底对侧 `LensEdge`），不画投影（§2 判据 2：E1 长在底上，压不出
-	// 影子），也不加宽面光泽（`LensSheen` 仍 0.04，面不许反光）。外圈的
-	// `HairlineSoft` 一个字节没动：它仍是这张卡与页面之间的那圈线。
-	card = tokens.LitFace(card)
 	if label != "" {
 		card.Label(label)
 	}
@@ -412,54 +372,28 @@ func (a *App) runParamsBox(c *ui.Context, fn func()) {
 	box.Children(fn)
 }
 
-// rowInset is the horizontal inset a card row wears: the settings card's own
-// 14u (`--u * 14`), or the override cardGeometry set for the card being built
-// (the integration card's reference extension-row padding, 8u).
+// rowInset aligns row content and separators with the section heading.
+// Integration groups can override the default 4u inset.
 func (a *App) rowInset(t *ui.Theme) float32 {
 	if a.cardRowInset > 0 {
 		return a.cardRowInset
 	}
-	return a.cardSpace(t, 3.5)
+	return a.cardSpace(t, 1)
 }
 
-// rowLineGap is the gap a row's label column puts between its label and its
-// sub-lines: the settings row's own 1px (`.settings-row__main { gap: 1px }`,
-// `settings.css:528-531`), or the override cardGeometry set for the card being
-// built (the extension row's `.extension-row__main { gap: 4px }`,
-// `extensions.css:879-880`, which the integration title row's name, version,
-// meta and description all share).
+// rowLineGap separates a row’s title from its supporting text.
 func (a *App) rowLineGap() float32 {
 	if a.cardLineGap > 0 {
 		return a.cardLineGap
 	}
-	return 1
+	return 4
 }
 
-// rowFloorPx is a card row's height floor: the reference's `.settings-row` is a
-// literal 44px box (`min-height: 44px`, `settings.css:511-518`), so the floor
-// is that literal and not `--u * 11`. At the shipped step `--u * 11` is 39.6 —
-// four and a half pixels short of the box the reference drew, which is half of
-// why every settings row read pinched — and at `large` it is 48.4, i.e. a row
-// taller than the design's own. It is the same rule as the radius ladder (a
-// corner is a literal px, not a `--u` metric): the floor is a touch target, the
-// one number in the row that does not grow with the text it holds.
-//
-// The taller of the two wins, so a step that draws its text bigger than the
-// literal floor (the `large` step's 13.2pt body in a 44px row) still gets a row
-// its content fits in.
-const rowFloorPx = 44
+// rowFloorPx leaves room around a control even in single-line settings rows.
+const rowFloorPx = 60
 
-// sessionRowFloorPx is the sessions page's row floor: the reference's
-// `.session-manager__row { min-height: 56px }`
-// (`main:src/styles/settings.css:1237-1244`), whose own comment says it is
-// "a taller floor, because a session is two lines of text plus a footer of
-// metadata". Like rowFloorPx it is the literal the reference wrote and not
-// `--u * 14`: at the shipped step 14u is 50.4, which is what this row's
-// content already measures, so a `Space(14)` floor is invisible (P13-dz).
-// The 5.6px the floor adds land **under** the metadata line — the title keeps
-// its 2.25u padding from the row's top — so the row reads as a block with air
-// beneath it rather than a block pressed onto its own bottom edge.
-const sessionRowFloorPx = 56
+// Sessions need extra room for the title, status and metadata.
+const sessionRowFloorPx = 68
 
 // extensionMetrics runs fn with the extension panel's own metric unit: the
 // reference's `extensions.css` is written in literal px (a 66px row, a 30px
@@ -522,7 +456,7 @@ func (a *App) pageButton(c *ui.Context, label string) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
-		MinHeight(t.Space(7.5)).
+		MinHeight(max(36, t.Space(9))).
 		Padding(t.Space(1.5), t.Space(3.5)).
 		Radius(t.Radius)
 	ink, plane := tokens.TextStrong, tokens.Control
@@ -540,7 +474,7 @@ func (a *App) pageButton(c *ui.Context, label string) ui.Element {
 	}
 	tokens.LitFace(button)
 	button.Children(func() {
-		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(ink)
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(400).TextColor(ink)
 	})
 	return button
 }
@@ -583,7 +517,7 @@ func (a *App) disabledActionButton(c *ui.Context, label string) ui.Element {
 	t := a.cardTheme(c)
 	button, ink := a.extensionActionFace(c, t.Space(7.5), t.Space(3.75), true)
 	button.Children(func() {
-		ui.Text(c, label).FontSize(a.tokens(c).Body).FontWeight(600).TextColor(ink)
+		ui.Text(c, label).FontSize(a.tokens(c).Body).FontWeight(400).TextColor(ink)
 	})
 	return button.Disabled(true).Cursor(ui.CursorDefault)
 }
@@ -598,7 +532,7 @@ func (a *App) disabledActionButton(c *ui.Context, label string) ui.Element {
 func (a *App) extensionActionButton(c *ui.Context, label string, height, radius, fontSize float32) ui.Element {
 	button, ink := a.extensionActionFace(c, height, radius, false)
 	button.Children(func() {
-		ui.Text(c, label).FontSize(fontSize).FontWeight(600).TextColor(ink)
+		ui.Text(c, label).FontSize(fontSize).FontWeight(400).TextColor(ink)
 	})
 	return button
 }
@@ -617,7 +551,7 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
-		MinHeight(height).Padding(0, t.Space(2.5)).Radius(radius)
+		MinHeight(max(36, height)).Padding(0, t.Space(3.5)).Radius(tokens.RadiusSM)
 	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
 	if disabled {
 		ink = tokens.Disabled
@@ -675,11 +609,11 @@ func (a *App) extensionPrimaryButton(c *ui.Context, label string, disabled bool)
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
-		MinHeight(t.Space(7.5)).Padding(0, t.Space(2.5)).Radius(t.Space(3.75))
+		MinHeight(max(36, t.Space(9))).Padding(0, t.Space(3.5)).Radius(tokens.RadiusSM)
 	button.Border(1, tokens.AccentEdgeStrong)
 	button = a.accentPrimaryFace(c, button, disabled)
 	button.Children(func() {
-		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(t.AccentText)
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(400).TextColor(t.AccentText)
 	})
 	return button
 }
@@ -768,7 +702,7 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).Label(label).
-		Size(t.Space(7.5), t.Space(7.5)).
+		Size(max(36, t.Space(9)), max(36, t.Space(9))).
 		Border(1, ui.Transparent).
 		Radius(tokens.RadiusSM).
 		Background(ui.Transparent).
@@ -800,7 +734,7 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 		tokens.LitFace(button)
 	}
 	button.Children(func() {
-		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
+		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(4.5), t.Space(4.5)).TextColor(ink)
 	})
 	return button
 }
@@ -816,8 +750,8 @@ func (a *App) extensionGlyphActionButton(c *ui.Context, glyphName, label string,
 	button, ink := a.extensionActionFace(c, height, radius, disabled)
 	button.Gap(t.Space(1.25))
 	button.Children(func() {
-		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
-		ui.Text(c, label).FontSize(fontSize).FontWeight(600).TextColor(ink)
+		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(4.5), t.Space(4.5)).TextColor(ink)
+		ui.Text(c, label).FontSize(fontSize).FontWeight(400).TextColor(ink)
 	})
 	return button
 }
@@ -845,7 +779,7 @@ func (a *App) actionSpinner(c *ui.Context, ink ui.Color, key string) {
 	// 4px 时，即使补了 glyph 也还差 4px。`busySwitchControl` 的轨道是 9u×5u
 	// （36×20px），14px 的环在里面仍居中，不越界。
 	icon := ui.Icon(c, mustGlyph("loader-circle")).
-		Size(t.Space(3.5), t.Space(3.5)).TextColor(ink).Shrink(0)
+		Size(t.Space(4.5), t.Space(4.5)).TextColor(ink).Shrink(0)
 	icon.Rotate(actionSpinnerTurn * motion.Value(c, func() float32 {
 		return icon.Loop(key, actionSpinnerPerTurn, ui.Linear)
 	}))
@@ -864,7 +798,7 @@ func (a *App) busyActionButton(c *ui.Context, label, key string) ui.Element {
 	button.Gap(t.Space(1.25))
 	button.Children(func() {
 		a.actionSpinner(c, ink, key)
-		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(ink)
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(400).TextColor(ink)
 	})
 	// `.extensions-action-button:disabled { opacity: 0.4; cursor: default;
 	// pointer-events: none }` (`extensions.css:1369-1373`): the framework's
@@ -1105,7 +1039,7 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 	tokens := a.tokens(c)
 	t := c.Theme()
 	button := ui.ButtonBase(c).Label(label).
-		Size(t.Space(7), t.Space(7)).Border(1, ui.Transparent).
+		Size(max(36, t.Space(9)), max(36, t.Space(9))).Border(1, ui.Transparent).
 		Radius(tokens.RadiusSM).Background(ui.Transparent).Center().
 		// P13-gv（`docs/liquid-glass.md` §6.169）：这一族的**每一枚**小格（30u 的
 		// `extensionIconButton`、28u 的 `paramIconButton`、页头的 `headerButton`、
@@ -1154,7 +1088,7 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 		}
 	}
 	button.Children(func() {
-		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
+		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(4.5), t.Space(4.5)).TextColor(ink)
 		if resumable {
 			// The micro-badge that marks a running-but-detached session as
 			// resumable (`.session-manager__resume-dot`): 5u in the button's own
@@ -1187,7 +1121,7 @@ func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run
 	tokens := a.tokens(c)
 	t := c.Theme()
 	pill := ui.ButtonBase(c).Label(label).
-		MinHeight(t.Space(7)).Padding(0, t.Space(2.25)).Radius(999).
+		MinHeight(max(36, t.Space(9))).Padding(0, t.Space(3)).Radius(tokens.RadiusSM).
 		Border(1, t.Warning).Background(tokens.RaisedWarm).
 		AlignItems(ui.Center).Center().Gap(t.Space(1.25)).
 		// P13-gv（§6.169）：同族的暖色面（电源确认带的 execute 键）与它上面那枚
@@ -1291,7 +1225,7 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 	return a.cardRow(c, align, lead, face, control, func() {
 		// The label is the emphasis step (580, strong) and the grey second line
 		// the body step (500, muted).
-		label := ui.Text(c, name.Text).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
+		label := ui.Text(c, name.Text).FontSize(tokens.Body).FontWeight(400).TextColor(tokens.TextStrong)
 		if name.Nowrap {
 			// P13-az：截断名的全名提示（§6.20 20-3）——文本锚点，不是按钮。
 			tokens.Tip(c, label.SingleLine().Ellipsis("\u2026"), name.Text)
@@ -1348,10 +1282,7 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 			// `rowlinecut_test.go`：文字列 233u、自然宽 511u 时尾端是低处的三个点，
 			// 533u 时尾端是真正的字形。**别**把它换成 `Clip()`——那是真的硬切，
 			// 而且会让整行折成三行。
-			size := t.FontSize
-			if sublabel.Mono {
-				size = tokens.Caption
-			}
+			size := tokens.Caption
 			color := t.TextMuted
 			switch sublabel.Ink {
 			case rowInkFact:
@@ -1359,10 +1290,10 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 			case rowInkWarning:
 				color = t.Warning
 			}
-			e := ui.Text(c, sublabel.Text).FontSize(size).FontWeight(500).
-				TextColor(color).SingleLine()
+			e := ui.Text(c, sublabel.Text).FontSize(size).FontWeight(400).
+				TextColor(color).MaxLines(2)
 			if sublabel.Mono {
-				e.Font(deepLinkValueFont)
+				e.Font(deepLinkValueFont).SingleLine()
 			}
 		}
 		if note != "" {
@@ -1423,7 +1354,7 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
 	a.cardRow(c, ui.Center, nil, rowFace{}, control, func() {
 		chip := ui.Box(c).FillWidth().MinWidth(0).Padding(t.Space(1), t.Space(2)).
 			Radius(tokens.RadiusXS).
-			Background(theme.FaceOver(tokens.Theme.Background, tokens.Sunken)).
+			Background(tokens.Sunken).
 			Border(1, tokens.ControlEdge)
 		chip.Children(func() {
 			text := ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
@@ -1505,6 +1436,9 @@ func (a *App) labelRow(c *ui.Context, label, sublabel string, below ...func()) {
 // and the inner keyline that goes with it. The zero value is a plain row — the
 // card's own plane, no rule, no keyline.
 type rowFace struct {
+	// WrapControls lets short choice rows keep a readable label column and
+	// move the control below it when the available width is too small.
+	WrapControls bool
 	// Custom shortcut rows need both their recorder/remove cluster and a
 	// command editor. Let only those trailing controls yield horizontal space.
 	FlexibleControls bool
@@ -1594,7 +1528,7 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		// The card's title row can wear the reference extension row's 66u
 		// floor (`.extension-row { min-height: var(--extensions-row-height) }`,
 		// `extensions.css:15-16,733-744`) while every row under it keeps the
-		// settings card's own 44u.
+		// shared settings row floor.
 		floor = a.cardTitleFloor
 	}
 	clicked := false
@@ -1604,11 +1538,11 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 			// the card's frame; drawn above so only the card's first row
 			// has none. A surface whose reference has no ruled rows (the
 			// run form's `.extension-run-params` grid) suppresses it.
-			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).
+			ui.Box(c).FillWidth().Height(1).Background(tokens.HairlineSoft).
 				MarginX(inset).Shrink(0)
 		}
 		// The row is the reference's own: a 12u gap and a 9u padding pair, over
-		// a floor of 44 (see rowFloorPx) or the step's own 44u, whichever is
+		// a 60px floor (see rowFloorPx) or the scaled floor, whichever is
 		// taller. It is split in two so the leading rule can run the row's whole
 		// height (the reference's `::before` spans `inset-block: 0`, padding
 		// included) while the content keeps its inset: the 1px slot plus the
@@ -1652,8 +1586,12 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 			if bar.A > 0 {
 				rule.Background(bar)
 			}
-			ui.Row(c).Grow(1).MinWidth(0).Gap(t.Space(3)).AlignItems(ui.Stretch).
-				Padding(t.Space(2.25), inset-1).Children(func() {
+			content := ui.Row(c).Grow(1).MinWidth(0).Gap(t.Space(3)).AlignItems(ui.Stretch).
+				Padding(t.Space(3), inset-1)
+			if face.WrapControls {
+				content.Wrap().AlignContent(ui.Start)
+			}
+			content.Children(func() {
 				if lead != nil {
 					// The leading mark keeps its own size and its own centre line: an
 					// icon never stretches (the framework's `stretches` skips icons), so
@@ -1668,6 +1606,9 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 				// row above it. Stretching the column puts every label on one origin; the
 				// control slot below keeps its own alignment.
 				names := ui.Column(c).Grow(1).MinWidth(0).Gap(a.rowLineGap())
+				if face.WrapControls {
+					names.Width(t.Space(34)).MinWidth(t.Space(34)).Justify(ui.Center)
+				}
 				if face.FlexibleControls {
 					names.MinWidth(t.Space(30))
 				}
@@ -1675,9 +1616,12 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 				if names.Clicked() {
 					clicked = true
 				}
-				controls := ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(align)
+				controls := ui.Row(c).Shrink(1).MinWidth(0).Wrap().Gap(t.Space(2)).AlignItems(align).AlignContent(align)
 				if face.FlexibleControls {
 					controls.Shrink(1).MinWidth(0)
+				}
+				if face.WrapControls {
+					controls.Shrink(0)
 				}
 				controls.Children(control)
 			})
@@ -1772,7 +1716,7 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 	a.cardRows++
 	ui.Column(c).FillWidth().Children(func() {
 		if !first {
-			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
+			ui.Box(c).FillWidth().Height(1).Background(tokens.HairlineSoft).MarginX(inset).Shrink(0)
 		}
 		// P13-ev（`docs/liquid-glass.md` §6.117）：这一列此前对**三对**都只问一个数
 		// ——`Gap(t.Space(1))`，于是「标题 → 它的解释」与「解释 → 控件」读同一条缝。
@@ -1780,16 +1724,16 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 		// 控件是**一件可以按的面**。前者取这一行自己的行内缝（`rowLineGap()`，与
 		// 每一条 trailing 行同值），后者抬一档（`Space(2)`）。
 		// Becoming the first row removes only the separator, not this body.
-		ui.Column(c.Key("stacked-row-body")).FillWidth().Gap(t.Space(2)).Padding(t.Space(2.25), inset).Children(func() {
+		ui.Column(c.Key("stacked-row-body")).FillWidth().Gap(t.Space(3)).Padding(t.Space(3), inset).Children(func() {
 			// The label and its grey line keep the same steps as any trailing
 			// row: the reference's `.settings-row__label` is `--text-emphasis`
 			// and `.settings-row__sublabel` is `--text-body` for both shapes
 			// (`settings.css:520-546`), and `SettingsRow` never demotes a
 			// stacked row (`SettingsRows.tsx:104-135`).
 			ui.Column(c).FillWidth().Gap(a.rowLineGap()).Children(func() {
-				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
+				ui.Text(c, label).FontSize(tokens.Body).FontWeight(400).TextColor(tokens.TextStrong)
 				if sublabel != "" {
-					ui.Text(c, sublabel).FontSize(t.FontSize).TextColor(t.TextMuted)
+					ui.Text(c, sublabel).FontSize(tokens.Caption).TextColor(t.TextMuted)
 				}
 			})
 			control()
@@ -1834,9 +1778,9 @@ func (a *App) actionRow(c *ui.Context, control func()) {
 	a.cardRows++
 	ui.Column(c).FillWidth().Children(func() {
 		if !first {
-			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
+			ui.Box(c).FillWidth().Height(1).Background(tokens.HairlineSoft).MarginX(inset).Shrink(0)
 		}
-		ui.Column(c).FillWidth().Padding(t.Space(2.25), inset).Children(control)
+		ui.Column(c).FillWidth().Padding(t.Space(3), inset).Children(control)
 	})
 }
 
@@ -1868,7 +1812,7 @@ func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked fu
 	t := c.Theme()
 	tokens := a.tokens(c)
 	disabled := len(unavailable) > 0 && unavailable[0]
-	row := ui.Row(c).Focusable().AlignItems(ui.Center).MinHeight(t.Space(6)).
+	row := ui.Row(c).Focusable().AlignItems(ui.Center).MinHeight(max(36, t.Space(9))).
 		Padding(0, t.Space(0.5)).Radius(tokens.RadiusXS)
 	if disabled {
 		row.Disabled(true).Cursor(ui.CursorDefault)

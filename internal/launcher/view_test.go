@@ -78,7 +78,7 @@ func designMetrics() (spacing, font, titleLine, subtitleLine float64) {
 		t := surface.Tokens
 		spacing = float64(t.Theme.Spacing)
 		font = float64(t.Theme.FontSize)
-		if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.Theme.FontSize + rowTitleStep}); height > 0 {
+		if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.Emphasis}); height > 0 {
 			titleLine = float64(height)
 		}
 		if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.Theme.FontSize}); height > 0 {
@@ -189,10 +189,13 @@ func TestLauncherShowsTheCatalogWithTheFieldFocused(t *testing.T) {
 	recentPage(a, 3) // P11-bk: the empty page's own block is the recents
 	tt := render(t, a)
 
-	for _, want := range []string{"Recent 00", "Recent 01", "Recent 02", "Recently launched", "Type to search", "Search"} {
+	for _, want := range []string{"Recent 00", "Recent 01", "Recent 02", "Recently launched", "Search"} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}
+	}
+	if tt.HasText(a.copy().Hint) {
+		t.Error("the empty search field repeats its placeholder as a trailing hint")
 	}
 	if !tt.Focused("Search") {
 		t.Errorf("the search field does not have the focus")

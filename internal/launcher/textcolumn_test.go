@@ -58,11 +58,11 @@ func TestTheTwoListsShareOneTextColumn(t *testing.T) {
 	// The pin above asks the two surfaces to agree; it cannot tell a column both
 	// of them drifted to. This one anchors the column they agree on to the
 	// reference's own arithmetic — the icon column plus the row's text gap,
-	// `16u + 28u + 10u = 54u` — converted at the shipped step (`Spacing/4`),
+	// `16u + 32u + 12u = 60u` — converted at the shipped step (`Spacing/4`),
 	// so the pin reads `48.6` on the ruler the app draws.
-	if got, want := tenths(float64(listTitle.X)), tenths(54*designUnit()); got != want {
-		t.Errorf("the shared text column is at x=%.1f, the reference puts it at %.1f (54u)",
-			listTitle.X, 54*designUnit())
+	if got, want := tenths(float64(listTitle.X)), tenths(60*designUnit()); got != want {
+		t.Errorf("the shared text column is at x=%.1f, the reference puts it at %.1f (60u)",
+			listTitle.X, 60*designUnit())
 	}
 	t.Logf("text column: list title %.1f / heading %.1f, output title %.1f / heading %.1f",
 		listTitle.X, listHeading.X, outputTitle.X, outputHeading.X)

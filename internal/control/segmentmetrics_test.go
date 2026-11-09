@@ -22,27 +22,13 @@ func renderMeasured(t *testing.T, labels []string, current int) (*ui.Tester, *ui
 	return tt, tokens.Theme
 }
 
-// TestTheSegmentBoxIsThirtyUnitsHigh pins the segment's own box to the
-// reference's `.settings-option` floor.
-//
-// The reference (`main:src/styles/settings.css:1045`) writes the segment as
-// `min-height: calc(var(--u) * 30)` — R43's tightened step — with
-// `padding: 0 calc(var(--u) * 9)` (`:1055`). The height is the *floor*, not
-// padding: a segment whose label is short is still one 30u box, so every
-// segment in a track lines up whatever it says.
-//
-// This build drew the segment with a vertical padding pair instead
-// (`Padding(Space(0.75), Space(2.25))`, no floor), which measured 22.4px at the
-// shipped interface step where the reference's 30u floor is 27px — a segment
-// roughly a sixth shorter than the one it copied, and one whose height moved
-// with the label's line box. Mutation check: drop `MinHeight` (or restore the
-// 0.75u vertical padding) and every assertion below goes red.
-func TestTheSegmentBoxIsThirtyUnitsHigh(t *testing.T) {
+// Every segment keeps a usable hit area, independent of its label or selection.
+func TestSegmentsKeepAComfortableHeight(t *testing.T) {
 	tt, theme := renderMeasured(t, []string{"Follow", "Long interface", "Tiny"}, 1)
 
-	want := theme.Space(7.5) // 30u, four units a `Space` step.
+	want := max(float32(36), theme.Space(9))
 	if want <= 0 {
-		t.Fatalf("the theme has no unit ladder: Space(7.5) = %.2f", want)
+		t.Fatalf("the theme has no unit ladder: Space(9) = %.2f", want)
 	}
 
 	var heights []float32
@@ -52,8 +38,8 @@ func TestTheSegmentBoxIsThirtyUnitsHigh(t *testing.T) {
 			t.Fatalf("the segment %q is missing: %q", label, tt.Texts())
 		}
 		heights = append(heights, rect.H)
-		if rect.H != want {
-			t.Errorf("the segment %q is %.2f high, want the reference's 30u = %.2f",
+		if abs(rect.H-want) > 0.01 {
+			t.Errorf("the segment %q is %.2f high, want the control floor %.2f",
 				label, rect.H, want)
 		}
 	}

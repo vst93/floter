@@ -118,7 +118,7 @@ func (a *App) triggerHintRoom(c *ui.Context, t *ui.Theme) float32 {
 	// row's inner width leaves after them — it is not counted itself, since this is
 	// the width it may take.
 	inner := width - 2*t.Space(4)
-	room := inner - (t.Space(7)+t.Space(2))*float32(1+buttons)
+	room := inner - t.Space(iconUnits+rowGapUnits) - t.Space(2) - (max(36, t.Space(9))+t.Space(2))*float32(1+buttons)
 	if cap := inner / 2; room > cap {
 		room = cap
 	}

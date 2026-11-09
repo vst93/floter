@@ -1477,7 +1477,7 @@ func (a *App) feedbackNote(c *ui.Context) {
 func (a *App) barButton(c *ui.Context, name, label, hint string, live bool, run func()) {
 	t := c.Theme()
 	tokens := tokensOf(a, c)
-	button := ui.Row(c).Focusable().Size(t.Space(7), t.Space(7)).Shrink(0).
+	button := ui.Row(c).Focusable().Size(max(36, t.Space(9)), max(36, t.Space(9))).Shrink(0).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
 	if live {
 		// P13-ax：提示不是框架那枚白片子，是 E2 浮（`theme.Tokens.Tip`）。
@@ -1546,7 +1546,7 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, live bool, run 
 // floored at it, and the panel's notices hang from its lower edge. Three
 // readers, one number — a second spelling of it is how the failure note ends up
 // half a step off the bar it is docked to (P11-bg).
-func barHeight(t *ui.Theme) float32 { return t.Space(7) }
+func barHeight(t *ui.Theme) float32 { return max(40, t.Space(10)) }
 
 func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()

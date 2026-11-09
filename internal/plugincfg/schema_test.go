@@ -200,19 +200,18 @@ func TestTheShippedValuesAlreadyFitTheSchema(t *testing.T) {
 	}
 }
 
-// The overlay's budget is the old build's: `result-budget.ts` charged a
+// The overlay budgets a
 // header, a padding pair, a heading per titled section, a gap between
 // sections, and one row per field at the worst case for its kind.
-func TestContentUnitsMatchTheOldBudget(t *testing.T) {
+func TestContentUnitsBudgetComfortableControls(t *testing.T) {
 	clipboard, _ := Clipboard(copyFor("en"), settings.DefaultClipboardSettings())
-	// 28 header + 16 padding + 49 toggle + 73 slider + 49 action.
-	if got := clipboard.ContentUnits(); got != 215 {
-		t.Errorf("clipboard content = %v units, want 215", got)
+	// Header and breathing room, then toggle, slider and action rows.
+	if got := clipboard.ContentUnits(); got != 304 {
+		t.Errorf("clipboard content = %v units, want 304", got)
 	}
 	browser, _ := Browser(copyFor("en"), settings.DefaultBrowserPlugin(), nil)
-	// 28 + 16 + 4 headings × 25 + 3 gaps × 12
-	//   + 49 + 49 + 85 + 49 + 91 + 91 + 49 + 49.
-	want := 28.0 + 16 + 4*25 + 3*12 + 49 + 49 + 85 + 49 + 91 + 91 + 49 + 49
+	// Four sections with trailing, stacked text and segmented controls.
+	want := 28.0 + 36 + 4*36 + 3*28 + 72 + 72 + 112 + 72 + 116 + 116 + 72 + 72
 	if got := browser.ContentUnits(); got != want {
 		t.Errorf("browser content = %v units, want %v", got, want)
 	}

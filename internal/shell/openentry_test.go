@@ -100,9 +100,9 @@ func TestTheWindowKeepsItsMaterialOnTheOffStop(t *testing.T) {
 		{"windows", "regular", mygo.VibrancyAcrylic},
 		{"windows", "liquid", mygo.VibrancyAcrylic},
 		{"darwin", "off", mygo.VibrancyNone},
-		{"darwin", "regular", mygo.VibrancyUnderWindow},
+		{"darwin", "regular", mygo.VibrancyGlassClear},
 		{"darwin", "frosted", mygo.VibrancyUnderPage},
-		{"darwin", "liquid", mygo.VibrancySidebar},
+		{"darwin", "liquid", mygo.VibrancyGlassClear},
 		{"linux", "off", mygo.VibrancyNone},
 		{"linux", "regular", mygo.VibrancyNone},
 	}

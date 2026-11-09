@@ -42,7 +42,8 @@ func TestTheFooterIsPricedOutsideTheBudgetOnTheWindowToo(t *testing.T) {
 		}.Height()
 	}
 	resultsOnly := geometry(budget) // ten results, no footer
-	want := resultsOnly + int(float64(a.Launcher.Spacing)*11.25)
+	// 48px result row + 3px breathing room + 2px shell tail.
+	want := resultsOnly + int(float64(a.Launcher.Spacing)*13.25)
 	// One pixel of slack: each height rounds once, and the two roundings can
 	// land either side of the same half.
 	if got := a.launcherTarget; got < want-1 || got > want+1 {

@@ -114,7 +114,8 @@ func TestEnterOnUnchangedTextDoesNotWrite(t *testing.T) {
 	if len(changes) != 0 {
 		t.Fatalf("Enter on an unchanged field wrote it: %v", changes)
 	}
-	// A real edit still goes through.
+	// Append explicitly: a pointer click may place the caret inside the value.
+	tt.Key(0, ui.KeyEnd)
 	tt.Type("/next")
 	tt.Frame()
 	tt.Key(0, ui.KeyEnter)

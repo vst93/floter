@@ -1,7 +1,6 @@
 package launcher
 
 import (
-	"math"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -147,13 +146,9 @@ func TestTriggerHintFits(t *testing.T) {
 	if !ok {
 		t.Fatalf("the nudge is missing at 240px: %q", wide.Texts())
 	}
-	// The row squeezed the nudge to its own leftover, and it is one line:
-	// the formula and the layout agree. 盒是 painter 的格子，不是公式的浮点
-	// （P13-du）：`room` 是布局算出来的 105.6，画出来的盒是 105——同一格，
-	// 向下取整到整像素。
-	if got, want := tenths(float64(box.W)), tenths(math.Floor(float64(room))); got != want {
-		t.Errorf("the nudge's box = %v, want the row's room %v on the painter's pixel grid (%v)",
-			box.W, room, math.Floor(float64(room)))
+	// Layout preserves fractional coordinates; compare within a tenth of a pixel.
+	if got, want := tenths(float64(box.W)), tenths(float64(room)); got != want {
+		t.Errorf("the nudge's box = %v, want the row's room %v", box.W, room)
 	}
 	if box.H > line {
 		t.Errorf("the nudge wrapped instead of ellipsising: %v, one line is %v", box.H, line)

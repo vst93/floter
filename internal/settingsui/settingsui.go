@@ -1304,7 +1304,7 @@ func (a *App) View(c *ui.Context) {
 	ui.Column(c).Fill().Children(func() {
 		ui.Row(c).FillWidth().Height(t.Space(launcher.FieldRowUnits)).Padding(0, t.Space(4)).
 			Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, copy.Title).FontSize(a.tokens(c).Title).FontWeight(600).
+			ui.Text(c, copy.Title).FontSize(a.tokens(c).Emphasis).FontWeight(500).
 				TextColor(a.tokens(c).TextStrong)
 			if version := strings.TrimSpace(a.About.Version); version != "" {
 				ui.Text(c, "v"+version).FontSize(t.FontSize).TextColor(t.TextMuted)
@@ -1322,7 +1322,7 @@ func (a *App) View(c *ui.Context) {
 					return
 				}
 				tokens := a.tokens(c)
-				button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+				button := ui.Row(c).Focusable().Shrink(0).Size(max(36, t.Space(9)), max(36, t.Space(9))).
 					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label).
 					Tooltip(hint)
 				if label == copy.Close {
@@ -1365,39 +1365,15 @@ func (a *App) View(c *ui.Context) {
 		// (`docs/raycast-design.md` §6.1): a 1px `HairlineSoft` rule, full width,
 		// with no fade — the same line the card's rows draw between themselves.
 		a.hairlineRule(c, false)
-		// The content pane carries its own fill (`.settings-card__body`'s
-		// `--surface-sunken`): the panel is a reading surface, more solid than
-		// the launcher. It is the **ground** of this surface — the cards that
-		// sit on it are the faces (liquid-glass.md §1).
-		//
-		// P13-bz：侧栏此前也戴着这层 `Sunken`。`Sunken` 是 0.17 的浅色**薄罩**，
-		// 压在窗口地上合成后只差 1 级（实测 dark `14→15`、light `247→246`）——
-		// 两栏于是落在**同一个 z 平面**上，唯一的分界是中间那根 1px 竖发丝线，
-		// 正是用户说的「所有东西挤在同一个 z 平面上，靠 1px 描边分家」。
-		// 侧栏改成**面**档（`Control`：dark 0.10 白 / light 0.07 黑），实测
-		// dark `14→39`（+25 级）、light `247→230`（−17 级）：交界处不再需要
-		// 那根线来分家，它退回成一条接缝。
-		//
-		// 这个面戴在**两栏的父行**上，不是侧栏那一列上：父行同时覆盖侧栏、两侧
-		// 各 11u 的列间距和那根竖发丝线，于是「铬」是一整块面，发丝线正好落在
-		// 面与内容的交界处（macOS 的设置面板就是这个形状：灰侧栏 | 1px 线 |
-		// 白纸）。若只把面戴在 148u 的侧栏列上，11u 的列间距会露出窗口地，
-		// 线就漂在两块地中间——一条没有落在任何东西上的线。
-		//
-		// 为什么侧栏不戴 `LitFace` 的冠线：E1 是「落在一个底上的块」，有上边
-		// 也有下边；侧栏是一列贴着窗口边的通高容器（上接页头发丝、下接窗口
-		// 下沿），给它画冠线就是给面板画框（§0 硬禁令 3 的那一族）。它的层级
-		// 由面差表达，§1 的第一条手段。
-		//
-		// The row *grows* into the space the header leaves instead of asking
-		// for 100% of the card: a `Fill` height resolves against the card, so
-		// the row kept the header's 57u below the window — the body scroller
-		// then believed it had that much more viewport than the user can see,
-		// and the last rows of every page sat below the card's bottom edge and
-		// could not be scrolled to (「设置页面的列表，无法滚动到底部」).
-		ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Gap(t.Space(3)).
-			Background(a.tokens(c).Control).Children(func() {
-			ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).
+		// Let the shell’s glass run through both columns. Grow only into the
+		// space left by the header, so the bottom of the page stays reachable.
+		ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Gap(0).Children(func() {
+			sidebarWidth := float32(152)
+			for i := range pageCount {
+				w, _ := c.MeasureText(0, ui.Span{Text: a.page(i).Title, Size: a.tokens(c).Body, Weight: 400})
+				sidebarWidth = max(sidebarWidth, float32(math.Ceil(float64(w)))+sidebarGlyphSize+t.Space(13.5)+2)
+			}
+			ui.Column(c).Width(sidebarWidth).Padding(t.Space(4), t.Space(2.5)).Gap(t.Space(1.5)).
 				Children(func() {
 					list := ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
 						a.sidebarRow(c, i)
@@ -1419,12 +1395,8 @@ func (a *App) View(c *ui.Context) {
 			// The sidebar's column separator is the same weak hairline, drawn
 			// vertically (same rule, §6.1).
 			a.hairlineRule(c, true)
-			// 内容页是**底**，不是面：它必须是不透明的（`Sunken` 是一层薄罩，
-			// 直接压在父行的面上会得到 `39→35` 的**倒退**，而不是今天这个 15）。
-			// `FaceOver(地, Sunken)` 与今天「地 + 薄罩」的合成值**逐像素相同**
-			// （15/246 不变），只是把它算成了不透明色——与 `sheetedge.go` 的
-			// `panelFace` 同一个函数、同一个理由。
-			ui.Column(c).Grow(1).Background(theme.FaceOver(a.tokens(c).Theme.Background, a.tokens(c).Sunken)).Children(func() {
+			// No fixed paper colour behind the content or its grouped rows.
+			ui.Column(c).Grow(1).Background(ui.Transparent).Children(func() {
 				a.body(c, copy)
 			})
 		})
@@ -1508,15 +1480,13 @@ func mustGlyph(name string) *ui.SVG {
 	return glyph
 }
 
-// sidebarRow builds one page entry: a leading mark, the page's name at weight
-// 580, and the chosen page on the row ladder's neutral chosen fill — the
-// sidebar's own selection, since the list is not asked to paint one.
+// sidebarRow uses a regular body label and a neutral selected background.
 func (a *App) sidebarRow(c *ui.Context, i int) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	selected := i == a.Page
-	row := ui.Row(c).FillWidth().MinHeight(t.Space(8.5)).
-		Padding(0, t.Space(2)).Gap(t.Space(2)).
+	row := ui.Row(c).FillWidth().MinHeight(max(40, t.Space(10))).
+		Padding(0, t.Space(3)).Gap(t.Space(2.5)).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).
 		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	if row.Pressed() {
@@ -1542,12 +1512,6 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		// 属于旧 glass 语言（§1 的低光泽上限）。accent 仍只留在前导图标上
 		// （§5 第 1 条）。
 		row.Background(tokens.RowSelected)
-		// P12-c（§6.2 第 2-2 行）：选中页是 **E1 面**。侧栏此前是一块平涂的
-		// `RowSelected`，与它脚下的 `Sunken` 底只差一档 alpha，读起来是「同一
-		// 个 z 平面上的一个色块」。`LitFace` 给它一条顶受光边和一条底对侧暗线
-		// ——同一个函数、同一对数值，与启动器的选中行（P12-b 的 §6.1 第 1-2 行）
-		// 一字不差：两块被选中的面在这个应用里是同一个材质。
-		row = tokens.LitFace(row)
 	} else if row.Hovered() {
 		// The pointer lights the ladder's hover rung, the same neutral family
 		// one step under the chosen page.
@@ -1567,18 +1531,13 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 	}
 	row.Children(func() {
 		if glyph, ok := pageGlyph(i); ok {
-			// The reference draws this mark at a *literal* 15, not in units
-			// (`App.tsx:2925`'s `<Icon size={15} strokeWidth={2}/>`), so it
-			// does not follow the interface-size step: the sidebar's five
-			// marks sit at 15px under every step, while every other icon in
-			// this app is `--u`-scaled. A `Space(4)` here tracked the step and
-			// left the mark at 14.4 even at the shipped default.
+			// Keep navigation glyphs at a consistent optical size.
 			icon := ui.Icon(c, glyph).Size(sidebarGlyphSize, sidebarGlyphSize).TextColor(color)
 			if selected {
 				icon.TextColor(t.Accent)
 			}
 		}
-		ui.Text(c, a.page(i).Title).FontSize(tokens.Emphasis).FontWeight(580).
+		ui.Text(c, a.page(i).Title).FontSize(tokens.Body).FontWeight(400).
 			TextColor(color).Ellipsis("\u2026").SingleLine()
 	})
 	if row.Clicked() {
@@ -1588,12 +1547,8 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 	}
 }
 
-// sidebarGlyphSize is the sidebar's leading mark size in DIPs, and it is a
-// constant on purpose: the reference writes `<Icon size={15}/>` in the JSX
-// (`main:src/App.tsx:2925`) so the five marks are 15px under every
-// interface-size step, unlike every other icon in the app, which is sized in
-// `--u`. It is the one place the port must *not* reach for the step.
-const sidebarGlyphSize float32 = 15
+// sidebarGlyphSize keeps the navigation marks legible at every scale.
+const sidebarGlyphSize float32 = 18
 
 // pageGlyph is the mark a settings page leads with: the exact lucide set the
 // reference's sidebar named (`main:src/App.tsx:2903-2908`),
@@ -1686,37 +1641,23 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	p := a.page(a.Page)
 	t := c.Theme()
 
-	// The scroller reserves the scroll edge's own height, so the resting state
-	// sits below the band and only content that actually scrolls passes
-	// through it.
-	edge := t.Space(4)
-	// P13-fv（`docs/liquid-glass.md` §6.141）：软边要淡向**它脚下的面**，不是窗口地。
-	//
-	// 这块滚动区坐在 `FaceOver(地, Sunken)` 上（见 `View` 里那层 `ui.Column`），
-	// 而两端的 `glass.ScrollEdge` 此前拿的是 `t.Background` —— 窗口地本身。浅色实测：
-	// 面 246、地 255，于是滚到底时那 16px 被**提亮**成 246→253（最深 253，比脚下高
-	// 7 级），页尾凭空多出一条白雾带；反过来，淡向 255 的那一帧里，内容也被推向一个
-	// 它从没坐过的颜色。同族的另外四处（`sheetedge.go`、`config.go:932`、
-	// `pluginsheet.go:172`、`terminalui/drawer.go:160`）早就按「面」给色，只有设置页
-	// 正文这一处给的是地。
-	face := theme.FaceOver(a.tokens(c).Theme.Background, a.tokens(c).Sunken)
+	// Content breathes inside the scroll viewport without an opaque edge wash.
+	pageInset := t.Space(6)
 	ui.Column(c).Fill().Children(func() {
 		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
-			Padding(edge, 0, t.Space(6), 0).Children(func() {
+			Padding(pageInset, 0, pageInset, 0).Children(func() {
 			// The horizontal inset lives on the content column, not on the
 			// scroller, so the scrollbar still hugs the panel's edge
 			// (`.settings-content > *`).
-			ui.Column(c).FillWidth().Padding(0, t.Space(4.5)).Gap(t.Space(5.5)).Children(func() {
+			ui.Column(c).FillWidth().Padding(0, t.Space(6)).Gap(t.Space(6)).Children(func() {
 				// The write-failure banner sits above the page's own header, so a
 				// refused change is the first thing the user reads.
 				a.saveAlert(c, copy)
-				// The page's own registers: the title at the display step (650)
-				// and the one-line hint at the body step (500), as
-				// `.settings-page__title` / `__subtitle` had them.
-				ui.Column(c).FillWidth().Gap(t.Space(0.75)).Children(func() {
-					ui.Text(c, p.Title).FontSize(a.tokens(c).Display).FontWeight(650).TextColor(t.Text)
+				// A restrained page heading above the smaller supporting copy.
+				ui.Column(c).FillWidth().Gap(t.Space(1.5)).Children(func() {
+					ui.Text(c, p.Title).FontSize(a.tokens(c).Search).FontWeight(600).TextColor(t.Text)
 					if p.Hint != "" {
-						ui.Text(c, p.Hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+						ui.Text(c, p.Hint).FontSize(a.tokens(c).Caption).FontWeight(400).TextColor(t.TextMuted)
 					}
 				})
 				// P13-by · 正文跟标题说同一页。
@@ -1748,20 +1689,6 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 				}
 			})
 		})
-		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
-			Material(glass.ScrollEdge{Background: face})
-		// P13-as（`docs/liquid-glass.md` §6.16）：满态的下沿与上沿是**同一道**边。
-		//
-		// 只画上沿时，一页比窗口长的内容在窗口最后一行像素上被水平切断
-		// （实测 720×580 的 General 页滚到 Y=330 时，y=579 那一行仍是满对比的字：
-		// luma 27 对面板 246，展开 219）。启动器的满态早有折边（§6.1 表 1-10：
-		// 墨 = 可见高度 / 行高），这块自由滚动的面板是同一族里唯一还在刀切的表面。
-		//
-		// 这里不新增 padding：底部本来就是 6u，比边高 4u 大，滚到底时这道边落在
-		// 空白上（下面没有内容可淡），所以盒子、`MaxY`、内容位置逐像素不变——
-		// 变的是「快到底时那一行怎么退场」。
-		ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(edge).PassThrough().
-			Material(glass.ScrollEdge{Bottom: true, Background: face})
 	})
 }
 
@@ -2131,23 +2058,23 @@ func (a *App) basePluginCard(c *ui.Context, copy i18n.Settings, plugin basePlugi
 	// the two 1px borders are *inside* it: the row's own floor is the 64px
 	// interior. `MinHeight(Space(16))` is 64 at the panel's literal unit.
 	row := ui.Row(c).FillWidth().Gap(t.Space(4)).MinHeight(t.Space(16)).
-		AlignItems(ui.Start).Padding(t.Space(3), t.Space(3.5))
+		AlignItems(ui.Start).Padding(t.Space(3), t.Space(1))
 	row.Children(func() {
 		// The copy column: `min-width: 0`, a `flex column` with the
 		// reference's 3px gap. Its name and description wrap, as the
 		// reference's do (no `nowrap` here, unlike a settings row's sublabel).
 		main := ui.Column(c).Grow(1).MinWidth(0).Gap(t.Space(0.75))
 		main.Children(func() {
-			ui.Text(c, plugin.Name).FontSize(tokens.Title).LineHeight(1.5).
+			ui.Text(c, plugin.Name).FontSize(tokens.Body).FontWeight(500).LineHeight(1.5).
 				TextColor(tokens.TextStrong)
 			if plugin.Hint != "" {
-				ui.Text(c, plugin.Hint).FontSize(tokens.Emphasis).LineHeight(1.5).
+				ui.Text(c, plugin.Hint).FontSize(tokens.Caption).FontWeight(400).LineHeight(1.5).
 					TextColor(tokens.TextSecondary).Wrap()
 			}
 			if plugin.Privacy != "" {
 				// `.extensions-base-plugin__privacy` + `.settings-privacy-hint`:
 				// the body step in the warning ink, its own `2px 2px 0` padding.
-				ui.Text(c, plugin.Privacy).FontSize(tokens.Body).
+				ui.Text(c, plugin.Privacy).FontSize(tokens.Caption).FontWeight(400).
 					Padding(t.Space(0.5), t.Space(0.5), 0, t.Space(0.5)).
 					TextColor(t.Warning).Wrap()
 			}
@@ -2171,7 +2098,7 @@ func (a *App) basePluginCard(c *ui.Context, copy i18n.Settings, plugin basePlugi
 				// emphasis step, so it never out-shouts the plugin name
 				// beside it.
 				configure := a.extensionActionButton(c, copy.PluginConfigure,
-					t.Space(6), t.Space(3), tokens.Emphasis)
+					t.Space(9), tokens.RadiusSM, tokens.Body)
 				configure.Label(copy.PluginConfigure + " " + plugin.Name)
 				if configure.Clicked() {
 					a.Actions.OpenPluginConfig(plugin.ID)
@@ -4627,7 +4554,7 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(20.5)).MinHeight(t.Space(6.75)).
+	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(20.5)).MinHeight(max(36, t.Space(9))).
 		Padding(0, t.Space(2.5)).Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 		Background(tokens.Control).Border(1, tokens.ControlEdge).FocusRing(true).
 		// P13-gv（`docs/liquid-glass.md` §6.169）：录制钮的三个 rung 只换面，而它
@@ -4744,14 +4671,14 @@ func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
 // §6.2b-6), with the pointer refused. It is the one thing on the page the user
 // presses, so it is the page's whole accent budget (§5 第 2 条).
 //
-// P8-b 重定基线：`Radius(999)` 胶囊 → `RadiusSM`(8) 圆角矩形。accent 填充保留；
+// P8-b 重定基线：`Radius(a.tokens(c).RadiusSM)` 胶囊 → `RadiusSM`(8) 圆角矩形。accent 填充保留；
 // 合约的 CTA 是一个圆角按钮，不是药丸（§6.1 第 9 条），半径从半径梯上取字面值，
 // 不用 `Space()`——一个角不随 `--ui-scale` 走（§2）。
 func (a *App) updateButton(c *ui.Context, label string, disabled bool, run func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	button := ui.ButtonBase(c).Label(label).
-		MinHeight(t.Space(7)).Padding(t.Space(1.5), t.Space(3.5)).Radius(tokens.RadiusSM)
+		MinHeight(max(36, t.Space(9))).Padding(t.Space(1.5), t.Space(3.5)).Radius(tokens.RadiusSM)
 	// P13-bc：面、边、冠线与按下几何走 accent 主 CTA 的同一处定义
 	// (`accentPrimaryFace`)。这里此前是 `if Hovered() { .Opacity(0.9) }`——淡的是
 	// **整棵子树**（面 + 冠线 + 墨），于是「可以被碰」的那条线在指针落上去的那一刻
@@ -4875,7 +4802,7 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 				// 三通道，1 级 = 3）；链接墨 `165 / 140` 不动（色号没动），名字盒 `18 → 15`
 				// （caption 的行盒），行内容高度由链接自己维持 17。
 				a.cardRow(c, ui.Center, nil, rowFace{}, func() {
-					ui.Link(c, about.RepoURL, about.RepoURL).FontSize(tokens.Emphasis).FontWeight(580)
+					ui.Link(c, about.RepoURL, about.RepoURL).FontSize(tokens.Body).FontWeight(400)
 				}, func() {
 					a.factName(c, copy.AboutProject)
 				})
@@ -4995,7 +4922,7 @@ func (a *App) keyValue(c *ui.Context, label, value string) {
 		return
 	}
 	a.cardRow(c, ui.Center, nil, rowFace{Inert: true}, func() {
-		ui.Text(c, value).FontSize(tokens.Emphasis).FontWeight(580).
+		ui.Text(c, value).FontSize(tokens.Body).FontWeight(400).
 			TextColor(tokens.TextStrong).Selectable()
 	}, func() {
 		a.factName(c, label)
@@ -5248,11 +5175,7 @@ func (a *App) pick(c *ui.Context, label, description string, options []i18n.Opti
 	a.pickWith(c, a.segmented, label, description, options, current, apply)
 }
 
-// glassPick is `pick` for the material picker alone. The reference draws that
-// one track with `.glass-intensity__segments` (`main:src/styles/settings.css:
-// 792-799`) — labels centered because a glass stop is a *choice*, where every
-// other segmented row is a row of labels read left to right — so it routes
-// through `SegmentedGlassFill` instead of the base form.
+// glassPick shares the short-choice layout with the other settings.
 func (a *App) glassPick(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string)) {
 	a.pickWith(c, a.glassSegmented, label, description, options, current, apply)
 }
@@ -5265,14 +5188,26 @@ func (a *App) pickWith(c *ui.Context, draw func(*ui.Context, []string, int, func
 	for i, option := range options {
 		labels[i] = option.Label
 	}
+	// Allow enough width for every translated label plus the shared control's
+	// inset, borders and gaps. The row wraps this whole group when necessary.
+	t := c.Theme()
+	choiceWidth := float32(2) + t.Space(1) + t.Space(0.5)*float32(max(0, len(labels)-1))
+	for _, label := range labels {
+		w, _ := c.MeasureText(0, ui.Span{Text: label, Size: a.tokens(c).Body, Weight: 400})
+		choiceWidth += float32(math.Ceil(float64(w))) + t.Space(4) + 2
+	}
+	choiceWidth = max(200, t.Space(55), choiceWidth)
 	chosen := ""
-	a.stackedRow(c, label, description, func() {
-		draw(c, labels, index, func(i int) {
-			if i >= 0 && i < len(options) {
-				chosen = options[i].ID
-			}
+	a.rowAligned(c, ui.Center, nil, rowFace{WrapControls: true}, label,
+		[]rowLine{{Text: description}}, "", func() {
+			ui.Column(c).Width(choiceWidth).Shrink(0).Children(func() {
+				draw(c, labels, index, func(i int) {
+					if i >= 0 && i < len(options) {
+						chosen = options[i].ID
+					}
+				})
+			})
 		})
-	})
 	if chosen != "" {
 		apply(chosen)
 	}
@@ -5347,17 +5282,11 @@ func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, lab
 		values = ids[0]
 	}
 	enabled := len(values) > 0
-	e := valueSelect(c, selected, labels, values, *selected, a.tokens(c), enabled).Label(label).Radius(999)
+	e := valueSelect(c, selected, labels, values, *selected, a.tokens(c), enabled).Label(label).Radius(a.tokens(c).RadiusSM)
+	// Keep long font names within the row and let their labels ellipsize.
+	e = e.Width(220).MinWidth(0).Shrink(1)
 	if a.cardUnit > 0 {
-		e = e.Width(220).MinHeight(28).Padding(4, 8)
-	} else {
-		// 220 是参考的 `max-width`（settings.css:919-940），读成控制列自己的
-		// 宽度——但它是**地板**不是上限。picker 显示的值是设置文件或插件写进来
-		// 的任意字符串：此前这个盒子是字面 220，值比它长就被 `SingleLine` 用省
-		// 略号切掉（实测 39 字的族名在出厂台阶上从第 189 列起被改画）。标签列
-		// 是弹性的、且留着 ≥2× 自己的墨，所以长值借它的地，行仍然是一行
-		// （P13-fn，§6.133）。
-		e = e.MinWidth(220)
+		e = e.MinHeight(36).Padding(7, 12)
 	}
 	return a.fieldFace(c, e, enabled)
 }
@@ -5395,7 +5324,7 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 			// 落在 x=808，720 宽的窗口里已经画不出来了）。`Shrink(1)` 让它先借标签列
 			// 的地、借完了就在自己的盒子边收口（框架的省略号），预览块一个像素不挪。
 			e := a.fieldFace(c, valueSelect(c, &selected, labels, values, fallback, a.tokens(c), len(labels) > 0).
-				Label(copy.Palette).MinWidth(220).Shrink(1).Radius(999), true)
+				Label(copy.Palette).MinWidth(220).Shrink(1).Radius(a.tokens(c).RadiusSM), true)
 			if e.Changed() {
 				chosen = selected
 			}
@@ -5473,7 +5402,7 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 				// emphasis step (`.settings-row__label`), the readout the body step
 				// (`.terminal-setting-control__value`).
 				ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-					ui.Text(c, row.label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
+					ui.Text(c, row.label).FontSize(tokens.Body).FontWeight(400).TextColor(tokens.TextStrong)
 					// P13-bf（`docs/liquid-glass.md` §6.25）：这个读数**退了**，但只在
 					// 禁用那一档。§1 的「槽」读法是「整块退一半、内线各留一半」——轨道
 					// 已经退了（实测浅色 209 → 219、深色 58 → 49），可这个数字与行名
@@ -5487,7 +5416,7 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 						ContentTransition(ui.ContentTransition{Numeric: true})
 				})
 				if row.description != "" {
-					ui.Text(c, row.description).FontSize(t.FontSize).TextColor(t.TextMuted)
+					ui.Text(c, row.description).FontSize(tokens.Caption).TextColor(t.TextMuted)
 				}
 			})
 			// The track and the two words that name its ends are one object: the
@@ -5758,7 +5687,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	a.row(c, copy.SurfaceResidency, copy.SurfaceResidencyHint, func() {
 		e := a.fieldFace(c, valueSelect(c, &selected, labels, choices, selected, a.tokens(c), true, strconv.FormatUint(uint64(value), 10)).
-			Label(copy.SurfaceResidency).Width(200).Radius(999), true)
+			Label(copy.SurfaceResidency).Width(200).Radius(a.tokens(c).RadiusSM), true)
 		if e.Changed() {
 			a.residencyChoice(selected, value)
 		}
@@ -6460,7 +6389,7 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) bo
 }
 
 // contentActionFloor is the width a copy pill keeps across its two states: the
-// wider of the resting label and the confirmation, plus the pill's own 10u of
+// wider of the resting label and the confirmation, plus the button’s 14u of
 // side padding on each side (`.extensions-action-button`, `extensions.css:1313`).
 // Measured rather than guessed, because both strings are localized and the pair
 // order flips between languages ("Copy script"/"Script copied" is 11/13, the
@@ -6479,7 +6408,7 @@ func (a *App) contentActionFloor(c *ui.Context, labels ...string) float32 {
 	// the glyphs land (`MeasureText` says 71.x for a run that lays out 72 wide),
 	// and a floor one hair under the wider word would let the row move again by
 	// that hair — measured: +1 still moved the export pill by exactly 1px.
-	return float32(math.Ceil(float64(widest))) + 2*t.Space(2.5) + 2
+	return float32(math.Ceil(float64(widest))) + 2*t.Space(3.5) + 2
 }
 
 // copiedContentDuration is how long a content action's button keeps its
@@ -8356,23 +8285,9 @@ const runOutputFont = "SF Mono, Menlo, Monaco, Consolas, monospace"
 // read it without guessing at a composite.
 func runOutputFace(tokens theme.Tokens) ui.Color { return tokens.Sunken }
 
-// runOutputEdgeFace is the colour the block's scroll edges lay down: its own
-// face, composited opaque.
-//
-// 为什么不直接用 `runOutputFace`：`Sunken` 是一层**薄罩**（跟随透明度滑块的
-// `glassmap.Spec.ContentAlpha`），而 `ui.Color.Alpha` 是**乘**——把它交给
-// `glass.ScrollEdge`，那道 0.85 会被它自己的 0.17 乘成 0.14，边淡了个寂寞
-// （实测：视口第一行仍读到最内那一带的 90%，跟不改一样）。
-//
-// 为什么要叠三层：这块凹槽的面不是一个字面值，而是一整条链——窗口地 → 设置体
-// 面板（`Sunken`）→ 扩展卡（`Control`，一层 0.07 的黑色罩）→ 凹槽自己
-// （`Sunken`）。只把 `Control` 与 `Sunken` 混在一起会得到近黑（实测 41），只混
-// `Background` 与 `Sunken` 又太白（246）。按顺序压完整条链的不透明结果才是这块
-// 凹槽真正看上去的面。剩几级的差（实测浅 4 / 深 7）来自窗口本身是半透明的：
-// 桌面透过来多少，代码这里拿不到，所以边只能对齐到这条链，不再往下猜。
+// runOutputEdgeFace retains the alpha of the output surface.
 func runOutputEdgeFace(tokens theme.Tokens, t *ui.Theme) ui.Color {
-	pane := theme.FaceOver(t.Background, runOutputFace(tokens))
-	return theme.FaceOver(theme.FaceOver(pane, tokens.Control), runOutputFace(tokens))
+	return runOutputFace(tokens)
 }
 
 // runOutput is the last background run's captured output, drawn as the
@@ -8564,7 +8479,7 @@ func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
 		outputFocusOutlet(c.Key("run-output-toggle-outlet"), func() {
 			ink := tokens.TextTertiary
 			button := ui.ButtonBase(c.Key("run-output-toggle")).Label(copy.RunViewOutput).FillWidth().
-				MinHeight(t.Space(7)).Gap(t.Space(1)).Padding(0, t.Space(2)).
+				MinHeight(max(36, t.Space(9))).Gap(t.Space(1)).Padding(0, t.Space(2)).
 				AlignItems(ui.Center).Justify(ui.Start).
 				Border(0, ui.Transparent).Radius(tokens.RadiusXS).
 				Background(ui.Transparent).
