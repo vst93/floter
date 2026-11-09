@@ -251,7 +251,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				})
 				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)
-					a.formFeedbackOutlet(c.Key("param-kind-outlet"), a.integrationLead, func() {
+					a.formFeedbackOutlet(c.Key("param-kind-outlet"), a.integrationLead+preceding, func() {
 						a.paramSelect(c, &kind, labels, copy.ParamsKind, paramKinds).Bind(&optionsFocus.source).Bind(&placeholderFocus.source)
 					})
 				})
@@ -274,7 +274,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 					})
 				})
 				a.paramField(c, "flag", copy.ParamsFlag, func() {
-					a.formFeedbackOutlet(c.Key("param-flag-outlet"), a.integrationLead, func() {
+					a.formFeedbackOutlet(c.Key("param-flag-outlet"), a.integrationLead+preceding, func() {
 						a.extensionField(c, &flag, customFieldMetrics).Bind(&refusal.flag).Label(copy.ParamsFlag).Placeholder("--target")
 					})
 				})

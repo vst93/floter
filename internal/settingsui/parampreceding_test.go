@@ -18,6 +18,9 @@ func TestParamPrecedingID(t *testing.T)    { checkParamPreceding(t, "id") }
 func TestParamPrecedingPlaceholder(t *testing.T) { checkParamPreceding(t, "placeholder") }
 func TestParamPrecedingDefault(t *testing.T)     { checkParamPreceding(t, "default") }
 
+func TestParamPrecedingFlag(t *testing.T) { checkParamPreceding(t, "flag") }
+func TestParamPrecedingKind(t *testing.T) { checkParamPreceding(t, "kind") }
+
 func checkParamPreceding(t *testing.T, field string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {
