@@ -1,0 +1,5 @@
+PASS gofmt            docs/rounds/P13-lf/logs/gofmt.log
+PASS vet-linux        docs/rounds/P13-lf/logs/vet-linux.log
+PASS vet-windows      docs/rounds/P13-lf/logs/vet-windows.log
+PASS vet-darwin       docs/rounds/P13-lf/logs/vet-darwin.log
+PASS test             docs/rounds/P13-lf/logs/test.log

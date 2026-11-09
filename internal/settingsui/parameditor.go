@@ -283,7 +283,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		// start and the remove key at the end (`:1880`).
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 			Gap(t.Space(2)).Children(func() {
-			a.formFeedbackOutlet(c.Key("param-required-outlet"), a.integrationLead, func() {
+			a.formFeedbackOutlet(c.Key("param-required-outlet"), a.integrationLead+preceding, func() {
 				a.paramRequiredToggle(c, copy, &required)
 			})
 			var remove ui.Element
@@ -301,7 +301,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 			ui.Column(c).FillWidth().Gap(t.Space(0.75)).Children(func() {
 				ui.Text(c, copy.ParamsOptions).FontSize(tokens.Caption).FontWeight(600).
 					TextColor(t.TextMuted)
-				a.formFeedbackOutlet(c.Key("param-options-outlet"), a.integrationLead, func() {
+				a.formFeedbackOutlet(c.Key("param-options-outlet"), a.integrationLead+preceding, func() {
 					box := a.editorDismissKeys(ui.TextArea(c, &options)).Bind(&optionsFocus.button).Bind(&refusal.options).Label(copy.ParamsOptions).
 						FillWidth().MinHeight(t.Space(paramEditorOptionsMin)).
 						Radius(tokens.RadiusSM).Font(paramEditorMono)

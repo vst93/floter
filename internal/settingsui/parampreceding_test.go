@@ -23,6 +23,9 @@ func TestParamPrecedingKind(t *testing.T) { checkParamPreceding(t, "kind") }
 
 func TestParamPrecedingRemove(t *testing.T) { checkParamPreceding(t, "remove") }
 
+func TestParamPrecedingRequired(t *testing.T) { checkParamPreceding(t, "required") }
+func TestParamPrecedingOptions(t *testing.T)  { checkParamPreceding(t, "options") }
+
 func checkParamPreceding(t *testing.T, field string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {
