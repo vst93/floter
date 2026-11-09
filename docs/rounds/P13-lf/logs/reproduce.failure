@@ -1,0 +1,3 @@
+    parampreceding_test.go:127: preceding refusal hides label: target={X:364.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding options hides label: target={X:364.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding refusal hides label: target={X:364.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}

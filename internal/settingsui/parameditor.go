@@ -3,6 +3,7 @@ package settingsui
 import (
 	"github.com/egoist/mygo/ui"
 	"strconv"
+	"strings"
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
@@ -166,6 +167,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	removed := -1
 	labels := make([]ui.Handle, len(a.toolParams))
 	fields := make([]ui.Handle, len(a.toolParams))
+	preceding := ""
 	ui.Column(c).FillWidth().Gap(t.Space(paramEditorPlateGap)).Children(func() {
 		for index := range a.toolParams {
 			index := index
@@ -173,8 +175,14 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 			if param.key == nil {
 				param.key = new(int)
 			}
-			if a.paramPlate(c.Key(param.key), copy, param, issues[index], &labels[index], &fields[index]) {
+			if a.paramPlate(c.Key(param.key), copy, param, issues[index], preceding, &labels[index], &fields[index]) {
 				removed = index
+			}
+			// Only earlier records can displace this record's editing outlet.
+			// Observe refusal text and multiline height, not unrelated drafts.
+			preceding += strconv.Quote(paramIssueMessage(copy, issues[index]))
+			if param.Kind == extensions.ParamSelect {
+				preceding += ":lines=" + strconv.Itoa(strings.Count(param.Options, "\n")) + ";"
 			}
 		}
 	})
@@ -203,7 +211,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 // paramPlate draws one parameter definition: the hairline record plate with its
 // fields grid, its controls line, the choice options and the row's refusal. It
 // reports whether the remove key was pressed this frame.
-func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, issue extensions.ParamRowIssue, labelFocus, fieldsFocus *ui.Handle) bool {
+func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, issue extensions.ParamRowIssue, preceding string, labelFocus, fieldsFocus *ui.Handle) bool {
 	// Each rendered record and its kind can change the height before other tools.
 	a.integrationLead += "local-param:" + strconv.Quote(param.Kind)
 	t := a.cardTheme(c)
@@ -232,12 +240,12 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		ui.Row(c).Bind(fieldsFocus).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(paramEditorPlateGap)).
 			Children(func() {
 				a.paramField(c, "label", copy.ParamsLabel, func() {
-					a.formFeedbackOutlet(c.Key("param-label-outlet"), a.integrationLead, func() {
+					a.formFeedbackOutlet(c.Key("param-label-outlet"), a.integrationLead+preceding, func() {
 						a.extensionField(c, &label, customFieldMetrics).Bind(labelFocus).Label(copy.ParamsLabel)
 					})
 				})
 				a.paramField(c, "id", copy.ParamsID, func() {
-					a.formFeedbackOutlet(c.Key("param-id-outlet"), a.integrationLead, func() {
+					a.formFeedbackOutlet(c.Key("param-id-outlet"), a.integrationLead+preceding, func() {
 						a.extensionField(c, &id, customFieldMetrics).Bind(&refusal.id).Label(copy.ParamsID).Placeholder("target")
 					})
 				})

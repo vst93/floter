@@ -1,0 +1,3 @@
+    parampreceding_test.go:153: outlet reveal trapped subsequent scrolling
+    parampreceding_test.go:153: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamPrecedingLabel (0.25s)

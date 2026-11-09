@@ -1,0 +1,3 @@
+    parampreceding_test.go:156: outlet reveal trapped subsequent scrolling
+    parampreceding_test.go:156: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamPrecedingPlaceholder (0.26s)
