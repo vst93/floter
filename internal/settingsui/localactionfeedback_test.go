@@ -18,6 +18,9 @@ func TestLocalActionFeedbackVersion(t *testing.T)  { checkLocalActionFeedback(t,
 func TestLocalActionFeedbackOutput(t *testing.T)   { checkLocalActionFeedback(t, "output") }
 func TestLocalActionFeedbackPlatform(t *testing.T) { checkLocalActionFeedback(t, "platform") }
 
+func TestLocalActionFeedbackSubmit(t *testing.T)     { checkLocalActionFeedback(t, "submit") }
+func TestLocalActionFeedbackPermission(t *testing.T) { checkLocalActionFeedback(t, "permission") }
+
 func checkLocalActionFeedback(t *testing.T, kind string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {

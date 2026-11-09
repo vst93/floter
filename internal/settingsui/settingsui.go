@@ -6145,7 +6145,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			action = copy.LocalToolSave
 		}
 		var submit ui.Element
-		outputFocusOutlet(c.Key("local-submit-outlet"), func() {
+		a.formFeedbackOutlet(c.Key("local-submit-outlet"), a.integrationLead, func() {
 			if a.toolEditing == "" && a.packageInstallBusy["custom"] {
 				submit = a.busyActionButton(c, action, "connect.custom")
 			} else {
@@ -6576,7 +6576,7 @@ func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
 		on := a.toolPermissions[permission]
 		label := i18n.PermissionLabel(a.settings().Language, permission)
 		labelClicked := a.row(c, label, "", func() {
-			outputFocusOutlet(c.Key("permission-outlet"), func() {
+			a.formFeedbackOutlet(c.Key("permission-outlet"), a.integrationLead, func() {
 				if a.switchControl(c, &on).Label(label).Changed() {
 					a.toolPermissions[permission] = on
 				}
