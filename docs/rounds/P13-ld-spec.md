@@ -13,12 +13,14 @@
 3. settingsui.go:6552，高级权限展开改变高度 → 记录实际权限披露。
 4. settingsui.go:5927，编辑ID固定行插入 → 记录实际显示的ID。
 5. parameditor.go:100，参数记录增撤 → 记录已绘制记录数量。
-6. parameditor.go:213，选择类型多出选项编辑器 → 记录已绘制类型。
+6. parameditor.go:205（本轮加import后206），选择类型多出选项编辑器 → 记录已绘制类型。
 7. settingsui.go:6287，字段拒绝说明增撤 → 记录实际可见拒绝文本。
 8. settingsui.go:6104，空平台提示增撤 → 记录实际提示。
 
+实施勘误：第2项模式切换修前7 PASS，自然通过，取消产品改动、不计修复；替换为settingsui.go:6733的异步工具链提示折行，Checking到较长版本结果前置高度变化。其余七项成立。
+
 跨运行与配置输入组件验证，每两项一批commit/push。高度链、键盘模型、会话管理、保存写回、i18n文案、命令接线不改；只补既有显现反馈。
 
-验证入口：bash tools/verify.sh P13-ld；批次和变异走同一入口--focused。完整门槛一次，失败最多复验一次。新测试需修前实红，旧B断言零改。M1删除展开/模式反馈，M2删除参数反馈，各自实红后还原、MD5、touch复验。仅代表状态深浅各一张修前/修后图。
+验证入口：bash tools/verify.sh P13-ld；批次和变异走同一入口--focused。完整门槛一次，失败最多复验一次。新测试需修前实红，旧B断言零改。M1删除展开反馈使TestLocalLayoutOpen变红，M2删除参数反馈使TestLocalLayoutParams/Kind变红，还原、MD5、touch复验。仅代表状态深浅各一张修前/修后图。
 
 skill：craft-loop第3项保留原焦点环3px，第4项沿用19px滚动显现（16px滚动边+3px环），第9项保留滚轮后0次重复显现；不以装饰凑工艺项。其余门禁及例外记录报告。
