@@ -232,12 +232,12 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		ui.Row(c).Bind(fieldsFocus).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(paramEditorPlateGap)).
 			Children(func() {
 				a.paramField(c, "label", copy.ParamsLabel, func() {
-					outputFocusOutlet(c.Key("param-label-outlet"), func() {
+					a.formFeedbackOutlet(c.Key("param-label-outlet"), a.integrationLead, func() {
 						a.extensionField(c, &label, customFieldMetrics).Bind(labelFocus).Label(copy.ParamsLabel)
 					})
 				})
 				a.paramField(c, "id", copy.ParamsID, func() {
-					outputFocusOutlet(c.Key("param-id-outlet"), func() {
+					a.formFeedbackOutlet(c.Key("param-id-outlet"), a.integrationLead, func() {
 						a.extensionField(c, &id, customFieldMetrics).Bind(&refusal.id).Label(copy.ParamsID).Placeholder("target")
 					})
 				})
@@ -251,7 +251,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				// value is its flag, so a field hint means nothing.
 				if kind != extensions.ParamBoolean {
 					a.paramField(c, "placeholder", copy.ParamsPlaceholder, func() {
-						outputFocusOutlet(c.Key("param-placeholder-outlet"), func() {
+						a.formFeedbackOutlet(c.Key("param-placeholder-outlet"), a.integrationLead, func() {
 							a.extensionField(c, &placeholder, customFieldMetrics).Bind(&placeholderFocus.button).Label(copy.ParamsPlaceholder)
 						})
 					})
@@ -261,12 +261,12 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 					}
 				}
 				a.paramField(c, "default", copy.ParamsDefault, func() {
-					outputFocusOutlet(c.Key("param-default-outlet"), func() {
+					a.formFeedbackOutlet(c.Key("param-default-outlet"), a.integrationLead, func() {
 						a.extensionField(c, &def, customFieldMetrics).Bind(&refusal.defaultValue).Label(copy.ParamsDefault)
 					})
 				})
 				a.paramField(c, "flag", copy.ParamsFlag, func() {
-					outputFocusOutlet(c.Key("param-flag-outlet"), func() {
+					a.formFeedbackOutlet(c.Key("param-flag-outlet"), a.integrationLead, func() {
 						a.extensionField(c, &flag, customFieldMetrics).Bind(&refusal.flag).Label(copy.ParamsFlag).Placeholder("--target")
 					})
 				})

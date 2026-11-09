@@ -13,6 +13,16 @@ import (
 
 func TestLocalOutletCommand(t *testing.T) { checkLocalOutletFeedback(t, "command") }
 func TestLocalOutletVersion(t *testing.T) { checkLocalOutletFeedback(t, "version") }
+func TestLocalOutletIdentity(t *testing.T) {
+	for _, field := range []string{"label", "id"} {
+		t.Run(field, func(t *testing.T) { checkLocalOutletFeedback(t, field) })
+	}
+}
+func TestLocalOutletValues(t *testing.T) {
+	for _, field := range []string{"placeholder", "default", "flag"} {
+		t.Run(field, func(t *testing.T) { checkLocalOutletFeedback(t, field) })
+	}
+}
 
 func checkLocalOutletFeedback(t *testing.T, field string) {
 	t.Helper()
