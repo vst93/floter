@@ -1,0 +1,8 @@
+stash@{1} forward=1
+stash@{2} forward=1
+stash@{3} forward=1
+stash@{4} forward=1
+stash@{5} forward=1
+stash@{6} forward=1
+stash@{7} forward=1
+stash@{8} forward=1

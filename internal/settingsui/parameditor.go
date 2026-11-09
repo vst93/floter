@@ -243,7 +243,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				})
 				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)
-					outputFocusOutlet(c.Key("param-kind-outlet"), func() {
+					a.formFeedbackOutlet(c.Key("param-kind-outlet"), a.integrationLead, func() {
 						a.paramSelect(c, &kind, labels, copy.ParamsKind, paramKinds).Bind(&optionsFocus.source).Bind(&placeholderFocus.source)
 					})
 				})

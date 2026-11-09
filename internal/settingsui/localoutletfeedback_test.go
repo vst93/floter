@@ -32,6 +32,7 @@ func TestLocalOutletList(t *testing.T) {
 	}
 }
 func TestLocalOutletOptions(t *testing.T) { checkLocalOutletFeedback(t, "options") }
+func TestLocalOutletKind(t *testing.T)    { checkLocalOutletFeedback(t, "kind") }
 
 func checkLocalOutletFeedback(t *testing.T, field string) {
 	t.Helper()
