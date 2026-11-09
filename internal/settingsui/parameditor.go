@@ -115,7 +115,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	heading.Children(func() {
 		ui.Text(c, copy.ParamsTitle).FontSize(tokens.Caption).FontWeight(600).
 			TextColor(t.TextMuted)
-		outputFocusOutlet(c.Key("param-add-outlet"), func() {
+		a.formFeedbackOutlet(c.Key("param-add-outlet"), a.integrationLead, func() {
 			add = a.paramIconButton(c, "plus", copy.ParamsAdd)
 		})
 		if add.Clicked() {
@@ -279,7 +279,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				a.paramRequiredToggle(c, copy, &required)
 			})
 			var remove ui.Element
-			outputFocusOutlet(c.Key("param-remove-outlet"), func() {
+			a.formFeedbackOutlet(c.Key("param-remove-outlet"), a.integrationLead, func() {
 				remove = a.paramIconButton(c, "close", copy.ParamsRemove)
 			})
 			if remove.Clicked() {
@@ -293,7 +293,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 			ui.Column(c).FillWidth().Gap(t.Space(0.75)).Children(func() {
 				ui.Text(c, copy.ParamsOptions).FontSize(tokens.Caption).FontWeight(600).
 					TextColor(t.TextMuted)
-				outputFocusOutlet(c.Key("param-options-outlet"), func() {
+				a.formFeedbackOutlet(c.Key("param-options-outlet"), a.integrationLead, func() {
 					box := a.editorDismissKeys(ui.TextArea(c, &options)).Bind(&optionsFocus.button).Bind(&refusal.options).Label(copy.ParamsOptions).
 						FillWidth().MinHeight(t.Space(paramEditorOptionsMin)).
 						Radius(tokens.RadiusSM).Font(paramEditorMono)

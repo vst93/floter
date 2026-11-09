@@ -26,6 +26,13 @@ func TestLocalOutletValues(t *testing.T) {
 	}
 }
 
+func TestLocalOutletList(t *testing.T) {
+	for _, field := range []string{"add", "remove"} {
+		t.Run(field, func(t *testing.T) { checkLocalOutletFeedback(t, field) })
+	}
+}
+func TestLocalOutletOptions(t *testing.T) { checkLocalOutletFeedback(t, "options") }
+
 func checkLocalOutletFeedback(t *testing.T, field string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {
