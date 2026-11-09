@@ -1,0 +1,3 @@
+    parampreceding_test.go:133: preceding options hides required: target={X:533.8 Y:493.49994 W:161 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:133: preceding options hides required: target={X:533.8 Y:493.49994 W:161 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:133: preceding options hides required: target={X:533.8 Y:221.69989 W:161 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}

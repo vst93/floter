@@ -21,6 +21,8 @@ func TestParamPrecedingDefault(t *testing.T)     { checkParamPreceding(t, "defau
 func TestParamPrecedingFlag(t *testing.T) { checkParamPreceding(t, "flag") }
 func TestParamPrecedingKind(t *testing.T) { checkParamPreceding(t, "kind") }
 
+func TestParamPrecedingRemove(t *testing.T) { checkParamPreceding(t, "remove") }
+
 func checkParamPreceding(t *testing.T, field string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {
@@ -36,17 +38,20 @@ func checkParamPreceding(t *testing.T, field string) {
 				copy := a.copy()
 				label := map[string]string{"label": copy.ParamsLabel, "id": copy.ParamsID,
 					"placeholder": copy.ParamsPlaceholder, "default": copy.ParamsDefault, "flag": copy.ParamsFlag,
-					"kind": copy.ParamsKind, "required": copy.ParamsRequired, "options": copy.ParamsOptions}[field]
+					"kind": copy.ParamsKind, "required": copy.ParamsRequired, "options": copy.ParamsOptions, "remove": copy.ParamsRemove}[field]
 				var viewport, control ui.Rect
 				focus := true
 				tt := toolVisibilityFrame(t, a, dark, func(c *ui.Context) {
 					viewport = c.Resolve(a.Body.Handle).Bounds()
+					if len(a.toolParams) < 2 {
+						return
+					}
 					targets := a.paramRefusalTargets(c, &a.toolParams[1])
 					handle := targets.id
 					switch field {
 					case "default":
 						handle = targets.defaultValue
-					case "flag", "required":
+					case "flag", "required", "remove":
 						handle = targets.flag
 					case "options":
 						handle = targets.options
@@ -62,11 +67,12 @@ func checkParamPreceding(t *testing.T, field string) {
 					tt.Key(ui.Shift, ui.KeyTab)
 				case "kind", "required":
 					tt.Key(0, ui.KeyTab)
-				case "placeholder":
+				case "placeholder", "remove":
 					tt.Key(0, ui.KeyTab)
 					tt.Key(0, ui.KeyTab)
 				}
 				tt.Frame()
+				var requiredHeight float32
 				bounds := func() ui.Rect {
 					r := control
 					switch field {
@@ -83,7 +89,20 @@ func checkParamPreceding(t *testing.T, field string) {
 						r.Y -= (30 - r.H) / 2
 						r.H = 30
 					case "required":
-						// The 28px controls row follows the last field by 6px.
+						// Both required toggles have the same label and measured
+						// height; the checkbox is centered in the 28px action row.
+						h := mustFind(t, tt, label).H
+						if h > 0 {
+							requiredHeight = h
+						}
+						// The first row can be culled after expanding its options.
+						h = requiredHeight
+						if h <= 0 {
+							t.Fatal("required checkbox was never measured")
+						}
+						r.Y += r.H + 6 + (28-h)/2
+						r.H = h
+					case "remove":
 						r.Y += r.H + 6
 						r.H = 28
 					}
@@ -130,6 +149,12 @@ func checkParamPreceding(t *testing.T, field string) {
 				}
 				first := a.toolParams[0]
 				switch field {
+				case "remove":
+					tt.Key(0, ui.KeyEnter)
+					tt.Frame()
+					if len(a.toolParams) != 1 {
+						t.Fatal("remove did not target second record")
+					}
 				case "kind":
 					tt.Key(0, ui.KeyDown)
 					tt.Key(0, ui.KeyEnd)

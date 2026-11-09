@@ -287,7 +287,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				a.paramRequiredToggle(c, copy, &required)
 			})
 			var remove ui.Element
-			a.formFeedbackOutlet(c.Key("param-remove-outlet"), a.integrationLead, func() {
+			a.formFeedbackOutlet(c.Key("param-remove-outlet"), a.integrationLead+preceding, func() {
 				remove = a.paramIconButton(c, "close", copy.ParamsRemove)
 			})
 			if remove.Clicked() {

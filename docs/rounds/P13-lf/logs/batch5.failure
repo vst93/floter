@@ -1,0 +1,3 @@
+--- FAIL: TestParamPrecedingRemove (0.09s)
+    --- FAIL: TestParamPrecedingRemove/light/refusal (0.09s)
+panic: runtime error: index out of range [1] with length 1 [recovered, repanicked]
