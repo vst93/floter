@@ -38,7 +38,11 @@ run() {
   else
     failed=$((failed + 1))
     printf 'FAIL %-16s %s | ' "$name" "$logs/$name.log"
-    head -n 3 "$logs/$name.log" | tr '\n' ' ' | head -c 180
+    # Verbose test logs start with RUN lines; show the actual diagnostics.
+    if ! grep -m 3 -E '(^|[[:space:]])(FAIL|--- FAIL|panic:|fatal error:)|:[0-9]+(:[0-9]+)?:' "$logs/$name.log" >"$logs/$name.failure"; then
+      head -n 3 "$logs/$name.log" >"$logs/$name.failure"
+    fi
+    tr '\n' ' ' <"$logs/$name.failure" | head -c 180
     printf '\n'
   fi
 }

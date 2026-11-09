@@ -1,0 +1,133 @@
+=== RUN   TestRecoveryLeadPermissions
+=== RUN   TestRecoveryLeadPermissions/local
+=== RUN   TestRecoveryLeadPermissions/local/light
+=== RUN   TestRecoveryLeadPermissions/local/light/keyboard
+=== RUN   TestRecoveryLeadPermissions/local/light/pointer
+=== RUN   TestRecoveryLeadPermissions/local/dark
+=== RUN   TestRecoveryLeadPermissions/local/dark/keyboard
+=== RUN   TestRecoveryLeadPermissions/local/dark/pointer
+=== RUN   TestRecoveryLeadPermissions/recommended
+=== RUN   TestRecoveryLeadPermissions/recommended/light
+=== RUN   TestRecoveryLeadPermissions/recommended/light/keyboard
+=== RUN   TestRecoveryLeadPermissions/recommended/light/pointer
+=== RUN   TestRecoveryLeadPermissions/recommended/dark
+=== RUN   TestRecoveryLeadPermissions/recommended/dark/keyboard
+=== RUN   TestRecoveryLeadPermissions/recommended/dark/pointer
+=== RUN   TestRecoveryLeadPermissions/detected
+=== RUN   TestRecoveryLeadPermissions/detected/light
+=== RUN   TestRecoveryLeadPermissions/detected/light/keyboard
+=== RUN   TestRecoveryLeadPermissions/detected/light/pointer
+=== RUN   TestRecoveryLeadPermissions/detected/dark
+=== RUN   TestRecoveryLeadPermissions/detected/dark/keyboard
+=== RUN   TestRecoveryLeadPermissions/detected/dark/pointer
+--- PASS: TestRecoveryLeadPermissions (0.65s)
+    --- PASS: TestRecoveryLeadPermissions/local (0.34s)
+        --- PASS: TestRecoveryLeadPermissions/local/light (0.26s)
+            --- PASS: TestRecoveryLeadPermissions/local/light/keyboard (0.21s)
+            --- PASS: TestRecoveryLeadPermissions/local/light/pointer (0.05s)
+        --- PASS: TestRecoveryLeadPermissions/local/dark (0.08s)
+            --- PASS: TestRecoveryLeadPermissions/local/dark/keyboard (0.04s)
+            --- PASS: TestRecoveryLeadPermissions/local/dark/pointer (0.05s)
+    --- PASS: TestRecoveryLeadPermissions/recommended (0.16s)
+        --- PASS: TestRecoveryLeadPermissions/recommended/light (0.08s)
+            --- PASS: TestRecoveryLeadPermissions/recommended/light/keyboard (0.04s)
+            --- PASS: TestRecoveryLeadPermissions/recommended/light/pointer (0.04s)
+        --- PASS: TestRecoveryLeadPermissions/recommended/dark (0.08s)
+            --- PASS: TestRecoveryLeadPermissions/recommended/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadPermissions/recommended/dark/pointer (0.04s)
+    --- PASS: TestRecoveryLeadPermissions/detected (0.15s)
+        --- PASS: TestRecoveryLeadPermissions/detected/light (0.08s)
+            --- PASS: TestRecoveryLeadPermissions/detected/light/keyboard (0.04s)
+            --- PASS: TestRecoveryLeadPermissions/detected/light/pointer (0.04s)
+        --- PASS: TestRecoveryLeadPermissions/detected/dark (0.07s)
+            --- PASS: TestRecoveryLeadPermissions/detected/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadPermissions/detected/dark/pointer (0.04s)
+=== RUN   TestRecoveryLeadSearch
+=== RUN   TestRecoveryLeadSearch/local
+=== RUN   TestRecoveryLeadSearch/local/light
+=== RUN   TestRecoveryLeadSearch/local/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:141: search switch did not change
+=== RUN   TestRecoveryLeadSearch/local/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+=== RUN   TestRecoveryLeadSearch/local/dark
+=== RUN   TestRecoveryLeadSearch/local/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:141: search switch did not change
+=== RUN   TestRecoveryLeadSearch/local/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:308.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+=== RUN   TestRecoveryLeadSearch/recommended
+=== RUN   TestRecoveryLeadSearch/recommended/light
+=== RUN   TestRecoveryLeadSearch/recommended/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:141: search switch did not change
+=== RUN   TestRecoveryLeadSearch/recommended/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+=== RUN   TestRecoveryLeadSearch/recommended/dark
+=== RUN   TestRecoveryLeadSearch/recommended/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:141: search switch did not change
+=== RUN   TestRecoveryLeadSearch/recommended/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:334.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+=== RUN   TestRecoveryLeadSearch/detected
+=== RUN   TestRecoveryLeadSearch/detected/light
+=== RUN   TestRecoveryLeadSearch/detected/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:141: search switch did not change
+=== RUN   TestRecoveryLeadSearch/detected/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+=== RUN   TestRecoveryLeadSearch/detected/dark
+=== RUN   TestRecoveryLeadSearch/detected/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:141: search switch did not change
+=== RUN   TestRecoveryLeadSearch/detected/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+    recoverylead_test.go:119: feedback reflow hides active outlet "Show PATH commands in search": target={X:201.8 Y:387.7 W:443.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=false
+--- FAIL: TestRecoveryLeadSearch (0.28s)
+    --- FAIL: TestRecoveryLeadSearch/local (0.09s)
+        --- FAIL: TestRecoveryLeadSearch/local/light (0.05s)
+            --- FAIL: TestRecoveryLeadSearch/local/light/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadSearch/local/light/pointer (0.03s)
+        --- FAIL: TestRecoveryLeadSearch/local/dark (0.05s)
+            --- FAIL: TestRecoveryLeadSearch/local/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadSearch/local/dark/pointer (0.03s)
+    --- FAIL: TestRecoveryLeadSearch/recommended (0.09s)
+        --- FAIL: TestRecoveryLeadSearch/recommended/light (0.05s)
+            --- FAIL: TestRecoveryLeadSearch/recommended/light/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadSearch/recommended/light/pointer (0.03s)
+        --- FAIL: TestRecoveryLeadSearch/recommended/dark (0.05s)
+            --- FAIL: TestRecoveryLeadSearch/recommended/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadSearch/recommended/dark/pointer (0.03s)
+    --- FAIL: TestRecoveryLeadSearch/detected (0.09s)
+        --- FAIL: TestRecoveryLeadSearch/detected/light (0.05s)
+            --- FAIL: TestRecoveryLeadSearch/detected/light/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadSearch/detected/light/pointer (0.02s)
+        --- FAIL: TestRecoveryLeadSearch/detected/dark (0.05s)
+            --- FAIL: TestRecoveryLeadSearch/detected/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadSearch/detected/dark/pointer (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.941s
+FAIL

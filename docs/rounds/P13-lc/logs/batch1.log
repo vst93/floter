@@ -1,0 +1,90 @@
+=== RUN   TestRecoveryLeadRecheck
+=== RUN   TestRecoveryLeadRecheck/local
+=== RUN   TestRecoveryLeadRecheck/local/light
+=== RUN   TestRecoveryLeadRecheck/local/light/keyboard
+=== RUN   TestRecoveryLeadRecheck/local/light/pointer
+=== RUN   TestRecoveryLeadRecheck/local/dark
+=== RUN   TestRecoveryLeadRecheck/local/dark/keyboard
+=== RUN   TestRecoveryLeadRecheck/local/dark/pointer
+=== RUN   TestRecoveryLeadRecheck/recommended
+=== RUN   TestRecoveryLeadRecheck/recommended/light
+=== RUN   TestRecoveryLeadRecheck/recommended/light/keyboard
+=== RUN   TestRecoveryLeadRecheck/recommended/light/pointer
+=== RUN   TestRecoveryLeadRecheck/recommended/dark
+=== RUN   TestRecoveryLeadRecheck/recommended/dark/keyboard
+=== RUN   TestRecoveryLeadRecheck/recommended/dark/pointer
+=== RUN   TestRecoveryLeadRecheck/detected
+=== RUN   TestRecoveryLeadRecheck/detected/light
+=== RUN   TestRecoveryLeadRecheck/detected/light/keyboard
+=== RUN   TestRecoveryLeadRecheck/detected/light/pointer
+=== RUN   TestRecoveryLeadRecheck/detected/dark
+=== RUN   TestRecoveryLeadRecheck/detected/dark/keyboard
+=== RUN   TestRecoveryLeadRecheck/detected/dark/pointer
+--- PASS: TestRecoveryLeadRecheck (0.85s)
+    --- PASS: TestRecoveryLeadRecheck/local (0.34s)
+        --- PASS: TestRecoveryLeadRecheck/local/light (0.22s)
+            --- PASS: TestRecoveryLeadRecheck/local/light/keyboard (0.13s)
+            --- PASS: TestRecoveryLeadRecheck/local/light/pointer (0.09s)
+        --- PASS: TestRecoveryLeadRecheck/local/dark (0.12s)
+            --- PASS: TestRecoveryLeadRecheck/local/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadRecheck/local/dark/pointer (0.09s)
+    --- PASS: TestRecoveryLeadRecheck/recommended (0.28s)
+        --- PASS: TestRecoveryLeadRecheck/recommended/light (0.14s)
+            --- PASS: TestRecoveryLeadRecheck/recommended/light/keyboard (0.05s)
+            --- PASS: TestRecoveryLeadRecheck/recommended/light/pointer (0.09s)
+        --- PASS: TestRecoveryLeadRecheck/recommended/dark (0.14s)
+            --- PASS: TestRecoveryLeadRecheck/recommended/dark/keyboard (0.05s)
+            --- PASS: TestRecoveryLeadRecheck/recommended/dark/pointer (0.09s)
+    --- PASS: TestRecoveryLeadRecheck/detected (0.24s)
+        --- PASS: TestRecoveryLeadRecheck/detected/light (0.12s)
+            --- PASS: TestRecoveryLeadRecheck/detected/light/keyboard (0.04s)
+            --- PASS: TestRecoveryLeadRecheck/detected/light/pointer (0.09s)
+        --- PASS: TestRecoveryLeadRecheck/detected/dark (0.12s)
+            --- PASS: TestRecoveryLeadRecheck/detected/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadRecheck/detected/dark/pointer (0.09s)
+=== RUN   TestRecoveryLeadReconnect
+=== RUN   TestRecoveryLeadReconnect/local
+=== RUN   TestRecoveryLeadReconnect/local/light
+=== RUN   TestRecoveryLeadReconnect/local/light/keyboard
+=== RUN   TestRecoveryLeadReconnect/local/light/pointer
+=== RUN   TestRecoveryLeadReconnect/local/dark
+=== RUN   TestRecoveryLeadReconnect/local/dark/keyboard
+=== RUN   TestRecoveryLeadReconnect/local/dark/pointer
+=== RUN   TestRecoveryLeadReconnect/recommended
+=== RUN   TestRecoveryLeadReconnect/recommended/light
+=== RUN   TestRecoveryLeadReconnect/recommended/light/keyboard
+=== RUN   TestRecoveryLeadReconnect/recommended/light/pointer
+=== RUN   TestRecoveryLeadReconnect/recommended/dark
+=== RUN   TestRecoveryLeadReconnect/recommended/dark/keyboard
+=== RUN   TestRecoveryLeadReconnect/recommended/dark/pointer
+=== RUN   TestRecoveryLeadReconnect/detected
+=== RUN   TestRecoveryLeadReconnect/detected/light
+=== RUN   TestRecoveryLeadReconnect/detected/light/keyboard
+=== RUN   TestRecoveryLeadReconnect/detected/light/pointer
+=== RUN   TestRecoveryLeadReconnect/detected/dark
+=== RUN   TestRecoveryLeadReconnect/detected/dark/keyboard
+=== RUN   TestRecoveryLeadReconnect/detected/dark/pointer
+--- PASS: TestRecoveryLeadReconnect (0.66s)
+    --- PASS: TestRecoveryLeadReconnect/local (0.21s)
+        --- PASS: TestRecoveryLeadReconnect/local/light (0.11s)
+            --- PASS: TestRecoveryLeadReconnect/local/light/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadReconnect/local/light/pointer (0.08s)
+        --- PASS: TestRecoveryLeadReconnect/local/dark (0.11s)
+            --- PASS: TestRecoveryLeadReconnect/local/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadReconnect/local/dark/pointer (0.08s)
+    --- PASS: TestRecoveryLeadReconnect/recommended (0.22s)
+        --- PASS: TestRecoveryLeadReconnect/recommended/light (0.11s)
+            --- PASS: TestRecoveryLeadReconnect/recommended/light/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadReconnect/recommended/light/pointer (0.08s)
+        --- PASS: TestRecoveryLeadReconnect/recommended/dark (0.11s)
+            --- PASS: TestRecoveryLeadReconnect/recommended/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadReconnect/recommended/dark/pointer (0.08s)
+    --- PASS: TestRecoveryLeadReconnect/detected (0.22s)
+        --- PASS: TestRecoveryLeadReconnect/detected/light (0.11s)
+            --- PASS: TestRecoveryLeadReconnect/detected/light/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadReconnect/detected/light/pointer (0.08s)
+        --- PASS: TestRecoveryLeadReconnect/detected/dark (0.11s)
+            --- PASS: TestRecoveryLeadReconnect/detected/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadReconnect/detected/dark/pointer (0.08s)
+PASS
+ok  	floter/internal/settingsui	1.522s

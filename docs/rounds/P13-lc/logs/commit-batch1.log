@@ -1,0 +1,19 @@
+[mygo-rewrite 3bd4ea4c] fix: 前置内容刷新后保持重新检查和重连可见(P13-lc)
+ 18 files changed, 2656 insertions(+), 5 deletions(-)
+ create mode 100644 docs/rounds/P13-lc-report.md
+ create mode 100644 docs/rounds/P13-lc-spec.md
+ create mode 100644 docs/rounds/P13-lc/logs/attempt1/batch1.exit
+ create mode 100644 docs/rounds/P13-lc/logs/attempt1/before-batch1.exit
+ create mode 100644 docs/rounds/P13-lc/logs/batch1.attempts
+ create mode 100644 docs/rounds/P13-lc/logs/batch1.exit
+ create mode 100644 docs/rounds/P13-lc/logs/before-batch1.attempts
+ create mode 100644 docs/rounds/P13-lc/logs/before-batch1.exit
+ create mode 100644 docs/rounds/P13-lc/logs/stash-1e3aec94.patch
+ create mode 100644 docs/rounds/P13-lc/logs/stash-363f5a42.patch
+ create mode 100644 docs/rounds/P13-lc/logs/stash-422483b4.patch
+ create mode 100644 docs/rounds/P13-lc/logs/stash-7a9f6e13.patch
+ create mode 100644 docs/rounds/P13-lc/logs/stash-7e4aa710.patch
+ create mode 100644 docs/rounds/P13-lc/logs/stash-8af94a07.patch
+ create mode 100644 docs/rounds/P13-lc/logs/stash-90d314b2.patch
+ create mode 100644 docs/rounds/P13-lc/logs/stash-9b8ce23c.patch
+ create mode 100644 internal/settingsui/recoverylead_test.go

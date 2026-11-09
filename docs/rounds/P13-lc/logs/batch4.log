@@ -1,0 +1,90 @@
+=== RUN   TestRecoveryLeadPermissions
+=== RUN   TestRecoveryLeadPermissions/local
+=== RUN   TestRecoveryLeadPermissions/local/light
+=== RUN   TestRecoveryLeadPermissions/local/light/keyboard
+=== RUN   TestRecoveryLeadPermissions/local/light/pointer
+=== RUN   TestRecoveryLeadPermissions/local/dark
+=== RUN   TestRecoveryLeadPermissions/local/dark/keyboard
+=== RUN   TestRecoveryLeadPermissions/local/dark/pointer
+=== RUN   TestRecoveryLeadPermissions/recommended
+=== RUN   TestRecoveryLeadPermissions/recommended/light
+=== RUN   TestRecoveryLeadPermissions/recommended/light/keyboard
+=== RUN   TestRecoveryLeadPermissions/recommended/light/pointer
+=== RUN   TestRecoveryLeadPermissions/recommended/dark
+=== RUN   TestRecoveryLeadPermissions/recommended/dark/keyboard
+=== RUN   TestRecoveryLeadPermissions/recommended/dark/pointer
+=== RUN   TestRecoveryLeadPermissions/detected
+=== RUN   TestRecoveryLeadPermissions/detected/light
+=== RUN   TestRecoveryLeadPermissions/detected/light/keyboard
+=== RUN   TestRecoveryLeadPermissions/detected/light/pointer
+=== RUN   TestRecoveryLeadPermissions/detected/dark
+=== RUN   TestRecoveryLeadPermissions/detected/dark/keyboard
+=== RUN   TestRecoveryLeadPermissions/detected/dark/pointer
+--- PASS: TestRecoveryLeadPermissions (0.66s)
+    --- PASS: TestRecoveryLeadPermissions/local (0.35s)
+        --- PASS: TestRecoveryLeadPermissions/local/light (0.27s)
+            --- PASS: TestRecoveryLeadPermissions/local/light/keyboard (0.22s)
+            --- PASS: TestRecoveryLeadPermissions/local/light/pointer (0.05s)
+        --- PASS: TestRecoveryLeadPermissions/local/dark (0.08s)
+            --- PASS: TestRecoveryLeadPermissions/local/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadPermissions/local/dark/pointer (0.05s)
+    --- PASS: TestRecoveryLeadPermissions/recommended (0.16s)
+        --- PASS: TestRecoveryLeadPermissions/recommended/light (0.08s)
+            --- PASS: TestRecoveryLeadPermissions/recommended/light/keyboard (0.04s)
+            --- PASS: TestRecoveryLeadPermissions/recommended/light/pointer (0.04s)
+        --- PASS: TestRecoveryLeadPermissions/recommended/dark (0.08s)
+            --- PASS: TestRecoveryLeadPermissions/recommended/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadPermissions/recommended/dark/pointer (0.04s)
+    --- PASS: TestRecoveryLeadPermissions/detected (0.15s)
+        --- PASS: TestRecoveryLeadPermissions/detected/light (0.08s)
+            --- PASS: TestRecoveryLeadPermissions/detected/light/keyboard (0.04s)
+            --- PASS: TestRecoveryLeadPermissions/detected/light/pointer (0.04s)
+        --- PASS: TestRecoveryLeadPermissions/detected/dark (0.07s)
+            --- PASS: TestRecoveryLeadPermissions/detected/dark/keyboard (0.03s)
+            --- PASS: TestRecoveryLeadPermissions/detected/dark/pointer (0.04s)
+=== RUN   TestRecoveryLeadSearch
+=== RUN   TestRecoveryLeadSearch/local
+=== RUN   TestRecoveryLeadSearch/local/light
+=== RUN   TestRecoveryLeadSearch/local/light/keyboard
+=== RUN   TestRecoveryLeadSearch/local/light/pointer
+=== RUN   TestRecoveryLeadSearch/local/dark
+=== RUN   TestRecoveryLeadSearch/local/dark/keyboard
+=== RUN   TestRecoveryLeadSearch/local/dark/pointer
+=== RUN   TestRecoveryLeadSearch/recommended
+=== RUN   TestRecoveryLeadSearch/recommended/light
+=== RUN   TestRecoveryLeadSearch/recommended/light/keyboard
+=== RUN   TestRecoveryLeadSearch/recommended/light/pointer
+=== RUN   TestRecoveryLeadSearch/recommended/dark
+=== RUN   TestRecoveryLeadSearch/recommended/dark/keyboard
+=== RUN   TestRecoveryLeadSearch/recommended/dark/pointer
+=== RUN   TestRecoveryLeadSearch/detected
+=== RUN   TestRecoveryLeadSearch/detected/light
+=== RUN   TestRecoveryLeadSearch/detected/light/keyboard
+=== RUN   TestRecoveryLeadSearch/detected/light/pointer
+=== RUN   TestRecoveryLeadSearch/detected/dark
+=== RUN   TestRecoveryLeadSearch/detected/dark/keyboard
+=== RUN   TestRecoveryLeadSearch/detected/dark/pointer
+--- PASS: TestRecoveryLeadSearch (0.30s)
+    --- PASS: TestRecoveryLeadSearch/local (0.10s)
+        --- PASS: TestRecoveryLeadSearch/local/light (0.05s)
+            --- PASS: TestRecoveryLeadSearch/local/light/keyboard (0.02s)
+            --- PASS: TestRecoveryLeadSearch/local/light/pointer (0.03s)
+        --- PASS: TestRecoveryLeadSearch/local/dark (0.05s)
+            --- PASS: TestRecoveryLeadSearch/local/dark/keyboard (0.02s)
+            --- PASS: TestRecoveryLeadSearch/local/dark/pointer (0.03s)
+    --- PASS: TestRecoveryLeadSearch/recommended (0.10s)
+        --- PASS: TestRecoveryLeadSearch/recommended/light (0.05s)
+            --- PASS: TestRecoveryLeadSearch/recommended/light/keyboard (0.02s)
+            --- PASS: TestRecoveryLeadSearch/recommended/light/pointer (0.03s)
+        --- PASS: TestRecoveryLeadSearch/recommended/dark (0.05s)
+            --- PASS: TestRecoveryLeadSearch/recommended/dark/keyboard (0.02s)
+            --- PASS: TestRecoveryLeadSearch/recommended/dark/pointer (0.03s)
+    --- PASS: TestRecoveryLeadSearch/detected (0.10s)
+        --- PASS: TestRecoveryLeadSearch/detected/light (0.05s)
+            --- PASS: TestRecoveryLeadSearch/detected/light/keyboard (0.02s)
+            --- PASS: TestRecoveryLeadSearch/detected/light/pointer (0.03s)
+        --- PASS: TestRecoveryLeadSearch/detected/dark (0.05s)
+            --- PASS: TestRecoveryLeadSearch/detected/dark/keyboard (0.02s)
+            --- PASS: TestRecoveryLeadSearch/detected/dark/pointer (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.966s

@@ -1,0 +1,199 @@
+=== RUN   TestRecoveryLeadAdopt
+=== RUN   TestRecoveryLeadAdopt/local
+=== RUN   TestRecoveryLeadAdopt/local/light
+=== RUN   TestRecoveryLeadAdopt/local/light/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadAdopt/local/light/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Adopt" is at (651.8, 606.30005), outside the window
+=== RUN   TestRecoveryLeadAdopt/local/dark
+=== RUN   TestRecoveryLeadAdopt/local/dark/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadAdopt/local/dark/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Adopt" is at (651.8, 606.30005), outside the window
+=== RUN   TestRecoveryLeadAdopt/recommended
+=== RUN   TestRecoveryLeadAdopt/recommended/light
+=== RUN   TestRecoveryLeadAdopt/recommended/light/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadAdopt/recommended/light/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Adopt" is at (651.8, 632.30005), outside the window
+=== RUN   TestRecoveryLeadAdopt/recommended/dark
+=== RUN   TestRecoveryLeadAdopt/recommended/dark/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadAdopt/recommended/dark/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Adopt" is at (651.8, 632.30005), outside the window
+=== RUN   TestRecoveryLeadAdopt/detected
+=== RUN   TestRecoveryLeadAdopt/detected/light
+=== RUN   TestRecoveryLeadAdopt/detected/light/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadAdopt/detected/light/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Adopt" is at (651.8, 685.30005), outside the window
+=== RUN   TestRecoveryLeadAdopt/detected/dark
+=== RUN   TestRecoveryLeadAdopt/detected/dark/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadAdopt/detected/dark/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:496.5 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Adopt": target={X:651.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Adopt" is at (651.8, 685.30005), outside the window
+--- FAIL: TestRecoveryLeadAdopt (0.55s)
+    --- FAIL: TestRecoveryLeadAdopt/local (0.31s)
+        --- FAIL: TestRecoveryLeadAdopt/local/light (0.25s)
+            --- FAIL: TestRecoveryLeadAdopt/local/light/keyboard (0.22s)
+            --- FAIL: TestRecoveryLeadAdopt/local/light/pointer (0.03s)
+        --- FAIL: TestRecoveryLeadAdopt/local/dark (0.06s)
+            --- FAIL: TestRecoveryLeadAdopt/local/dark/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadAdopt/local/dark/pointer (0.03s)
+    --- FAIL: TestRecoveryLeadAdopt/recommended (0.12s)
+        --- FAIL: TestRecoveryLeadAdopt/recommended/light (0.06s)
+            --- FAIL: TestRecoveryLeadAdopt/recommended/light/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadAdopt/recommended/light/pointer (0.03s)
+        --- FAIL: TestRecoveryLeadAdopt/recommended/dark (0.06s)
+            --- FAIL: TestRecoveryLeadAdopt/recommended/dark/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadAdopt/recommended/dark/pointer (0.03s)
+    --- FAIL: TestRecoveryLeadAdopt/detected (0.12s)
+        --- FAIL: TestRecoveryLeadAdopt/detected/light (0.06s)
+            --- FAIL: TestRecoveryLeadAdopt/detected/light/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadAdopt/detected/light/pointer (0.03s)
+        --- FAIL: TestRecoveryLeadAdopt/detected/dark (0.06s)
+            --- FAIL: TestRecoveryLeadAdopt/detected/dark/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadAdopt/detected/dark/pointer (0.03s)
+=== RUN   TestRecoveryLeadDelete
+=== RUN   TestRecoveryLeadDelete/local
+=== RUN   TestRecoveryLeadDelete/local/light
+=== RUN   TestRecoveryLeadDelete/local/light/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadDelete/local/light/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Delete" is at (650.8, 606.30005), outside the window
+=== RUN   TestRecoveryLeadDelete/local/dark
+=== RUN   TestRecoveryLeadDelete/local/dark/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadDelete/local/dark/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:606.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Delete" is at (650.8, 606.30005), outside the window
+=== RUN   TestRecoveryLeadDelete/recommended
+=== RUN   TestRecoveryLeadDelete/recommended/light
+=== RUN   TestRecoveryLeadDelete/recommended/light/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadDelete/recommended/light/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Delete" is at (650.8, 632.30005), outside the window
+=== RUN   TestRecoveryLeadDelete/recommended/dark
+=== RUN   TestRecoveryLeadDelete/recommended/dark/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadDelete/recommended/dark/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:632.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Delete" is at (650.8, 632.30005), outside the window
+=== RUN   TestRecoveryLeadDelete/detected
+=== RUN   TestRecoveryLeadDelete/detected/light
+=== RUN   TestRecoveryLeadDelete/detected/light/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadDelete/detected/light/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Delete" is at (650.8, 685.30005), outside the window
+=== RUN   TestRecoveryLeadDelete/detected/dark
+=== RUN   TestRecoveryLeadDelete/detected/dark/keyboard
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadDelete/detected/dark/pointer
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:496.5 W:34 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:117: feedback reflow hides active outlet "Delete": target={X:650.8 Y:685.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:124: ui: "Delete" is at (650.8, 685.30005), outside the window
+--- FAIL: TestRecoveryLeadDelete (0.33s)
+    --- FAIL: TestRecoveryLeadDelete/local (0.11s)
+        --- FAIL: TestRecoveryLeadDelete/local/light (0.06s)
+            --- FAIL: TestRecoveryLeadDelete/local/light/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadDelete/local/light/pointer (0.03s)
+        --- FAIL: TestRecoveryLeadDelete/local/dark (0.06s)
+            --- FAIL: TestRecoveryLeadDelete/local/dark/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadDelete/local/dark/pointer (0.03s)
+    --- FAIL: TestRecoveryLeadDelete/recommended (0.11s)
+        --- FAIL: TestRecoveryLeadDelete/recommended/light (0.05s)
+            --- FAIL: TestRecoveryLeadDelete/recommended/light/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadDelete/recommended/light/pointer (0.02s)
+        --- FAIL: TestRecoveryLeadDelete/recommended/dark (0.05s)
+            --- FAIL: TestRecoveryLeadDelete/recommended/dark/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadDelete/recommended/dark/pointer (0.03s)
+    --- FAIL: TestRecoveryLeadDelete/detected (0.11s)
+        --- FAIL: TestRecoveryLeadDelete/detected/light (0.05s)
+            --- FAIL: TestRecoveryLeadDelete/detected/light/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadDelete/detected/light/pointer (0.03s)
+        --- FAIL: TestRecoveryLeadDelete/detected/dark (0.06s)
+            --- FAIL: TestRecoveryLeadDelete/detected/dark/keyboard (0.03s)
+            --- FAIL: TestRecoveryLeadDelete/detected/dark/pointer (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.888s
+FAIL

@@ -1,0 +1,175 @@
+=== RUN   TestRecoveryLeadRecheck
+=== RUN   TestRecoveryLeadRecheck/local
+=== RUN   TestRecoveryLeadRecheck/local/light
+=== RUN   TestRecoveryLeadRecheck/local/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadRecheck/local/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Re-check" is at (634.8, 587.30005), outside the window
+=== RUN   TestRecoveryLeadRecheck/local/dark
+=== RUN   TestRecoveryLeadRecheck/local/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadRecheck/local/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Re-check" is at (634.8, 587.30005), outside the window
+=== RUN   TestRecoveryLeadRecheck/recommended
+=== RUN   TestRecoveryLeadRecheck/recommended/light
+=== RUN   TestRecoveryLeadRecheck/recommended/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadRecheck/recommended/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Re-check" is at (634.8, 613.30005), outside the window
+=== RUN   TestRecoveryLeadRecheck/recommended/dark
+=== RUN   TestRecoveryLeadRecheck/recommended/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadRecheck/recommended/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Re-check" is at (634.8, 613.30005), outside the window
+=== RUN   TestRecoveryLeadRecheck/detected
+=== RUN   TestRecoveryLeadRecheck/detected/light
+=== RUN   TestRecoveryLeadRecheck/detected/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadRecheck/detected/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Re-check" is at (634.8, 666.30005), outside the window
+=== RUN   TestRecoveryLeadRecheck/detected/dark
+=== RUN   TestRecoveryLeadRecheck/detected/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadRecheck/detected/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Re-check": target={X:634.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Re-check" is at (634.8, 666.30005), outside the window
+--- FAIL: TestRecoveryLeadRecheck (0.37s)
+    --- FAIL: TestRecoveryLeadRecheck/local (0.21s)
+        --- FAIL: TestRecoveryLeadRecheck/local/light (0.17s)
+            --- FAIL: TestRecoveryLeadRecheck/local/light/keyboard (0.15s)
+            --- FAIL: TestRecoveryLeadRecheck/local/light/pointer (0.02s)
+        --- FAIL: TestRecoveryLeadRecheck/local/dark (0.04s)
+            --- FAIL: TestRecoveryLeadRecheck/local/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadRecheck/local/dark/pointer (0.02s)
+    --- FAIL: TestRecoveryLeadRecheck/recommended (0.08s)
+        --- FAIL: TestRecoveryLeadRecheck/recommended/light (0.04s)
+            --- FAIL: TestRecoveryLeadRecheck/recommended/light/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadRecheck/recommended/light/pointer (0.02s)
+        --- FAIL: TestRecoveryLeadRecheck/recommended/dark (0.04s)
+            --- FAIL: TestRecoveryLeadRecheck/recommended/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadRecheck/recommended/dark/pointer (0.02s)
+    --- FAIL: TestRecoveryLeadRecheck/detected (0.08s)
+        --- FAIL: TestRecoveryLeadRecheck/detected/light (0.04s)
+            --- FAIL: TestRecoveryLeadRecheck/detected/light/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadRecheck/detected/light/pointer (0.02s)
+        --- FAIL: TestRecoveryLeadRecheck/detected/dark (0.04s)
+            --- FAIL: TestRecoveryLeadRecheck/detected/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadRecheck/detected/dark/pointer (0.02s)
+=== RUN   TestRecoveryLeadReconnect
+=== RUN   TestRecoveryLeadReconnect/local
+=== RUN   TestRecoveryLeadReconnect/local/light
+=== RUN   TestRecoveryLeadReconnect/local/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadReconnect/local/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Reconnect" is at (627.8, 587.30005), outside the window
+=== RUN   TestRecoveryLeadReconnect/local/dark
+=== RUN   TestRecoveryLeadReconnect/local/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadReconnect/local/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:587.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Reconnect" is at (627.8, 587.30005), outside the window
+=== RUN   TestRecoveryLeadReconnect/recommended
+=== RUN   TestRecoveryLeadReconnect/recommended/light
+=== RUN   TestRecoveryLeadReconnect/recommended/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadReconnect/recommended/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Reconnect" is at (627.8, 613.30005), outside the window
+=== RUN   TestRecoveryLeadReconnect/recommended/dark
+=== RUN   TestRecoveryLeadReconnect/recommended/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadReconnect/recommended/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:613.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Reconnect" is at (627.8, 613.30005), outside the window
+=== RUN   TestRecoveryLeadReconnect/detected
+=== RUN   TestRecoveryLeadReconnect/detected/light
+=== RUN   TestRecoveryLeadReconnect/detected/light/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadReconnect/detected/light/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Reconnect" is at (627.8, 666.30005), outside the window
+=== RUN   TestRecoveryLeadReconnect/detected/dark
+=== RUN   TestRecoveryLeadReconnect/detected/dark/keyboard
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestRecoveryLeadReconnect/detected/dark/pointer
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:119: feedback reflow hides active outlet "Reconnect": target={X:627.8 Y:666.30005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    recoverylead_test.go:126: ui: "Reconnect" is at (627.8, 666.30005), outside the window
+--- FAIL: TestRecoveryLeadReconnect (0.26s)
+    --- FAIL: TestRecoveryLeadReconnect/local (0.09s)
+        --- FAIL: TestRecoveryLeadReconnect/local/light (0.04s)
+            --- FAIL: TestRecoveryLeadReconnect/local/light/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadReconnect/local/light/pointer (0.02s)
+        --- FAIL: TestRecoveryLeadReconnect/local/dark (0.04s)
+            --- FAIL: TestRecoveryLeadReconnect/local/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadReconnect/local/dark/pointer (0.02s)
+    --- FAIL: TestRecoveryLeadReconnect/recommended (0.09s)
+        --- FAIL: TestRecoveryLeadReconnect/recommended/light (0.04s)
+            --- FAIL: TestRecoveryLeadReconnect/recommended/light/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadReconnect/recommended/light/pointer (0.02s)
+        --- FAIL: TestRecoveryLeadReconnect/recommended/dark (0.04s)
+            --- FAIL: TestRecoveryLeadReconnect/recommended/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadReconnect/recommended/dark/pointer (0.02s)
+    --- FAIL: TestRecoveryLeadReconnect/detected (0.09s)
+        --- FAIL: TestRecoveryLeadReconnect/detected/light (0.04s)
+            --- FAIL: TestRecoveryLeadReconnect/detected/light/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadReconnect/detected/light/pointer (0.02s)
+        --- FAIL: TestRecoveryLeadReconnect/detected/dark (0.05s)
+            --- FAIL: TestRecoveryLeadReconnect/detected/dark/keyboard (0.02s)
+            --- FAIL: TestRecoveryLeadReconnect/detected/dark/pointer (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.639s
+FAIL

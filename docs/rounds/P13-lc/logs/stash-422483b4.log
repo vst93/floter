@@ -1,0 +1,6 @@
+error: patch failed: internal/theme/theme.go:545
+error: internal/theme/theme.go: patch does not apply
+error: patch failed: internal/launcher/launcher.go:827
+error: internal/launcher/launcher.go: patch does not apply
+error: patch failed: internal/launcher/glyphs.go:257
+error: internal/launcher/glyphs.go: patch does not apply

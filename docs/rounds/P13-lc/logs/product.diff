@@ -1,0 +1,168 @@
+diff --git a/internal/settingsui/settingsui.go b/internal/settingsui/settingsui.go
+index 78039748..ec4266cd 100644
+--- a/internal/settingsui/settingsui.go
++++ b/internal/settingsui/settingsui.go
+@@ -1994,12 +1994,16 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
+ 			a.installFolderRow(c, copy)
+ 			// The PATH commands' own switch sits with the integrations, as the old
+ 			// panel had it: it decides whether the search offers them at all.
+-			a.card(c, func() {
+-				a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
+-					settings.ShowCommandsInSearch(a.settings()),
+-					func(on bool) {
+-						a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
+-					})
++			// Preceding sections may appear or retire without replacing this setting.
++			a.card(c.Key("commands-search"), func() {
++				var search ui.Element
++				a.formFeedbackOutlet(c.Key("commands-search-outlet"), a.integrationLead, func() {
++					search = a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
++						settings.ShowCommandsInSearch(a.settings()),
++						func(on bool) {
++							a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
++						})
++				}, func() bool { return search.FocusVisible() })
+ 			})
+ 			if len(integrations) == 0 {
+ 				// The reference's shared empty region (`ExtensionsPanel.tsx:2462,
+@@ -3003,7 +3007,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 
+ 		if len(integration.Permissions) > 0 && !integration.Orphan {
+ 			labelClicked := a.row(c, copy.IntegrationsPermissions, a.permissionLine(integration, copy), func() {
+-				if a.actionButton(c, copy.IntegrationsPermissions).Clicked() {
++				var permissions ui.Element
++				a.formFeedbackOutlet(c.Key("permissions-outlet"), a.integrationLead, func() {
++					permissions = a.actionButton(c, copy.IntegrationsPermissions)
++				}, func() bool { return permissions.FocusVisible() })
++				if permissions.Clicked() {
+ 					a.toggleAudit(integration.ID)
+ 				}
+ 			}, func() { a.permissionAudit(c, copy, integration) })
+@@ -3038,7 +3046,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 					// authorize another run. Keep the report if that outlet retires.
+ 					if a.Actions.ReprobeHealth != nil && integration.HealthReport != nil && !integration.HealthReprobeUnavailable {
+ 						label := copy.IntegrationsHealthReprobe
+-						if a.extensionIconButton(c, "refresh", label, a.rowBusy(integration.ID)).Clicked() {
++						var reprobe ui.Element
++						a.formFeedbackOutlet(c.Key("health-reprobe-outlet"), a.integrationLead, func() {
++							reprobe = a.extensionIconButton(c, "refresh", label, a.rowBusy(integration.ID))
++						}, func() bool { return reprobe.FocusVisible() })
++						if reprobe.Clicked() {
+ 							a.Actions.ReprobeHealth(integration.ID)
+ 						}
+ 					}
+@@ -3184,26 +3196,30 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 			var adoptOpener ui.Element
+ 			a.row(c, copy.IntegrationsOrphan, copy.IntegrationsAdoptHint, func() {
+ 				if a.Actions.AdoptIntegration != nil {
+-					if a.orphanOperation[integration.ID] == "adopt" {
+-						adoptOpener = a.busyActionButton(c, copy.IntegrationsAdopt, "orphan.adopt")
+-					} else if a.orphanOperation[integration.ID] != "" {
+-						adoptOpener = a.disabledActionButton(c, copy.IntegrationsAdopt)
+-					} else {
+-						adoptOpener = a.actionButton(c, copy.IntegrationsAdopt)
+-					}
++					a.formFeedbackOutlet(c.Key("orphan-adopt-outlet"), a.integrationLead, func() {
++						if a.orphanOperation[integration.ID] == "adopt" {
++							adoptOpener = a.busyActionButton(c, copy.IntegrationsAdopt, "orphan.adopt")
++						} else if a.orphanOperation[integration.ID] != "" {
++							adoptOpener = a.disabledActionButton(c, copy.IntegrationsAdopt)
++						} else {
++							adoptOpener = a.actionButton(c, copy.IntegrationsAdopt)
++						}
++					}, func() bool { return adoptOpener.FocusVisible() })
+ 					if adoptOpener.Clicked() {
+ 						a.Actions.AdoptIntegration(integration.ID)
+ 					}
+ 				}
+ 				if a.Actions.DeleteOrphan != nil {
+ 					var remove ui.Element
+-					if a.orphanOperation[integration.ID] == "delete" {
+-						remove = a.busyActionButton(c, copy.IntegrationsDeleteOrphan, "orphan.delete")
+-					} else if a.orphanOperation[integration.ID] != "" {
+-						remove = a.disabledActionButton(c, copy.IntegrationsDeleteOrphan)
+-					} else {
+-						remove = a.actionButton(c, copy.IntegrationsDeleteOrphan)
+-					}
++					a.formFeedbackOutlet(c.Key("orphan-delete-outlet"), a.integrationLead, func() {
++						if a.orphanOperation[integration.ID] == "delete" {
++							remove = a.busyActionButton(c, copy.IntegrationsDeleteOrphan, "orphan.delete")
++						} else if a.orphanOperation[integration.ID] != "" {
++							remove = a.disabledActionButton(c, copy.IntegrationsDeleteOrphan)
++						} else {
++							remove = a.actionButton(c, copy.IntegrationsDeleteOrphan)
++						}
++					}, func() bool { return remove.FocusVisible() })
+ 					if remove.Clicked() {
+ 						a.Actions.DeleteOrphan(integration.ID)
+ 					}
+@@ -3315,17 +3331,27 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
+ 			// still has its way back.
+ 			if integration.Broken {
+ 				if a.Actions.RepairIntegration != nil {
+-					a.repairAction(c, integration.ID, copy.IntegrationsRecheck, copy.IntegrationsRecheck, a.Actions.RepairIntegration)
++					var recheck ui.Element
++					a.formFeedbackOutlet(c.Key("row-recheck-outlet"), a.integrationLead+outputFeedback, func() {
++						recheck = a.repairAction(c, integration.ID, copy.IntegrationsRecheck, copy.IntegrationsRecheck, a.Actions.RepairIntegration)
++					}, func() bool { return recheck.FocusVisible() })
+ 				}
+ 			} else {
+ 				switch integration.repairKind() {
+ 				case repairReconnect:
+ 					if a.Actions.ReconnectIntegration != nil {
+-						a.repairAction(c, integration.ID, integration.repairLabel(copy), integration.repairTooltip(copy), a.Actions.ReconnectIntegration)
++						var reconnect ui.Element
++						a.formFeedbackOutlet(c.Key("row-reconnect-outlet"), a.integrationLead+outputFeedback, func() {
++							reconnect = a.repairAction(c, integration.ID, integration.repairLabel(copy), integration.repairTooltip(copy), a.Actions.ReconnectIntegration)
++						}, func() bool { return reconnect.FocusVisible() })
+ 					}
+ 				case repairHomepage:
+ 					if a.Actions.OpenHomepage != nil {
+-						if tokens.Tip(c, rowAction(integration.repairLabel(copy)), integration.repairTooltip(copy)).Clicked() {
++						var homepage ui.Element
++						a.formFeedbackOutlet(c.Key("row-homepage-outlet"), a.integrationLead+outputFeedback, func() {
++							homepage = tokens.Tip(c, rowAction(integration.repairLabel(copy)), integration.repairTooltip(copy))
++						}, func() bool { return homepage.FocusVisible() })
++						if homepage.Clicked() {
+ 							a.Actions.OpenHomepage(integration.Homepage)
+ 						}
+ 					}
+@@ -4233,11 +4259,10 @@ const repairGlyphName = "refresh"
+ // this pair (`src/extensions/ExtensionRow.tsx:313-330,345-372`): one button
+ // whose icon became a turning LoaderCircle and whose `disabled={busy}` face
+ // stayed until `runMutation`'s `finally`.
+-func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(string, func(error))) {
++func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(string, func(error))) ui.Element {
+ 	tokens := a.tokens(c)
+ 	if a.repairBusy[id] {
+-		a.rememberOperationFocus(c, id, "repair", tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip))
+-		return
++		return a.rememberOperationFocus(c, id, "repair", tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip))
+ 	}
+ 	// P13-cl（`docs/liquid-glass.md` §6.55）：这一枚键有三个状态——静息 / 另一操作在飞 /
+ 	// 自己在飞——而三个状态画的是两种内容：一行字，或一枚环加一行字。此前静息臂是
+@@ -4264,6 +4289,7 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
+ 	if button.Clicked() {
+ 		a.startRepair(id, run)
+ 	}
++	return button
+ }
+ 
+ // rowBusy reports whether any operation on an integration is in flight, so the
+diff --git a/tools/verify.sh b/tools/verify.sh
+index cfc99c77..18828831 100644
+--- a/tools/verify.sh
++++ b/tools/verify.sh
+@@ -38,7 +38,11 @@ run() {
+   else
+     failed=$((failed + 1))
+     printf 'FAIL %-16s %s | ' "$name" "$logs/$name.log"
+-    head -n 3 "$logs/$name.log" | tr '\n' ' ' | head -c 180
++    # Verbose test logs start with RUN lines; show the actual diagnostics.
++    if ! grep -m 3 -E '(^|[[:space:]])(FAIL|--- FAIL|panic:|fatal error:)|:[0-9]+(:[0-9]+)?:' "$logs/$name.log" >"$logs/$name.failure"; then
++      head -n 3 "$logs/$name.log" >"$logs/$name.failure"
++    fi
++    tr '\n' ' ' <"$logs/$name.failure" | head -c 180
+     printf '\n'
+   fi
+ }
