@@ -1,0 +1,31 @@
+=== RUN   TestParamPrecedingRequired
+=== RUN   TestParamPrecedingRequired/light/refusal
+    parampreceding_test.go:131: preceding refusal hides required: target={X:533.8 Y:479.49994 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:131: preceding refusal hides required: target={X:533.8 Y:479.49994 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingRequired/light/options
+    parampreceding_test.go:131: preceding options hides required: target={X:533.8 Y:479.49994 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:131: preceding options hides required: target={X:533.8 Y:479.49994 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingRequired/dark/refusal
+    parampreceding_test.go:131: preceding refusal hides required: target={X:533.8 Y:479.49994 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:131: preceding refusal hides required: target={X:533.8 Y:479.49994 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingRequired/dark/options
+    parampreceding_test.go:131: preceding options hides required: target={X:533.8 Y:479.49994 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:131: preceding options hides required: target={X:533.8 Y:479.49994 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestParamPrecedingRequired (0.26s)
+    --- FAIL: TestParamPrecedingRequired/light/refusal (0.18s)
+    --- FAIL: TestParamPrecedingRequired/light/options (0.03s)
+    --- FAIL: TestParamPrecedingRequired/dark/refusal (0.03s)
+    --- FAIL: TestParamPrecedingRequired/dark/options (0.03s)
+=== RUN   TestParamPrecedingOptions
+=== RUN   TestParamPrecedingOptions/light/refusal
+=== RUN   TestParamPrecedingOptions/light/options
+=== RUN   TestParamPrecedingOptions/dark/refusal
+=== RUN   TestParamPrecedingOptions/dark/options
+--- PASS: TestParamPrecedingOptions (0.09s)
+    --- PASS: TestParamPrecedingOptions/light/refusal (0.02s)
+    --- PASS: TestParamPrecedingOptions/light/options (0.02s)
+    --- PASS: TestParamPrecedingOptions/dark/refusal (0.02s)
+    --- PASS: TestParamPrecedingOptions/dark/options (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.358s
+FAIL

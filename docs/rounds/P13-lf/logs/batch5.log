@@ -1,0 +1,12 @@
+=== RUN   TestParamPrecedingRemove
+=== RUN   TestParamPrecedingRemove/light/refusal
+=== RUN   TestParamPrecedingRemove/light/options
+=== RUN   TestParamPrecedingRemove/dark/refusal
+=== RUN   TestParamPrecedingRemove/dark/options
+--- PASS: TestParamPrecedingRemove (0.27s)
+    --- PASS: TestParamPrecedingRemove/light/refusal (0.18s)
+    --- PASS: TestParamPrecedingRemove/light/options (0.03s)
+    --- PASS: TestParamPrecedingRemove/dark/refusal (0.03s)
+    --- PASS: TestParamPrecedingRemove/dark/options (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.274s

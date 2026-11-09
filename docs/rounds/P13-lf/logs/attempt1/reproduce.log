@@ -1,0 +1,7 @@
+# floter/internal/settingsui [floter/internal/settingsui.test]
+internal/settingsui/parampreceding_test.go:58:16: undefined: ui.ModShift
+internal/settingsui/parampreceding_test.go:70:17: tt.FindAll undefined (type *ui.Tester has no field or method FindAll)
+internal/settingsui/parampreceding_test.go:75:17: tt.FindAll undefined (type *ui.Tester has no field or method FindAll)
+internal/settingsui/parampreceding_test.go:80:17: tt.FindAll undefined (type *ui.Tester has no field or method FindAll)
+FAIL	floter/internal/settingsui [build failed]
+FAIL

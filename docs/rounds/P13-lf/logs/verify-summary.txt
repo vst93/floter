@@ -3,3 +3,8 @@ PASS vet-linux        docs/rounds/P13-lf/logs/vet-linux.log
 PASS vet-windows      docs/rounds/P13-lf/logs/vet-windows.log
 PASS vet-darwin       docs/rounds/P13-lf/logs/vet-darwin.log
 PASS test             docs/rounds/P13-lf/logs/test.log
+PASS verbose          docs/rounds/P13-lf/logs/verbose.log
+PASS build-linux      docs/rounds/P13-lf/logs/build-linux.log
+PASS build-windows    docs/rounds/P13-lf/logs/build-windows.log
+PASS build-darwin     docs/rounds/P13-lf/logs/build-darwin.log
+TOTAL PASS=7573 test_functions=3700 failed_gates=0

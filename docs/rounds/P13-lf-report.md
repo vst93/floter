@@ -1,5 +1,19 @@
 # P13-lf · 参数记录变化后的编辑出口
 
+九项已完成，产品分五批推送：fbde3039 / 1559ec08 / 07db8651 / ae17d4eb / 9e12c41a。最终7573 PASS / 0 FAIL / 3700函数，较开盘7528/3691增加45 PASS、9函数；九项完整门槛全绿，统一入口只完整执行一次。
+
+| 门槛 | 实测 |
+|---|---|
+| gofmt | 空，exit0 |
+| Linux/Windows/macOS vet | 三项exit0 |
+| 普通全量test | exit0 |
+| verbose全量test | 7573 PASS，0 FAIL，exit0 |
+| Linux/Windows/macOS build | 三项exit0 |
+| M1 | 10 FAIL → MD5还原/touch → 10 PASS |
+| M2 | 15 FAIL → MD5还原/touch → 完整门槛通过，其中本轮45 PASS |
+
+摘要与原始日志在 `P13-lf/logs/`；截图在 `P13-lf/images/`。下面保留失败夹具及各批次过程，不把中间红项隐藏为一路全绿。
+
 开盘20eb38e8，工作区干净，pull已最新。P13-le已完成任务书中的旧进度，沿最新仍待继续。统一验证入口已满足摘要/日志/重试上限，直接复用。done.log开盘不存在。
 
 基线：现场读取HEAD归档7528 PASS、跟踪3691测试函数；不是本轮重新跑完整门槛。首次夹具编译失败（ModShift/FindAll并非该版本API）；唯一修前重跑八项全红，原日志保留。修前ID：`preceding options hides id: target={X:364.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}`。
@@ -72,7 +86,7 @@ M1撤销名称/ID前记录信号：10 FAIL/0 PASS；原报错`preceding refusal 
 
 M2撤销必填/选项/移除前记录信号：15 FAIL/0 PASS；原报错`preceding refusal hides remove: target={X:533.8 Y:494 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}`。`product-M2.md5`逐字节还原OK，touch后用唯一完整门槛复验。M1备份处于第7/8项接回之前，M2备份为最终产品，各用自己的MD5，未相互覆盖。
 
-旧V/B/S断言修改0/0/0；测试函数只增不减，新增t.Skip为0。最终产品普通全量test已exit0，确认第7/8项及夹具修正通过；verbose计数与三平台build仍在统一入口内继续。
+旧V/B/S断言修改0/0/0；测试函数只增不减，新增t.Skip为0。最终普通/verbose全量test均exit0，确认第7/8项及夹具修正通过；三平台build均exit0。
 
 ## 仍待
 

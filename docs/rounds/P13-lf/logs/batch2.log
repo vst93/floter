@@ -1,0 +1,22 @@
+=== RUN   TestParamPrecedingPlaceholder
+=== RUN   TestParamPrecedingPlaceholder/light/refusal
+=== RUN   TestParamPrecedingPlaceholder/light/options
+=== RUN   TestParamPrecedingPlaceholder/dark/refusal
+=== RUN   TestParamPrecedingPlaceholder/dark/options
+--- PASS: TestParamPrecedingPlaceholder (0.25s)
+    --- PASS: TestParamPrecedingPlaceholder/light/refusal (0.17s)
+    --- PASS: TestParamPrecedingPlaceholder/light/options (0.03s)
+    --- PASS: TestParamPrecedingPlaceholder/dark/refusal (0.03s)
+    --- PASS: TestParamPrecedingPlaceholder/dark/options (0.03s)
+=== RUN   TestParamPrecedingDefault
+=== RUN   TestParamPrecedingDefault/light/refusal
+=== RUN   TestParamPrecedingDefault/light/options
+=== RUN   TestParamPrecedingDefault/dark/refusal
+=== RUN   TestParamPrecedingDefault/dark/options
+--- PASS: TestParamPrecedingDefault (0.10s)
+    --- PASS: TestParamPrecedingDefault/light/refusal (0.03s)
+    --- PASS: TestParamPrecedingDefault/light/options (0.02s)
+    --- PASS: TestParamPrecedingDefault/dark/refusal (0.02s)
+    --- PASS: TestParamPrecedingDefault/dark/options (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.361s

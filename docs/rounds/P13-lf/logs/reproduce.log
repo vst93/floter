@@ -1,0 +1,129 @@
+=== RUN   TestParamPrecedingLabel
+=== RUN   TestParamPrecedingLabel/light/refusal
+    parampreceding_test.go:127: preceding refusal hides label: target={X:364.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingLabel/light/options
+    parampreceding_test.go:127: preceding options hides label: target={X:364.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingLabel/dark/refusal
+    parampreceding_test.go:127: preceding refusal hides label: target={X:364.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingLabel/dark/options
+    parampreceding_test.go:127: preceding options hides label: target={X:364.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestParamPrecedingLabel (0.24s)
+    --- FAIL: TestParamPrecedingLabel/light/refusal (0.17s)
+    --- FAIL: TestParamPrecedingLabel/light/options (0.03s)
+    --- FAIL: TestParamPrecedingLabel/dark/refusal (0.02s)
+    --- FAIL: TestParamPrecedingLabel/dark/options (0.02s)
+=== RUN   TestParamPrecedingID
+=== RUN   TestParamPrecedingID/light/refusal
+    parampreceding_test.go:127: preceding refusal hides id: target={X:364.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingID/light/options
+    parampreceding_test.go:127: preceding options hides id: target={X:364.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingID/dark/refusal
+    parampreceding_test.go:127: preceding refusal hides id: target={X:364.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingID/dark/options
+    parampreceding_test.go:127: preceding options hides id: target={X:364.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestParamPrecedingID (0.11s)
+    --- FAIL: TestParamPrecedingID/light/refusal (0.02s)
+    --- FAIL: TestParamPrecedingID/light/options (0.04s)
+    --- FAIL: TestParamPrecedingID/dark/refusal (0.02s)
+    --- FAIL: TestParamPrecedingID/dark/options (0.03s)
+=== RUN   TestParamPrecedingPlaceholder
+=== RUN   TestParamPrecedingPlaceholder/light/refusal
+    parampreceding_test.go:127: preceding refusal hides placeholder: target={X:203.8 Y:492 W:1 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding refusal hides placeholder: target={X:203.8 Y:492 W:1 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingPlaceholder/light/options
+    parampreceding_test.go:127: preceding options hides placeholder: target={X:203.8 Y:742.80005 W:1 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding options hides placeholder: target={X:203.8 Y:742.80005 W:1 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingPlaceholder/dark/refusal
+    parampreceding_test.go:127: preceding refusal hides placeholder: target={X:203.8 Y:492 W:1 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding refusal hides placeholder: target={X:203.8 Y:492 W:1 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingPlaceholder/dark/options
+    parampreceding_test.go:127: preceding options hides placeholder: target={X:203.8 Y:742.80005 W:1 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding options hides placeholder: target={X:203.8 Y:742.80005 W:1 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestParamPrecedingPlaceholder (0.12s)
+    --- FAIL: TestParamPrecedingPlaceholder/light/refusal (0.03s)
+    --- FAIL: TestParamPrecedingPlaceholder/light/options (0.04s)
+    --- FAIL: TestParamPrecedingPlaceholder/dark/refusal (0.03s)
+    --- FAIL: TestParamPrecedingPlaceholder/dark/options (0.03s)
+=== RUN   TestParamPrecedingDefault
+=== RUN   TestParamPrecedingDefault/light/refusal
+    parampreceding_test.go:127: preceding refusal hides default: target={X:364.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingDefault/light/options
+    parampreceding_test.go:127: preceding options hides default: target={X:364.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingDefault/dark/refusal
+    parampreceding_test.go:127: preceding refusal hides default: target={X:364.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingDefault/dark/options
+    parampreceding_test.go:127: preceding options hides default: target={X:364.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestParamPrecedingDefault (0.09s)
+    --- FAIL: TestParamPrecedingDefault/light/refusal (0.02s)
+    --- FAIL: TestParamPrecedingDefault/light/options (0.02s)
+    --- FAIL: TestParamPrecedingDefault/dark/refusal (0.02s)
+    --- FAIL: TestParamPrecedingDefault/dark/options (0.02s)
+=== RUN   TestParamPrecedingFlag
+=== RUN   TestParamPrecedingFlag/light/refusal
+    parampreceding_test.go:127: preceding refusal hides flag: target={X:533.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingFlag/light/options
+    parampreceding_test.go:127: preceding options hides flag: target={X:533.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingFlag/dark/refusal
+    parampreceding_test.go:127: preceding refusal hides flag: target={X:533.8 Y:492 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingFlag/dark/options
+    parampreceding_test.go:127: preceding options hides flag: target={X:533.8 Y:742.80005 W:161 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+--- FAIL: TestParamPrecedingFlag (0.10s)
+    --- FAIL: TestParamPrecedingFlag/light/refusal (0.02s)
+    --- FAIL: TestParamPrecedingFlag/light/options (0.03s)
+    --- FAIL: TestParamPrecedingFlag/dark/refusal (0.03s)
+    --- FAIL: TestParamPrecedingFlag/dark/options (0.02s)
+=== RUN   TestParamPrecedingKind
+=== RUN   TestParamPrecedingKind/light/refusal
+    parampreceding_test.go:127: preceding refusal hides kind: target={X:541.8 Y:492 W:22 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding refusal hides kind: target={X:541.8 Y:492 W:22 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingKind/light/options
+    parampreceding_test.go:127: preceding options hides kind: target={X:541.8 Y:734.30005 W:0 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding options hides kind: target={X:541.8 Y:734.30005 W:0 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:159: outlet reveal trapped subsequent scrolling
+=== RUN   TestParamPrecedingKind/dark/refusal
+    parampreceding_test.go:127: preceding refusal hides kind: target={X:541.8 Y:492 W:22 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding refusal hides kind: target={X:541.8 Y:492 W:22 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingKind/dark/options
+    parampreceding_test.go:127: preceding options hides kind: target={X:541.8 Y:734.30005 W:0 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:127: preceding options hides kind: target={X:541.8 Y:734.30005 W:0 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:159: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamPrecedingKind (0.11s)
+    --- FAIL: TestParamPrecedingKind/light/refusal (0.03s)
+    --- FAIL: TestParamPrecedingKind/light/options (0.03s)
+    --- FAIL: TestParamPrecedingKind/dark/refusal (0.03s)
+    --- FAIL: TestParamPrecedingKind/dark/options (0.02s)
+=== RUN   TestParamPrecedingRequired
+=== RUN   TestParamPrecedingRequired/light/refusal
+    parampreceding_test.go:127: preceding refusal hides required: target={X:533.8 Y:494 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingRequired/light/options
+    parampreceding_test.go:127: preceding options hides required: target={X:533.8 Y:744.80005 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:159: outlet reveal trapped subsequent scrolling
+=== RUN   TestParamPrecedingRequired/dark/refusal
+    parampreceding_test.go:127: preceding refusal hides required: target={X:533.8 Y:494 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingRequired/dark/options
+    parampreceding_test.go:127: preceding options hides required: target={X:533.8 Y:744.80005 W:161 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:159: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamPrecedingRequired (0.10s)
+    --- FAIL: TestParamPrecedingRequired/light/refusal (0.03s)
+    --- FAIL: TestParamPrecedingRequired/light/options (0.03s)
+    --- FAIL: TestParamPrecedingRequired/dark/refusal (0.03s)
+    --- FAIL: TestParamPrecedingRequired/dark/options (0.02s)
+=== RUN   TestParamPrecedingOptions
+=== RUN   TestParamPrecedingOptions/light/refusal
+    parampreceding_test.go:127: preceding refusal hides options: target={X:195.8 Y:458 W:499 H:64} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingOptions/light/options
+    parampreceding_test.go:127: preceding options hides options: target={X:195.8 Y:708.80005 W:499 H:64} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:159: outlet reveal trapped subsequent scrolling
+=== RUN   TestParamPrecedingOptions/dark/refusal
+    parampreceding_test.go:127: preceding refusal hides options: target={X:195.8 Y:458 W:499 H:64} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+=== RUN   TestParamPrecedingOptions/dark/options
+    parampreceding_test.go:127: preceding options hides options: target={X:195.8 Y:708.80005 W:499 H:64} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6}
+    parampreceding_test.go:159: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamPrecedingOptions (0.09s)
+    --- FAIL: TestParamPrecedingOptions/light/refusal (0.02s)
+    --- FAIL: TestParamPrecedingOptions/light/options (0.02s)
+    --- FAIL: TestParamPrecedingOptions/dark/refusal (0.02s)
+    --- FAIL: TestParamPrecedingOptions/dark/options (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.969s
+FAIL

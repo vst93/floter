@@ -1,0 +1,27 @@
+=== RUN   TestParamPrecedingPlaceholder
+=== RUN   TestParamPrecedingPlaceholder/light/refusal
+=== RUN   TestParamPrecedingPlaceholder/light/options
+    parampreceding_test.go:156: outlet reveal trapped subsequent scrolling
+=== RUN   TestParamPrecedingPlaceholder/dark/refusal
+=== RUN   TestParamPrecedingPlaceholder/dark/options
+    parampreceding_test.go:156: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamPrecedingPlaceholder (0.26s)
+    --- PASS: TestParamPrecedingPlaceholder/light/refusal (0.17s)
+    --- FAIL: TestParamPrecedingPlaceholder/light/options (0.03s)
+    --- PASS: TestParamPrecedingPlaceholder/dark/refusal (0.03s)
+    --- FAIL: TestParamPrecedingPlaceholder/dark/options (0.03s)
+=== RUN   TestParamPrecedingDefault
+=== RUN   TestParamPrecedingDefault/light/refusal
+=== RUN   TestParamPrecedingDefault/light/options
+    parampreceding_test.go:156: outlet reveal trapped subsequent scrolling
+=== RUN   TestParamPrecedingDefault/dark/refusal
+=== RUN   TestParamPrecedingDefault/dark/options
+    parampreceding_test.go:156: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamPrecedingDefault (0.10s)
+    --- PASS: TestParamPrecedingDefault/light/refusal (0.03s)
+    --- FAIL: TestParamPrecedingDefault/light/options (0.02s)
+    --- PASS: TestParamPrecedingDefault/dark/refusal (0.02s)
+    --- FAIL: TestParamPrecedingDefault/dark/options (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.361s
+FAIL

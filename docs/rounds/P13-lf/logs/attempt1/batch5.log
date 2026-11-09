@@ -1,0 +1,35 @@
+=== RUN   TestParamPrecedingRemove
+=== RUN   TestParamPrecedingRemove/light/refusal
+--- FAIL: TestParamPrecedingRemove (0.09s)
+    --- FAIL: TestParamPrecedingRemove/light/refusal (0.09s)
+panic: runtime error: index out of range [1] with length 1 [recovered, repanicked]
+
+goroutine 9 [running]:
+testing.tRunner.func1.2({0x173d328, 0x8f4ab47d2a8})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x173d328?, 0x8f4ab47d2a8?})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+floter/internal/settingsui.checkParamPreceding.func1.1(0x8f4ab6887a0)
+	/home/tar/workspace/floter/internal/settingsui/parampreceding_test.go:48 +0x1c5
+floter/internal/settingsui.toolVisibilityFrame.func1(0x8f4ab6887a0)
+	/home/tar/workspace/floter/internal/settingsui/toolvisibility_test.go:43 +0xa2
+github.com/egoist/mygo/ui.NewTester.func1(0x8f4ab6ac138?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0x8f4ab6ac008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0x67a
+github.com/egoist/mygo/ui.(*Tester).settle(0x8f4ab66aaf0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.(*Tester).send(0x8f4ab66aaf0, {0x8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, ...})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:368 +0x146
+github.com/egoist/mygo/ui.(*Tester).Key(0x8f4ab66aaf0, 0x0, 0x1)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:704 +0x6b
+floter/internal/settingsui.checkParamPreceding.func1(0x8f4ab662d88)
+	/home/tar/workspace/floter/internal/settingsui/parampreceding_test.go:143 +0x1670
+testing.tRunner(0x8f4ab662d88, 0x8f4ab6667e0)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 8
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	floter/internal/settingsui	0.100s
+FAIL
