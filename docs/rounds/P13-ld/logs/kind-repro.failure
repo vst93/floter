@@ -1,0 +1,3 @@
+    locallayout_test.go:124: local layout hides active editor: target={X:466.8 Y:582.0001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    locallayout_test.go:124: local layout hides active editor: target={X:466.8 Y:582.0001 W:220 H:28} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    locallayout_test.go:120: feedback reflow hides active outlet "查询城市": target={X:195.8 Y:587.5 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true

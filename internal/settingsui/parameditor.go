@@ -2,6 +2,7 @@ package settingsui
 
 import (
 	"github.com/egoist/mygo/ui"
+	"strconv"
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
@@ -203,6 +204,8 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 // fields grid, its controls line, the choice options and the row's refusal. It
 // reports whether the remove key was pressed this frame.
 func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, issue extensions.ParamRowIssue, labelFocus, fieldsFocus *ui.Handle) bool {
+	// Each rendered record and its kind can change the height before other tools.
+	a.integrationLead += "local-param:" + strconv.Quote(param.Kind)
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 

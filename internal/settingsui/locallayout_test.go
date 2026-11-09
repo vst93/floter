@@ -12,6 +12,8 @@ func TestLocalLayoutOpen(t *testing.T)     { checkLocalLayout(t, "open") }
 func TestLocalLayoutMode(t *testing.T)     { checkLocalLayout(t, "mode") }
 func TestLocalLayoutAdvanced(t *testing.T) { checkLocalLayout(t, "advanced") }
 func TestLocalLayoutEditing(t *testing.T)  { checkLocalLayout(t, "editing") }
+func TestLocalLayoutParams(t *testing.T)   { checkLocalLayout(t, "params") }
+func TestLocalLayoutKind(t *testing.T)     { checkLocalLayout(t, "kind") }
 
 // The host can restore a failed local connection while the user has already
 // continued into another tool. Layout feedback must follow the drawn content,
@@ -53,7 +55,13 @@ func checkLocalLayout(t *testing.T, change string) {
 							control = c.Resolve(*focus).Bounds()
 						}
 					})
-					optionExitFocus(t, tt, label)
+					for i := 0; i < 80 && !tt.Focused(label); i++ {
+						tt.Key(0, ui.KeyTab)
+						tt.Frame()
+					}
+					if !tt.Focused(label) {
+						t.Fatalf("cannot Tab to %s", label)
+					}
 					for step, on := range []bool{true, false, true} {
 						switch change {
 						case "open":
