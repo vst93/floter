@@ -275,7 +275,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		// start and the remove key at the end (`:1880`).
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 			Gap(t.Space(2)).Children(func() {
-			outputFocusOutlet(c.Key("param-required-outlet"), func() {
+			a.formFeedbackOutlet(c.Key("param-required-outlet"), a.integrationLead, func() {
 				a.paramRequiredToggle(c, copy, &required)
 			})
 			var remove ui.Element

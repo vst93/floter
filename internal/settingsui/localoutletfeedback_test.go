@@ -12,8 +12,9 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func TestLocalOutletCommand(t *testing.T) { checkLocalOutletFeedback(t, "command") }
-func TestLocalOutletVersion(t *testing.T) { checkLocalOutletFeedback(t, "version") }
+func TestLocalOutletCommand(t *testing.T)  { checkLocalOutletFeedback(t, "command") }
+func TestLocalOutletVersion(t *testing.T)  { checkLocalOutletFeedback(t, "version") }
+func TestLocalOutletRequired(t *testing.T) { checkLocalOutletFeedback(t, "required") }
 func TestLocalOutletIdentity(t *testing.T) {
 	for _, field := range []string{"label", "id"} {
 		t.Run(field, func(t *testing.T) { checkLocalOutletFeedback(t, field) })
@@ -84,9 +85,15 @@ func checkLocalOutletFeedback(t *testing.T, field string) {
 				}
 				r := control
 				switch field {
-				case "placeholder", "kind":
+				case "placeholder":
 					r = mustFind(t, tt, label)
 					r.Y += r.H + 3
+					r.H = 30
+				case "kind":
+					// The form's mode caption also says "类型". The option's
+					// unique text is centered inside the actual 30px selector.
+					r = mustFind(t, tt, copy.ParamsKindSelect)
+					r.Y -= (30 - r.H) / 2
 					r.H = 30
 				case "add", "remove", "required":
 					r = mustFind(t, tt, label)
