@@ -6,14 +6,17 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"github.com/egoist/mygo/ui"
 )
 
-func TestLocalActionFeedbackPackage(t *testing.T) { checkLocalActionFeedback(t, "package") }
-func TestLocalActionFeedbackVersion(t *testing.T) { checkLocalActionFeedback(t, "version") }
+func TestLocalActionFeedbackPackage(t *testing.T)  { checkLocalActionFeedback(t, "package") }
+func TestLocalActionFeedbackVersion(t *testing.T)  { checkLocalActionFeedback(t, "version") }
+func TestLocalActionFeedbackOutput(t *testing.T)   { checkLocalActionFeedback(t, "output") }
+func TestLocalActionFeedbackPlatform(t *testing.T) { checkLocalActionFeedback(t, "platform") }
 
 func checkLocalActionFeedback(t *testing.T, kind string) {
 	t.Helper()
@@ -91,8 +94,22 @@ func checkLocalActionFeedback(t *testing.T, kind string) {
 					t.Errorf("feedback hides %s: rect=%+v viewport=%+v focused=%v", label, r, viewport, tt.Focused(label))
 				}
 			}
-			runVisibilityWheel(t, a, tt)
 			manual := a.Body.Y
+			if a.Body.MaxY > 0 {
+				// The options TextArea consumes wheels over its own surface.
+				// Scroll in the page gutter to exercise the outer viewport.
+				dy := float32(140)
+				if a.Body.Y == a.Body.MaxY {
+					dy = -dy
+				}
+				tt.Wheel(710, 280, 0, dy)
+				tt.Advance(250 * time.Millisecond)
+				tt.Frame()
+				if a.Body.Y == manual {
+					t.Fatal("page gutter wheel did not move")
+				}
+				manual = a.Body.Y
+			}
 			a.toolDescription = "same height"
 			tt.Frame()
 			tt.Frame()

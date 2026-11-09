@@ -6063,7 +6063,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					index = 1
 				}
 				var output ui.Element
-				outputFocusOutlet(c.Key("local-output-outlet"), func() {
+				a.formFeedbackOutlet(c.Key("local-output-outlet"), a.integrationLead, func() {
 					output = a.segmentedControl(c, &index, copy.LocalToolTerminal, copy.LocalToolBackground)
 				})
 				if output.Changed() {
@@ -6089,7 +6089,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 						i, platform := i, platform
 						checked := ticked[i]
 						var choice ui.Element
-						outputFocusOutlet(c.Key(platform.ID), func() {
+						a.formFeedbackOutlet(c.Key(platform.ID), a.integrationLead, func() {
 							choice = ui.Checkbox(c, &checked, platform.Label)
 						})
 						if i == 0 {
