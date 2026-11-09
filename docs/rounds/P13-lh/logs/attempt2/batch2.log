@@ -1,0 +1,29 @@
+=== RUN   TestLocalActionFeedbackSubmit
+=== RUN   TestLocalActionFeedbackSubmit/light
+    localactionfeedback_test.go:100: outlet reveal trapped subsequent scrolling
+=== RUN   TestLocalActionFeedbackSubmit/dark
+    localactionfeedback_test.go:100: outlet reveal trapped subsequent scrolling
+--- FAIL: TestLocalActionFeedbackSubmit (0.31s)
+    --- FAIL: TestLocalActionFeedbackSubmit/light (0.23s)
+    --- FAIL: TestLocalActionFeedbackSubmit/dark (0.08s)
+=== RUN   TestLocalActionFeedbackOutput
+=== RUN   TestLocalActionFeedbackOutput/light
+=== RUN   TestLocalActionFeedbackOutput/dark
+--- PASS: TestLocalActionFeedbackOutput (0.10s)
+    --- PASS: TestLocalActionFeedbackOutput/light (0.05s)
+    --- PASS: TestLocalActionFeedbackOutput/dark (0.05s)
+=== RUN   TestLocalActionFeedbackPlatform
+=== RUN   TestLocalActionFeedbackPlatform/light
+=== RUN   TestLocalActionFeedbackPlatform/dark
+--- PASS: TestLocalActionFeedbackPlatform (0.11s)
+    --- PASS: TestLocalActionFeedbackPlatform/light (0.06s)
+    --- PASS: TestLocalActionFeedbackPlatform/dark (0.05s)
+=== RUN   TestLocalActionFeedbackPermission
+=== RUN   TestLocalActionFeedbackPermission/light
+=== RUN   TestLocalActionFeedbackPermission/dark
+--- PASS: TestLocalActionFeedbackPermission (0.13s)
+    --- PASS: TestLocalActionFeedbackPermission/light (0.06s)
+    --- PASS: TestLocalActionFeedbackPermission/dark (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.647s
+FAIL

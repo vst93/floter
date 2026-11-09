@@ -1,0 +1,5 @@
+error: patch failed: internal/settingsui/settingsui.go:1017
+error: internal/settingsui/settingsui.go: patch does not apply
+error: internal/settingsui/settingspanel_test.go: No such file or directory
+error: patch failed: internal/settingsui/rows.go:373
+error: internal/settingsui/rows.go: patch does not apply

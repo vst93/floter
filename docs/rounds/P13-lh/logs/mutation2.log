@@ -1,0 +1,13 @@
+=== RUN   TestLocalActionFeedbackPlatform
+=== RUN   TestLocalActionFeedbackPlatform/light
+    localactionfeedback_test.go:100: feedback hides macOS: rect={X:514 Y:490 W:36 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:100: feedback hides macOS: rect={X:514 Y:490 W:36 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackPlatform/dark
+    localactionfeedback_test.go:100: feedback hides macOS: rect={X:514 Y:490 W:36 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:100: feedback hides macOS: rect={X:514 Y:490 W:36 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackPlatform (0.24s)
+    --- FAIL: TestLocalActionFeedbackPlatform/light (0.19s)
+    --- FAIL: TestLocalActionFeedbackPlatform/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.246s
+FAIL

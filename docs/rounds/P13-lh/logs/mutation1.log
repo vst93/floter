@@ -1,0 +1,23 @@
+=== RUN   TestLocalActionFeedbackPackage
+=== RUN   TestLocalActionFeedbackPackage/light
+    localactionfeedback_test.go:100: feedback hides npm 包名，例如 @scope/name: rect={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:100: feedback hides npm 包名，例如 @scope/name: rect={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackPackage/dark
+    localactionfeedback_test.go:100: feedback hides npm 包名，例如 @scope/name: rect={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:100: feedback hides npm 包名，例如 @scope/name: rect={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackPackage (0.32s)
+    --- FAIL: TestLocalActionFeedbackPackage/light (0.23s)
+    --- FAIL: TestLocalActionFeedbackPackage/dark (0.08s)
+=== RUN   TestLocalActionFeedbackVersion
+=== RUN   TestLocalActionFeedbackVersion/light
+    localactionfeedback_test.go:100: feedback hides 版本或范围（可空）: rect={X:495.8 Y:477.20004 W:160 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:100: feedback hides 版本或范围（可空）: rect={X:495.8 Y:477.20004 W:160 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackVersion/dark
+    localactionfeedback_test.go:100: feedback hides 版本或范围（可空）: rect={X:495.8 Y:477.20004 W:160 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:100: feedback hides 版本或范围（可空）: rect={X:495.8 Y:477.20004 W:160 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackVersion (0.17s)
+    --- FAIL: TestLocalActionFeedbackVersion/light (0.08s)
+    --- FAIL: TestLocalActionFeedbackVersion/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	0.490s
+FAIL

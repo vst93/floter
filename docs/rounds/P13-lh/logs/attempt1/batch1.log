@@ -1,0 +1,59 @@
+=== RUN   TestInstallFormRegistryBusy
+=== RUN   TestInstallFormRegistryBusy/light
+=== RUN   TestInstallFormRegistryBusy/dark
+--- PASS: TestInstallFormRegistryBusy (0.39s)
+    --- PASS: TestInstallFormRegistryBusy/light (0.32s)
+    --- PASS: TestInstallFormRegistryBusy/dark (0.06s)
+=== RUN   TestInstallFormBlankPackage
+=== RUN   TestInstallFormBlankPackage/light
+=== RUN   TestInstallFormBlankPackage/dark
+--- PASS: TestInstallFormBlankPackage (0.16s)
+    --- PASS: TestInstallFormBlankPackage/light (0.08s)
+    --- PASS: TestInstallFormBlankPackage/dark (0.08s)
+=== RUN   TestInstallFormRegistryKeyboard
+=== RUN   TestInstallFormRegistryKeyboard/light
+=== RUN   TestInstallFormRegistryKeyboard/dark
+--- PASS: TestInstallFormRegistryKeyboard (0.12s)
+    --- PASS: TestInstallFormRegistryKeyboard/light (0.07s)
+    --- PASS: TestInstallFormRegistryKeyboard/dark (0.05s)
+=== RUN   TestInstallFormRecoveryKeepsNewDraft
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/name
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/version
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/cleared
+--- PASS: TestInstallFormRecoveryKeepsNewDraft (0.36s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/name (0.10s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/version (0.12s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/cleared (0.14s)
+=== RUN   TestInstallFormFolderKeyboard
+=== RUN   TestInstallFormFolderKeyboard/light
+=== RUN   TestInstallFormFolderKeyboard/dark
+--- PASS: TestInstallFormFolderKeyboard (0.08s)
+    --- PASS: TestInstallFormFolderKeyboard/light (0.05s)
+    --- PASS: TestInstallFormFolderKeyboard/dark (0.04s)
+=== RUN   TestInstallFormFolderError
+=== RUN   TestInstallFormFolderError/light
+=== RUN   TestInstallFormFolderError/dark
+--- PASS: TestInstallFormFolderError (0.03s)
+    --- PASS: TestInstallFormFolderError/light (0.02s)
+    --- PASS: TestInstallFormFolderError/dark (0.02s)
+=== RUN   TestLocalActionFeedbackPackage
+=== RUN   TestLocalActionFeedbackPackage/light
+    localactionfeedback_test.go:84: feedback reflow hides active outlet "npm 包名，例如 @scope/name": target={X:186.8 Y:471.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:84: feedback reflow hides active outlet "npm 包名，例如 @scope/name": target={X:186.8 Y:471.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackPackage/dark
+    localactionfeedback_test.go:84: feedback reflow hides active outlet "npm 包名，例如 @scope/name": target={X:186.8 Y:471.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:84: feedback reflow hides active outlet "npm 包名，例如 @scope/name": target={X:186.8 Y:471.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackPackage (0.68s)
+    --- FAIL: TestLocalActionFeedbackPackage/light (0.40s)
+    --- FAIL: TestLocalActionFeedbackPackage/dark (0.29s)
+=== RUN   TestLocalActionFeedbackVersion
+=== RUN   TestLocalActionFeedbackVersion/light
+    localactionfeedback_test.go:53: cannot reach 版本或范围（可空）
+=== RUN   TestLocalActionFeedbackVersion/dark
+    localactionfeedback_test.go:53: cannot reach 版本或范围（可空）
+--- FAIL: TestLocalActionFeedbackVersion (1.88s)
+    --- FAIL: TestLocalActionFeedbackVersion/light (0.93s)
+    --- FAIL: TestLocalActionFeedbackVersion/dark (0.95s)
+FAIL
+FAIL	floter/internal/settingsui	3.739s
+FAIL

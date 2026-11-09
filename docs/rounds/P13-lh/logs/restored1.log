@@ -1,0 +1,14 @@
+=== RUN   TestLocalActionFeedbackPackage
+=== RUN   TestLocalActionFeedbackPackage/light
+=== RUN   TestLocalActionFeedbackPackage/dark
+--- PASS: TestLocalActionFeedbackPackage (0.22s)
+    --- PASS: TestLocalActionFeedbackPackage/light (0.14s)
+    --- PASS: TestLocalActionFeedbackPackage/dark (0.08s)
+=== RUN   TestLocalActionFeedbackVersion
+=== RUN   TestLocalActionFeedbackVersion/light
+=== RUN   TestLocalActionFeedbackVersion/dark
+--- PASS: TestLocalActionFeedbackVersion (0.17s)
+    --- PASS: TestLocalActionFeedbackVersion/light (0.08s)
+    --- PASS: TestLocalActionFeedbackVersion/dark (0.08s)
+PASS
+ok  	floter/internal/settingsui	0.396s

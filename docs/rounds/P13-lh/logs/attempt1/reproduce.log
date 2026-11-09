@@ -1,0 +1,121 @@
+=== RUN   TestInstallFormRegistryBusy
+=== RUN   TestInstallFormRegistryBusy/light
+=== RUN   TestInstallFormRegistryBusy/dark
+--- PASS: TestInstallFormRegistryBusy (0.13s)
+    --- PASS: TestInstallFormRegistryBusy/light (0.11s)
+    --- PASS: TestInstallFormRegistryBusy/dark (0.02s)
+=== RUN   TestInstallFormBlankPackage
+=== RUN   TestInstallFormBlankPackage/light
+=== RUN   TestInstallFormBlankPackage/dark
+--- PASS: TestInstallFormBlankPackage (0.04s)
+    --- PASS: TestInstallFormBlankPackage/light (0.02s)
+    --- PASS: TestInstallFormBlankPackage/dark (0.02s)
+=== RUN   TestInstallFormRegistryKeyboard
+=== RUN   TestInstallFormRegistryKeyboard/light
+=== RUN   TestInstallFormRegistryKeyboard/dark
+--- PASS: TestInstallFormRegistryKeyboard (0.03s)
+    --- PASS: TestInstallFormRegistryKeyboard/light (0.02s)
+    --- PASS: TestInstallFormRegistryKeyboard/dark (0.01s)
+=== RUN   TestInstallFormRecoveryKeepsNewDraft
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/name
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/version
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/cleared
+--- PASS: TestInstallFormRecoveryKeepsNewDraft (0.10s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/name (0.03s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/version (0.04s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/cleared (0.04s)
+=== RUN   TestInstallFormFolderKeyboard
+=== RUN   TestInstallFormFolderKeyboard/light
+=== RUN   TestInstallFormFolderKeyboard/dark
+--- PASS: TestInstallFormFolderKeyboard (0.02s)
+    --- PASS: TestInstallFormFolderKeyboard/light (0.01s)
+    --- PASS: TestInstallFormFolderKeyboard/dark (0.01s)
+=== RUN   TestInstallFormFolderError
+=== RUN   TestInstallFormFolderError/light
+=== RUN   TestInstallFormFolderError/dark
+--- PASS: TestInstallFormFolderError (0.01s)
+    --- PASS: TestInstallFormFolderError/light (0.00s)
+    --- PASS: TestInstallFormFolderError/dark (0.01s)
+=== RUN   TestLocalActionFeedbackSubmit
+=== RUN   TestLocalActionFeedbackSubmit/light
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "保存": target={X:434.3 Y:849.8 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "保存": target={X:434.3 Y:562.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "保存": target={X:434.3 Y:849.8 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackSubmit/dark
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "保存": target={X:434.3 Y:849.8 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "保存": target={X:434.3 Y:562.99994 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "保存": target={X:434.3 Y:849.8 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackSubmit (0.23s)
+    --- FAIL: TestLocalActionFeedbackSubmit/light (0.15s)
+    --- FAIL: TestLocalActionFeedbackSubmit/dark (0.08s)
+=== RUN   TestLocalActionFeedbackOutput
+=== RUN   TestLocalActionFeedbackOutput/light
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "在终端中": target={X:552.8 Y:477 W:66 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "在终端中": target={X:552.8 Y:477 W:66 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackOutput/dark
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "在终端中": target={X:552.8 Y:477 W:66 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "在终端中": target={X:552.8 Y:477 W:66 H:30} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackOutput (0.10s)
+    --- FAIL: TestLocalActionFeedbackOutput/light (0.05s)
+    --- FAIL: TestLocalActionFeedbackOutput/dark (0.05s)
+=== RUN   TestLocalActionFeedbackPlatform
+=== RUN   TestLocalActionFeedbackPlatform/light
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "macOS": target={X:514 Y:490 W:36 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "macOS": target={X:514 Y:490 W:36 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackPlatform/dark
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "macOS": target={X:514 Y:490 W:36 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "macOS": target={X:514 Y:490 W:36 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackPlatform (0.10s)
+    --- FAIL: TestLocalActionFeedbackPlatform/light (0.05s)
+    --- FAIL: TestLocalActionFeedbackPlatform/dark (0.05s)
+=== RUN   TestLocalActionFeedbackPermission
+=== RUN   TestLocalActionFeedbackPermission/light
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "读取文件": target={X:215.8 Y:489 W:415.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "读取文件": target={X:215.8 Y:489 W:415.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackPermission/dark
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "读取文件": target={X:215.8 Y:489 W:415.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "读取文件": target={X:215.8 Y:489 W:415.60004 H:18} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackPermission (0.12s)
+    --- FAIL: TestLocalActionFeedbackPermission/light (0.06s)
+    --- FAIL: TestLocalActionFeedbackPermission/dark (0.06s)
+=== RUN   TestLocalActionFeedbackPackage
+=== RUN   TestLocalActionFeedbackPackage/light
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "npm 包名，例如 @scope/name": target={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "npm 包名，例如 @scope/name": target={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackPackage/dark
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "npm 包名，例如 @scope/name": target={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "npm 包名，例如 @scope/name": target={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackPackage (0.18s)
+    --- FAIL: TestLocalActionFeedbackPackage/light (0.09s)
+    --- FAIL: TestLocalActionFeedbackPackage/dark (0.09s)
+=== RUN   TestLocalActionFeedbackVersion
+=== RUN   TestLocalActionFeedbackVersion/light
+    localactionfeedback_test.go:59: cannot reach 版本或范围（可空）
+=== RUN   TestLocalActionFeedbackVersion/dark
+    localactionfeedback_test.go:59: cannot reach 版本或范围（可空）
+--- FAIL: TestLocalActionFeedbackVersion (0.59s)
+    --- FAIL: TestLocalActionFeedbackVersion/light (0.29s)
+    --- FAIL: TestLocalActionFeedbackVersion/dark (0.30s)
+=== RUN   TestLocalActionFeedbackInstall
+=== RUN   TestLocalActionFeedbackInstall/light
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "安装": target={X:670.8 Y:490 W:22 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "安装": target={X:670.8 Y:490 W:22 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackInstall/dark
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "安装": target={X:670.8 Y:490 W:22 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "安装": target={X:670.8 Y:490 W:22 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackInstall (0.17s)
+    --- FAIL: TestLocalActionFeedbackInstall/light (0.09s)
+    --- FAIL: TestLocalActionFeedbackInstall/dark (0.09s)
+=== RUN   TestLocalActionFeedbackFolder
+=== RUN   TestLocalActionFeedbackFolder/light
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "选择…": target={X:645.8 Y:490 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "选择…": target={X:645.8 Y:490 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestLocalActionFeedbackFolder/dark
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "选择…": target={X:645.8 Y:490 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:90: feedback reflow hides active outlet "选择…": target={X:645.8 Y:490 W:33 H:17} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestLocalActionFeedbackFolder (0.17s)
+    --- FAIL: TestLocalActionFeedbackFolder/light (0.09s)
+    --- FAIL: TestLocalActionFeedbackFolder/dark (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	2.019s
+FAIL

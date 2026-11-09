@@ -1,0 +1,3 @@
+    localactionfeedback_test.go:100: feedback hides npm 包名，例如 @scope/name: rect={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:100: feedback hides npm 包名，例如 @scope/name: rect={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    localactionfeedback_test.go:100: feedback hides npm 包名，例如 @scope/name: rect={X:186.8 Y:477.20004 W:305 H:29.799988} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true

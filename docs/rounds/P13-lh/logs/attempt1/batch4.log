@@ -1,0 +1,52 @@
+=== RUN   TestInstallFormRegistryBusy
+=== RUN   TestInstallFormRegistryBusy/light
+=== RUN   TestInstallFormRegistryBusy/dark
+--- PASS: TestInstallFormRegistryBusy (0.13s)
+    --- PASS: TestInstallFormRegistryBusy/light (0.12s)
+    --- PASS: TestInstallFormRegistryBusy/dark (0.02s)
+=== RUN   TestInstallFormBlankPackage
+=== RUN   TestInstallFormBlankPackage/light
+=== RUN   TestInstallFormBlankPackage/dark
+--- PASS: TestInstallFormBlankPackage (0.04s)
+    --- PASS: TestInstallFormBlankPackage/light (0.02s)
+    --- PASS: TestInstallFormBlankPackage/dark (0.02s)
+=== RUN   TestInstallFormRegistryKeyboard
+=== RUN   TestInstallFormRegistryKeyboard/light
+=== RUN   TestInstallFormRegistryKeyboard/dark
+--- PASS: TestInstallFormRegistryKeyboard (0.03s)
+    --- PASS: TestInstallFormRegistryKeyboard/light (0.02s)
+    --- PASS: TestInstallFormRegistryKeyboard/dark (0.01s)
+=== RUN   TestInstallFormRecoveryKeepsNewDraft
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/name
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/version
+=== RUN   TestInstallFormRecoveryKeepsNewDraft/cleared
+--- PASS: TestInstallFormRecoveryKeepsNewDraft (0.10s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/name (0.03s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/version (0.04s)
+    --- PASS: TestInstallFormRecoveryKeepsNewDraft/cleared (0.04s)
+=== RUN   TestInstallFormFolderKeyboard
+=== RUN   TestInstallFormFolderKeyboard/light
+=== RUN   TestInstallFormFolderKeyboard/dark
+--- PASS: TestInstallFormFolderKeyboard (0.02s)
+    --- PASS: TestInstallFormFolderKeyboard/light (0.01s)
+    --- PASS: TestInstallFormFolderKeyboard/dark (0.01s)
+=== RUN   TestInstallFormFolderError
+=== RUN   TestInstallFormFolderError/light
+=== RUN   TestInstallFormFolderError/dark
+--- PASS: TestInstallFormFolderError (0.01s)
+    --- PASS: TestInstallFormFolderError/light (0.00s)
+    --- PASS: TestInstallFormFolderError/dark (0.00s)
+=== RUN   TestLocalActionFeedbackInstall
+=== RUN   TestLocalActionFeedbackInstall/light
+=== RUN   TestLocalActionFeedbackInstall/dark
+--- PASS: TestLocalActionFeedbackInstall (0.24s)
+    --- PASS: TestLocalActionFeedbackInstall/light (0.15s)
+    --- PASS: TestLocalActionFeedbackInstall/dark (0.09s)
+=== RUN   TestLocalActionFeedbackFolder
+=== RUN   TestLocalActionFeedbackFolder/light
+=== RUN   TestLocalActionFeedbackFolder/dark
+--- PASS: TestLocalActionFeedbackFolder (0.18s)
+    --- PASS: TestLocalActionFeedbackFolder/light (0.09s)
+    --- PASS: TestLocalActionFeedbackFolder/dark (0.09s)
+PASS
+ok  	floter/internal/settingsui	0.773s
