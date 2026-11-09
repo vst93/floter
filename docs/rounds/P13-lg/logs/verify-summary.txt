@@ -1,0 +1,10 @@
+PASS gofmt            docs/rounds/P13-lg/logs/gofmt.log
+PASS vet-linux        docs/rounds/P13-lg/logs/vet-linux.log
+PASS vet-windows      docs/rounds/P13-lg/logs/vet-windows.log
+PASS vet-darwin       docs/rounds/P13-lg/logs/vet-darwin.log
+PASS test             docs/rounds/P13-lg/logs/test.log
+PASS verbose          docs/rounds/P13-lg/logs/verbose.log
+PASS build-linux      docs/rounds/P13-lg/logs/build-linux.log
+PASS build-windows    docs/rounds/P13-lg/logs/build-windows.log
+PASS build-darwin     docs/rounds/P13-lg/logs/build-darwin.log
+TOTAL PASS=7629 test_functions=3708 failed_gates=0

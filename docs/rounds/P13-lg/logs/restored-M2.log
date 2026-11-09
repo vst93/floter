@@ -1,0 +1,66 @@
+=== RUN   TestParamDownstreamInput
+=== RUN   TestParamDownstreamInput/param-options
+=== RUN   TestParamDownstreamInput/param-options/light
+=== RUN   TestParamDownstreamInput/param-options/dark
+--- PASS: TestParamDownstreamInput (0.18s)
+    --- PASS: TestParamDownstreamInput/param-options (0.18s)
+        --- PASS: TestParamDownstreamInput/param-options/light (0.12s)
+        --- PASS: TestParamDownstreamInput/param-options/dark (0.06s)
+=== RUN   TestParamDownstreamSwitch
+=== RUN   TestParamDownstreamSwitch/param-options
+=== RUN   TestParamDownstreamSwitch/param-options/light
+=== RUN   TestParamDownstreamSwitch/param-options/dark
+--- PASS: TestParamDownstreamSwitch (0.12s)
+    --- PASS: TestParamDownstreamSwitch/param-options (0.12s)
+        --- PASS: TestParamDownstreamSwitch/param-options/light (0.06s)
+        --- PASS: TestParamDownstreamSwitch/param-options/dark (0.06s)
+=== RUN   TestParamDownstreamSelect
+=== RUN   TestParamDownstreamSelect/param-options
+=== RUN   TestParamDownstreamSelect/param-options/light
+=== RUN   TestParamDownstreamSelect/param-options/dark
+--- PASS: TestParamDownstreamSelect (0.12s)
+    --- PASS: TestParamDownstreamSelect/param-options (0.12s)
+        --- PASS: TestParamDownstreamSelect/param-options/light (0.06s)
+        --- PASS: TestParamDownstreamSelect/param-options/dark (0.06s)
+=== RUN   TestParamDownstreamCancel
+=== RUN   TestParamDownstreamCancel/param-options
+=== RUN   TestParamDownstreamCancel/param-options/light
+=== RUN   TestParamDownstreamCancel/param-options/dark
+--- PASS: TestParamDownstreamCancel (0.18s)
+    --- PASS: TestParamDownstreamCancel/param-options (0.18s)
+        --- PASS: TestParamDownstreamCancel/param-options/light (0.09s)
+        --- PASS: TestParamDownstreamCancel/param-options/dark (0.09s)
+=== RUN   TestParamDownstreamConfig
+=== RUN   TestParamDownstreamConfig/param-options
+=== RUN   TestParamDownstreamConfig/param-options/light
+=== RUN   TestParamDownstreamConfig/param-options/dark
+--- PASS: TestParamDownstreamConfig (0.13s)
+    --- PASS: TestParamDownstreamConfig/param-options (0.13s)
+        --- PASS: TestParamDownstreamConfig/param-options/light (0.06s)
+        --- PASS: TestParamDownstreamConfig/param-options/dark (0.06s)
+=== RUN   TestParamDownstreamDefaults
+=== RUN   TestParamDownstreamDefaults/param-options
+=== RUN   TestParamDownstreamDefaults/param-options/light
+=== RUN   TestParamDownstreamDefaults/param-options/dark
+--- PASS: TestParamDownstreamDefaults (0.16s)
+    --- PASS: TestParamDownstreamDefaults/param-options (0.16s)
+        --- PASS: TestParamDownstreamDefaults/param-options/light (0.08s)
+        --- PASS: TestParamDownstreamDefaults/param-options/dark (0.08s)
+=== RUN   TestParamDownstreamCopy
+=== RUN   TestParamDownstreamCopy/param-options
+=== RUN   TestParamDownstreamCopy/param-options/light
+=== RUN   TestParamDownstreamCopy/param-options/dark
+--- PASS: TestParamDownstreamCopy (0.07s)
+    --- PASS: TestParamDownstreamCopy/param-options (0.07s)
+        --- PASS: TestParamDownstreamCopy/param-options/light (0.04s)
+        --- PASS: TestParamDownstreamCopy/param-options/dark (0.03s)
+=== RUN   TestParamDownstreamExport
+=== RUN   TestParamDownstreamExport/param-options
+=== RUN   TestParamDownstreamExport/param-options/light
+=== RUN   TestParamDownstreamExport/param-options/dark
+--- PASS: TestParamDownstreamExport (0.07s)
+    --- PASS: TestParamDownstreamExport/param-options (0.07s)
+        --- PASS: TestParamDownstreamExport/param-options/light (0.04s)
+        --- PASS: TestParamDownstreamExport/param-options/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	1.033s

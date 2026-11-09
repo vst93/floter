@@ -1,0 +1,147 @@
+=== RUN   TestParamDownstreamInput
+=== RUN   TestParamDownstreamInput/param-refusal
+=== RUN   TestParamDownstreamInput/param-refusal/light
+    catalogreflow_test.go:134: cannot Tab to 参数 5
+=== RUN   TestParamDownstreamInput/param-refusal/dark
+    catalogreflow_test.go:134: cannot Tab to 参数 5
+=== RUN   TestParamDownstreamInput/param-options
+=== RUN   TestParamDownstreamInput/param-options/light
+    catalogreflow_test.go:134: cannot Tab to 参数 5
+=== RUN   TestParamDownstreamInput/param-options/dark
+    catalogreflow_test.go:134: cannot Tab to 参数 5
+--- FAIL: TestParamDownstreamInput (1.52s)
+    --- FAIL: TestParamDownstreamInput/param-refusal (0.90s)
+        --- FAIL: TestParamDownstreamInput/param-refusal/light (0.59s)
+        --- FAIL: TestParamDownstreamInput/param-refusal/dark (0.31s)
+    --- FAIL: TestParamDownstreamInput/param-options (0.62s)
+        --- FAIL: TestParamDownstreamInput/param-options/light (0.30s)
+        --- FAIL: TestParamDownstreamInput/param-options/dark (0.32s)
+=== RUN   TestParamDownstreamSwitch
+=== RUN   TestParamDownstreamSwitch/param-refusal
+=== RUN   TestParamDownstreamSwitch/param-refusal/light
+    catalogreflow_test.go:134: cannot Tab to 参数 5
+=== RUN   TestParamDownstreamSwitch/param-refusal/dark
+    catalogreflow_test.go:134: cannot Tab to 参数 5
+=== RUN   TestParamDownstreamSwitch/param-options
+=== RUN   TestParamDownstreamSwitch/param-options/light
+    catalogreflow_test.go:134: cannot Tab to 参数 5
+=== RUN   TestParamDownstreamSwitch/param-options/dark
+    catalogreflow_test.go:134: cannot Tab to 参数 5
+--- FAIL: TestParamDownstreamSwitch (1.24s)
+    --- FAIL: TestParamDownstreamSwitch/param-refusal (0.61s)
+        --- FAIL: TestParamDownstreamSwitch/param-refusal/light (0.32s)
+        --- FAIL: TestParamDownstreamSwitch/param-refusal/dark (0.29s)
+    --- FAIL: TestParamDownstreamSwitch/param-options (0.63s)
+        --- FAIL: TestParamDownstreamSwitch/param-options/light (0.32s)
+        --- FAIL: TestParamDownstreamSwitch/param-options/dark (0.31s)
+=== RUN   TestParamDownstreamSelect
+=== RUN   TestParamDownstreamSelect/param-refusal
+=== RUN   TestParamDownstreamSelect/param-refusal/light
+    catalogreflow_test.go:134: cannot Tab to 北方
+=== RUN   TestParamDownstreamSelect/param-refusal/dark
+    catalogreflow_test.go:134: cannot Tab to 北方
+=== RUN   TestParamDownstreamSelect/param-options
+=== RUN   TestParamDownstreamSelect/param-options/light
+    catalogreflow_test.go:134: cannot Tab to 北方
+=== RUN   TestParamDownstreamSelect/param-options/dark
+    catalogreflow_test.go:134: cannot Tab to 北方
+--- FAIL: TestParamDownstreamSelect (1.37s)
+    --- FAIL: TestParamDownstreamSelect/param-refusal (0.65s)
+        --- FAIL: TestParamDownstreamSelect/param-refusal/light (0.35s)
+        --- FAIL: TestParamDownstreamSelect/param-refusal/dark (0.30s)
+    --- FAIL: TestParamDownstreamSelect/param-options (0.72s)
+        --- FAIL: TestParamDownstreamSelect/param-options/light (0.35s)
+        --- FAIL: TestParamDownstreamSelect/param-options/dark (0.36s)
+=== RUN   TestParamDownstreamCancel
+=== RUN   TestParamDownstreamCancel/param-refusal
+=== RUN   TestParamDownstreamCancel/param-refusal/light
+    catalogreflow_test.go:134: cannot Tab to Cancel
+=== RUN   TestParamDownstreamCancel/param-refusal/dark
+    catalogreflow_test.go:134: cannot Tab to Cancel
+=== RUN   TestParamDownstreamCancel/param-options
+=== RUN   TestParamDownstreamCancel/param-options/light
+    catalogreflow_test.go:134: cannot Tab to Cancel
+=== RUN   TestParamDownstreamCancel/param-options/dark
+    catalogreflow_test.go:134: cannot Tab to Cancel
+--- FAIL: TestParamDownstreamCancel (1.34s)
+    --- FAIL: TestParamDownstreamCancel/param-refusal (0.63s)
+        --- FAIL: TestParamDownstreamCancel/param-refusal/light (0.32s)
+        --- FAIL: TestParamDownstreamCancel/param-refusal/dark (0.31s)
+    --- FAIL: TestParamDownstreamCancel/param-options (0.71s)
+        --- FAIL: TestParamDownstreamCancel/param-options/light (0.36s)
+        --- FAIL: TestParamDownstreamCancel/param-options/dark (0.35s)
+=== RUN   TestParamDownstreamConfig
+=== RUN   TestParamDownstreamConfig/param-refusal
+=== RUN   TestParamDownstreamConfig/param-refusal/light
+    catalogreflow_test.go:134: cannot Tab to 配置 5
+=== RUN   TestParamDownstreamConfig/param-refusal/dark
+    catalogreflow_test.go:134: cannot Tab to 配置 5
+=== RUN   TestParamDownstreamConfig/param-options
+=== RUN   TestParamDownstreamConfig/param-options/light
+    catalogreflow_test.go:134: cannot Tab to 配置 5
+=== RUN   TestParamDownstreamConfig/param-options/dark
+    catalogreflow_test.go:134: cannot Tab to 配置 5
+--- FAIL: TestParamDownstreamConfig (1.25s)
+    --- FAIL: TestParamDownstreamConfig/param-refusal (0.65s)
+        --- FAIL: TestParamDownstreamConfig/param-refusal/light (0.34s)
+        --- FAIL: TestParamDownstreamConfig/param-refusal/dark (0.31s)
+    --- FAIL: TestParamDownstreamConfig/param-options (0.60s)
+        --- FAIL: TestParamDownstreamConfig/param-options/light (0.30s)
+        --- FAIL: TestParamDownstreamConfig/param-options/dark (0.31s)
+=== RUN   TestParamDownstreamDefaults
+=== RUN   TestParamDownstreamDefaults/param-refusal
+=== RUN   TestParamDownstreamDefaults/param-refusal/light
+    catalogreflow_test.go:134: cannot Tab to Restore defaults
+=== RUN   TestParamDownstreamDefaults/param-refusal/dark
+    catalogreflow_test.go:134: cannot Tab to Restore defaults
+=== RUN   TestParamDownstreamDefaults/param-options
+=== RUN   TestParamDownstreamDefaults/param-options/light
+    catalogreflow_test.go:134: cannot Tab to Restore defaults
+=== RUN   TestParamDownstreamDefaults/param-options/dark
+    catalogreflow_test.go:134: cannot Tab to Restore defaults
+--- FAIL: TestParamDownstreamDefaults (1.26s)
+    --- FAIL: TestParamDownstreamDefaults/param-refusal (0.61s)
+        --- FAIL: TestParamDownstreamDefaults/param-refusal/light (0.29s)
+        --- FAIL: TestParamDownstreamDefaults/param-refusal/dark (0.31s)
+    --- FAIL: TestParamDownstreamDefaults/param-options (0.65s)
+        --- FAIL: TestParamDownstreamDefaults/param-options/light (0.34s)
+        --- FAIL: TestParamDownstreamDefaults/param-options/dark (0.31s)
+=== RUN   TestParamDownstreamCopy
+=== RUN   TestParamDownstreamCopy/param-refusal
+=== RUN   TestParamDownstreamCopy/param-refusal/light
+    catalogreflow_test.go:134: cannot Tab to Copy configuration
+=== RUN   TestParamDownstreamCopy/param-refusal/dark
+    catalogreflow_test.go:134: cannot Tab to Copy configuration
+=== RUN   TestParamDownstreamCopy/param-options
+=== RUN   TestParamDownstreamCopy/param-options/light
+    catalogreflow_test.go:134: cannot Tab to Copy configuration
+=== RUN   TestParamDownstreamCopy/param-options/dark
+    catalogreflow_test.go:134: cannot Tab to Copy configuration
+--- FAIL: TestParamDownstreamCopy (1.32s)
+    --- FAIL: TestParamDownstreamCopy/param-refusal (0.64s)
+        --- FAIL: TestParamDownstreamCopy/param-refusal/light (0.31s)
+        --- FAIL: TestParamDownstreamCopy/param-refusal/dark (0.32s)
+    --- FAIL: TestParamDownstreamCopy/param-options (0.68s)
+        --- FAIL: TestParamDownstreamCopy/param-options/light (0.32s)
+        --- FAIL: TestParamDownstreamCopy/param-options/dark (0.37s)
+=== RUN   TestParamDownstreamExport
+=== RUN   TestParamDownstreamExport/param-refusal
+=== RUN   TestParamDownstreamExport/param-refusal/light
+    catalogreflow_test.go:134: cannot Tab to Export configuration
+=== RUN   TestParamDownstreamExport/param-refusal/dark
+    catalogreflow_test.go:134: cannot Tab to Export configuration
+=== RUN   TestParamDownstreamExport/param-options
+=== RUN   TestParamDownstreamExport/param-options/light
+    catalogreflow_test.go:134: cannot Tab to Export configuration
+=== RUN   TestParamDownstreamExport/param-options/dark
+    catalogreflow_test.go:134: cannot Tab to Export configuration
+--- FAIL: TestParamDownstreamExport (1.23s)
+    --- FAIL: TestParamDownstreamExport/param-refusal (0.66s)
+        --- FAIL: TestParamDownstreamExport/param-refusal/light (0.34s)
+        --- FAIL: TestParamDownstreamExport/param-refusal/dark (0.32s)
+    --- FAIL: TestParamDownstreamExport/param-options (0.57s)
+        --- FAIL: TestParamDownstreamExport/param-options/light (0.27s)
+        --- FAIL: TestParamDownstreamExport/param-options/dark (0.30s)
+FAIL
+FAIL	floter/internal/settingsui	10.539s
+FAIL

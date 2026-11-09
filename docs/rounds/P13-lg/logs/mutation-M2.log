@@ -1,0 +1,119 @@
+=== RUN   TestParamDownstreamInput
+=== RUN   TestParamDownstreamInput/param-options
+=== RUN   TestParamDownstreamInput/param-options/light
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestParamDownstreamInput/param-options/dark
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestParamDownstreamInput (0.31s)
+    --- FAIL: TestParamDownstreamInput/param-options (0.31s)
+        --- FAIL: TestParamDownstreamInput/param-options/light (0.22s)
+        --- FAIL: TestParamDownstreamInput/param-options/dark (0.09s)
+=== RUN   TestParamDownstreamSwitch
+=== RUN   TestParamDownstreamSwitch/param-options
+=== RUN   TestParamDownstreamSwitch/param-options/light
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestParamDownstreamSwitch/param-options/dark
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestParamDownstreamSwitch (0.18s)
+    --- FAIL: TestParamDownstreamSwitch/param-options (0.18s)
+        --- FAIL: TestParamDownstreamSwitch/param-options/light (0.09s)
+        --- FAIL: TestParamDownstreamSwitch/param-options/dark (0.09s)
+=== RUN   TestParamDownstreamSelect
+=== RUN   TestParamDownstreamSelect/param-options
+=== RUN   TestParamDownstreamSelect/param-options/light
+    catalogreflow_test.go:211: feedback reflow hides active outlet "北方": target={X:597.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "北方": target={X:597.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "北方": target={X:597.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestParamDownstreamSelect/param-options/dark
+    catalogreflow_test.go:211: feedback reflow hides active outlet "北方": target={X:597.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "北方": target={X:597.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "北方": target={X:597.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestParamDownstreamSelect (0.19s)
+    --- FAIL: TestParamDownstreamSelect/param-options (0.19s)
+        --- FAIL: TestParamDownstreamSelect/param-options/light (0.10s)
+        --- FAIL: TestParamDownstreamSelect/param-options/dark (0.10s)
+=== RUN   TestParamDownstreamCancel
+=== RUN   TestParamDownstreamCancel/param-options
+=== RUN   TestParamDownstreamCancel/param-options/light
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestParamDownstreamCancel/param-options/dark
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Cancel": target={X:499.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestParamDownstreamCancel (0.30s)
+    --- FAIL: TestParamDownstreamCancel/param-options (0.30s)
+        --- FAIL: TestParamDownstreamCancel/param-options/light (0.15s)
+        --- FAIL: TestParamDownstreamCancel/param-options/dark (0.15s)
+=== RUN   TestParamDownstreamConfig
+=== RUN   TestParamDownstreamConfig/param-options
+=== RUN   TestParamDownstreamConfig/param-options/light
+    catalogreflow_test.go:211: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestParamDownstreamConfig/param-options/dark
+    catalogreflow_test.go:211: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "配置 5": target={X:195.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestParamDownstreamConfig (0.21s)
+    --- FAIL: TestParamDownstreamConfig/param-options (0.21s)
+        --- FAIL: TestParamDownstreamConfig/param-options/light (0.11s)
+        --- FAIL: TestParamDownstreamConfig/param-options/dark (0.10s)
+=== RUN   TestParamDownstreamDefaults
+=== RUN   TestParamDownstreamDefaults/param-options
+=== RUN   TestParamDownstreamDefaults/param-options/light
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+=== RUN   TestParamDownstreamDefaults/param-options/dark
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Restore defaults": target={X:225.8 Y:755.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+--- FAIL: TestParamDownstreamDefaults (0.23s)
+    --- FAIL: TestParamDownstreamDefaults/param-options (0.23s)
+        --- FAIL: TestParamDownstreamDefaults/param-options/light (0.12s)
+        --- FAIL: TestParamDownstreamDefaults/param-options/dark (0.11s)
+=== RUN   TestParamDownstreamCopy
+=== RUN   TestParamDownstreamCopy/param-options
+=== RUN   TestParamDownstreamCopy/param-options/light
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:274: outlet reveal trapped subsequent scrolling
+=== RUN   TestParamDownstreamCopy/param-options/dark
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Copy configuration": target={X:632.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:274: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamDownstreamCopy (0.10s)
+    --- FAIL: TestParamDownstreamCopy/param-options (0.10s)
+        --- FAIL: TestParamDownstreamCopy/param-options/light (0.05s)
+        --- FAIL: TestParamDownstreamCopy/param-options/dark (0.05s)
+=== RUN   TestParamDownstreamExport
+=== RUN   TestParamDownstreamExport/param-options
+=== RUN   TestParamDownstreamExport/param-options/light
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:274: outlet reveal trapped subsequent scrolling
+=== RUN   TestParamDownstreamExport/param-options/dark
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:211: feedback reflow hides active outlet "Export configuration": target={X:664.8 Y:742.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true
+    catalogreflow_test.go:274: outlet reveal trapped subsequent scrolling
+--- FAIL: TestParamDownstreamExport (0.10s)
+    --- FAIL: TestParamDownstreamExport/param-options (0.10s)
+        --- FAIL: TestParamDownstreamExport/param-options/light (0.05s)
+        --- FAIL: TestParamDownstreamExport/param-options/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	1.621s
+FAIL

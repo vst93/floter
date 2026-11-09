@@ -1,0 +1,66 @@
+=== RUN   TestParamDownstreamInput
+=== RUN   TestParamDownstreamInput/param-refusal
+=== RUN   TestParamDownstreamInput/param-refusal/light
+=== RUN   TestParamDownstreamInput/param-refusal/dark
+--- PASS: TestParamDownstreamInput (0.44s)
+    --- PASS: TestParamDownstreamInput/param-refusal (0.44s)
+        --- PASS: TestParamDownstreamInput/param-refusal/light (0.31s)
+        --- PASS: TestParamDownstreamInput/param-refusal/dark (0.13s)
+=== RUN   TestParamDownstreamSwitch
+=== RUN   TestParamDownstreamSwitch/param-refusal
+=== RUN   TestParamDownstreamSwitch/param-refusal/light
+=== RUN   TestParamDownstreamSwitch/param-refusal/dark
+--- PASS: TestParamDownstreamSwitch (0.25s)
+    --- PASS: TestParamDownstreamSwitch/param-refusal (0.25s)
+        --- PASS: TestParamDownstreamSwitch/param-refusal/light (0.13s)
+        --- PASS: TestParamDownstreamSwitch/param-refusal/dark (0.12s)
+=== RUN   TestParamDownstreamSelect
+=== RUN   TestParamDownstreamSelect/param-refusal
+=== RUN   TestParamDownstreamSelect/param-refusal/light
+=== RUN   TestParamDownstreamSelect/param-refusal/dark
+--- PASS: TestParamDownstreamSelect (0.23s)
+    --- PASS: TestParamDownstreamSelect/param-refusal (0.23s)
+        --- PASS: TestParamDownstreamSelect/param-refusal/light (0.12s)
+        --- PASS: TestParamDownstreamSelect/param-refusal/dark (0.11s)
+=== RUN   TestParamDownstreamCancel
+=== RUN   TestParamDownstreamCancel/param-refusal
+=== RUN   TestParamDownstreamCancel/param-refusal/light
+=== RUN   TestParamDownstreamCancel/param-refusal/dark
+--- PASS: TestParamDownstreamCancel (0.30s)
+    --- PASS: TestParamDownstreamCancel/param-refusal (0.30s)
+        --- PASS: TestParamDownstreamCancel/param-refusal/light (0.16s)
+        --- PASS: TestParamDownstreamCancel/param-refusal/dark (0.15s)
+=== RUN   TestParamDownstreamConfig
+=== RUN   TestParamDownstreamConfig/param-refusal
+=== RUN   TestParamDownstreamConfig/param-refusal/light
+=== RUN   TestParamDownstreamConfig/param-refusal/dark
+--- PASS: TestParamDownstreamConfig (0.20s)
+    --- PASS: TestParamDownstreamConfig/param-refusal (0.20s)
+        --- PASS: TestParamDownstreamConfig/param-refusal/light (0.10s)
+        --- PASS: TestParamDownstreamConfig/param-refusal/dark (0.10s)
+=== RUN   TestParamDownstreamDefaults
+=== RUN   TestParamDownstreamDefaults/param-refusal
+=== RUN   TestParamDownstreamDefaults/param-refusal/light
+=== RUN   TestParamDownstreamDefaults/param-refusal/dark
+--- PASS: TestParamDownstreamDefaults (0.26s)
+    --- PASS: TestParamDownstreamDefaults/param-refusal (0.26s)
+        --- PASS: TestParamDownstreamDefaults/param-refusal/light (0.13s)
+        --- PASS: TestParamDownstreamDefaults/param-refusal/dark (0.13s)
+=== RUN   TestParamDownstreamCopy
+=== RUN   TestParamDownstreamCopy/param-refusal
+=== RUN   TestParamDownstreamCopy/param-refusal/light
+=== RUN   TestParamDownstreamCopy/param-refusal/dark
+--- PASS: TestParamDownstreamCopy (0.13s)
+    --- PASS: TestParamDownstreamCopy/param-refusal (0.13s)
+        --- PASS: TestParamDownstreamCopy/param-refusal/light (0.07s)
+        --- PASS: TestParamDownstreamCopy/param-refusal/dark (0.07s)
+=== RUN   TestParamDownstreamExport
+=== RUN   TestParamDownstreamExport/param-refusal
+=== RUN   TestParamDownstreamExport/param-refusal/light
+=== RUN   TestParamDownstreamExport/param-refusal/dark
+--- PASS: TestParamDownstreamExport (0.14s)
+    --- PASS: TestParamDownstreamExport/param-refusal (0.14s)
+        --- PASS: TestParamDownstreamExport/param-refusal/light (0.07s)
+        --- PASS: TestParamDownstreamExport/param-refusal/dark (0.07s)
+PASS
+ok  	floter/internal/settingsui	1.965s

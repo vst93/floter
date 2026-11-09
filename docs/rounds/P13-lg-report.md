@@ -36,6 +36,11 @@ stash逐条reverse-check均1，SHA与上轮一致，保留独立旧WIP；没有�
 
 深浅4张PNG在P13-lg/images。已目视：修前只有运行标题、参数5完全不在屏内；修后参数5及输入12、整圈焦点边出现在底部净空内。四视角：艺术上沿用既有材质；工程上修屏外焦点；任务上保留原编辑归属；阅读上原字号仍偏小，待拍板而非擅改。
 
+| 外观 | 修前 | 修后 |
+|---|---|---|
+| 深色 | ![深色修前](P13-lg/images/floter-P13-lg-downstream-dark-before.png) | ![深色修后](P13-lg/images/floter-P13-lg-downstream-dark-after.png) |
+| 浅色 | ![浅色修前](P13-lg/images/floter-P13-lg-downstream-light-before.png) | ![浅色修后](P13-lg/images/floter-P13-lg-downstream-light-after.png) |
+
 ## 偷了什么 / preflight
 
 craft-loop #3：既有3px焦点环完整露出；#4：单次滚动显现19px净空、0ms；#6：沿用8px记录内距/6px行距。为什么更轻：用已有空间带保护活动墨，不加边框或玻璃层。功能修复不按菜单硬凑五种装饰；站点DNA/四方向预览不适用于本轮已定方向，按用户指令走打磨路径。
@@ -44,3 +49,21 @@ A逐项：无新渐变/纯黑/霓虹；字体沿用中文系统字体（通用�
 B逐项：与2/1/6读取一致；深浅各自单一主题；识别点是当前编辑仍可见；0ms符合键盘操作气质。
 C逐项：显现有任务目的且0ms；无transition/ease/scale/fade；未加动效并保留按压反馈；浮层原点未改；ReduceMotion夹具已启用；hover原行为不变；未新增布局动画。
 D2逐项：系统中文字体保留；正文≥14px/行高≥1.5/字重400-600与旧Caption9.9、Body10.8及580冲突，继续需拍板；中西文空格/标点没有新文案；暗色7:1未重测，本轮不改墨，不能声称该项达标。约束继承，不静默略过。
+
+## 变异与验证
+
+M1删除拒绝提示信号，32 FAIL/0 PASS，原报错：`feedback reflow hides active outlet "参数 5": target={X:204.8 Y:504 W:249.99998 H:16} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true`。MD5还原OK，touch后32 PASS/0 FAIL。
+
+M2删除选项段落信号，32 FAIL/0 PASS，原报错：`feedback reflow hides active outlet "参数 5": target={X:204.8 Y:754.80005 W:0 H:0} viewport={X:170.6 Y:51.399998 W:549.4 H:468.6} focused=true`。MD5还原OK，touch后32 PASS/0 FAIL。原始日志、exit和MD5结果均在P13-lg/logs。
+
+产品bee6e414已推送；完整门槛经tools/verify.sh完成：**7629 PASS/0 FAIL/3708函数**（基线7573/3700，+56/+8），failed_gates=0，verify.exit=0。gofmt空，三平台vet/build净，普通与verbose全量均exit0。九项摘要在`P13-lg/logs/verify-summary.txt`，完整原始日志随本报告归档。首次定向调用误写tools.verify.sh导致exit127，未执行任何验证，随即纠正路径；未把它计作测试结果。
+
+后台nohup启动被外层中断：未生成任何门槛exit或摘要，进程已不在，不能算门槛通过。随后用同入口--resume和持久终端session接续；gofmt第二次尝试通过，其余门槛首次执行。并非把失败日志覆盖成通过，已有attempt目录保留。
+
+提交纪律偏差：八个出口共用同一个缺失信号，产品与八项验收一次提交，未满足每1–2项一次提交的字面要求；没有为凑批次复制状态或拆分单行修复。全量结果将另作结案提交。历史stash移植也未完成，均明确保留。
+
+## 仍待
+
+1. 下一轮先事件复现本地参数编辑器下方自己的提交按钮，在参数拒绝提示和选项段落增撤时的可见性；其次检查下方宿主配置/运行提交入口。自然通过不算新修复，本轮不声称这些额外动作已单独验收。
+2. 字号/行盒、accent禁用、未知多选、保存期间草稿、删除/改型焦点、终端S1b/S1c/S2尾继续待拍板；不改变3秒窗口或保存语义。
+3. Linux ui.Tester事件和深浅图已验；其他平台仅交叉vet/build。八条旧WIP移植待续。
