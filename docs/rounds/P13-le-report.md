@@ -1,0 +1,29 @@
+# P13-le · 本地声明编辑器的动态内容与活动出口
+
+开盘cbf86dd9，pull已最新，工作区原为空。统一入口已存在且符合本轮需求，直接复用；原任务书进度过期，按P13-ld仍待接续。给定done.log不存在。
+
+## stash清点
+
+旧stale-kill已在P13-gq等轮归档。以下八条早期独立WIP现场reverse-check均1，保留原件；不能将reverse失败直接当作可安全移植的独有功能，旧主题/Tauri链不覆盖当前产品。移植未完成。
+
+| ref | SHA | 判断/处置 |
+|---|---|---|
+| stash@{0} | 422483b4 | keycap旧WIP，reverse1，保留 |
+| stash@{1} | 8af94a07 | settings旧WIP，reverse1，保留 |
+| stash@{2} | 7e4aa710 | 卸载布局旧WIP，reverse1，保留 |
+| stash@{3} | 1e3aec94 | number字段旧WIP，reverse1，保留 |
+| stash@{4} | 363f5a42 | config字段旧WIP，reverse1，保留 |
+| stash@{5} | 9b8ce23c | shortcuts旧WIP，reverse1，保留 |
+| stash@{6} | 90d314b2 | launcher旧WIP，reverse1，保留 |
+| stash@{7} | 7a9f6e13 | Tauri旧WIP，reverse1，保留 |
+
+patch及原诊断写入P13-le/logs。下面仅逐步记录实测。
+
+## 基线与第一批
+
+现场读取P13-ld归档verbose日志为7489 PASS；开盘跟踪文件3683测试函数。不是重新执行一遍完整门槛。首轮复现夹具漏标视口，失败原件保留；修正夹具后的第二次复现八组均红，不再重跑修前组。
+
+1. 命令输入：工具链长提示到达后输入Y=615.3、H=30超出视口底520 → 接入前置内容反馈显现 → 深浅增/撤/再增三阶段均可见，继续输入仍写原命令。
+2. 版本输入：同状态Y=519.2、H=30越界 → 接入同一机制 → 深浅三阶段可见，继续输入仍写原版本。
+
+统一入口batch1实测6 PASS/exit0。其余六项测试在修前证据中保留，按所属批次加入仓库，避免中间提交留下已知失败测试。完整门槛与独立变异待轮末，旧V/B/S断言修改0/0/0。
