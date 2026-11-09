@@ -2340,16 +2340,18 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 			a.textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Label(copy.IntegrationsVersionHint).Width(160)
 		})
 		var install ui.Element
-		switch {
-		case a.packageInstallBusy["registry"]:
-			a.restoreNotice(c, "registry-install", "install", false, field)
-			install = a.busyActionButton(c, copy.IntegrationsInstall, "install.registry")
-		case strings.TrimSpace(name) == "":
-			install = a.disabledActionButton(c, copy.IntegrationsInstall)
-		default:
-			install = a.actionButton(c, copy.IntegrationsInstall)
-			a.rememberOperationFocus(c, "registry-install", "install", install)
-		}
+		a.formFeedbackOutlet(c.Key("registry-submit-outlet"), a.integrationLead, func() {
+			switch {
+			case a.packageInstallBusy["registry"]:
+				a.restoreNotice(c, "registry-install", "install", false, field)
+				install = a.busyActionButton(c, copy.IntegrationsInstall, "install.registry")
+			case strings.TrimSpace(name) == "":
+				install = a.disabledActionButton(c, copy.IntegrationsInstall)
+			default:
+				install = a.actionButton(c, copy.IntegrationsInstall)
+				a.rememberOperationFocus(c, "registry-install", "install", install)
+			}
+		}, func() bool { return install.FocusVisible() })
 		if install.Clicked() {
 			requested = true
 		}
@@ -7831,23 +7833,26 @@ func (a *App) installFolderRow(c *ui.Context, copy i18n.Settings) {
 	}
 	a.card(c, func() {
 		a.row(c, copy.InstallFolderLabel, copy.InstallFolderHint, func() {
-			if a.packageInstallBusy["folder"] {
-				a.restoreNotice(c, "folder-install", "install", false, ui.Element{})
-				a.busyActionButton(c, copy.InstallFolderChoose, "install.folder")
-			} else {
-				button := a.actionButton(c, copy.InstallFolderChoose)
-				a.rememberOperationFocus(c, "folder-install", "install", button)
-				if button.Clicked() {
-					dir, err := a.Actions.ChooseFolder()
-					if err != nil {
-						if a.Actions.NotifyWarning != nil {
-							a.Actions.NotifyWarning(copy.LocalToolFailed)
+			var button ui.Element
+			a.formFeedbackOutlet(c.Key("folder-install-outlet"), a.integrationLead, func() {
+				if a.packageInstallBusy["folder"] {
+					a.restoreNotice(c, "folder-install", "install", false, ui.Element{})
+					button = a.busyActionButton(c, copy.InstallFolderChoose, "install.folder")
+				} else {
+					button = a.actionButton(c, copy.InstallFolderChoose)
+					a.rememberOperationFocus(c, "folder-install", "install", button)
+					if button.Clicked() {
+						dir, err := a.Actions.ChooseFolder()
+						if err != nil {
+							if a.Actions.NotifyWarning != nil {
+								a.Actions.NotifyWarning(copy.LocalToolFailed)
+							}
+						} else if dir != "" {
+							a.Actions.InstallFromFolder(dir)
 						}
-					} else if dir != "" {
-						a.Actions.InstallFromFolder(dir)
 					}
 				}
-			}
+			}, func() bool { return button.FocusVisible() })
 		})
 	})
 }

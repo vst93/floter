@@ -21,6 +21,9 @@ func TestLocalActionFeedbackPlatform(t *testing.T) { checkLocalActionFeedback(t,
 func TestLocalActionFeedbackSubmit(t *testing.T)     { checkLocalActionFeedback(t, "submit") }
 func TestLocalActionFeedbackPermission(t *testing.T) { checkLocalActionFeedback(t, "permission") }
 
+func TestLocalActionFeedbackInstall(t *testing.T) { checkLocalActionFeedback(t, "install") }
+func TestLocalActionFeedbackFolder(t *testing.T)  { checkLocalActionFeedback(t, "folder") }
+
 func checkLocalActionFeedback(t *testing.T, kind string) {
 	t.Helper()
 	for _, dark := range []bool{false, true} {
