@@ -6741,6 +6741,7 @@ func (a *App) scriptRuntimeNote(c *ui.Context, text string) {
 	if text == "" {
 		return
 	}
+	a.integrationLead += "local-runtime:" + strconv.Quote(text)
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ui.Row(c).FillWidth().Padding(t.Space(2.25), 0).Children(func() {

@@ -3,8 +3,10 @@ package settingsui
 import (
 	"image/png"
 	"os"
+	"strings"
 	"testing"
 
+	"floter/internal/scriptlang"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -16,6 +18,7 @@ func TestLocalLayoutParams(t *testing.T)    { checkLocalLayout(t, "params") }
 func TestLocalLayoutKind(t *testing.T)      { checkLocalLayout(t, "kind") }
 func TestLocalLayoutIssues(t *testing.T)    { checkLocalLayout(t, "issues") }
 func TestLocalLayoutPlatforms(t *testing.T) { checkLocalLayout(t, "platforms") }
+func TestLocalLayoutRuntime(t *testing.T)   { checkLocalLayout(t, "runtime") }
 
 // The host can restore a failed local connection while the user has already
 // continued into another tool. Layout feedback must follow the drawn content,
@@ -35,6 +38,11 @@ func checkLocalLayout(t *testing.T, change string) {
 					a.toolOpen = change != "open"
 					a.toolName, a.toolCommand, a.toolProgram, a.toolVersion = "Weather", "weather", "/usr/bin/printf", "1.0.0"
 					a.toolPlatforms = map[string]bool{currentPlatform(): true}
+					if change == "runtime" {
+						a.toolLanguage = "python"
+						a.Actions.ScriptRuntime = func(string) scriptlang.Check { t.Error("unexpected probe"); return scriptlang.Check{} }
+						a.scriptRuntime = map[string]*runtimeProbe{"python": {done: make(chan struct{})}}
+					}
 					if change == "kind" {
 						a.toolParams = []toolParam{{ID: "target", Label: "城市", Kind: "text"}}
 					}
@@ -64,8 +72,20 @@ func checkLocalLayout(t *testing.T, change string) {
 					if !tt.Focused(label) {
 						t.Fatalf("cannot Tab to %s", label)
 					}
+					if change == "runtime" {
+						// Focus the downstream tool before entering the script branch;
+						// Tab inside the code editor intentionally edits indentation.
+						a.toolMode = routeScript
+						tt.Frame()
+					}
 					for step, on := range []bool{true, false, true} {
 						switch change {
+						case "runtime":
+							probe := &runtimeProbe{done: make(chan struct{}), check: scriptlang.Check{Available: true, Version: strings.Repeat("Python release details ", 30)}}
+							if on {
+								close(probe.done)
+							}
+							a.scriptRuntime["python"] = probe
 						case "open":
 							if on {
 								recover, retired := a.localToolRecovery()
