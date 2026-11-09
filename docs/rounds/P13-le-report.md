@@ -90,7 +90,7 @@ D2-1系统中文字体与zh_CN.UTF-8；D2-2通用14px/1.5行高与现有Caption9
 
 | ref | SHA | 判断 | 处置 |
 |---|---|---|---|
-| stash@{0} | 25d29950 | P13-le独有类型出口、测试与结案草稿；接回前reverse1、接回后reverse0 | 已接入；原对象另存refs/archive/floter/P13-le/完整SHA，门槛通过并提交后drop |
+| stash@{0} | 25d29950 | P13-le独有类型出口、测试与结案草稿；接回前reverse1、接回后reverse0 | 已由a430f3f3接入并推送；原对象另存refs/archive/floter/P13-le/完整SHA，随后drop |
 | stash@{1} | 422483b4 | 启动器keycap与旧主题，reverse1 | 保留；未完成移植 |
 | stash@{2} | 8af94a07 | 设置行距/滑块与旧pin，reverse1 | 保留；未完成移植 |
 | stash@{3} | 7e4aa710 | 卸载对话框及测试，reverse1 | 保留；未完成移植 |
@@ -126,3 +126,5 @@ verbose为7528 PASS/0 FAIL，测试函数3691（开盘7489/3683）。九项门�
 本次未重做原执行阶段的两组变异：各6 FAIL，恢复39 PASS，MD5均OK；接续cmp再次确认产品文件未偏移。
 旧V/B/S断言修改0/0/0，新增测试函数8，新增Skip0。明细留在logs，十行摘要另存`P13-le/verification.txt`入仓库。
 Linux完成ui.Tester事件与视觉复核；Windows/macOS仅交叉vet/build，没有声称原生运行验收。
+
+接续产品与完整证据提交a430f3f3已推送origin/mygo-rewrite。25d29950已归档后drop，活动stash从9降到8；其余八条SHA未变。本次未改保存、3秒窗口或终端会话语义。
