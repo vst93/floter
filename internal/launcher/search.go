@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -829,15 +830,12 @@ func (a *App) Results() []Item {
 	if a.files {
 		return a.filesItems()
 	}
-	var out []Item
 	// A power word claims the query before anything else matches: a user who
 	// types "restart" means the machine, so those rows lead. Then the answer
 	// itself — the calculator's over any field, the recents over an empty one,
 	// the ranked catalogue over a typed one (which is where the built-in
 	// commands live: `Catalog` carries them, so typing a word finds them).
 	other := a.otherResults()
-	out = append(out, a.powerItems()...)
-	out = append(out, other...)
 	// The action bar is the panel's **pinned footer**, not a first row: the old
 	// build drew it *below* the scroller (`.launcher-action-bar`, a sibling of
 	// `.launcher-results`, not a row inside it), which is why it is appended
@@ -848,19 +846,79 @@ func (a *App) Results() []Item {
 	// not the field's text; see `actionBarItemsWith`). The user's report
 	// 「现在固定在第一项」 was this row drawn first, above the results; the
 	// reference's footer position is the fix.
-	out = append(out, a.actionBarItemsWith(other, true)...)
-	// The held modifier's own line is **not** a row of this list (P11-bo, the
-	// user's F4-3: 「额外固定在底部…不属于任何列表项…不占排序」). It is the
-	// panel's pinned bottom band (`heldHintRow`), which is drawn on the empty
-	// field and on a typed one alike and never takes a number, a sort position
-	// or the selection. Before this round the band and a list row both showed on
-	// the empty field — the same chord twice on one screen.
+	bar := a.actionBarItemsWith(other, true)
+	variant := 0
+	if a.modifierHeld {
+		variant = 1
+	}
+	cache := &a.ordinarySearch
+	composed := &cache.composed[variant]
+	if composed.valid && composed.build == cache.builds && sameFooter(composed.bar, bar) {
+		return composed.items
+	}
+	power := a.powerItems()
+	out := make([]Item, 0, len(power)+len(other)+len(bar))
+	out = append(out, power...)
+	out = append(out, other...)
+	out = append(out, bar...)
+	*composed = composedSearch{valid: true, build: cache.builds, items: out, bar: bar}
 	return out
+}
+
+type composedSearch struct {
+	valid      bool
+	build      int
+	items, bar []Item
+}
+
+// Path actions are still rebuilt from their short-lived stat cache. Compare
+// their visible/action identity so a path appearing or changing kind updates
+// immediately without copying the whole matched catalog on every idle frame.
+func sameFooter(a, b []Item) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].ID != b[i].ID || a[i].Title != b[i].Title || a[i].Detail != b[i].Detail || a[i].Shortcut != b[i].Shortcut {
+			return false
+		}
+	}
+	return true
 }
 
 // otherResults is everything but the action bar: the calculator, the recents
 // (on an empty field), and the ranked catalog.
+type ordinarySearchCache struct {
+	composed   [2]composedSearch
+	valid      bool
+	shape      catalogShape
+	query      string
+	showRecent bool
+	recent     []string
+	items      []Item
+	builds     int
+}
+
 func (a *App) otherResults() []Item {
+	cache := &a.ordinarySearch
+	shape := a.catalogShape()
+	empty := strings.TrimSpace(a.Query) == ""
+	if cache.valid && cache.shape == shape && cache.query == a.Query &&
+		(!empty || (cache.showRecent == a.ShowRecent && slices.Equal(cache.recent, a.Recent))) {
+		return cache.items
+	}
+	items := a.buildOtherResults()
+	cache.valid, cache.shape, cache.query = true, shape, a.Query
+	cache.showRecent = a.ShowRecent
+	if empty {
+		cache.recent = slices.Clone(a.Recent)
+	}
+	cache.items = items
+	cache.builds++
+	return items
+}
+
+func (a *App) buildOtherResults() []Item {
 	var out []Item
 	if item, ok := a.calculator(); ok {
 		out = append(out, item)
@@ -872,12 +930,11 @@ func (a *App) otherResults() []Item {
 		// six `SYSTEM_COMMANDS` only enter the scored matches from `:1201` on.
 		// They stay reachable through `Catalog()`, so typing `restart` still
 		// finds the row first.
-		// The empty page's own block: the most-launched applications, under
-		// their own heading, in the order the shell ranked them (count
+		// The empty page's most-launched applications, in the order the shell
+		// ranked them (count
 		// descending, the application list's scan order between equals — the
 		// old build's `recentItems`).
 		if recents := a.recentItems(maxRecentResults); len(recents) > 0 {
-			out = append(out, Item{ID: "section:recent", heading: true, Title: a.copy().RecentSection})
 			out = append(out, recents...)
 		}
 	} else {

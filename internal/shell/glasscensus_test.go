@@ -139,7 +139,7 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		{
 			selector: ".settings-switch",
 			file:     "../settingsui/rows.go",
-			marker:   "a.tokens(c).LensInset(ui.Switch(c, on))",
+			marker:   "a.tokens(c).LensInset(control.Switch(c, on))",
 			test:     "settingsui.TestTheSettingsSwitchCarriesTheRecessedStopLens",
 		},
 		// Two controls are deliberately transparent at rest and light their lens

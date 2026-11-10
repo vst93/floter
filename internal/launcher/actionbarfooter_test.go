@@ -80,8 +80,7 @@ func TestTheActionBarTakesNoNumber(t *testing.T) {
 	if got := a.numbers[0]; got != 1 {
 		t.Errorf("the first result's number = %d, want 1 (%v)", got, a.numbers)
 	}
-	// The held modifier's own line is not a row, so the numbered family cannot
-	// reach it: holding the modifier adds nothing to number.
+	// The held footer is an action bar, so it never takes a numbered slot.
 	b := testApp()
 	recentPage(b, 3)
 	tb := render(t, b)
@@ -89,7 +88,7 @@ func TestTheActionBarTakesNoNumber(t *testing.T) {
 	numsBefore := len(b.numbers)
 	tb.HoldModifiers(ui.Cmd)
 	tb.Frame()
-	if got := len(b.Results()); got != rowsBefore {
+	if got := len(b.Results()); got != rowsBefore+1 {
 		t.Fatalf("the held modifier added %d row(s) to the list: %v", got-rowsBefore, ids(b.Results()))
 	}
 	if got := len(b.numbers); got != numsBefore {
@@ -586,10 +585,7 @@ func listIsTheCentredReferenceColumn(t *testing.T, dark bool) {
 	}
 }
 
-// R-next · The held modifier's line wears **no** row face: it is the panel's
-// pinned band, so it is not the row Enter runs and not a chosen row (P11-bo).
-// The old build's 「应该有选中样式」 was about a row that is now the band's
-// sentence, and a tinted band would read as a row of the list again.
+// The empty-query terminal has the same selected face as a typed action.
 func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
 	forEachAppearance(t, heldRowWearsTheSelectedFace)
 }
@@ -608,103 +604,50 @@ func heldRowWearsTheSelectedFace(t *testing.T, dark bool) {
 	const x = 600 // past the line's texts, where only a band's fill would show
 	seen := img.RGBAAt(x, int(band.Y+band.H/2))
 	panel := img.RGBAAt(1, int(band.Y+band.H/2))
-	if seen != panel {
-		t.Errorf("the pinned band is tinted: %v over the panel's %v", seen, panel)
+	if seen == panel {
+		t.Errorf("the selected footer has no tint: %v over the panel's %v", seen, panel)
 	}
 }
 
-// R-next · The held row's one page is the empty field.
-//
-// The user's second report, verbatim: 「输入框中有输入内容时出现的「在终端中打
-// 开」项：现在固定在第一项（错误）…原版行为：按住时默认加到底部，松手就消失
-// （不是固定项）…应该有选中样式（当前缺失）」.
-//
-// The reference's placement is a function of the *query*: `bareTerminalPlacement`
-// returns "appended" on an empty field and null the moment one character is
-// typed (R64, `main:src/launcher/terminal-row.ts:77-85` — the user's own earlier
-// correction, 「前面加的按住在列表额外增加终端选项的逻辑要去掉」). The port had
-// kept R60's wider gesture, so a typed query drew the action word beside the
-// matches; the row is now the empty page's alone.
-func TestTheHeldLineIsTheBandsAndNeverARow(t *testing.T) {
+// The empty-query terminal uses the selected, pinned action footer.
+func TestTheHeldFooterIsPinnedAndSelected(t *testing.T) {
 	a := testApp()
-	recentPage(a, 12) // enough recents that the list itself scrolls
+	recentPage(a, 12)
 	opened := 0
 	a.Actions.OpenTerminal = func() { opened++ }
 	tt := render(t, a)
 	resting := ids(a.Results())
-	selectedBefore := a.Selected
-
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-
-	// The user's own line (F4-3): 「额外固定在底部…不属于任何列表项…不占排序」.
-	// The modifier adds no row and moves no choice: the list is the one it was.
-	if got := ids(a.Results()); !slices.Equal(got, resting) {
-		t.Fatalf("the held modifier changed the list: %v, want the recents alone %v", got, resting)
+	got := a.Results()
+	if !slices.Equal(ids(got[:len(got)-1]), resting) || got[len(got)-1].ID != "bar:terminal" {
+		t.Fatalf("footer changed matches: %v", ids(got))
 	}
-	if a.Selected != selectedBefore {
-		t.Errorf("the held modifier moved the selection to %d, want %d", a.Selected, selectedBefore)
+	if a.Selected != len(got)-1 || a.FeedbackVisible() {
+		t.Fatalf("selection=%d feedback=%t", a.Selected, a.FeedbackVisible())
 	}
-
-	// One line on screen, and it is the band's sentence — not a row's action
-	// word beside it (the duplicate P11-bb left: both drew the same chord).
 	if n := countTexts(tt, a.copy().HeldTerminalHint); n != 1 {
-		t.Fatalf("the held line is on screen %d times, want exactly 1: %q", n, tt.Texts())
+		t.Fatalf("terminal shown %d times", n)
 	}
-	if tt.HasText("Open Terminal") {
-		t.Errorf("the held row's action word is on screen beside the band: %q", tt.Texts())
-	}
-
-	// The band is pinned to the panel's bottom edge: the list scrolls under it
-	// and the line does not move (it is not a row of the scroller).
-	at, ok := tt.Find(a.copy().HeldTerminalHint)
+	before, ok := tt.Find(a.copy().HeldTerminalHint)
 	if !ok {
-		t.Fatalf("the held line has no box on the empty page: %q", tt.Texts())
+		t.Fatal("missing footer")
 	}
-	top, _ := a.List.Visible()
-	tt.Wheel(InputWindowWidth/2, 300, 0, -240)
-	// A wheel event carries no modifiers of its own: hold the key again so the
-	// frame that follows is the same gesture's, only scrolled.
+	tt.Scroll(350, 200, 0, 120)
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	after, ok := tt.Find(a.copy().HeldTerminalHint)
-	if !ok {
-		t.Fatalf("the held line left the frame when the list scrolled: %q", tt.Texts())
+	if !ok || after.Y != before.Y {
+		t.Fatalf("footer moved while scrolling: %v -> %v", before, after)
 	}
-	if after.Y != at.Y {
-		t.Errorf("the held line moved with the list: y=%.1f → y=%.1f", at.Y, after.Y)
-	}
-	if now, _ := a.List.Visible(); now == top {
-		t.Logf("the wheel did not move the list (top row %d); the pin is asserted on a still list", top)
-	}
-
-	// The chord the band prints is the chord that runs it, on the empty page.
 	tt.Key(ui.Cmd, ui.KeyEnter)
-	tt.Frame()
 	if opened != 1 {
-		t.Fatalf("Super+Enter did not open a terminal on the empty page: opened=%d", opened)
+		t.Fatalf("opened %d terminals", opened)
 	}
-
-	// A typed query keeps the band and still gains no row of its own.
-	tt.Type("term")
-	tt.Frame()
-	if n := countTexts(tt, a.copy().HeldTerminalHint); n != 1 {
-		t.Fatalf("a typed query drew the held line %d times, want exactly 1: %q", n, tt.Texts())
-	}
-	if tt.HasText("Open Terminal") {
-		t.Errorf("a typed query drew the held row beside the band: %q", tt.Texts())
-	}
-	tt.Key(ui.Cmd, ui.KeyEnter)
-	tt.Frame()
-	if opened != 2 {
-		t.Errorf("Super+Enter did not open a terminal on a typed field: opened=%d", opened)
-	}
-
-	// Releasing gives the line up for good — it is not a fixed item.
 	tt.HoldModifiers(0)
 	tt.Frame()
-	if tt.HasText(a.copy().HeldTerminalHint) {
-		t.Errorf("the held line survived the release: %q", tt.Texts())
+	if !slices.Equal(ids(a.Results()), resting) {
+		t.Fatal("footer survived release")
 	}
 }
 
@@ -957,10 +900,8 @@ func actionBarBand(a *App, results []Item) float64 {
 	return a.Spacing * actionBarUnits * float64(len(results)-bar)
 }
 
-// The held line costs the window no row: the user's 「不占排序」 read as a
-// number. The list's row budget and its numbered family are the page's own
-// with the modifier up or down (P11-bo).
-func TestTheHeldLineTakesNoRowOfTheWindow(t *testing.T) {
+// The footer has its own geometry, outside the numbered result budget.
+func TestTheHeldFooterTakesNoNumberedResultSlot(t *testing.T) {
 	a := testApp()
 	recentPage(a, 3)
 	tt := render(t, a)

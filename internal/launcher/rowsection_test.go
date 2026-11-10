@@ -39,20 +39,10 @@ func TestTheOrdinaryListChargesNoSectionBands(t *testing.T) {
 	if held != len(results) || len(rows) != len(results) {
 		t.Fatalf("rows = %d, held = %d, results = %d", len(rows), held, len(results))
 	}
-	// The "Recently launched" block is still announced — as a heading row that
-	// the window charges as a heading rather than as a section band.
-	found := false
+	// Recents need no section label or extra band.
 	for i, item := range results {
-		if item.heading {
-			found = true
-			if !rows[i].Heading {
-				t.Errorf("the heading row at %d is not charged as a heading", i)
-			}
-		} else if rows[i].Heading {
-			t.Errorf("the ordinary row at %d is charged as a heading", i)
+		if item.heading || rows[i].Heading {
+			t.Errorf("recent result %d still has a heading", i)
 		}
-	}
-	if !found {
-		t.Fatalf("no heading row in the list: %v", ids(results))
 	}
 }

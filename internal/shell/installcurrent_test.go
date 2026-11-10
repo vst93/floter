@@ -66,12 +66,13 @@ func newInstallCurrentFixture(t *testing.T, dark bool) *installCurrentFixture {
 	return f
 }
 
-func installCurrentFrame(f *installCurrentFixture, dark bool) *ui.Tester {
+func installCurrentFrame(t *testing.T, f *installCurrentFixture, dark bool) *ui.Tester {
 	tt := ui.NewTester(f.a.View, 960, 1600)
 	tt.SetDark(dark)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	tt.Frame()
+	settingsSectionForTest(t, f.a, tt, f.a.SettingsCopy().IntegrationsAdd, f.a.SettingsCopy().IntegrationsPackages)
 	return tt
 }
 
@@ -93,6 +94,11 @@ func installCurrentDump(t *testing.T, tt *ui.Tester, scenario string, dark bool)
 // does; the headless host otherwise executes onMain on its worker goroutine.
 func installCurrentClick(t *testing.T, f *installCurrentFixture, tt *ui.Tester, recommended bool) {
 	t.Helper()
+	method := f.a.SettingsCopy().IntegrationsPackages
+	if recommended {
+		method = f.a.SettingsCopy().IntegrationsDiscover
+	}
+	settingsSectionForTest(t, f.a, tt, f.a.SettingsCopy().IntegrationsAdd, method)
 	label := i18n.For("zh").Settings.InstallFolderChoose
 	run := f.a.Settings.Actions.InstallFromFolder
 	var target string
@@ -130,7 +136,7 @@ func checkInstallCurrentBusy(t *testing.T, recommended bool) {
 			f.a.reviewInstall, f.a.reviewRecommended = review, review
 			settled := make(chan struct{}, 8)
 			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
-			tt := installCurrentFrame(f, dark)
+			tt := installCurrentFrame(t, f, dark)
 			installCurrentClick(t, f, tt, recommended)
 			adoptionWait(t, started)
 			tt.Frame()
@@ -203,7 +209,7 @@ func checkInstallCurrentDeclaration(t *testing.T, recommended bool, change strin
 			f.a.reviewInstall, f.a.reviewRecommended = review, review
 			settled := make(chan struct{}, 8)
 			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
-			tt := installCurrentFrame(f, dark)
+			tt := installCurrentFrame(t, f, dark)
 			installCurrentClick(t, f, tt, recommended)
 			var p extensions.Prepared
 			select {
@@ -334,7 +340,7 @@ func checkInstallCurrentCancel(t *testing.T, registry bool) {
 			defer resume()
 			f.a.confirmPermissions = func(extensions.PermissionApproval) bool { close(started); <-release; return false }
 			f.a.Settings.Actions.Invalidate = func() { settled <- struct{}{} }
-			tt := installCurrentFrame(f, dark)
+			tt := installCurrentFrame(t, f, dark)
 			if registry {
 				f.a.Registry = installCurrentRegistry(t, f)
 				if err := tt.Click(i18n.For("zh").Settings.IntegrationsPackageHint); err != nil {

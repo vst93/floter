@@ -151,7 +151,7 @@ func TestTheBarPaintsItsOwnFaceOverAPalette(t *testing.T) {
 	const px = 450
 	faceRows := func(tt *ui.Tester) int {
 		rows := 0
-		for y := 0; y < 40; y++ {
+		for y := int(terminalDragHeight); y < 40; y++ {
 			if channelDelta(sample(tt, px, y), ui.RGBA(0, 0, 0, 1)) > 6 {
 				rows++
 			}
@@ -171,7 +171,7 @@ func TestTheBarPaintsItsOwnFaceOverAPalette(t *testing.T) {
 	brightest := func(tt *ui.Tester) int {
 		img := tt.Image()
 		max := 0
-		for y := 6; y < 22; y++ {
+		for y := 6 + int(terminalDragHeight); y < 32+int(terminalDragHeight) && y < img.Rect.Dy(); y++ {
 			for x := 23; x < 700; x++ {
 				i := y*img.Stride + x*4
 				if v := int(img.Pix[i]) + int(img.Pix[i+1]) + int(img.Pix[i+2]); v > max {

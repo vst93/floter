@@ -88,8 +88,8 @@ func TestSessionReadOnlyTitleDoesNotInviteActivation(t *testing.T) {
 				settlePointer(tt, label)
 				hover := rowInsetFace(tt.Image(), label)
 				available := state.running && !state.active && state.handler
-				if (hover != rest) != available {
-					t.Errorf("read-only title feedback: available=%v rest=%v hover=%v", available, rest, hover)
+				if hover != rest {
+					t.Errorf("session row changed background on hover: available=%v rest=%v hover=%v", available, rest, hover)
 				}
 				if err := tt.Click("State session"); err != nil {
 					t.Fatal(err)

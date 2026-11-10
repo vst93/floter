@@ -98,7 +98,7 @@ func TestTheDrawerSeamIsOnItsTopEdge(t *testing.T) {
 					"is painted outside the drawer, on the canvas", tag, top-1, above)
 			}
 			if a.DrawerScroll.MaxY == 0 {
-				if bottom := inkAt(img, w/2, h-1); bottom != face {
+				if bottom := inkAt(img, w/2, h-1); max(bottom[0], face[0])-min(bottom[0], face[0]) > 2 || max(bottom[1], face[1])-min(bottom[1], face[1]) > 2 || max(bottom[2], face[2])-min(bottom[2], face[2]) > 2 {
 					t.Errorf("%s: the window's bottom row is %v, not the drawer's face %v — "+
 						"the hairline belongs on the drawer's top edge, not on the window's "+
 						"bottom edge", tag, bottom, face)

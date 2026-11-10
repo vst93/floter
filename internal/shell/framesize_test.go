@@ -227,17 +227,17 @@ func TestAWalkNeverAsksTwiceInOneFrame(t *testing.T) {
 	if len(asks.asks) == 0 {
 		t.Fatal("the walk asked for no height at all")
 	}
-	stepped := false
+	settled := false
 	for _, ask := range asks.asks {
 		if ask[0] != launcher.InputWindowWidth {
 			t.Errorf("a walking frame asked for width %d, want the contract's %d", ask[0], launcher.InputWindowWidth)
 		}
-		if ask[1] > start && ask[1] < a.launcherTarget {
-			stepped = true
+		if ask[1] == a.launcherTarget {
+			settled = true
 		}
 	}
-	if !stepped {
-		t.Errorf("no ask was a step of the walk (%v, from %d to %d)", asks.asks, start, a.launcherTarget)
+	if !settled {
+		t.Errorf("no ask reached the final height (%v, from %d to %d)", asks.asks, start, a.launcherTarget)
 	}
 	// Landing: the last frames ask the target and then stop. A window already at
 	// its size costs the window server nothing, and no frame pays twice.

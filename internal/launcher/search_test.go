@@ -347,13 +347,12 @@ func TestTheEmptyPageShowsOnlyTheRecents(t *testing.T) {
 	recentPage(a, 3)
 	got := a.Results()
 	want := []string{
-		"section:recent",
 		"app:/Applications/Recent00.app",
 		"app:/Applications/Recent01.app",
 		"app:/Applications/Recent02.app",
 	}
 	if len(got) != len(want) {
-		t.Fatalf("the empty page shows %v, want the heading and the three recents %v", ids(got), want)
+		t.Fatalf("the empty page shows %v, want the three recents %v", ids(got), want)
 	}
 	for i, id := range want {
 		if got[i].ID != id {

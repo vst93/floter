@@ -1,0 +1,30 @@
+{
+  "before": {
+    "pass": 3685,
+    "skip": 98,
+    "fail": 224
+  },
+  "after": {
+    "pass": 3679,
+    "fail": 230,
+    "skip": 98
+  },
+  "new": [
+    "floter/internal/settingsui/TestCatalogReflowRunChoices",
+    "floter/internal/settingsui/TestSessionReadOnlyTitleDoesNotInviteActivation"
+  ],
+  "resolved": [
+    "floter/internal/i18n/TestNoDeadCopy",
+    "floter/internal/settingsui/TestTheConfigurationEntryOnlyLiftsWhenItCanOpen"
+  ],
+  "overlap": 79,
+  "failed_packages": [
+    "floter/internal/apps",
+    "floter/internal/launcher",
+    "floter/internal/pathid",
+    "floter/internal/settingsui",
+    "floter/internal/shell",
+    "floter/internal/terminalui",
+    "floter/internal/termsession"
+  ]
+}

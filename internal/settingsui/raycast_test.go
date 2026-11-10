@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/control"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
@@ -855,13 +856,13 @@ func TestTheSwitchOnStateCarriesTheAccent(t *testing.T) {
 				}
 				return warmest, tokens
 			}
-			onWarm, tokens := measure(true)
+			onWarm, _ := measure(true)
 			offWarm, _ := measure(false)
-			// The accent's own R−B (the red these tokens ship) is ~150; a grey track's
-			// is a handful of levels. Both appearances ship the same red, so the
-			// thresholds hold on the dark track as well.
-			if warm := int(tokens.Theme.Accent.B) - int(tokens.Theme.Accent.R); warm < 100 {
-				t.Fatalf("the accent is not the red this pin measures against (%d)", warm)
+			// A switch's saturated surface fill is independent of the accent
+			// adapted for text. The white thumb must remain distinct in dark UI.
+			fill := control.SwitchOnFill(dark)
+			if warm := int(fill.B) - int(fill.R); warm < 100 {
+				t.Fatalf("the switch fill is insufficiently blue (%d)", warm)
 			}
 			if onWarm < 100 {
 				t.Errorf("the switch's ON state is %d levels warm (R−B): §5 第 3 条 keeps the accent here", onWarm)
@@ -1272,7 +1273,7 @@ func TestTheResetActionIsNeutralAtRestAndOnHover(t *testing.T) {
 }
 
 // ⑭ §5 禁止侧「行 hover/按下」· `cardRow` 的 hover 帧里**没有**任何 accent
-// 像素（扫整行，不只是前导条那一列）。反面 + 正面成对：行面确实抬起来了。
+// 像素（扫整行，不只是前导条那一列），功能块背景也保持不变。
 func TestTheCardRowHoverCarriesNoAccentPixel(t *testing.T) {
 	for _, appearance := range appearanceNames {
 		t.Run(appearance.name, func(t *testing.T) {
@@ -1312,10 +1313,9 @@ func TestTheCardRowHoverCarriesNoAccentPixel(t *testing.T) {
 				t.Errorf("the hovered row carries an accent pixel at %v (%d levels warm): the hover bar is back",
 					at, warmest)
 			}
-			// 正面：hover 确实抬了面——扫到的平面比静息更亮（深色）或更暗（浅色），
-			// 也就是「只抬面」这件事真的发生了，而不是整行没反应。
-			if channelDelta(hoverPlane, restPlane) < 3 {
-				t.Errorf("hover moved nothing: plane %v → %v; the row must still lift its face", restPlane, hoverPlane)
+			// Functional rows retain their resting background under the pointer.
+			if hoverPlane != restPlane {
+				t.Errorf("hover changed the row background: %v → %v", restPlane, hoverPlane)
 			}
 		})
 	}
@@ -1477,10 +1477,10 @@ func TestTheDangerPillHoverKeepsTheNeutralEdgeAndTheWarningInk(t *testing.T) {
 			if warm := int(cardEdge.B) - int(cardEdge.R); warm > 20 {
 				t.Errorf("the hovered uninstall card's edge %v is %d levels warm: the accent edge is back", cardEdge, warm)
 			}
-			if channelDelta(cardEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
+			if channelDelta(cardEdge, panelOver(tokens.AccentEdge, restFace)) < 12 {
 				t.Errorf("the hovered uninstall card's edge %v is the old AccentEdge", cardEdge)
 			}
-			if want := panelOver(tokens.ControlEdge, hoverFace); !panelClose(cardEdge, want, 6) {
+			if want := panelOver(tokens.ControlEdge, restFace); !panelClose(cardEdge, want, 6) {
 				t.Errorf("the hovered uninstall card's edge = %v, want the neutral ControlEdge (%v)", cardEdge, want)
 			}
 			accentFree("the hovered uninstall card", cardBox)

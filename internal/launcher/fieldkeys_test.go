@@ -73,6 +73,37 @@ func TestHistoryDeleteKeyArmsAndConfirmsTheSelectedClipboardRow(t *testing.T) {
 	}
 }
 
+func TestHistoryDeleteConfirmationSurvivesPhysicalModifiers(t *testing.T) {
+	a, store := clipboardApp(t)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+	deleteKey(tt)
+	armed := a.armedDelete
+	if armed == "" {
+		t.Fatal("first chord did not arm deletion")
+	}
+	for _, key := range []struct {
+		mods ui.Modifiers
+		code ui.KeyCode
+	}{
+		{ui.Ctrl, ui.CodeControlLeft}, {ui.Ctrl, ui.CodeControlRight},
+		{ui.Super, ui.CodeSuperLeft}, {ui.Super, ui.CodeSuperRight},
+		{ui.Shift, ui.CodeShiftLeft}, {ui.Shift, ui.CodeShiftRight},
+		{ui.Alt, ui.CodeAltLeft}, {ui.Alt, ui.CodeAltRight},
+	} {
+		tt.CodeDown(key.mods, key.code)
+		tt.CodeUp(0, key.code)
+		if a.armedDelete != armed || len(store.Entries()) != 2 {
+			t.Fatalf("modifier %v changed confirmation or deleted an entry", key.code)
+		}
+	}
+	deleteKey(tt)
+	if len(store.Entries()) != 1 || a.armedDelete != "" {
+		t.Fatal("second chord did not confirm deletion after releasing and pressing modifiers")
+	}
+}
+
 // The calculator mode's rows carry the same key.
 func TestHistoryDeleteKeyDeletesACalculation(t *testing.T) {
 	a := testApp()

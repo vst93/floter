@@ -5,6 +5,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"floter/internal/apps"
@@ -37,18 +38,13 @@ func recentsApp(t *testing.T, store *settings.Store, found *[]apps.App) *App {
 // recentHeading reports whether the empty query's most-used block is on the
 // page, and the rows under it.
 func recentHeading(a *App) (bool, []string) {
-	heading := false
 	var rows []string
 	for _, item := range a.Launcher.Results() {
-		if item.ID == "section:recent" {
-			heading = true
-			continue
-		}
-		if heading {
+		if strings.HasPrefix(item.ID, "app:") {
 			rows = append(rows, item.Title)
 		}
 	}
-	return heading, rows
+	return len(rows) > 0, rows
 }
 
 // A cold start's empty query offers the most-used applications.
@@ -95,8 +91,8 @@ func TestAFreshStartOffersTheMostUsedApps(t *testing.T) {
 	// page paints the section heading and the row.
 	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
 	tt.Frame()
-	if !tt.HasText("Recently launched") {
-		t.Error("the empty launcher painted no most-used heading after a cold start")
+	if tt.HasText("Recently launched") {
+		t.Error("the empty launcher still paints the removed heading")
 	}
 	if !tt.HasText("Safari") {
 		t.Error("the empty launcher painted no most-used row after a cold start")

@@ -119,11 +119,11 @@ func TestADrawWalksTheCatalogOnce(t *testing.T) {
 	}
 }
 
-// TestTheModifierEdgesMoveNoRowOnTheEmptyPage is the behaviour the counting
+// TestTheModifierEdgesOnlyAddTheFooterOnTheEmptyPage is the behaviour the counting
 // above must not have bought its speed from: the modifier's edges still land
 // (that state is what the band reads), and on the empty page they move
 // nothing — P11-bo, the held line is the band and not a row (F4-3).
-func TestTheModifierEdgesMoveNoRowOnTheEmptyPage(t *testing.T) {
+func TestTheModifierEdgesOnlyAddTheFooterOnTheEmptyPage(t *testing.T) {
 	a := testApp()
 	recentPage(a, 3)
 	tt := render(t, a)
@@ -135,10 +135,10 @@ func TestTheModifierEdgesMoveNoRowOnTheEmptyPage(t *testing.T) {
 	if !a.modifierHeld {
 		t.Fatal("the modifier is not held after its press frame")
 	}
-	if got := ids(a.Results()); !slices.Equal(got, list) {
+	if got := ids(a.Results()); !slices.Equal(got[:len(got)-1], list) {
 		t.Errorf("the press edge changed the empty page's list: %v, want %v", got, list)
 	}
-	if a.Selected != selected {
+	if a.Selected != len(a.Results())-1 {
 		t.Errorf("the press edge moved the selection to %d, want %d", a.Selected, selected)
 	}
 

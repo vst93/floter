@@ -140,11 +140,11 @@ func TestOpacityClampBand(t *testing.T) {
 
 func TestUIScaleFactorsMatchTheShippedSteps(t *testing.T) {
 	cases := map[string]float64{
-		"tiny":    0.8,
-		"small":   0.9,
-		"default": 1.0,
-		"large":   1.1,
-		"larger":  1.1, // retired, maps to large
+		"tiny":    0.75,
+		"small":   0.825,
+		"default": 0.9,
+		"large":   1.0,
+		"larger":  1.0, // retired, maps to large
 		"":        0.9, // unknown, the shipped default
 	}
 	for step, want := range cases {

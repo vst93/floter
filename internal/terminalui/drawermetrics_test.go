@@ -141,6 +141,9 @@ func TestTheDrawerSliderIsTheReferenceWidth(t *testing.T) {
 		t.Fatalf("drawerRangeWidth = %v, want the reference's 110px = 27.5u", drawerRangeWidth)
 	}
 	a := drawerApp(t)
+	if err := a.Store.Update(func(s *settings.Settings) { s.Theme = "dark" }); err != nil {
+		t.Fatal(err)
+	}
 	tok := drawDrawerMetrics(t, a).tokens
 
 	live := liveKnobCenter(t, a, 8) - liveKnobCenter(t, a, 48)

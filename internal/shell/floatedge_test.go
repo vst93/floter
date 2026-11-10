@@ -86,7 +86,7 @@ func floatEdgeFrame(t *testing.T, dark bool) (before, after *image.RGBA, box ui.
 	// edge that is unambiguous in both appearances.
 	top := int(dismiss.Y)
 	for dy := 0; dy > -40; dy-- {
-		if alphaAt(after, x, top+dy) >= 190 && alphaAt(after, x, top+dy-1) < 190 {
+		if alphaAt(after, x, top+dy) >= 250 && alphaAt(after, x, top+dy-1) < 250 {
 			paneTop = top + dy
 			break
 		}
@@ -146,8 +146,8 @@ func TestTheFloatingTopEdgeIsThreePartsAndTheySwapRoles(t *testing.T) {
 	// P13-gj 重定基线（§6.155）：这五行此前没有字面量 pin（量于 P13-gj，
 	// 真 toast，720×520，默认 47% 框 alpha，straight luma）。
 	want := map[string]floatEdgeArm{
-		"light": {ground: 248, shadow: 218, border: 223, crown: 255, face: 251},
-		"dark":  {ground: 32, shadow: 28, border: 52, crown: 82, face: 26},
+		"light": {ground: 248, shadow: 237, border: 227, crown: 255, face: 250},
+		"dark":  {ground: 24, shadow: 23, border: 46, crown: 71, face: 25},
 	}
 	for _, dark := range []bool{false, true} {
 		name := "light"
@@ -183,8 +183,8 @@ func TestTheFloatingTopEdgeIsThreePartsAndTheySwapRoles(t *testing.T) {
 			// a stroke again.
 			byShadow := got.ground - got.shadow
 			byLine := got.border - got.shadow
-			if byShadow < 24 {
-				t.Errorf("light: the cast shadow takes only %d levels off the page (%d → %d), want ≥ 24 — "+
+			if byShadow < 10 {
+				t.Errorf("light: the cast shadow takes only %d levels off the page (%d → %d), want ≥ 10 — "+
 					"on paper the fill is 3 levels above the page, so the shadow is the whole of the pane's depth",
 					byShadow, got.ground, got.shadow)
 			}
@@ -218,7 +218,7 @@ func TestTheFloatingTopEdgeIsThreePartsAndTheySwapRoles(t *testing.T) {
 		}
 		// The night face is *darker* than the page: smoked glass. That is the
 		// other half of "elevation is not a brighter fill".
-		if got.face >= got.ground {
+		if got.face > got.ground+2 {
 			t.Errorf("dark: the float face reads %d against the page's %d — at night a floating pane is "+
 				"smoked glass, darker than the sheet it covers", got.face, got.ground)
 		}

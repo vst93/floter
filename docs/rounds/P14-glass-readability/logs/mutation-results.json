@@ -1,0 +1,12 @@
+[
+  {
+    "mutation": "unprotected-legacy-opacity",
+    "exit": 1,
+    "caught": true
+  },
+  {
+    "mutation": "fixed-ink",
+    "exit": 1,
+    "caught": true
+  }
+]

@@ -1,11 +1,16 @@
 package shell
 
 import (
+	"errors"
 	"os"
+	"runtime"
+	"strings"
 	"time"
 
 	"floter/internal/browser"
 	"floter/internal/i18n"
+	"floter/internal/plugincfg"
+	"floter/internal/settings"
 )
 
 type browserScan struct {
@@ -66,6 +71,10 @@ func (a *App) browserProfileList(customBase string) []browser.Profile {
 // Configuration reads a snapshot and never waits for a search's file scan.
 func (a *App) browserTargets() []i18n.Option {
 	profiles, _ := a.requestBrowserScan(browserState(a.settings()).customBaseDir, false)
+	return browserTargetOptions(profiles, i18n.For(a.settings().Language).Settings)
+}
+
+func browserTargetOptions(profiles []browser.Profile, copy i18n.Settings) []i18n.Option {
 	seen := map[string]bool{}
 	var options []i18n.Option
 	for _, profile := range profiles {
@@ -73,7 +82,45 @@ func (a *App) browserTargets() []i18n.Option {
 			continue
 		}
 		seen[profile.BrowserID] = true
-		options = append(options, i18n.Option{ID: profile.BrowserID, Label: profile.Browser})
+		label := profile.Browser
+		if profile.ReadError != nil {
+			label += " · " + copy.BrowserUnavailable
+		}
+		options = append(options, i18n.Option{ID: profile.BrowserID, Label: label})
 	}
 	return options
+}
+
+func (a *App) browserConfig(copy i18n.Settings, state settings.BrowserPlugin) (*plugincfg.Schema, plugincfg.Values) {
+	profiles, _ := a.requestBrowserScan(state.CustomBaseDir, false)
+	schema, values := plugincfg.Browser(copy, state, browserTargetOptions(profiles, copy))
+	var names []string
+	seen := map[string]bool{}
+	permission := false
+	for _, profile := range browser.SearchProfiles(profiles, state.Target) {
+		if profile.ReadError == nil {
+			continue
+		}
+		permission = permission || errors.Is(profile.ReadError, os.ErrPermission)
+		if !seen[profile.BrowserID] {
+			seen[profile.BrowserID] = true
+			names = append(names, profile.Browser)
+		}
+	}
+	if len(names) > 0 {
+		help := copy.BrowserReadHint(strings.Join(names, ", "))
+		if permission {
+			help += " " + copy.BrowserAccessHint
+			if runtime.GOOS == "darwin" {
+				help = copy.BrowserReadHint(strings.Join(names, ", ")) + " " + copy.BrowserAccessMacHint
+			}
+		}
+		for i := range schema.Fields {
+			if schema.Fields[i].Key == "target" {
+				schema.Fields[i].Help = copy.BrowserUnavailable
+				schema.Fields[i].Note = help
+			}
+		}
+	}
+	return schema, values
 }

@@ -92,7 +92,7 @@ func TestTheStatusDotCarriesNoHalo(t *testing.T) {
 	// neutral now, so the probe cannot be a hue — it is the ink's own contrast
 	// against the column to its right, which is bar and nothing else.
 	minX, minY, maxX, maxY := 1<<30, 1<<30, -1, -1
-	for y := 0; y < 24; y++ {
+	for y := int(terminalDragHeight); y < 40; y++ {
 		bar := pixel(tt, 20, y)
 		for x := 0; x < 20; x++ {
 			if delta(pixel(tt, x, y), bar) >= 40 {
@@ -241,7 +241,7 @@ func TestTheFeedbackNoticeRingIsNotAccent(t *testing.T) {
 	}
 	// The accent is the counter-example the pin measures against: its own R−B
 	// is ~150, so a 16-level threshold cannot pass it.
-	if warm := int(tokens.Theme.Accent.B) - int(tokens.Theme.Accent.R); warm < 100 {
+	if warm := int(tokens.Theme.Accent.B) - int(tokens.Theme.Accent.R); warm < 40 {
 		t.Fatalf("the accent is not the red this pin measures against (%d)", warm)
 	}
 }

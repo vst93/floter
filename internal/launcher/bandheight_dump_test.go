@@ -41,7 +41,7 @@ func TestDumpP11CMBandPNGs(t *testing.T) {
 			// (a predicate without `pendingPower`) or as it is now.
 			shell := charged
 			if before {
-				shell = bandHeight(a, a.toast != "" || a.heldHint())
+				shell = bandHeight(a, a.FeedbackVisible())
 			}
 			tt.SetSize(InputWindowWidth, shell)
 			tt.Frame()

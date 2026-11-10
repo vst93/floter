@@ -60,6 +60,8 @@ type Field struct {
 	// Label names the field; Help is the line under it.
 	Label string
 	Help  string
+	// Note is supplemental guidance below the control, wrapped in full.
+	Note string
 	// Placeholder is a Text field's placeholder, empty for none.
 	Placeholder string
 	// Options are the choices of a Select, Radio or Checkboxes field.

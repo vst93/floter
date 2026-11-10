@@ -9,29 +9,12 @@ import (
 	"testing"
 )
 
-// auditedFramework is the mygo release this app is pinned to, the one whose
-// `ui` behavior was audited file by file (P11-br, `docs/rounds/P11-br-report.md`
-// §2). Two of the seven behavior changes between v0.7.0 and it touch this app:
-//
-//   - `routeKeys` gives an element one key a frame, and the keys left wait for
-//     the next frame, which `runFrame` asks for itself (`len(rt.keys) > 0`).
-//     Every keystroke of the launcher goes through that path; the rows it
-//     routes still get every key, one frame later in a burst.
-//   - `scroll` walks the hit chain innermost out through `HandleInput`, and a
-//     scroll container moves only when no handler takes the wheel. Nothing in
-//     this app asks for `InputScroll` (see the pin below), so the wheel keeps
-//     going where the containers put it.
-//
-// The other five — the edit-command fallback, the accessibility label in place
-// of a descendant's texts, the menu that opens on the next frame, the window's
-// scene background and `Font.LineHeight` — are audited in the report and reach
-// no surface here.
-//
-// A downgrade is what this pin is for: the version is what the audit stands on,
-// and `go.mod` is edited by hand often enough (`go get`, a revert of something
-// else) that a silent one would leave the report describing a framework this
-// app no longer builds against.
-const auditedFramework = "v0.7.3"
+// auditedFramework is the minimum release required by the integration audit
+// in docs/rounds/P14-mygo-upgrade-report.md. The launcher filters physical-only
+// key events introduced in 0.8; terminal prompt integration, live regions and
+// custom animation settling use the newer APIs. Keep accidental downgrades
+// from silently invalidating those contracts.
+const auditedFramework = "v0.8.3"
 
 // TestTheFrameworkIsPinnedAtOrAboveTheAuditedVersion fails when `go.mod` pins
 // mygo below the audited release, and names both versions so that the fix is
@@ -55,7 +38,7 @@ func TestTheFrameworkIsPinnedAtOrAboveTheAuditedVersion(t *testing.T) {
 		}
 	}
 	if pinned == "" {
-		t.Fatalf("go.mod no longer requires github.com/egoist/mygo: the audit in docs/rounds/P11-br-report.md assumes it does")
+		t.Fatalf("go.mod no longer requires github.com/egoist/mygo: the audit in docs/rounds/P14-mygo-upgrade-report.md assumes it does")
 	}
 	if cmp := compareVersions(pinned, auditedFramework); cmp < 0 {
 		t.Fatalf("mygo is pinned at %s, below the audited %s: raise the pin, or re-audit ui/ and raise auditedFramework", pinned, auditedFramework)

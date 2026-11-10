@@ -52,7 +52,7 @@ machine. What it writes into `dist/<platform>/`:
 | Platform | Artifacts |
 | --- | --- |
 | macOS | `floter.app` (with the native libraries inside) and a `.dmg` |
-| Linux | `floter`, a `.deb`, and a `.tar.gz` whose `install.sh` installs the app for the current user in `~/.local` |
+| Linux | `floter`, a `.deb`, a `.tar.gz` with `install.sh` for `~/.local`, and a `PKGBUILD` for Arch Linux (`makepkg -si`) |
 | Windows | `floter.exe` (and a setup `.exe` when NSIS is available) |
 
 Release-time steps a maintainer has to take, once: `mygo keygen` to create the

@@ -109,7 +109,7 @@ func TestTheHeldRowIsTheLastLineOfTheShippedList(t *testing.T) {
 	if hasLauncherItem(a, "system-terminal-bare") {
 		t.Fatalf("the modifier added a row to the shipped list: %+v", results)
 	}
-	if a.Launcher.Selected != start {
+	if a.Launcher.Selected != len(results)-1 {
 		t.Errorf("the selection is on %d, want the page's own %d", a.Launcher.Selected, start)
 	}
 	band, ok := tt.Find("Open a terminal session")
@@ -185,8 +185,8 @@ func TestTheTerminalSurfaceAndTheHeldActionAreTwoRows(t *testing.T) {
 	if tt.HasText("Open Terminal") {
 		t.Errorf("a typed query drew the held row: %q", tt.Texts())
 	}
-	if !tt.HasText("Open a terminal session") {
-		t.Errorf("a typed query dropped the held band: %q", tt.Texts())
+	if tt.HasText("Open a terminal session") {
+		t.Errorf("a typed query duplicated the terminal footer: %q", tt.Texts())
 	}
 
 	// The band's one page is every page of the ordinary search: the empty field

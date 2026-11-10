@@ -78,6 +78,11 @@ func TestTheSettingsRowsKeepOneVerticalStep(t *testing.T) {
 	}
 	for _, name := range rowRhythmFns {
 		got := steps[name]
+		// P16: the tool overview intentionally uses compact 2-unit padding;
+		// editing surfaces retain the shared 3-unit row rhythm.
+		if name == "cardRow" {
+			delete(got, 2)
+		}
 		if len(got) == 0 {
 			t.Errorf("%s: no `%s(t.Space(...))` found — the row path moved or was renamed, "+
 				"and this account is now measuring nothing", name, rowRhythmPadMethod)

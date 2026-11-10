@@ -27,9 +27,6 @@ func SearchProfiles(profiles []Profile, target string) []Profile {
 			selected = append(selected, profile)
 		}
 	}
-	if len(selected) == 0 {
-		return profiles
-	}
 	return selected
 }
 

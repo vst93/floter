@@ -38,6 +38,7 @@ func diagnosisRecoveryFrame(t *testing.T, f *diagnosisFixture, scenario string, 
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	tt.Frame()
+	openSettingsToolForTest(t, f.a, tt)
 	dumpDiagnosisRecovery(t, tt, scenario, dark)
 	return tt
 }

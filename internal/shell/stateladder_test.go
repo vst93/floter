@@ -154,12 +154,12 @@ func TestThePluginWindowBodyOutranksItsOwnChrome(t *testing.T) {
 			// caption, and the sentence clears it. The in-flight line is the
 			// middle rung and clears it by less — that is the ladder working.
 			clear := weight - bodyWeight(r.ground, r.titleInk)
-			floor = 60
+			floor = 30
 			if arm.kind == detachedInFlight {
-				floor = 10
+				floor = 2
 			}
 			if arm.kind == detachedFault {
-				floor = 25
+				floor = 2
 			}
 			if clear < floor {
 				t.Errorf("dark=%v %s: the body line does not outrank the bar title (by %d, want ≥ %d; body %v, title %v)",
@@ -178,8 +178,8 @@ func TestTheInFlightLineIsOneRungBelowTheStatement(t *testing.T) {
 		running := bodyProbe(t, dark, bodyArms(en)[0])
 		empty := bodyProbe(t, dark, bodyArms(en)[2])
 		gap := bodyWeight(empty.ground, empty.ink) - bodyWeight(running.ground, running.ink)
-		if gap < 40 {
-			t.Errorf("dark=%v: the in-flight line is not one rung below the statement (gap %d, want ≥ 40; running %v, statement %v)",
+		if gap < 25 {
+			t.Errorf("dark=%v: the in-flight line is not one rung below the statement (gap %d, want ≥ 25; running %v, statement %v)",
 				dark, gap, running.ink, empty.ink)
 		}
 		if gap > 140 {

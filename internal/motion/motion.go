@@ -1,6 +1,6 @@
 // Package motion is the app's one rule for its own two ambient loops — the
 // terminal bar's status dot and the launcher's paging ring — under the
-// desktop's reduce-motion preference.
+// desktop's reduce-motion preference and frames with animations disabled.
 //
 // The framework already follows the preference for the motion it drives: an
 // Animate goes to its target at once and transitions collapse. Its Loop
@@ -24,7 +24,7 @@ import "github.com/egoist/mygo/ui"
 // framework has registered goes on asking for frames whether or not the view
 // draws its value, so a reduce-motion frame must never register one.
 func Value(c *ui.Context, phase func() float32) float32 {
-	if c.Preferences().ReduceMotion {
+	if c.Instant() || c.Preferences().ReduceMotion {
 		return 0
 	}
 	return phase()

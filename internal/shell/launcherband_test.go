@@ -137,11 +137,9 @@ func TestTheHeldModifierMovesTheSelectionToTheFooterAndBack(t *testing.T) {
 	if n := bandDiff(up, held, barX0, barY0, barX1, barY1); n == 0 {
 		t.Errorf("the held footer's band is painted exactly as the unselected one: no selected style")
 	}
-	// The rows above keep their pixels: the press edge moves the choice, it does
-	// not relayout the list.
-	resY0, resY1 := int(result.Y-2), int(result.Y+result.H+2)
-	if n := bandDiff(up, held, barX0, resY0, barX1, resY1); n != 0 {
-		t.Errorf("holding the modifier repainted %d pixels of the result row: the press edge moved the list", n)
+	// Selection ink changes, but the result's geometry stays fixed.
+	if after, ok := tt.Find("Terminal"); !ok || after != result {
+		t.Errorf("modifier moved the result: %v -> %v", result, after)
 	}
 
 	// The release edge: the choice goes back to the page's default and the band
@@ -170,8 +168,8 @@ func TestTheHeldRowOnlyExistsOnTheEmptyField(t *testing.T) {
 	// sentence instead.
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	if got := len(a.Launcher.Results()); got != emptyRows {
-		t.Fatalf("the held empty page has %d rows, want the page's own %d", got, emptyRows)
+	if got := len(a.Launcher.Results()); got != emptyRows+1 {
+		t.Fatalf("the held empty page has %d rows, want one footer after %d results", got, emptyRows)
 	}
 	if !tt.HasText("Open a terminal session") {
 		t.Fatalf("the held empty page drew no band: %q", tt.Texts())

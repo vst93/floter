@@ -170,9 +170,13 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 	// 浮层 10.8 + 7.2 = **18.0 = `Space(5)`**。改后带子最下 18 行是空白，卡的边离
 	// 软边上沿 7.2px。顶端的 `Space(1)` 与页头的墨一个字节不动（那条 11 行的余量
 	// 见 §6.72）。
-	ui.Column(c).Fill().Children(func() {
-		ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).Fill().
-			Padding(t.Space(1), t.Space(4), t.Space(5), t.Space(4)).Children(func() {
+	scrollTheme := *t
+	ui.Themed(c, &scrollTheme).Background(ui.Transparent).Fill().Children(func() {
+		scroll := ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).Fill().KeepScrollbars(true).
+			ScrollbarInsets(t.Space(1), t.Space(1.5), t.Space(2), 0).
+			Padding(t.Space(1), t.Space(4), t.Space(5), t.Space(4))
+		scrollTheme = a.pluginScrollbar.theme(c, scroll, &a.PluginScroll)
+		scroll.Children(func() {
 			ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
 				// The header: the plugin's own name — the sheet's name, so it hangs
 				// on the sheet's own column (the scroller's 4u padding), the way a
@@ -440,6 +444,12 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 		})
 	case plugincfg.Action:
 		a.sheetAction(c, sheet, field)
+	}
+	if field.Note != "" {
+		tokens := a.tokens(c)
+		ui.Text(c.Key("field.note"), field.Note).FillWidth().
+			FontSize(tokens.Caption).TextColor(tokens.TextSecondary).
+			Padding(0, a.rowInset(c.Theme()), c.Theme().Space(3))
 	}
 }
 
@@ -748,7 +758,7 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 	t := c.Theme()
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
-		MinHeight(max(36, t.Space(9))).
+		MinHeight(max(28, t.Space(8))).
 		Padding(0, t.Space(2.5)).
 		// P13-gv（`docs/liquid-glass.md` §6.169）：弹层里的胶囊此前一帧跳到悬停面，
 		// 而同族的 `extensionActionFace` / `barButton` / `uninstallActionButton`

@@ -52,6 +52,47 @@ func redesignFrame(appearance, language string, opacity uint8, surface Surface, 
 	return tt
 }
 
+// Render the modifier gesture at the actual content height, including its
+// unchanged height over a query with an existing footer.
+func TestUIPolishPreview(t *testing.T) {
+	dir := os.Getenv("FLOTER_UI_POLISH_PNG")
+	if dir == "" {
+		t.Skip("set FLOTER_UI_POLISH_PNG to render modifier states")
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, appearance := range []string{"light", "dark"} {
+		for _, query := range []string{"", "Recent"} {
+			s := settings.Default()
+			s.Theme, s.Language = appearance, "zh"
+			a := New(Options{Store: settings.NewStore(s)})
+			recentLauncher(a, 5)
+			a.Launcher.SetQuery(query)
+			tt := ui.NewTester(a.View, 720, 580)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			for _, held := range []bool{false, true} {
+				if held {
+					tt.HoldModifiers(ui.Cmd)
+				}
+				tt.SetSize(720, a.launcherTarget)
+				tt.Frame()
+				tt.Frame()
+				name := fmt.Sprintf("launcher-%s-query-%t-super-%t.png", appearance, query != "", held)
+				f, err := os.Create(filepath.Join(dir, name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				encodeErr, closeErr := png.Encode(f, tt.Image()), f.Close()
+				if encodeErr != nil || closeErr != nil {
+					t.Fatalf("write screenshot: %v / %v", encodeErr, closeErr)
+				}
+			}
+		}
+	}
+}
+
 // Reproduce the full recents list at its measured window height. Installed
 // artwork is read only for this opt-in preview; no application is launched.
 func TestLauncherProportionPreview(t *testing.T) {
@@ -132,7 +173,7 @@ func TestSettingsGlassFollowsOpacity(t *testing.T) {
 		for page := settingsui.PageGeneral; page <= settingsui.PageAbout; page++ {
 			t.Run(fmt.Sprintf("%s/%s", appearance, settingsui.PageName(page)), func(t *testing.T) {
 				var medians []int
-				for _, opacity := range []uint8{10, 25, 75} {
+				for _, opacity := range []uint8{74, 86, 98} {
 					tt := redesignFrame(appearance, "en", opacity, SurfaceSettings, page, 720, 580)
 					img := tt.Image()
 					var alphas []int
@@ -144,8 +185,8 @@ func TestSettingsGlassFollowsOpacity(t *testing.T) {
 					sort.Ints(alphas)
 					medians = append(medians, alphas[len(alphas)/2])
 				}
-				if medians[0] > 100 || medians[1]-medians[0] < 25 || medians[2]-medians[1] < 90 {
-					t.Fatalf("settings content covers the glass: median alpha at 10%%/25%%/75%% = %v", medians)
+				if medians[0] > 195 || medians[1]-medians[0] < 25 || medians[2]-medians[1] < 25 {
+					t.Fatalf("settings content covers the glass: median alpha at 74%%/86%%/98%% = %v", medians)
 				}
 			})
 		}

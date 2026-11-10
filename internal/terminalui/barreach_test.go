@@ -22,7 +22,7 @@ import (
 // 选区，终端的 select-to-copy 在这两行上失效。这条 pin 钉住两半：
 //
 //  1. 源码契约：浮条 `PassThrough()`（不是命中目标）、揭示读 `PointerPosition`、
-//     `DragWindow()` 只剩一处且落在会话标题上（手柄收窄成 title）。
+//     `DragWindow()` 只剩一处且落在网格上方的独立窄手柄。
 //  2. 行为：指针停在**标题字外**的带子里（那里没有任何可命中元素）仍会把标题
 //     揭示出来——证明揭示走的是指针位置而不是命中；指针离开后重新藏回去。
 
@@ -65,7 +65,7 @@ func TestTheBarRevealsUnderAPointerItDoesNotCatch(t *testing.T) {
 	if litMass <= restMass+1000 {
 		t.Fatalf("the title did not appear under the pointer (rest %d, hovered %d)", restMass, litMass)
 	}
-	if maxX > 400 {
+	if maxX >= 600 {
 		t.Fatalf("the title's ink runs to x=%d; the pointer at 600 would be over its words, not the empty band", maxX)
 	}
 	_ = minX
@@ -122,13 +122,10 @@ func TestTheTerminalBarIsNotTheWindowsDragHandle(t *testing.T) {
 		t.Error("the bar's reveal does not read the pointer's position; a PassThrough bar has no Hovered() to read")
 	}
 	if n := strings.Count(body, "DragWindow()"); n != 1 {
-		t.Fatalf("the bar has %d DragWindow() calls, want 1 (the session title is the page's title bar)", n)
+		t.Fatalf("the bar has %d DragWindow() calls, want 1 (the dedicated top strip)", n)
 	}
-	i := strings.Index(body, "DragWindow()")
-	before := body[:i]
-	stmt := before[strings.LastIndex(before, "ui."):]
-	if !strings.HasPrefix(stmt, "ui.Text(c, identityTitle)") {
-		t.Errorf("the drag handle is not the session title: %q", firstLine(stmt))
+	if !strings.Contains(body, `Height(terminalDragHeight).DragWindow().Cursor(ui.CursorGrab)`) {
+		t.Error("native drag is not isolated in the strip above the grid")
 	}
 }
 

@@ -42,9 +42,9 @@ const (
 	DefaultTheme           = "auto"
 	DefaultGlassStep       = "regular"
 	DefaultLanguage        = string(i18n.Default)
-	DefaultMainOpacity     = 47
-	DefaultTerminalOpacity = 46
-	DefaultUIScale         = "small"
+	DefaultMainOpacity     = 86
+	DefaultTerminalOpacity = 86
+	DefaultUIScale         = "default"
 
 	// The window-transparency band.
 	MinWindowOpacity = 10

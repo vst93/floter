@@ -577,7 +577,7 @@ func dotFrame(t *testing.T, reduce bool) (*ui.Tester, ui.Color) {
 func inkBox(img *image.RGBA, ink ui.Color) image.Rectangle {
 	minX, minY, maxX, maxY := 1<<30, 1<<30, -1, -1
 	for y := 0; y < 40; y++ {
-		for x := 0; x < 400; x++ {
+		for x := 0; x < 28; x++ {
 			i := y*img.Stride + x*4
 			if img.Pix[i] == ink.R && img.Pix[i+1] == ink.G && img.Pix[i+2] == ink.B {
 				minX, minY = min(minX, x), min(minY, y)

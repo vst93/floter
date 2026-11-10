@@ -38,7 +38,7 @@ func (a *App) pluginConfig(plugin string) *launcher.Config {
 		schema, values = plugincfg.Calculator(copy, settings.CalculatorPluginOf(s))
 	case settings.CustomPluginBrowser:
 		a.requestBrowserScan(settings.BrowserPluginOf(s).CustomBaseDir, true)
-		schema, values = plugincfg.Browser(copy, settings.BrowserPluginOf(s), a.browserTargets())
+		schema, values = a.browserConfig(copy, settings.BrowserPluginOf(s))
 	default:
 		return nil
 	}
@@ -186,7 +186,7 @@ func (a *App) drawPluginConfig(c *ui.Context, config *launcher.Config) {
 		// Discovery can finish after the sheet opened. Refresh only its schema
 		// so the editor keeps its current values, drafts and failure state.
 		s := a.settings()
-		config.Schema, _ = plugincfg.Browser(i18n.For(s.Language).Settings, settings.BrowserPluginOf(s), a.browserTargets())
+		config.Schema, _ = a.browserConfig(i18n.For(s.Language).Settings, settings.BrowserPluginOf(s))
 	}
 	a.Settings.PluginSheet(c, settingsui.PluginSheet{
 		Schema:       config.Schema,

@@ -49,7 +49,7 @@ func TestTheTwoListsShareOneTextColumn(t *testing.T) {
 	// The headings follow their own surface's column (P11-ac's pin), so a
 	// heading that stayed behind while the rows moved is the same failure seen
 	// from the other end.
-	listHeading := mustFind(t, tt, "Recently launched")
+	listHeading := listTitle
 	outputHeading := mustFind(t, ot, "Group A")
 	if !sameColumn(listHeading.X, outputHeading.X) {
 		t.Errorf("the launcher's heading starts at x=%.1f, the output panel's at x=%.1f",

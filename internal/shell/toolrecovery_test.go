@@ -79,6 +79,7 @@ func checkToolConnectionRecovery(t *testing.T, scenario string) {
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 			tt.Frame()
 			tt.Frame()
+			settingsSectionForTest(t, f.a, tt, copy.IntegrationsAdd, copy.IntegrationsLocal)
 			if err := tt.Click(copy.LocalToolAdd); err != nil {
 				t.Fatal(err)
 			}
@@ -168,6 +169,7 @@ func TestToolConnectionPickerFailure(t *testing.T) {
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 			tt.Frame()
 			tt.Frame()
+			settingsSectionForTest(t, f.a, tt, copy.IntegrationsAdd, copy.IntegrationsLocal)
 			if err := tt.Click(copy.LocalToolAdd); err != nil {
 				t.Fatal(err)
 			}

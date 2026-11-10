@@ -518,22 +518,10 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		card.Disabled(true).Cursor(ui.CursorNotAllowed)
 		tokens.DimFace(card)
 	case card.Pressed():
-		// The press rung comes first: CSS paints `:active` over `:hover`,
-		// and a pointer held down is both. `:active` also drops the card's
-		// `--elev-0` shadow, so the pressed pane is the fill alone.
+		// A press keeps its own feedback; hovering leaves the card unchanged.
 		card.Background(tokens.ControlPress)
-	case card.Hovered():
-		// P8-d 重定基线（§5 禁止侧）：hover 边曾是 `tokens.AccentEdge`。一张被
-		// 勾选的卡片不是「被选中/被打开」的控件状态，hover 更是 §5 明写的禁止
-		// 项——边保持 `ControlEdge`，只抬面（`ControlHover`）。
-		card.Background(tokens.ControlHover)
-		card.Border(1, tokens.ControlEdge)
-		tokens.LitFace(card)
 	default:
-		// E1 on all three rungs (fixed / hover / resting): the card's own
-		// `Border(1, ControlEdge)` is its frame, and `LitFace` puts the lit edge
-		// above and the shade below — no ring, which was that border a second
-		// time and buried the rim (see `rows.go`'s `extensionActionFace`).
+		// Keep one resting face and keyline, including under the pointer.
 		tokens.LitFace(card)
 	}
 	card.Children(func() {

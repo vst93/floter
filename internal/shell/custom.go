@@ -118,16 +118,20 @@ func (a *App) applyCustomShortcuts(entries []settings.CustomShortcut) ([]setting
 			continue
 		}
 		action := entry.Action
+		accepted := false
 		if err := a.registerShortcut(accelerator, func() {
 			// A native event can arrive while an explicit edit validates its
 			// claims, before the still-active recorder releases them again.
-			if generation == a.customGeneration && !a.shortcutsSuspended && !a.Settings.RecordingShortcut() {
+			// A rejected registration can also leave a queued callback: its
+			// generation alone does not mean that this key was accepted.
+			if accepted && generation == a.customGeneration && !a.shortcutsSuspended && !a.Settings.RecordingShortcut() {
 				a.runCustomShortcut(action)
 			}
 		}); err != nil {
 			rejections = append(rejections, CustomShortcutRejection{Key: entry.Key, Reason: settingsui.CustomShortcutReasonOccupied})
 			continue
 		}
+		accepted = true
 		registered = append(registered, entry)
 		claimed = append(claimed, accelerator)
 	}

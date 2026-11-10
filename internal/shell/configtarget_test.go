@@ -67,6 +67,7 @@ func checkConfigTarget(t *testing.T, action, change string) {
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 			tt.Frame()
 			tt.Frame()
+			openSettingsToolForTest(t, a, tt)
 			if err := tt.Click(a.SettingsCopy().ConfigOpen); err != nil {
 				t.Fatal(err)
 			}

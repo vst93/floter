@@ -37,10 +37,9 @@ func TestEscapeAnswersTheSettingsQuestionFirst(t *testing.T) {
 	tt.Frame()
 	a.Open(SurfaceSettings)
 	tt.Frame()
-	if err := tt.Click("Integrations"); err != nil {
-		t.Fatalf("the integrations page: %v", err)
-	}
+	clickSettingsSidebar(t, tt, "Integrations")
 	tt.Frame()
+	openSettingsToolForTest(t, a, tt)
 	if err := tt.Click("Remove package"); err != nil {
 		t.Fatalf("the uninstall control: %v (texts %v)", err, tt.Texts())
 	}
@@ -58,11 +57,16 @@ func TestEscapeAnswersTheSettingsQuestionFirst(t *testing.T) {
 		t.Errorf("Escape left the question up: %v", tt.Texts())
 	}
 
-	// With the question answered, the next Escape is the panel's way out.
+	// The next Escape returns from tool details; the third leaves settings.
+	tt.TypeKey(0, ui.KeyEscape, "")
+	tt.Frame()
+	if a.Surf != SurfaceSettings || tt.HasText(a.SettingsCopy().IntegrationsBack) {
+		t.Fatal("second Escape did not return to overview")
+	}
 	tt.TypeKey(0, ui.KeyEscape, "")
 	tt.Frame()
 	if a.Surf != SurfaceLauncher {
-		t.Errorf("the second Escape left surf = %v, want the launcher", a.Surf)
+		t.Errorf("third Escape left surf = %v, want launcher", a.Surf)
 	}
 }
 

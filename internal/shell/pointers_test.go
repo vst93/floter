@@ -53,11 +53,22 @@ func TestSettingsRowsAnswerThroughTheVeil(t *testing.T) {
 	a.Open(SurfaceSettings)
 	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 560)
 	tt.Frame()
-	if err := tt.Click("Integrations"); err != nil {
-		t.Fatalf("sidebar: %v", err)
-	}
+	clickSettingsSidebar(t, tt, "Integrations")
 	tt.Frame()
 	if a.Settings.Page != settingsui.PageIntegrations {
 		t.Errorf("page = %v, want integrations", a.Settings.Page)
 	}
+}
+
+// The sidebar label names the framework's list item, but its custom child
+// handles the click. Since mygo 0.8, Click(label) rejects that different input
+// target. Drive the actual pointer at the row's center and let the caller's
+// page assertion verify that the custom row received it through the veil.
+func clickSettingsSidebar(t *testing.T, tt *ui.Tester, label string) {
+	t.Helper()
+	row, ok := tt.Find(label)
+	if !ok || row.W <= 0 || row.H <= 0 {
+		t.Fatalf("sidebar row %q is missing", label)
+	}
+	tt.ClickAt(row.X+row.W/2, row.Y+row.H/2)
 }

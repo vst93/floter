@@ -65,9 +65,9 @@ func TestTheTerminalsVisibleAlphaIsTheSlider(t *testing.T) {
 	// Linux table on every host: on macOS a 46% page paints 31% and composites
 	// back to 46% through the material.
 	specFor := func(opacity uint8) glassmap.Spec {
-		return glassmap.SpecForOS(runtime.GOOS, "regular", opacity)
+		return glassmap.TerminalSpecForPreferencesOS(runtime.GOOS, "regular", opacity, false)
 	}
-	for _, opacity := range []uint8{settings.DefaultTerminalOpacity, 70} {
+	for _, opacity := range []uint8{66, 83, 100} {
 		tt := renderTerminalPage(t, func(s *settings.Settings) {
 			s.TerminalOpacity = opacity
 		})

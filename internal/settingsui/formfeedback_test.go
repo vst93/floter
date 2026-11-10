@@ -29,7 +29,15 @@ func formFeedbackDump(t *testing.T, tt *ui.Tester, scenario string, dark bool) {
 func checkFeedbackVisible(t *testing.T, tt *ui.Tester, label string) {
 	t.Helper()
 	r, viewport := mustFind(t, tt, label), mustFind(t, tt, "feedback-viewport")
-	if !tt.Focused(label) || r.W <= 0 || r.H <= 0 || r.Y-3 < viewport.Y+16 || r.Y+r.H+3 > viewport.Y+viewport.H-16 {
+	// A boolean row shares its label with the switch. Find returns the
+	// preceding text; measure the focused control and its ring instead.
+	if sw, ok := tt.AccessByRole(ui.RoleSwitch, label); ok {
+		r = sw.Bounds
+		if !sw.Focused || sw.Offscreen {
+			t.Errorf("switch %q is not visibly focused: %+v", label, sw)
+		}
+	}
+	if !tt.Focused(label) || r.W <= 0 || r.H <= 0 || r.Y-3 < viewport.Y+16-0.01 || r.Y+r.H+3 > viewport.Y+viewport.H-16+0.01 {
 		t.Errorf("feedback reflow hides active outlet %q: target=%+v viewport=%+v focused=%v", label, r, viewport, tt.Focused(label))
 	}
 }

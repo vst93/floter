@@ -33,20 +33,19 @@ import (
 
 // sliderCardOptions says which of a slider row's five parts the probe draws.
 type sliderCardOptions struct {
-	hint    bool // the row's grey second line
-	reason  bool // the row's disabled statement
-	readout bool // the group's own answer line under the row
+	hint   bool // the row's grey second line
+	reason bool // the row's disabled statement
 }
 
 // sliderCardParts is what one probe frame resolved to.
 type sliderCardParts struct {
-	tt                         *ui.Tester
-	face, cardTop, cardBottom  int
-	label, hint, axis, readout ui.Rect
-	reason                     ui.Rect
+	tt                        *ui.Tester
+	face, cardTop, cardBottom int
+	label, hint, axis         ui.Rect
+	reason                    ui.Rect
 }
 
-// sliderCard renders one slider row (and optionally the group's readout line)
+// sliderCard renders one slider row
 // on the settings page's own ground, inside a real card, and reads back the
 // card's own top and bottom edges off the card's left margin column.
 func sliderCard(t *testing.T, dark bool, opts sliderCardOptions) sliderCardParts {
@@ -76,9 +75,6 @@ func sliderCard(t *testing.T, dark bool, opts sliderCardOptions) sliderCardParts
 		ui.Column(c).Padding(24).Width(560).Children(func() {
 			a.card(c, func() {
 				a.slider(c, row)
-				if opts.readout {
-					a.effectiveOpacity(c, en, store.Snapshot())
-				}
 			})
 		})
 	}, 640, 420)
@@ -95,9 +91,6 @@ func sliderCard(t *testing.T, dark bool, opts sliderCardOptions) sliderCardParts
 	}
 	if opts.reason {
 		out.reason = mustFind(t, tt, en.TransparencyUnavailable)
-	}
-	if opts.readout {
-		out.readout = mustFind(t, tt, en.EffectiveOpacity)
 	}
 	// The card's own face, read on the card's left margin (between its edge and
 	// the row's inset) — never the ground behind it.
@@ -128,9 +121,7 @@ func appearanceOf(dark bool) string {
 // own x range, from above the title to below the last part drawn.
 func sliderBands(p sliderCardParts, bottom float32) [][2]int {
 	last := p.label.Y + p.label.H
-	if p.readout.H > 0 {
-		last = p.readout.Y + p.readout.H
-	} else if p.axis.H > 0 {
+	if p.axis.H > 0 {
 		last = p.axis.Y + p.axis.H
 	}
 	if p.hint.H > 0 && p.hint.Y+p.hint.H > last {
@@ -225,32 +216,6 @@ func TestASlidersTitleAndHintShareTheRowsOwnSeam(t *testing.T) {
 					"the same two lines of the same kind of row must not read two distances",
 					appearance, probe.where, probe.got, want)
 			}
-		}
-	}
-}
-
-// TestTheGroupsReadoutClearsTheCardsEdge is the readout line's own half. It is
-// the transparency group's answer, so it keeps the tight `Space(1)` above it —
-// but its bottom edge used to be `Space(1)` too, while every row in the card
-// asks `Space(2.25)`: the group's last line sat 2px above the card's soft
-// bottom edge, the only thing in the card pressed against it.
-func TestTheGroupsReadoutClearsTheCardsEdge(t *testing.T) {
-	for _, dark := range []bool{false, true} {
-		appearance := appearanceOf(dark)
-		withRow := sliderCard(t, dark, sliderCardOptions{})
-		withReadout := sliderCard(t, dark, sliderCardOptions{readout: true})
-		// A row's own bottom edge, read off the card whose last child is a row.
-		rowClearance := float32(withRow.cardBottom) - (withRow.axis.Y + withRow.axis.H)
-		readoutClearance := float32(withReadout.cardBottom) - (withReadout.readout.Y + withReadout.readout.H)
-		if readoutClearance < 5 {
-			t.Errorf("%s: the group's readout line leaves %.1fpx under itself, against the card's edge — "+
-				"the card's own rows leave %.1fpx; it reads as pressed into the soft edge",
-				appearance, readoutClearance, rowClearance)
-		}
-		if d := readoutClearance - rowClearance; d < -2 || d > 2 {
-			t.Errorf("%s: the readout line leaves %.1fpx under itself, a row leaves %.1fpx (%+.1f) — "+
-				"the group's answer must sit in the card's own bottom margin, not in a margin of its own",
-				appearance, readoutClearance, rowClearance, d)
 		}
 	}
 }

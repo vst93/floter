@@ -101,6 +101,8 @@ type Session struct {
 
 // App is the terminal surface's state.
 type App struct {
+	canvasSelecting bool
+
 	Store   *settings.Store
 	Actions Actions
 
@@ -707,8 +709,11 @@ func (a *App) sessionText() string {
 // its comment).
 func (a *App) options() terminal.Options {
 	s := a.Store.Snapshot()
-	theme, darkTheme := themeFor(s.TerminalTheme)
+	theme, darkTheme := readableTerminalThemes(s)
 	return terminal.Options{
+		// Let zsh mark and redraw its prompt when the panel changes width.
+		// mygo preserves startup files and leaves other shells unchanged.
+		ShellIntegration: true,
 		Font: terminal.Font{
 			Family:     s.FontFamily,
 			Size:       float32(s.FontSize),
@@ -846,6 +851,7 @@ func (a *App) CloseAll() {
 // View builds the terminal surface: a title row over the session, or the
 // empty state when none runs.
 func (a *App) View(c *ui.Context) {
+	a.canvasSelecting = false
 	// The frame's clock, for the debounce window a preview schedules (see
 	// debounce.go). Reading it here rather than at each preview keeps one answer
 	// per frame, and it is the frame's own time — the tester moves it with
@@ -873,7 +879,7 @@ func (a *App) View(c *ui.Context) {
 	// view is transparent; see canvasFill). The empty page takes the window's
 	// colour too: there is no session whose palette it would be, and the page's
 	// own ink has to stay readable on it.
-	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, stored.GlassStep, stored.TerminalOpacity, c.Preferences().HighContrast)
+	spec := glassmap.TerminalSpecForPreferencesOS(runtime.GOOS, stored.GlassStep, stored.TerminalOpacity, c.Preferences().HighContrast)
 	session := a.Current()
 	running := session != nil && session.Term != nil
 	// The panel is the window's own face (terminal.css:31 draws it at
@@ -937,10 +943,9 @@ func (a *App) View(c *ui.Context) {
 			}
 			return
 		}
-		// The canvas fills the whole panel; the bar floats above it, so no
-		// layout height is reserved and the first output line sits at the very
-		// top edge (the old build's `.terminal-panel__body` over
-		// `.terminal-bar`). The drawer is a sibling of the canvas, so opening
+		// Only the narrow window-drag strip reserves layout space; the toolbar
+		// floats above the first output lines and yields to text selection.
+		// The drawer is a sibling of the canvas, so opening
 		// it shrinks the canvas (and resizes the PTY) rather than covering the
 		// session's output.
 		// P11-z 重定基线（用户实测 F3）：画布这里曾有一条 `Border(1, edge)`，
@@ -955,7 +960,7 @@ func (a *App) View(c *ui.Context) {
 		// 像素（实测 720×360 重叠 81×8u），抽屉自己的关闭钮与浮条的 X 叠成
 		// 一个（28×18u）。带宽是画布的地板，不是抽屉的预算：抽屉放不下就在
 		// 自己那条带里滚动（`drawer` 的 `DrawerScroll`）。
-		body := ui.Box(c).Grow(1).MinHeight(barHeight(t)).FillWidth()
+		body := ui.Box(c).Grow(1).MinHeight(barHeight(t)).FillWidth().Padding(terminalDragHeight, 0, 0, 0)
 		body.Children(func() {
 			// The mount's fill is the terminal's background: the session's own
 			// name for the surface it is drawn on, painted here rather than by
@@ -972,7 +977,9 @@ func (a *App) View(c *ui.Context) {
 					// Options.Padding now (see options). An element's padding
 					// insets its children, which a terminal's view has none
 					// of, so the call that used to sit here was inert.
-					terminal.View(c, session.Term).Fill().Bind(&a.Focus).Label(copy.Input)
+					canvas := terminal.View(c, session.Term).Fill().Bind(&a.Focus).Label(copy.Input)
+					button, held := canvas.PressedButton()
+					a.canvasSelecting = held && button == 0
 				})
 			// The resident note rides the canvas, so the docked drawer cannot
 			// sit under it.
@@ -1086,7 +1093,7 @@ func tokensOf(a *App, c *ui.Context) theme.Tokens {
 	// The loader is the surface's own settings memo, not `Store.Snapshot`: a
 	// palette build reads the whole value, and routing it through the memo is
 	// what keeps a frame to one copy even when it also builds a palette.
-	return a.tokenMemo.Tokens(a.Store.Version(), c.Theme().Dark, c.Preferences(), a.settings)
+	return a.tokenMemo.TerminalTokens(a.Store.Version(), c.Theme().Dark, c.Preferences(), a.settings)
 }
 
 // settings is this frame's settings value, copied once per change rather than
@@ -1158,8 +1165,23 @@ func windowBarInks(f *ui.Theme, tokens theme.Tokens) barInks {
 func (a *App) canvasInks(c *ui.Context) barInks {
 	tokens := tokensOf(a, c)
 	session := a.Current()
-	return barInksFor(tokens, windowBarInks(c.Theme(), tokens), a.settings().TerminalTheme,
+	inks := barInksFor(tokens, windowBarInks(c.Theme(), tokens), a.settings().TerminalTheme,
 		session != nil && session.Term != nil)
+	s := a.settings()
+	spec := glassmap.TerminalSpecForPreferencesOS(runtime.GOOS, s.GlassStep, s.TerminalOpacity, c.Preferences().HighContrast)
+	background := a.FrameBackground(tokens)
+	// Controls are denser only where they appear; the canvas retains the
+	// lower opacity. Do not rely on the unknown desktop behind this bar.
+	alpha := spec.TintAlpha
+	if alpha < .86 {
+		backing := (.86 - alpha) / (1 - alpha)
+		inks.Face = background.Alpha(max(backing, float32(inks.Face.A)/255))
+		alpha = 1 - (1-alpha)*(1-float32(inks.Face.A)/255)
+	}
+	inks.Ink = theme.ReadableOnGlass(inks.Ink, background, alpha, 4.5)
+	inks.Muted = theme.ReadableOnGlass(inks.Muted, background, alpha, 3)
+	inks.Tertiary = theme.ReadableOnGlass(inks.Tertiary, background, alpha, 3)
+	return inks
 }
 
 // barInksFor is the one answer to "what does the bar draw with": `running`
@@ -1541,11 +1563,14 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, live bool, run 
 	}
 }
 
+// terminalDragHeight reserves a hit target above the terminal's first row.
+const terminalDragHeight float32 = 10
+
 // barHeight is the title bar's own band: the bar draws into it, the canvas is
 // floored at it, and the panel's notices hang from its lower edge. Three
 // readers, one number — a second spelling of it is how the failure note ends up
 // half a step off the bar it is docked to (P11-bg).
-func barHeight(t *ui.Theme) float32 { return max(40, t.Space(10)) }
+func barHeight(t *ui.Theme) float32 { return terminalDragHeight + max(40, t.Space(10)) }
 
 func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
@@ -1553,7 +1578,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// P11-ae：这一条（以及它里面的点与按钮）的墨来自它浮着的那块面，不是窗口。
 	inks := a.canvasInks(c)
 	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(barHeight(t)).
-		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).PassThrough()
+		Padding(terminalDragHeight, t.Space(3), 0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).PassThrough()
 	// The bar's whole content is hidden until the pointer is over it or
 	// something on it has the keyboard, so neither the title nor the buttons
 	// permanently occlude the first lines of output under them
@@ -1565,9 +1590,9 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// 输出的点击与 drag-select 全吃掉（终端的 `CopyOnSelect` 在这两行上失效），
 	// 这是 F3「不要 overlay」在输入侧的后果。`PointerPosition` 在
 	// `PassThrough` 元素上仍算包含关系（ui/input.go:1265-1274），所以悬停仍能
-	// 把标题与按钮揭示出来。窗口拖拽手柄收窄成会话标题本身（见下面的标题），不再是一整条隐形带。
+	// 把标题与按钮揭示出来。最上方独立的窄手柄不与终端网格重叠。
 	_, _, hovered := bar.PointerPosition()
-	revealed := hovered || bar.FocusWithin()
+	revealed := (hovered || bar.FocusWithin()) && !a.canvasSelecting && c.Modifiers()&ui.Shift == 0
 	// A palette that owns the canvas owns the bar too: while the bar is
 	// revealed (the only state its content is drawn in) it carries the palette's
 	// own face, so its ink sits on the material it was measured against. At rest
@@ -1584,7 +1609,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// reference's one cue that the bar itself is a draggable handle. Only the
 	// pointer raises it; keyboard focus reveals the identity without lifting the
 	// surface, exactly as `:hover` does.
-	if hovered {
+	if hovered && revealed {
 		// P8-c 重定基线（§6.2 第 6 条）：投影读 token，不再写字面
 		// `rgba(0, 0, 0, 0.18)`。同一条 throw 在两套外观下是两档（深 0.40 /
 		// 浅 0.10），字面值把它钉成了第三档，浅色下比合约重、深色下比合约轻。
@@ -1629,16 +1654,12 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			// P11-ae：墨来自它浮着的那块面（`canvasInks`）——选了命名调色板时
 			// 就是调色板自己的前景，`inherit` 与空页仍是窗口的 `TextSecondary`。
 			//
-			// P11-af：**会话标题就是这一页的 title bar**。浮条从整条 `DragWindow`
-			// 收窄到这里，于是拖窗口仍然有手柄（字宽的那一块），而标题右边到
-			// 按钮之间的那条带交给画布：那一段的点击与选区都不再被浮条吃掉。
-			// 提示（截断时的全名）也跟到字上：整行是 `PassThrough`，挂在行上的
-			// tooltip 永远不会被悬停到。
-			// P13-ax：全名那条提示同样改戴 E2 浮（`theme.Tokens.Tip`）：它一
-			// 直是全仓唯一一枚白片子，而这页上它是读全名的**唯一**位置。
-			tokensOf(a, c).Tip(c, ui.Text(c, identityTitle).FontSize(t.FontSize).FontWeight(580).
-				LetterSpacing(-0.01*t.FontSize).
-				TextColor(inks.Ink).Ellipsis("\u2026").SingleLine().DragWindow(), identityTitle)
+			// The title is chrome, not an invisible text-sized drag target.
+			// Let the first output line receive the pointer beneath it.
+			ui.Text(c, identityTitle).FontSize(t.FontSize).FontWeight(580).
+				LetterSpacing(-0.01 * t.FontSize).TextColor(inks.Ink).
+				Ellipsis("\u2026").SingleLine().PassThrough()
+
 		})
 		// The controls, at the bar's trailing edge: 28u transparent squares
 		// with a 4u gap, hidden and non-interactive until the bar is revealed
@@ -1677,6 +1698,17 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			}
 		})
 	})
+	// This strip is outside the terminal grid, so dragging never competes
+	// with selecting its first line. A grab cursor explains its purpose.
+	grip := ui.Box(c.Key("terminal.window-drag")).Absolute().Top(0).Left(0).Right(0).
+		Height(terminalDragHeight).DragWindow().Cursor(ui.CursorGrab).Description(copy.DragWindowHint)
+	if hovered && !a.canvasSelecting {
+		grip.Children(func() {
+			ui.Box(c).Width(32).Height(3).Radius(1.5).AlignSelf(ui.Center).Margin(3, 0, 0, 0).
+				Background(inks.Tertiary).PassThrough()
+		})
+	}
+
 }
 
 // statusDot is the bar's status light. It answers one question — is a program
@@ -1855,6 +1887,17 @@ func mountCorner(tokens theme.Tokens) float32 { return tokens.RadiusMD }
 // to a session, and the empty page keeps the window's own colour so its ink
 // stays readable on a light palette.
 func panelFill(name string, running bool, spec glassmap.Spec, tokens theme.Tokens) ui.Color {
+	return canvasBackground(name, running, tokens).Alpha(spec.CanvasAlpha())
+}
+
+// FrameBackground shares the session's background with the outer frame so
+// opposite app/terminal themes do not mix their colors through the canvas.
+func (a *App) FrameBackground(tokens theme.Tokens) ui.Color {
+	session := a.Current()
+	return canvasBackground(a.settings().TerminalTheme, session != nil && session.Term != nil, tokens)
+}
+
+func canvasBackground(name string, running bool, tokens theme.Tokens) ui.Color {
 	colour := ui.RGB(18, 19, 22)
 	if tokens.Theme != nil {
 		colour = tokens.Theme.Background
@@ -1862,7 +1905,7 @@ func panelFill(name string, running bool, spec glassmap.Spec, tokens theme.Token
 	if p, ok := palettes[name]; ok && running {
 		colour = packed(p.bg)
 	}
-	return colour.Alpha(spec.CanvasAlpha())
+	return colour
 }
 
 // themeFor builds the plugin theme (or the light/dark pair) for a stored
@@ -1907,6 +1950,46 @@ func themeFor(name string) (theme, dark *terminal.Theme) {
 	t.Cursor = packed(spec.cursor)
 	t.Selection = spec.selection
 	return &t, nil
+}
+
+// Only defaults adapt: programs keep their ANSI/true-color output. Selection
+// has its own opaque backing, so selecting a line cannot wash out its text.
+func readableTerminalThemes(s settings.Settings) (*terminal.Theme, *terminal.Theme) {
+	return readableTerminalThemesForOS(s, runtime.GOOS)
+}
+
+func readableTerminalThemesForOS(s settings.Settings, goos string) (*terminal.Theme, *terminal.Theme) {
+	light, dark := themeFor(s.TerminalTheme)
+	spec := glassmap.TerminalSpecForPreferencesOS(goos, s.GlassStep, s.TerminalOpacity, false)
+	adapt := func(base *terminal.Theme, isDark bool) *terminal.Theme {
+		if base == nil {
+			return nil
+		}
+		out := *base
+		background := out.Background
+		if _, named := palettes[s.TerminalTheme]; !named {
+			if isDark {
+				background = theme.Background(theme.Dark)
+			} else {
+				background = theme.Background(theme.Light)
+			}
+		}
+		// Leave a small margin for the byte rounding of the frame and canvas
+		// when they composite separately in the renderer.
+		out.Foreground = theme.ReadableOnGlass(out.Foreground, background, spec.TintAlpha, 4.6)
+		out.Cursor = theme.ReadableOnGlass(out.Cursor, background, spec.TintAlpha, 3.1)
+		selection := out.Selection
+		if selection.A == 0 {
+			selection = base.Foreground.Alpha(.33)
+		}
+		out.Selection = selection.Over(background)
+		out.SelectionText = theme.ReadableOnGlass(out.Foreground, out.Selection, 1, 4.5)
+		return &out
+	}
+	if palette, ok := palettes[s.TerminalTheme]; ok {
+		return adapt(light, palette.dark), nil
+	}
+	return adapt(light, false), adapt(dark, true)
 }
 
 // inheritCursor is the colour base.css's `--terminal-cursor` token gives the

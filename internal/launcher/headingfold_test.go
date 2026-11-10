@@ -65,29 +65,25 @@ func launcherHeadingAt(t *testing.T, dark bool, height int) headingEvidence {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	recentPage(a, 20)
+	droppedHeadingPage(a, 7)
 	tt := ui.NewTester(themedView(a), InputWindowWidth, height)
 	tt.SetDark(dark)
 	tt.Frame()
-	// Walk the keyboard until the heading is on the fold. The list reveals the
-	// choice on every step, so a tall frame needs more steps than a short one;
-	// the heading leaves the list entirely if we overshoot.
-	for step := 0; step <= 20; step++ {
-		box, seen := a.headingRects[0]
-		fold := foldAlpha(a.listRect, box)
-		rect, onScreen := tt.Find("Recently launched")
-		if seen && onScreen && fold > 0 && fold < 1 {
-			return headingEvidence{
-				ink:   contrastIn(tt.Image(), rect, a.listRect),
-				fold:  fold,
-				label: fmt.Sprintf("height %d, step %d", height, step),
-			}
-		}
-		tt.Key(0, ui.KeyDown)
-		tt.Frame()
+	// Scroll by a fraction of the measured heading. Row-key stepping can
+	// jump over the short heading entirely when the font or row height changes.
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	box := a.headingRects[0]
+	share := float32(height-270) / 40
+	delta := box.Y - a.listRect.Y + box.H*(1-share)
+	tt.Scroll(a.listRect.X+100, a.listRect.Y+30, 0, delta)
+	tt.Frame()
+	box = a.headingRects[0]
+	fold := foldAlpha(a.listRect, box)
+	rect, ok := tt.Find("Dropped files")
+	if !ok || fold <= 0 || fold >= 1 {
+		t.Fatalf("heading did not land on fold: %v", fold)
 	}
-	t.Fatalf("the launcher's section title never landed on the fold at height %d", height)
-	return headingEvidence{}
+	return headingEvidence{ink: contrastIn(tt.Image(), rect, a.listRect), fold: fold, label: fmt.Sprintf("height %d", height)}
 }
 
 // launcherHeadingWhole is the same label wholly inside the viewport: the
@@ -100,11 +96,11 @@ func launcherHeadingWhole(t *testing.T, dark bool) headingEvidence {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	recentPage(a, 20)
+	droppedHeadingPage(a, 7)
 	tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 	tt.SetDark(dark)
 	tt.Frame()
-	rect, ok := tt.Find("Recently launched")
+	rect, ok := tt.Find("Dropped files")
 	if !ok {
 		t.Fatalf("the section title is missing: %q", tt.Texts())
 	}
@@ -165,7 +161,7 @@ func outputHeadingWhole(t *testing.T, dark bool) headingEvidence {
 	}
 	const second = 6
 	box := a.outputHeadingRects[second]
-	if fold := foldAlpha(a.outputListRect, box); fold != 1 {
+	if fold := foldAlpha(a.outputListRect, box); fold < 0.999 {
 		t.Fatalf("the premise failed: the heading is only %.3f in view", fold)
 	}
 	return headingEvidence{ink: contrastIn(tt.Image(), rect, a.outputListRect), fold: 1, label: "whole"}
@@ -249,7 +245,7 @@ func TestTheHeadingsInsideTheViewportKeepTheirInk(t *testing.T) {
 // take a digit slot away from a real row (P13-w's "still to do" #1).
 func TestTheHeadingBoxesStayOutOfTheNumberedFamily(t *testing.T) {
 	a := testApp()
-	recentPage(a, 20)
+	droppedHeadingPage(a, 7)
 	tt := renderShipped(t, a, false)
 	tt.Frame()
 
@@ -292,14 +288,14 @@ func TestDumpP13XHeadingFoldPNGs(t *testing.T) {
 		if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 			t.Fatal(err)
 		}
-		recentPage(a, 20)
+		droppedHeadingPage(a, 7)
 		tt := ui.NewTester(themedView(a), InputWindowWidth, 300)
 		tt.SetDark(dark)
 		tt.Frame()
 		for step := 0; step <= 20; step++ {
 			box, seen := a.headingRects[0]
 			fold := foldAlpha(a.listRect, box)
-			if _, onScreen := tt.Find("Recently launched"); seen && onScreen && fold > 0 && fold < 1 {
+			if _, onScreen := tt.Find("Dropped files"); seen && onScreen && fold > 0 && fold < 1 {
 				break
 			}
 			tt.Key(0, ui.KeyDown)

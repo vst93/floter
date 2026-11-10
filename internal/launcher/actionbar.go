@@ -119,6 +119,10 @@ func (a *App) actionBarItems() []Item {
 func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 	kind := classifyActionBar(a.Query)
 	if kind == "" {
+		if a.modifierHeld {
+			copy := a.copy()
+			return []Item{{ID: "bar:terminal", Title: copy.HeldTerminalHint, Detail: copy.CommandTerminalHint, Shortcut: a.enterBadge(), Run: a.openBareTerminal}}
+		}
 		return nil
 	}
 	// The shell fallback is a *secondary* control for a matched list: the old
@@ -132,7 +136,7 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 	// it (see App.defaultSelection). A URL or a path is the query's *primary*
 	// action, not a fallback, so those rows stay unconditional (the reference
 	// drew its bar for them even when the catalogue matched nothing).
-	if gated && kind == actionShell && len(other) == 0 {
+	if gated && kind == actionShell && len(other) == 0 && !a.modifierHeld {
 		return nil
 	}
 	value := strings.TrimSpace(a.Query)
@@ -398,4 +402,15 @@ func (a *App) pathExists(path string) bool {
 func (a *App) pathIsDir(path string) bool {
 	isDir, _ := a.statPath(path)
 	return isDir
+}
+
+// Prefer the terminal action when a path has several footer actions.
+func terminalBarIndex(results []Item) int {
+	for i, item := range results {
+		switch item.ID {
+		case "bar:terminal", "bar:shell", "bar:path-cd":
+			return i
+		}
+	}
+	return actionBarIndex(results)
 }

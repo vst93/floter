@@ -1,0 +1,41 @@
+# Maintainer: vst93 <vst93@users.noreply.github.com>
+# Written by mygo build next to the app's archive: makepkg -si packages
+# the app for Arch Linux and installs it.
+pkgname='floter'
+pkgver='0.3.24'
+pkgrel=1
+pkgdesc='A floating panel: launcher, terminal and settings in one summon'
+arch=('x86_64')
+url='https://github.com/vst93/floter'
+license=('GPL-3.0-only')
+depends=('gtk3' 'webkit2gtk-4.1')
+options=('!strip' '!debug')
+source=('floter-0.3.24-linux-amd64.tar.gz' 'floter-256x256.png' 'floter-512x512.png')
+sha256sums=('54393016036b5d84b07f02d63b616a1f7b6730a45193c4ce4a50ea9a7d7aa7c3' '8c46504e375c9e62953d85de4882266a39204f33af34a3df21e4df8ffbb03755' '1940f90f838443c0393d6157889f38a6b26771f5c21d746cf5c737372f6a0b95')
+
+package() {
+	cd "$srcdir"
+	install -d "$pkgdir"/opt/floter
+	cp -dR -- floter icon.png libghostty-vt.so libmygo-sqlite3.so .mygo-files "$pkgdir"/opt/floter/
+	# The modes of the Debian package: 755 for directories and programs, 644
+	# for the other files.
+	find "$pkgdir"/opt/floter -type d -exec chmod 755 {} +
+	find "$pkgdir"/opt/floter -type f -perm /111 -exec chmod 755 {} +
+	find "$pkgdir"/opt/floter -type f ! -perm /111 -exec chmod 644 {} +
+	install -d "$pkgdir"/usr/bin
+	ln -s ../../opt/floter/floter "$pkgdir"/usr/bin/floter
+	printf '%s' '[Desktop Entry]
+Type=Application
+Name=floter
+Comment=A floating panel: launcher, terminal and settings in one summon
+Exec=/opt/floter/floter %U
+Icon=floter
+Categories=Utility;System;TerminalEmulator;
+Terminal=false
+StartupWMClass=floter
+MimeType=x-scheme-handler/floter;
+' |
+		install -Dm644 /dev/stdin "$pkgdir"/usr/share/applications/floter.desktop
+	install -Dm644 floter-256x256.png "$pkgdir"/usr/share/icons/hicolor/256x256/apps/floter.png
+	install -Dm644 floter-512x512.png "$pkgdir"/usr/share/icons/hicolor/512x512/apps/floter.png
+}

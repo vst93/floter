@@ -55,8 +55,7 @@ func settlePointer(tt *ui.Tester, r ui.Rect) {
 // TestAReadOnlyRowDoesNotAnswerThePointer is the real page: Integrations →
 // Edit… draws the read-only integration id above the tool's own name field.
 // The id row must stay on the card's plane under the pointer and under a press,
-// while the field right under it still lifts — that second half is the control:
-// without it a probe that never reached the pointer at all would pass.
+// while the editable row right under it also keeps its background on hover.
 func TestAReadOnlyRowDoesNotAnswerThePointer(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		appearance := "light"
@@ -89,13 +88,12 @@ func TestAReadOnlyRowDoesNotAnswerThePointer(t *testing.T) {
 		tt.Release(float32(idLabel.X+idLabel.W/2), float32(idLabel.Y+idLabel.H/2))
 		tt.Frame()
 
-		// The control: the editable row under it still answers the pointer.
+		// Editable rows also leave their surrounding background unchanged.
 		settlePointer(tt, fieldLabel)
 		hotField := rowInsetFace(tt.Image(), fieldLabel)
-		if d := faceLevels(restField, hotField); d < 12 && d > -12 {
-			t.Errorf("%s: the editable row under the id did not answer the pointer (%v → %v, %+d levels) — "+
-				"the probe is not on the row, so the reading above proves nothing",
-				appearance, restField, hotField, d)
+		if hotField != restField {
+			t.Errorf("%s: hovering the editable row changed its background: %v → %v",
+				appearance, restField, hotField)
 		}
 		t.Logf("%s: read-only %v → %v (hover) → %v (press); editable %v → %v (%+d levels)",
 			appearance, restID, hotID, pressID, restField, hotField, faceLevels(restField, hotField))
@@ -104,7 +102,7 @@ func TestAReadOnlyRowDoesNotAnswerThePointer(t *testing.T) {
 
 // TestEveryReadOnlyRowFamilyIsInert walks the five constructors that draw a
 // row reporting something with nothing to press, on one synthetic card, next to
-// an editable row that must still answer.
+// an editable row that responds only to a press.
 func TestEveryReadOnlyRowFamilyIsInert(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		appearance := "light"
@@ -169,10 +167,14 @@ func TestEveryReadOnlyRowFamilyIsInert(t *testing.T) {
 		}
 		settlePointer(tt, editable)
 		hotEditable := rowInsetFace(tt.Image(), editable)
-		if d := faceLevels(restEditable, hotEditable); d < 12 && d > -12 {
-			t.Errorf("%s: the editable row did not answer the pointer (%v → %v, %+d levels) — "+
-				"the probe is not on the card, so the five readings above prove nothing",
-				appearance, restEditable, hotEditable, d)
+		if hotEditable != restEditable {
+			t.Errorf("%s: hovering the editable row changed its background: %v → %v",
+				appearance, restEditable, hotEditable)
+		}
+		tt.Press(editable.X-2, editable.Y+editable.H/2)
+		tt.Frame()
+		if got := rowInsetFace(tt.Image(), editable); got == restEditable {
+			t.Errorf("%s: editable row lost its press feedback", appearance)
 		}
 		t.Logf("%s: five read-only families flat; editable %v → %v (%+d levels)",
 			appearance, restEditable, hotEditable, faceLevels(restEditable, hotEditable))

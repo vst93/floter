@@ -40,7 +40,7 @@ go tool mygo build -platform linux/amd64,windows/amd64,darwin/universal
 | 平台 | 产物 |
 | --- | --- |
 | macOS | `floter.app`（原生库已内嵌）与 `.dmg` |
-| Linux | `floter`、`.deb`，以及带 `install.sh` 的 `.tar.gz`（为当前用户装到 `~/.local`） |
+| Linux | `floter`、`.deb`、带 `install.sh` 的 `.tar.gz`（装到 `~/.local`），以及 Arch Linux 的 `PKGBUILD`（`makepkg -si`） |
 | Windows | `floter.exe`（有 NSIS 时另有安装程序 `.exe`） |
 
 发布前需要维护者做一次的事：`mygo keygen` 生成更新签名密钥、在 `mygo.json` 写 `updates`

@@ -29,6 +29,7 @@ func checkEditorBinding(t *testing.T, config bool) {
 			closed := 0
 			a.Actions.Close = func() { closed++ }
 			a.Page, a.entered = PageIntegrations, true
+			prepareSettingsDetailFixture(a)
 			tt := ui.NewTester(func(c *ui.Context) {
 				c.SetTheme(a.tokens(c).Theme)
 				c.Root().Background(c.Theme().Background)

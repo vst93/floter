@@ -97,6 +97,7 @@ func healthCompletionFrame(t *testing.T, f *diagnosisFixture, scenario string, d
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	tt.Frame()
+	openSettingsToolForTest(t, f.a, tt)
 	dumpCompletionFrame(t, tt, scenario, dark)
 	return tt
 }

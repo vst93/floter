@@ -81,24 +81,23 @@ func TestSummonShortcutUsesTheStoredHotkey(t *testing.T) {
 	}
 }
 
-func TestSettingsHeightMatchesTheOldPanelRules(t *testing.T) {
+func TestSettingsHeightKeepsControlsIndependentOfWindowHeight(t *testing.T) {
 	if got := SettingsHeight("default", 0); got != 580 {
 		t.Errorf("uncapped = %d, want 580", got)
 	}
-	if got := SettingsHeight("large", 0); got != 638 {
-		t.Errorf("large = %d, want 638", got)
+	if got := SettingsHeight("large", 0); got != 580 {
+		t.Errorf("large = %d, want 580", got)
 	}
-	if got := SettingsHeight("tiny", 0); got != 464 {
-		t.Errorf("tiny = %d, want 464", got)
+	if got := SettingsHeight("tiny", 0); got != 580 {
+		t.Errorf("tiny = %d, want 580", got)
 	}
-	// A short screen caps it at 72% of the work area.
-	if got := SettingsHeight("default", 600); got != 432 {
-		t.Errorf("600-tall screen = %d, want 432", got)
+	// A short screen caps it at 80% of the work area.
+	if got := SettingsHeight("default", 600); got != 480 {
+		t.Errorf("600-tall screen = %d, want 480", got)
 	}
-	// A very short screen floors at 240 and then the 420 minimum... the
-	// 240 floor (screen less 24) is the cap, below the 420 minimum.
-	if got := SettingsHeight("default", 300); got != 276 {
-		t.Errorf("300-tall screen = %d, want 276", got)
+	// Small work areas keep the same 80% cap, without a minimum overriding it.
+	if got := SettingsHeight("default", 300); got != 240 {
+		t.Errorf("300-tall screen = %d, want 240", got)
 	}
 }
 
@@ -112,7 +111,7 @@ func TestTargetSizePerSurface(t *testing.T) {
 	// Linux, so truncation agreed with `math.Round` on the host this was
 	// written on and was a pixel short on Windows — a red suite for a correct
 	// window (「launcher size = 720x314」).
-	if w, h := a.targetSize(s); w != launcher.InputWindowWidth || h != int(math.Round(launcher.WindowHeight(s.UIScale))) {
+	if w, h := a.targetSize(s); w != launcher.InputWindowWidth || h != int(math.Ceil(launcher.WindowHeight(s.UIScale))) {
 		t.Errorf("launcher size = %dx%d", w, h)
 	}
 	a.Surf = SurfaceSettings
@@ -233,8 +232,8 @@ func TestSurfaceSwitchesThemeAndLanguage(t *testing.T) {
 	recentLauncher(a, 1)
 	tt := ui.NewTester(a.View, launcher.InputWindowWidth, int(launcher.WindowHeight("small")))
 	tt.Frame()
-	if !tt.HasText("最近启动") {
-		t.Errorf("missing the Chinese recents heading: %q", tt.Texts())
+	if !tt.HasText("搜索") || tt.HasText("最近启动") {
+		t.Errorf("search localization or removed recent heading regressed: %q", tt.Texts())
 	}
 	// …and a built-in row answers a typed word in the same language.
 	a.Launcher.SetQuery("restart")

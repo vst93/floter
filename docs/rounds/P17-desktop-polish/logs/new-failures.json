@@ -1,0 +1,26 @@
+[
+  [
+    "floter/internal/extensions",
+    "TestCompleteAndDiagnose"
+  ],
+  [
+    "floter/internal/launcher",
+    "TestTheHeldFooterTakesNoNumberedResultSlot"
+  ],
+  [
+    "floter/internal/launcher",
+    "TestTheHeldModifierKeepsTheActionBarSelectedOverAGrowingList"
+  ],
+  [
+    "floter/internal/settingsui",
+    "TestCommandAliasApprovalReflow"
+  ],
+  [
+    "floter/internal/settingsui",
+    "TestCommandAliasFreshnessSourceReflow"
+  ],
+  [
+    "floter/internal/settingsui",
+    "TestCommandAliasHealthReflow"
+  ]
+]

@@ -41,6 +41,7 @@ func runVisibilityApp(t *testing.T, dark bool) (*App, *Integration) {
 		}
 		return rows
 	}
+	a.integrationNav.detail = &integrationKey{ID: in.ID}
 	return a, in
 }
 
@@ -54,6 +55,13 @@ func runVisible(t *testing.T, a *App, tt *ui.Tester, label string, viewport ui.R
 
 func runVisibilityWheel(t *testing.T, a *App, tt *ui.Tester) {
 	t.Helper()
+	// A folded single-tool detail can fit completely; there is no scroll to reclaim.
+	if a.Body.MaxY == 0 {
+		if a.Body.Y != 0 {
+			t.Fatal("fitting detail retained scroll")
+		}
+		return
+	}
 	before := a.Body.Y
 	dy := float32(140)
 	if before == a.Body.MaxY {

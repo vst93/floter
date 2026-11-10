@@ -88,7 +88,7 @@ func checkInstallRecovery(t *testing.T, scenario string) {
 					}
 				}
 			}
-			tt := installCurrentFrame(f, dark)
+			tt := installCurrentFrame(t, f, dark)
 			installRecoveryInput(t, tt)
 			name, version := installRecoveryRequest(t, f, tt)
 			if name != "review-current" || version != "^1.0.0" {
@@ -124,7 +124,7 @@ func TestInstallRecoveryPickerError(t *testing.T) {
 		t.Run(map[bool]string{false: "light", true: "dark"}[dark], func(t *testing.T) {
 			f := newInstallCurrentFixture(t, dark)
 			f.a.Settings.Actions.ChooseFolder = func() (string, error) { return "", os.ErrPermission }
-			tt := installCurrentFrame(f, dark)
+			tt := installCurrentFrame(t, f, dark)
 			if err := tt.Click(i18n.For("zh").Settings.InstallFolderChoose); err != nil {
 				t.Fatal(err)
 			}

@@ -111,8 +111,18 @@ func TestQueuedCustomFailedRegistrationCannotDispatch(t *testing.T) {
 	tt.Frame()
 	// The draft defaults to a plugin; use a command to observe dispatch without a native window.
 	editingClick(t, tt, copy.ShortcutsActions[0].Label)
-	editingClick(t, tt, copy.ShortcutsActions[len(copy.ShortcutsActions)-1].Label)
-	editingClick(t, tt, copy.ShortcutsCommand)
+	// The saved row also says "Command line…" behind this popup. Choose the
+	// last option through the open popup's keys instead of naming that covered
+	// control, which mygo 0.8's stricter Click correctly rejects.
+	tt.Key(0, ui.KeyEnd)
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	// Tab from the draft's picker to its input; the saved command field has
+	// the same accessible name and must keep "say original" unchanged.
+	tt.Key(0, ui.KeyTab)
+	if !tt.Focused(copy.ShortcutsCommand) {
+		t.Fatal("draft command input did not receive focus")
+	}
 	tt.Type("say refused")
 	editingClick(t, tt, copy.ShortcutsBind)
 	if refused == nil || !tt.HasText(copy.ShortcutsOccupied) {

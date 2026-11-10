@@ -1,0 +1,17 @@
+[
+  {
+    "mutation": "final-unprotected-floor",
+    "exit": 1,
+    "caught": true
+  },
+  {
+    "mutation": "final-fixed-ink",
+    "exit": 1,
+    "caught": true
+  },
+  {
+    "mutation": "final-solid-effect",
+    "exit": 1,
+    "caught": true
+  }
+]

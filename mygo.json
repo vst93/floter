@@ -2,6 +2,7 @@
   "name": "floter",
   "identifier": "com.v.floter",
   "version": "0.3.24",
+  "license": "GPL-3.0-only",
   "main": "./cmd/floter",
   "icon": "resources/icon.png",
   "urlSchemes": ["floter"],

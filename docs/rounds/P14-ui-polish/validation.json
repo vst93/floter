@@ -1,0 +1,106 @@
+{
+  "mygo": "v0.8.3",
+  "passed": [
+    {
+      "check": "gofmt and git diff --check",
+      "status": "pass"
+    },
+    {
+      "check": "New UI regressions: 36 fitting-list cases, screen caps, Super routing, theme picker and theme frame comparisons",
+      "log": "regression-tests.log",
+      "status": "pass"
+    },
+    {
+      "check": "System themes, main surfaces, pinned and detached output theme first frames",
+      "log": "all-window-theme-tests.log",
+      "status": "pass"
+    },
+    {
+      "check": "Geometry, scale, footer, modifier and coalesced resize tests",
+      "log": "related-tests.log",
+      "status": "pass"
+    },
+    {
+      "check": "Updated scale and numbering assertions",
+      "log": "updated-contract-tests.log",
+      "status": "pass"
+    },
+    {
+      "check": "Settings action keyboard focus",
+      "log": "button-focus-tests.log",
+      "status": "pass"
+    },
+    {
+      "check": "Shortcut draft cancellation and binding",
+      "log": "shortcut-draft-tests.log",
+      "status": "pass"
+    },
+    {
+      "check": "GOPROXY=https://goproxy.cn go run github.com/egoist/mygo/cmd/mygo@v0.8.3 vet",
+      "log": "mygo-vet.log",
+      "status": "pass"
+    },
+    {
+      "check": "go vet",
+      "os": "darwin",
+      "arch": "arm64",
+      "log": "vet-darwin.log",
+      "status": "pass"
+    },
+    {
+      "check": "go build",
+      "os": "darwin",
+      "arch": "arm64",
+      "log": "build-darwin.log",
+      "status": "pass"
+    },
+    {
+      "check": "go vet",
+      "os": "linux",
+      "arch": "amd64",
+      "log": "vet-linux.log",
+      "status": "pass"
+    },
+    {
+      "check": "go build",
+      "os": "linux",
+      "arch": "amd64",
+      "log": "build-linux.log",
+      "status": "pass"
+    },
+    {
+      "check": "go vet",
+      "os": "windows",
+      "arch": "amd64",
+      "log": "vet-windows.log",
+      "status": "pass"
+    },
+    {
+      "check": "go build",
+      "os": "windows",
+      "arch": "amd64",
+      "log": "build-windows.log",
+      "status": "pass"
+    }
+  ],
+  "full_suite": {
+    "status": "fail",
+    "passed_top_level": 2022,
+    "failed_top_level": 107,
+    "shared_with_previous_upgrade_run": 102,
+    "added_old_assertions_fixed_in_focused_runs": 5,
+    "comparison": "test-comparison.json",
+    "raw": "full-tests.jsonl.gz",
+    "limitations": "launcher and settingsui stop at existing pixel-index panics; later tests were not executed."
+  },
+  "visuals": {
+    "matrix_previews": 28,
+    "modifier_previews": 8,
+    "reviewed": "general, integrations, about, launcher and modifier states; representative PNGs retained here"
+  },
+  "limitations": [
+    "Native multi-display moving was not exercised on physical displays.",
+    "Windows/Linux checks are cross builds and vet; UI previews render production Views headlessly.",
+    "No installation, publication, or push."
+  ]
+}

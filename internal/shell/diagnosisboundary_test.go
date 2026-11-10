@@ -21,6 +21,7 @@ func diagnosisBoundaryFrame(t *testing.T, f *diagnosisFixture, scenario string, 
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	tt.Frame()
+	openSettingsToolForTest(t, f.a, tt)
 	if tag := os.Getenv("FLOTER_P13JQ_DUMP"); tag != "" {
 		file, err := os.Create("/tmp/floter-P13-jq-" + scenario + "-" + map[bool]string{false: "light", true: "dark"}[dark] + "-" + tag + ".png")
 		if err != nil {

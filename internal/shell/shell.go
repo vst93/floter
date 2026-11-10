@@ -50,6 +50,7 @@ import (
 	"floter/internal/shortcuts"
 	"floter/internal/spawn"
 	"floter/internal/terminalui"
+	apptheme "floter/internal/theme"
 	"floter/internal/tools"
 	"floter/internal/usage"
 )
@@ -100,7 +101,6 @@ func ParseSurface(name string) (Surface, bool) {
 // terminal is the 860×600 default (resizable, min 640×360).
 const (
 	settingsWindowHeight = 580
-	settingsMinHeight    = 420
 
 	// defaultSummonShortcut is what the app registers when the user never
 	// changed it.
@@ -514,6 +514,8 @@ type App struct {
 
 	quit     func()
 	workArea float64
+	look     themeFrame
+	lastMaxH int
 
 	lastW, lastH       int
 	lastResizable      bool
@@ -536,7 +538,7 @@ type App struct {
 	// framesize.go); nil drives the real window.
 	setWindowSize func(width, height int)
 	// launcherTarget is the height the launcher's list asked for (the View
-	// measures it); walkLauncherHeight eases the window there.
+	// measures it); walkLauncherHeight applies it at the end of this frame.
 	launcherTarget int
 
 	// ShortcutErr is why the global shortcut could not be registered.
@@ -1248,12 +1250,12 @@ func New(opts Options) *App {
 				a.lastLaunchAtStartup = s.LaunchAtStartup
 				a.ApplyStartup()
 			}
-			if s.GlassStep != a.lastGlassStep {
+			if step := activeMaterialStep(s, a.Surf); step != a.lastGlassStep {
 				// The glass stop is the effect ladder: a change swaps the
 				// window's own material, which is the blur the panel cannot
 				// run itself (see vibrancyForStop).
-				a.lastGlassStep = s.GlassStep
-				a.applyWindowMaterial(s.GlassStep)
+				a.lastGlassStep = step
+				a.applyWindowMaterial(step)
 			}
 			if icon := storedAppIcon(s); icon != a.lastAppIcon {
 				a.lastAppIcon, a.appIcon = icon, icon
@@ -1302,9 +1304,7 @@ func New(opts Options) *App {
 			if a.Surf != SurfaceLauncher {
 				a.resize()
 			}
-			if a.Win != nil {
-				a.Win.Invalidate()
-			}
+			a.invalidateAppearance()
 		})
 	})
 	return a
@@ -1384,7 +1384,7 @@ func (a *App) Start() {
 		// for the same thing - macOS's native glass, Windows 11's
 		// system backdrops. Linux has none, and there the glass tint and
 		// the haze veil are the whole of the material.
-		Vibrancy: windowVibrancyFor(runtime.GOOS, s.GlassStep),
+		Vibrancy: windowVibrancyFor(runtime.GOOS, activeMaterialStep(s, a.Surf)),
 		Content:  ui.View(a.View),
 	})
 	// A frameless window on Windows still carries the caption bits mygo builds
@@ -1395,7 +1395,8 @@ func (a *App) Start() {
 	// The window was built with the platform's material so that its
 	// transparency is not tied to the glass stop (see windowVibrancyFor); a
 	// window that starts on the `off` stop clears the backdrop here.
-	a.applyWindowMaterial(s.GlassStep)
+	a.lastGlassStep = activeMaterialStep(s, a.Surf)
+	a.applyWindowMaterial(a.lastGlassStep)
 	// A Windows shortcut's icon is a PowerShell extraction, so it runs off the
 	// drawing thread (internal/apps); the frame it finishes is asked for here.
 	apps.SetIconInvalidate(func() { a.Win.Invalidate() })
@@ -1433,6 +1434,11 @@ func (a *App) Start() {
 	// launcher is a summon — it belongs where the user's attention is.
 	a.placeWindow()
 	a.Win.OnResize(a.trackTerminalSize)
+	a.Win.OnMove(func() {
+		if a.Surf != SurfaceTerminal {
+			a.resize()
+		}
+	})
 	a.Win.OnFileDrop(a.handleFileDrop)
 	a.Win.OnBlur(func() {
 		// A half-finished confirmation leaves with the keyboard: the old
@@ -2381,6 +2387,9 @@ func (a *App) searchBrowser(query string, done func(launcher.BrowserResults)) {
 			Field:     browser.SearchField(options.searchField),
 		})
 		answer := launcher.BrowserResults{Found: true, Profile: profile, Results: results}
+		for _, p := range selected {
+			answer.ReadFailed = answer.ReadFailed || p.ReadError != nil
+		}
 		a.onMain(func() { done(answer) })
 
 		tabs, err := browser.Tabs(context.Background(), profile.BrowserID, options.cdpEnabled, options.cdpPort)
@@ -3747,6 +3756,10 @@ func (a *App) Open(s Surface) {
 		a.Launcher.DisarmDelete()
 	}
 	a.Surf = s
+	if step := activeMaterialStep(a.settings(), s); step != a.lastGlassStep {
+		a.lastGlassStep = step
+		a.applyWindowMaterial(step)
+	}
 	// A visible page switch is immediate. Whole-window entrance transforms
 	// delay the first readable frame and repaint the settings tree for 220ms.
 	if entering {
@@ -4000,6 +4013,19 @@ func windowMaterialCall(goos, step string) (material mygo.Vibrancy, clearBackdro
 	return vibrancyForStop(goos, step), false
 }
 
+// An opaque surface cannot show the backdrop. Stop asking the compositor to
+// blur it, and restore the configured effect when leaving the solid end.
+func activeMaterialStep(s settings.Settings, surface Surface) string {
+	opacity := s.MainOpacity
+	if surface == SurfaceTerminal {
+		opacity = s.TerminalOpacity
+	}
+	if opacity >= 100 {
+		return "off"
+	}
+	return s.GlassStep
+}
+
 // vibrancyForStop uses native clear Liquid Glass for both liquid stops.
 // Traditional sidebar/under-window materials add a frosted backing beneath
 // the app's tint, so changing the tint's alpha cannot make that backing clear.
@@ -4070,6 +4096,10 @@ func (a *App) placeWindow() {
 	}
 	display := a.windowDisplay()
 	area := display.WorkArea
+	if area.Height > 0 {
+		a.workArea = float64(area.Height)
+		a.applyHeightLimit()
+	}
 	areaX := float64(area.X)
 	areaY := float64(area.Y)
 	areaWidth := float64(area.Width)
@@ -4077,11 +4107,16 @@ func (a *App) placeWindow() {
 	if areaWidth <= 0 || areaHeight <= 0 {
 		return
 	}
+	if a.Surf != SurfaceTerminal {
+		defer a.resize()
+	}
 	width := float64(launcher.InputWindowWidth)
 	// The reference height is the terminal's, not the launcher's: the window
 	// grows into the terminal when a session opens, and it must still fit.
 	reference := a.Store.Snapshot().TerminalHeight
 	x, y := placement(areaX, areaY, areaWidth, areaHeight, width, reference)
+	_, height := a.targetSize(a.settings())
+	y = panelY(y, area.Y, area.Height, height)
 	// Placing a window that is already there is a no-op: Show places before
 	// the reveal and again after it (macOS drops geometry set on a window that
 	// is not yet mapped), and on every platform where the first placement
@@ -4309,7 +4344,7 @@ func (a *App) resizeLauncher(height int) {
 	if a.Surf != SurfaceLauncher {
 		return
 	}
-	a.launcherTarget = height
+	a.launcherTarget = a.clampPanelHeight(height)
 }
 
 // shellEnter is the arrival's length: the reference's `--dur-4` (220ms,
@@ -4378,7 +4413,7 @@ func (a *App) shellEnterProgress(c *ui.Context) float32 {
 	if !a.enterLive || a.enterAt.IsZero() {
 		return 1
 	}
-	if c != nil && c.Preferences().ReduceMotion {
+	if c != nil && (c.Instant() || c.Preferences().ReduceMotion) {
 		a.enterLive = false
 		return 1
 	}
@@ -4393,53 +4428,16 @@ func (a *App) shellEnterProgress(c *ui.Context) float32 {
 	return float32(elapsed) / float32(shellEnter)
 }
 
-// walkLauncherHeight moves the window to the launcher's target height on the
-// reference's own walk (R68): an ease-out curve — the framework's EaseOut, the
-// same `1-(1-t)^3` shape — over its RESIZE_TWEEN_MS of 150ms. A spring keeps
-// its velocity when the target changes mid-flight, but it also overshoots and
-// takes 500ms to settle, which reads as the edge lagging a keystroke; the
-// reference deliberately chose a short curve. The element's AnimateTo keeps
-// the frames coming until the value lands, and the height is asked for once per
-// frame — through requestWindowSize, which coalesces it with the same frame's
-// pull back to the contract (see framesize.go). A window that is already there
-// does nothing - the common case, a keystroke that left the list the same size.
+// Keyboard navigation and modifier changes resize in the same frame as the rows.
 func (a *App) walkLauncherHeight(c *ui.Context) {
-	if !a.hasWindow() || a.Surf != SurfaceLauncher || a.launcherTarget == 0 {
+	if !a.hasWindow() || a.Surf != SurfaceLauncher || a.launcherTarget <= 0 {
 		return
 	}
-	// The steady state first, and cheaply: the window already carries the
-	// target (the walk landed, or the keystroke left the list the same size).
-	// Nothing is asked of the platform and no animation carrier is built, so a
-	// launcher sitting still costs the window server nothing — the old path
-	// still allocated the carrier and read the animation channel every frame
-	// just to conclude the same thing. `lastH` is the height this process last
-	// *asked* the window for, which is the only number a walk can reason
-	// about: a platform that rounds the request up would otherwise be asked
-	// again every frame, forever (one synchronous SetWindowPos per frame, the
-	// queue that reads as a freeze), so the readback is deliberately not the
-	// window's own size.
-	if a.lastH == a.launcherTarget {
-		return
+	a.launcherTarget = a.clampPanelHeight(a.launcherTarget)
+	if a.lastH != a.launcherTarget {
+		a.requestWindowSize(launcher.InputWindowWidth, a.launcherTarget)
 	}
-	current := float32(a.lastH)
-	target := float32(a.launcherTarget)
-	// The animation's carrier: a zero-size element that lays out nothing,
-	// whose Animate state lives across the frames the walk needs.
-	animated := ui.Box(c).Size(0, 0).Opacity(0)
-	height := animated.AnimateTo("launcher.height", target, launcherHeightAnimation)
-	if int(math.Round(float64(height))) == int(current) {
-		return
-	}
-	// The ask is collected, not made here: the frame's own pull back to the
-	// 720 contract may want the same window at the same moment, and the two
-	// are one size (see framesize.go).
-	a.requestWindowSize(launcher.InputWindowWidth, int(math.Round(float64(height))))
 }
-
-// launcherHeightAnimation is the walk's motion: the reference's 150ms
-// ease-out (useLauncherHeight's RESIZE_TWEEN_MS and `1-(1-t)^3` step), not a
-// spring — the curve lands without overshoot at the pace a keystroke asks for.
-var launcherHeightAnimation = ui.Animation{Duration: 150 * time.Millisecond}
 
 // Hide hides the window, leaving the app running with its shortcut.
 func (a *App) Hide() {
@@ -4554,8 +4552,14 @@ func (a *App) settings() settings.Settings {
 // material (or plain face for the `off` stop), and the active surface.
 func (a *App) View(c *ui.Context) {
 	s := a.settings()
-	surface := launcher.Resolve(s, c.Theme().Dark, c.Preferences())
-	c.SetTheme(surface.Tokens.Theme)
+	var surface launcher.Surface
+	if a.Surf == SurfaceTerminal {
+		surface.Tokens = apptheme.ForTerminalPreferences(s, c.Theme().Dark, c.Preferences())
+		surface.Glass = glassmap.TerminalSpecForPreferencesOS(runtime.GOOS, s.GlassStep, s.TerminalOpacity, c.Preferences().HighContrast)
+	} else {
+		surface = launcher.Resolve(s, c.Theme().Dark, c.Preferences())
+	}
+	a.look.apply(c, surface.Tokens)
 
 	// A notice raised while the user was elsewhere (a refused floter:// link)
 	// is shown on the surface they are on, not on the launcher's docked row
@@ -4579,10 +4583,6 @@ func (a *App) View(c *ui.Context) {
 	// knows whether the plugin mode (or settings, or terminal) the user left
 	// is still "where they left it".
 	a.noteResidency()
-
-	// The launcher's window walks to its target height here, where the
-	// animation has a frame to live in.
-	a.walkLauncherHeight(c)
 
 	// Only the card paints; the window's transparent margin shows the
 	// desktop, which the glass reads through.
@@ -4629,6 +4629,7 @@ func (a *App) View(c *ui.Context) {
 	// flushWindowSize once the surface has been built, so at most one
 	// synchronous SetSize happens per frame (see framesize.go).
 	defer a.flushWindowSize()
+	defer a.walkLauncherHeight(c)
 	a.holdContractWidth(windowWidth)
 	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
 	a.logGeometry(windowWidth, cardWidth, material, c.Vibrancy(), left, right)
@@ -4721,9 +4722,6 @@ func (a *App) View(c *ui.Context) {
 		// `--glass-tint-terminal`, so the panel's fill follows the terminal
 		// slider there and the main one everywhere else.
 		spec := surface.Glass
-		if a.Surf == SurfaceTerminal {
-			spec = glassmap.SpecForPreferencesOS(runtime.GOOS, s.GlassStep, s.TerminalOpacity, c.Preferences().HighContrast)
-		}
 		// The terminal's card face carries only its share of the slider: the
 		// terminal's own background (its canvas, the palette's colour) paints
 		// the rest, so the two composite back to the slider once instead of
@@ -4789,7 +4787,7 @@ func (a *App) View(c *ui.Context) {
 			if a.Surf == SurfaceTerminal {
 				// One uninterrupted canvas, without a glass gutter or lit rim.
 				padTop, padBottom = 0, 0
-				faceTop = surface.Tokens.Theme.Background
+				faceTop = a.Terminal.FrameBackground(surface.Tokens)
 				faceTop = ui.RGBA(faceTop.R, faceTop.G, faceTop.B, faceAlpha)
 				faceBottom = faceTop
 				sheenTop, sheenBottom = ui.Transparent, ui.Transparent
@@ -5058,12 +5056,9 @@ func (a *App) targetSize(s settings.Settings) (int, int) {
 // placeholder's).
 func (a *App) launcherHeight(s settings.Settings) int {
 	if a.Launcher == nil || a.Launcher.HeldRows == 0 {
-		return int(math.Round(launcher.WindowHeight(s.UIScale)))
+		return a.clampPanelHeight(int(math.Ceil(launcher.WindowHeight(s.UIScale))))
 	}
-	cap := 0.0
-	if a.workArea > 0 {
-		cap = a.workArea - 24
-	}
+	cap := float64(a.panelHeightLimit())
 	// The target height's filter band is the launcher's own: a mode's chips
 	// row is on screen exactly while that mode owns the field, which the
 	// launcher's state knows and the shell does not.
@@ -5091,25 +5086,13 @@ func (a *App) launcherHeight(s settings.Settings) int {
 	}.Height()
 }
 
-// SettingsHeight is the settings panel's height at an interface step, capped
-// to the work area exactly as the old panel did: the base height scaled by
-// the step, the screen's 72%, and the screen less 24 DIPs, whichever is
-// smallest (with the 420 minimum). A zero work area means no cap.
-func SettingsHeight(uiScale string, workAreaHeight float64) int {
-	base := settingsWindowHeight * settings.UIScaleFactor(uiScale)
-	if workAreaHeight <= 0 {
-		return int(math.Round(base))
-	}
-	cap1 := math.Max(settingsMinHeight, math.Floor(workAreaHeight*0.72))
-	cap2 := math.Max(240, workAreaHeight-24)
-	return int(math.Round(math.Min(base, math.Min(cap1, cap2))))
-}
-
 // resize applies the surface's size and resizability to the window.
 func (a *App) resize() {
 	if a.Win == nil {
 		return
 	}
+	a.refreshWorkArea()
+	a.applyHeightLimit()
 	// The surface's own answer, then the session's: on Wayland a locked panel
 	// would clamp the app's own resizes too (see panelResizable), so the flag
 	// stays unlocked there — the terminal, which asks for it anyway, comes back
@@ -5142,6 +5125,7 @@ func (a *App) resize() {
 	// call is the transition itself rather than a per-frame ask. The frame's
 	// own requests (the height walk and the contract pull) are coalesced by
 	// flushWindowSize (see framesize.go).
+	a.fitPanelPosition(h)
 	a.Win.SetSize(w, h)
 	// The launcher's walk follows the surface's own resize: without this a
 	// summon would land the window at the slab and the next View frame

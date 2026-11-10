@@ -1,5 +1,13 @@
 # floter × mygo 重构：当前进度与后续规划
 
+> 2026-11-10：框架已更新为 **mygo v0.8.3**。升级适配、新特性取舍和验证结果见
+> [`P14-mygo-upgrade-report.md`](rounds/P14-mygo-upgrade-report.md)。随后完成主题即时切换、窗口高度、控件尺寸、列表滚动与 Super 终端入口修正，见
+> [`P14-ui-polish-report.md`](rounds/P14-ui-polish-report.md)。下方分轮内容为历史记录。
+
+> 随后完成实际不透明度、Edge 识别、终端拖动、设置导航和桌面交互调整。
+> 最新收尾见 [`P18-modifier-restore-report.md`](rounds/P18-modifier-restore-report.md)：
+> Super 松键文字即时恢复、设置顶部与搜索栏同高、去掉功能块悬浮背景。三平台可编译；全量测试仍有既有失败，具体结果以该报告为准。
+
 > 交接文档。状态时间：2026-10-16，分支 `mygo-rewrite`（已推送）。框架：mygo v0.5.1。
 > **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。

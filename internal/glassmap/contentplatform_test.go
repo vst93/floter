@@ -2,24 +2,7 @@ package glassmap
 
 import "testing"
 
-// P13-gc · 内容页那一档的 0.09，量的是「框的可见 alpha」还是「应用自己画的那笔填充」？
-//
-// `ContentAlpha()` 旧算式是 `overFrame(TintAlpha, min(1, TintAlpha+contentStep))`。
-// `TintAlpha` 在 macOS 上是被 `MaterialVeil` 补偿过的，于是 §1 那条「内容页比框深
-// 一步」换算成**可见** recess 时要乘 `(1 − veil)`：
-//
-//	平台/档（47% 滑块）   veil  Tint   旧可见 recess  新可见 recess  旧填充/新填充
-//	linux / windows       0     0.470  0.090          0.090          43 / 43
-//	darwin frosted        0.12  0.398  0.079          0.090          38 / 43
-//	darwin regular        0.22  0.321  0.070          0.090          38 / 43
-//	darwin liquid         0.34  0.197  0.059          0.090          38 / 43
-//
-// 47% 的填充三档同值（0.17），因为一步可见 alpha 只取决于**框的可见** alpha，而它
-// 在三个平台上都是滑块的值。旧算式的填充也几乎同值（0.149）——差的是它落在
-// **哪个空间**：旧值乘上 `(1−v)` 才是眼睛看到的那一步，于是材质越厚，内容页越读不出来。
-//
-// 这张表是写死的字面量，不是「用被测者的公式算期望值」：`contentStep` 一改、`Composite`
-// 一改，红的是具体的格子。
+// Literal expectations for the readability-adjusted material, across platforms.
 func TestTheContentRungIsAStepOnTheFramesVisibleAlpha(t *testing.T) {
 	type rung struct {
 		goos     string
@@ -31,26 +14,26 @@ func TestTheContentRungIsAStepOnTheFramesVisibleAlpha(t *testing.T) {
 	}
 	cases := []rung{
 		// 无材质的平台：填充 == 可见 alpha 的反解，旧新同值（「没有回归」的证据）。
-		{"linux", "off", 10, 0.35, 0.13846154, "off 的读性地板 0.35 就是这一档的框"},
-		{"linux", "off", 47, 0.47, 0.16981132, "off 在默认滑块上：没有材质，补偿是恒等"},
-		{"linux", "regular", 10, 0.10, 0.10, "一个 10% 的薄框"},
-		{"linux", "regular", 47, 0.47, 0.16981132, "出厂的默认档（settings.DefaultMainOpacity）"},
-		{"linux", "regular", 70, 0.70, 0.30, "一个偏实的框"},
-		{"linux", "regular", 90, 0.90, 0.90, "最后一条还有余量的滑块档"},
-		{"linux", "regular", 100, 0.98, 1.00, "顶格：SolidTop 0.98 封底，内容页复合到 1.00"},
-		{"windows", "regular", 47, 0.47, 0.16981132, "Windows 的背衬与无材质平台同值（MaterialVeil 只认 darwin）"},
-		{"windows", "liquid", 47, 0.47, 0.16981132, "同一个可见 alpha，就该是同一个内容页"},
+		{"linux", "off", 74, 0.74000000, 0.34615385, "actual opacity"},
+		{"linux", "off", 86, 0.86000000, 0.50000000, "actual opacity"},
+		{"linux", "regular", 74, 0.74000000, 0.34615385, "actual opacity"},
+		{"linux", "regular", 86, 0.86000000, 0.50000000, "actual opacity"},
+		{"linux", "regular", 92, 0.92000000, 0.50000000, "actual opacity"},
+		{"linux", "regular", 96, 0.96000000, 0.50000000, "actual opacity"},
+		{"linux", "regular", 98, 0.98000000, 0.50000000, "actual opacity"},
+		{"windows", "regular", 86, 0.86000000, 0.50000000, "actual opacity"},
+		{"windows", "liquid", 86, 0.86000000, 0.50000000, "actual opacity"},
 		// macOS：材质把填充补薄，可见 alpha 仍是滑块的值 —— 内容页必须跟着可见 alpha。
-		{"darwin", "frosted", 10, 0.12, 0.10227273, "薄档：veil 12% 把 10% 的框抬到 0.12（旧填充 0.09）"},
-		{"darwin", "frosted", 47, 0.47, 0.16981132, "薄档的默认滑块：旧填充 0.149（可见 recess 0.079）"},
-		{"darwin", "regular", 10, 0.10, 0.10, "透明玻璃保留滑块低端"},
-		{"darwin", "regular", 47, 0.47, 0.16981132, "标准档的默认滑块：旧可见 recess 0.070（linux 的 78%）"},
-		{"darwin", "regular", 100, 0.98, 1.00, "标准档顶格"},
-		{"darwin", "liquid", 10, 0.10, 0.10, "透明玻璃没有旧侧栏材质的 34% 下限"},
-		{"darwin", "liquid", 25, 0.25, 0.12, "25% 随滑块变化"},
-		{"darwin", "liquid", 47, 0.47, 0.16981132, "厚档的默认滑块：旧可见 recess 0.059（linux 的 66%）"},
-		{"darwin", "liquid", 70, 0.70, 0.30, "厚档的实框"},
-		{"darwin", "liquid", 90, 0.90, 0.90, "厚档的倒数第二档"},
+		{"darwin", "frosted", 74, 0.74000000, 0.34615385, "actual opacity"},
+		{"darwin", "frosted", 86, 0.86000000, 0.50000000, "actual opacity"},
+		{"darwin", "regular", 74, 0.74000000, 0.34615385, "actual opacity"},
+		{"darwin", "regular", 86, 0.86000000, 0.50000000, "actual opacity"},
+		{"darwin", "regular", 98, 0.98000000, 0.50000000, "actual opacity"},
+		{"darwin", "liquid", 74, 0.74000000, 0.34615385, "actual opacity"},
+		{"darwin", "liquid", 80, 0.80000000, 0.45000000, "actual opacity"},
+		{"darwin", "liquid", 86, 0.86000000, 0.50000000, "actual opacity"},
+		{"darwin", "liquid", 92, 0.92000000, 0.50000000, "actual opacity"},
+		{"darwin", "liquid", 96, 0.96000000, 0.50000000, "actual opacity"},
 	}
 	for _, tc := range cases {
 		spec := SpecForPreferencesOS(tc.goos, tc.step, tc.opacity, false)
@@ -64,7 +47,7 @@ func TestTheContentRungIsAStepOnTheFramesVisibleAlpha(t *testing.T) {
 		// 眼睛量的是「面比框深多少」，也就是两条**可见** alpha 之差。它必须恒等于
 		// contentStep，不论平台、档位、滑块——那正是本轮改的那件事。
 		visible := 1 - (1-spec.Material)*(1-spec.TintAlpha)*(1-spec.ContentAlpha())
-		want := min(1, spec.Composite()+contentStep)
+		want := spec.Composite() + min(contentStep, (1-spec.Composite())*.5)
 		if diff(visible, want) {
 			t.Errorf("%s/%s/%d%%: the pane composites to %v, want the frame + step %v (recess %v, want %v)",
 				tc.goos, tc.step, tc.opacity, visible, want, visible-spec.Composite(), want-spec.Composite())

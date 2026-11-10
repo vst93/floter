@@ -101,10 +101,10 @@ var CalculatorCopyModes = []string{CalculatorCopyFull, CalculatorCopyResult}
 // step, not a settings detail, so it sits beside the ids it names; a step
 // without a factor would silently scale the interface to nothing.
 var ScaleFactors = map[string]float64{
-	"tiny":    0.8,
-	"small":   0.9,
-	"default": 1.0,
-	"large":   1.1,
+	"tiny":    0.75,
+	"small":   0.825,
+	"default": 0.9,
+	"large":   1.0,
 }
 
 // DefaultAppIcon is the icon a stored value lands on unless it says otherwise.

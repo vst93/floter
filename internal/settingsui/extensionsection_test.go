@@ -178,6 +178,13 @@ func integrationPage(t *testing.T, a *App, w, h int) *ui.Tester {
 		t.Fatalf("open Integrations: %v", err)
 	}
 	tt.Frame()
+	items := a.installedIntegrations()
+	if len(items) == 1 && a.integrationNav.detail == nil {
+		if err := tt.Click(a.copy().IntegrationsManage + " " + items[0].Name); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+	}
 	return tt
 }
 
@@ -186,6 +193,8 @@ func integrationPage(t *testing.T, a *App, w, h int) *ui.Tester {
 func oneIntegrationApp(integration Integration, actions Actions) *App {
 	a := New(settings.NewStore(settings.Default()), actions)
 	a.Integrations = func() []Integration { return []Integration{integration} }
+	// This fixture exercises the tool detail, reached from the new overview.
+	a.integrationNav.detail = &integrationKey{ID: integration.ID}
 	return a
 }
 

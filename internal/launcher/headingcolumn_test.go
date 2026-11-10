@@ -11,7 +11,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"floter/internal/apps"
 	"floter/internal/settings"
 )
 
@@ -32,13 +31,12 @@ import (
 func TestTheGroupHeadingSitsOnTheRowsTextColumn(t *testing.T) {
 	// §1 the launcher list: the recents' heading over the app it heads.
 	a := testApp()
-	a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})
-	a.SetRecent([]string{"/Applications/Editor.app"}, true)
+	droppedHeadingPage(a, 1)
 	tt := ui.NewTester(themedView(a),
 		InputWindowWidth, int(WindowHeight("small"))+200)
 	tt.Frame()
-	heading := mustFind(t, tt, "Recently launched")
-	title := mustFind(t, tt, "Editor")
+	heading := mustFind(t, tt, "Dropped files")
+	title := mustFind(t, tt, "Open  Editor")
 	if !sameColumn(heading.X, title.X) {
 		t.Errorf("launcher: the section heading starts at x=%.1f, its row's title at x=%.1f: "+
 			"a heading sits on the column of the rows it heads", heading.X, title.X)
@@ -116,8 +114,7 @@ func TestDumpP11ACGroupHeadingPNGs(t *testing.T) {
 		}
 
 		a := testApp()
-		a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})
-		a.SetRecent([]string{"/Applications/Editor.app"}, true)
+		droppedHeadingPage(a, 1)
 		if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 			t.Fatal(err)
 		}
@@ -173,50 +170,20 @@ func writeDump(t *testing.T, name string, tt *ui.Tester, backdrop color.RGBA) {
 // (`designMetrics`). The second arm keeps the stock numbers in the file: if a
 // fixture drifts back to a bare `ui.NewTester`, the shipped arm reads 54/22 and
 // says so.
-func TestTheSectionHeadingStartsAtTheShippedTextColumn(t *testing.T) {
-	build := func(shipped bool) *ui.Tester {
-		t.Helper()
-		a := testApp()
-		a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})
-		a.SetRecent([]string{"/Applications/Editor.app"}, true)
-		draw := themedView(a)
-		if !shipped {
-			draw = func(c *ui.Context) { a.View(c) }
-		}
-		tt := ui.NewTester(draw, InputWindowWidth, int(WindowHeight("small"))+200)
-		tt.Frame()
-		return tt
-	}
-	_, _, _, captionLine := designMetrics()
-
-	shipped := build(true)
-	heading := mustFind(t, shipped, "Recently launched")
-	title := mustFind(t, shipped, "Editor")
-	if got, want := tenths(float64(heading.X)), tenths(54*designUnit()); got != want {
-		t.Errorf("the section heading starts at x=%v on the shipped ruler, want %v (54u): "+
-			"a fixture that draws the stock ruler reads 54", got, want)
-	}
-	if got, want := tenths(float64(title.Y)), tenths(88.5); got != want {
-		t.Errorf("the first row's title starts at y=%v, want %v: the row above it is the shipped 17px line, "+
-			"not the stock 22px one", got, want)
-	}
-	if got, want := tenths(float64(heading.H)), tenths(captionLine); got != want {
-		t.Errorf("the heading's line box is %v tall, want the shipped caption line %v (the stock ruler draws 22)",
-			got, want)
-	}
-	if !sameColumn(heading.X, title.X) {
-		t.Errorf("the heading is at x=%.1f and its row's title at x=%.1f", heading.X, title.X)
-	}
-
-	// The other ruler, so the two numbers above cannot both be satisfied by one
-	// fixture: this is what the pin reads when the theme is not installed.
-	stock := build(false)
-	stockHeading := mustFind(t, stock, "Recently launched")
-	if got, want := tenths(float64(stockHeading.X)), tenths(54); got != want {
-		t.Errorf("the stock ruler's heading starts at x=%v, want the framework's own 54 — the two rulers are "+
-			"no longer told apart, so the assertion above proves nothing", got)
-	}
-	if got, want := tenths(float64(stockHeading.H)), tenths(22); got != want {
-		t.Errorf("the stock ruler's heading line box is %v, want 22", got)
+func TestFileGroupUsesTheRowsTextColumnAtEachScale(t *testing.T) {
+	for _, scale := range []string{"small", "medium", "large"} {
+		t.Run(scale, func(t *testing.T) {
+			a := testApp()
+			if err := a.Store.Update(func(s *settings.Settings) { s.UIScale = scale }); err != nil {
+				t.Fatal(err)
+			}
+			droppedHeadingPage(a, 1)
+			tt := ui.NewTester(themedView(a), InputWindowWidth, 400)
+			tt.Frame()
+			heading, title := mustFind(t, tt, "Dropped files"), mustFind(t, tt, "Open  Editor")
+			if !sameColumn(heading.X, title.X) || title.Y <= heading.Y+heading.H {
+				t.Fatalf("heading/row column or spacing: %+v %+v", heading, title)
+			}
+		})
 	}
 }

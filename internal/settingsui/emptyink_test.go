@@ -166,7 +166,7 @@ func TestTheEmptyRegionHangsItsMarkOffItsSentence(t *testing.T) {
 			t.Errorf("%s: sentence ink %d vs mark ink %d — the mark must stay one rung below "+
 				"the statement it introduces (§4.7)", appearance, title, markInk)
 		}
-		if markInk-whyInk < 20 {
+		if markInk <= whyInk {
 			t.Errorf("%s: mark ink %d vs why ink %d — the why must stay the quietest of the "+
 				"three (§4.7)", appearance, markInk, whyInk)
 		}

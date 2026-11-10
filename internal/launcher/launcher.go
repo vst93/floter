@@ -177,6 +177,8 @@ type BrowserResults struct {
 	// plugin is switched off: the mode says so rather than claiming no browser
 	// has a profile.
 	Disabled bool
+	// ReadFailed means a selected browser's data directory was inaccessible.
+	ReadFailed bool
 	// Tabs are the tabs the browser has open right now, when they could be
 	// read. A tab that is also a bookmark stays two rows: switching to it and
 	// opening it again are two different actions.
@@ -317,30 +319,25 @@ type App struct {
 	// footer and a message never paint over each other.
 	footerBand float32
 
-	// Rows are what the last View built, in order: each visible row's text
-	// lines and whether it is a block's heading. Font and Spacing are the
-	// theme's own values. The shell reads them to size the window to the list
-	// it holds (see Geometry).
+	// Rows is the window's sizing ledger. Modifier-only actions borrow its
+	// bottom row rather than adding a native resize. Font and Spacing are
+	// the measurements the shell uses with this ledger (see Geometry).
 	Rows         []RowInfo
 	Font         float64
 	TitleLine    float64
 	SubtitleLine float64
 	Spacing      float64
-	// HeldRows is the row count the window is sized for, with the shrink
-	// hysteresis applied: a keystroke that removes one row of two does not
-	// walk the window edge for it, and a growth is immediate. Zero until
-	// the first View measured the list.
+	// HeldRows is the capped row count used for sizing, measured by View.
 	HeldRows int
 
-	// modifierHeld is the app modifier's state as the last frame saw it. The
-	// held modifier's own line is the panel's **pinned bottom band** (see
-	// heldHintRow), never a row of the list: the user's own words are
-	// 「按住 Super 显示进入终端选项要固定底部且不重复」 and 「不属于任何列表
-	// 项…不占排序」 (F4-3), so nothing here is appended to Results().
+	// modifierHeld selects the existing footer, or adds its empty-query terminal action.
 	modifierHeld bool
 	// heldWasDown is the modifier's state the frame before, so the press and
 	// release edges are one transition each.
-	heldWasDown bool
+	heldWasDown       bool
+	modifierReturnID  string
+	modifierQuery     string
+	modifierSelection int
 	// barRowKey is the list shape the action bar's selection was last asserted
 	// for: the row count and the query, joined. It is the row the modifier
 	// hands the selection to when the field has text (a typed query draws no
@@ -354,7 +351,8 @@ type App struct {
 	// walk the catalog twice per frame — once for the held row's presence, once
 	// for the list — and a duplicated full match is the cheapest way to read a
 	// keystroke as a stall.
-	searchRuns int
+	searchRuns     int
+	ordinarySearch ordinarySearchCache
 
 	// drawn is the row slice the current draw built: **this frame's table**. Every
 	// action that fires while the draw is running — or that acts on "the row the
@@ -920,6 +918,9 @@ func (a *App) emptyMessage(copy i18n.Launcher) string {
 			// matched nothing.
 			return copy.BrowserNoProfile
 		}
+		if answer.ReadFailed {
+			return copy.BrowserReadFailed
+		}
 		return copy.BrowserEmpty
 	case a.calculatorMode:
 		if a.calculatorFilter == filterFavorites {
@@ -1269,14 +1270,6 @@ func (a *App) View(c *ui.Context) {
 	// modifier's state lands, so it is the list this frame draws and there is
 	// no second search to disagree with it (see App.searchRuns).
 	results := a.syncHeldModifier(c)
-	// The held modifier's own line: the panel's pinned bottom band, not a row.
-	// The chord that puts it on screen is the chord that opens it — the modifier
-	// is still down when the user presses Enter, so the plain Enter's own path
-	// (the field's submit) is not the one that fires. It holds on the empty
-	// field and on a typed one alike: the band is drawn on both (F4-3).
-	if a.heldHint() && c.Shortcut(ui.Cmd, ui.KeyEnter) {
-		a.openBareTerminal()
-	}
 	// A query the field has not accounted for gets that query's own default
 	// before any row reads the choice (see defaultedQuery).
 	if a.Query != a.defaultedQuery {
@@ -1289,6 +1282,9 @@ func (a *App) View(c *ui.Context) {
 	// holdBarSelection).
 	a.holdBarSelection(results)
 	a.clampSelection(results)
+	if a.modifierHeld && a.output == nil && !a.pluginModeActive() && c.Shortcut(ui.Cmd, ui.KeyEnter) {
+		a.activate(results)
+	}
 	a.drawn = results
 	a.assignNumbers(results)
 	// The output list, while it owns the band, carries the same numbered family
@@ -1313,13 +1309,17 @@ func (a *App) View(c *ui.Context) {
 	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: tk.Body}); height > 0 {
 		a.SubtitleLine = float64(height)
 	}
-	rows, held, sections := a.windowRows(results)
+	// A temporary modifier action uses the existing bottom band. Size the
+	// panel from its ordinary results so rapid key edges never resize the
+	// native surface (which can stretch the previous backing frame).
+	sizingResults := results
+	if a.temporaryFooter(results) {
+		sizingResults = results[:actionBarIndex(results)]
+	}
+	rows, held, sections := a.windowRows(sizingResults)
 	a.Rows = rows
-	// The window follows the list exactly: the row count it holds is the
-	// count the content needs (the reference's R66 rule). A one-row margin
-	// would leave the window a row too tall whenever a row leaves - which is
-	// the held modifier's row on release. The cap is the work area less the
-	// room the other windows keep.
+	// Query changes follow the content count. A temporary modifier footer
+	// takes room inside that count, and the shell still caps to the work area.
 	a.HeldRows = HoldRows(a.HeldRows, held)
 	if a.Actions.ResizeTo != nil {
 		geometry := Geometry{
@@ -1414,7 +1414,7 @@ func (a *App) View(c *ui.Context) {
 			// 居中；② 停靠带出现时（按住 ⌘）列表一行不动，这句话却跟着往下跳 13.5px。
 			// 底沿现在与列表**同一个表达式**：面板自己的 tail + 带子。
 			ui.Column(c).FillWidth().Grow(1).Center().
-				Padding(listEdge, max(20, t.Space(5)), t.Space(0.5)+a.statusBand(c), max(20, t.Space(5))).
+				Padding(listEdge, max(20, t.Space(5)), a.statusBand(c), max(20, t.Space(5))).
 				Children(func() {
 					// P11-cd：一句话都没有的空页不是空态，是一个安静的空页（见
 					// `emptyMessage`）：没有 needle、也没有最近启动时这里不画字，
@@ -1457,9 +1457,8 @@ func (a *App) View(c *ui.Context) {
 			// 上沿就落在带子下沿 —— 行根本不进那条带，编号读的视口也还是原来那一段
 			// （下面 `a.listRect` 直接读列表盒，不再手写扣减）。
 			ui.Box(c).Shrink(0).FillWidth().Height(listEdge)
-			list := ui.List(c.Key("launcher.results"), &a.List, barStart, func(i int) {
-				a.row(c, results[i], i)
-			}).Grow(1).FillWidth().MinHeight(0).
+			list := ui.List(c.Key("launcher.results"), &a.List, barStart).
+				Grow(1).FillWidth().MinHeight(0).
 				// The list's own gutter is the row block's inset: Raycast's
 				// selected row is a rounded pill that does *not* run to the card's
 				// edge, so the block sits 8u in from it on both sides
@@ -1476,13 +1475,19 @@ func (a *App) View(c *ui.Context) {
 				// 列表的最后一行就停在带子上沿——和参考把 `.launcher-feedback`
 				// 放在流里（`main:src/styles/launcher.css:693` 的 `min-height`）
 				// 同一个答案。判据与 `Geometry.Feedback` 是同一个（见 `statusBand`）。
-				Padding(0, t.Space(2), t.Space(0.5)+a.statusBand(c), t.Space(2)).Label(copy.ResultsLabel).
+				Padding(0, t.Space(2), a.statusBand(c), t.Space(2)).Label(copy.ResultsLabel).
 				ScrollbarInsets(0, 4096, 0, 0)
 			// The rows are clipped to this box, so it is the viewport the
 			// numbered family measures against (see numberedViewport). P11-bj：
 			// 这个盒子的上沿已经是字段带（和模式的 chips）的下沿 —— 带子由上面那条
 			// 占位让出来，不再靠手写扣减一段高度去躲开它。
 			a.listRect = list.Bounds()
+			// Capture the viewport before any rows read it. A modifier release
+			// expands this box; using the prior value dims the returning row
+			// until an unrelated event (often the caret blink) redraws it.
+			list.Rows(func(row ui.ListRow) {
+				a.row(row.Context, results[row.Index], row.Index)
+			})
 			a.actionBarFooter(c, results, barStart)
 		}
 
@@ -1649,7 +1654,7 @@ func (a *App) View(c *ui.Context) {
 					// not answer the pointer alike.
 					a.fieldSettingsButton(c, tk, copy.Clear, "", func(mark ui.Color) {
 						if glyph, ok := Glyph("close"); ok {
-							ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
+							ui.Icon(c, glyph).Size(max(18, t.Space(5)), max(18, t.Space(5))).TextColor(mark)
 						}
 					}, func() {
 						a.Query = ""
@@ -1713,7 +1718,7 @@ func (a *App) View(c *ui.Context) {
 			// scroll past the last row it has.
 			row := a.Selected
 			if bar := actionBarIndex(results); bar >= 0 && row >= bar {
-				row = bar - 1
+				row = -1
 			}
 			if row >= 0 {
 				a.List.ScrollIntoView(row)
@@ -2309,7 +2314,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// `viewportRange` 的编号，一个标签混进去就会占掉一个数字位（P13-w「仍待」第 1
 		// 条已经把这条写死）。`Bounds()` 是上一帧的矩形，与 `rowBody` 的
 		// `a.rowRects[i] = row.Bounds()` 同一时序。
-		heading := ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2))
+		heading := ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(t.Space(3)).Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2))
 		if a.headingRects == nil {
 			a.headingRects = make(map[int]ui.Rect, 4)
 		}
@@ -2319,9 +2324,10 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 			heading.Opacity(float32(fold))
 		}
 		heading.Children(func() {
-			ui.Text(c, item.Title).FontSize(tokens.Body).FontWeight(400).
-				TextColor(tokens.TextSecondary).SingleLine().
+			ui.Text(c, item.Title).FontSize(tokens.Body).FontWeight(600).
+				TextColor(tokens.TextSecondary).SingleLine().Shrink(0).
 				Margin(0, 0, 0, t.Space(iconUnits+rowGapUnits))
+			ui.Box(c).Grow(1).Height(1).Background(tokens.HairlineSoft).PassThrough()
 		})
 		return
 	}
@@ -2418,8 +2424,12 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	subtitle := rowSubtitle(item)
 	row := ui.Row(c.Key(item.ID)).FillWidth().Focusable().MinHeight(floor).
 		AlignItems(ui.Center).
-		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).Gap(t.Space(rowGapUnits)).
-		Transition(rowTransition)
+		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).Gap(t.Space(rowGapUnits))
+	// A held shortcut is immediate. Recreating its footer must not restart
+	// the result rows' entrance fade on each press/release.
+	if !strings.HasPrefix(item.ID, "bar:") {
+		row.Transition(rowTransition)
+	}
 	// P11-bb：这一行上一帧的盒子。编号家族靠它判「这一行读得全吗」——
 	// 框架的 `Visible()` 只答「还有一个像素在框里」，而一个被裁掉九成的行
 	// 拿到的徽章是没人看得见的（见 `numberedViewport`）。首帧还没有盒子，
@@ -2452,7 +2462,9 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// `actionBarUnits` 上（3u 呼吸 + 40u 行 + 2u 卡 tail = 45u）。
 		//
 		// 上呼吸是这一行自己的 margin，宽度按 `actionBarBreathUnits` 读。
-		row.Margin(t.Space(actionBarBreathUnits), 0, 0, 0)
+		if !a.temporaryFooter(a.drawn) {
+			row.Margin(t.Space(actionBarBreathUnits), 0, 0, 0)
+		}
 		// The bar is welded to the list above it: the old build turned the
 		// footer's top corners square whenever a result list preceded it
 		// (`.launcher-results + .launcher-action-bar { border-radius: 0 0
@@ -2601,7 +2613,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				// terminal's own monospace at 520 (the old
 				// `.launcher-action-bar__title`). The action's own word is the
 				// row's subtitle, which keeps the interface face.
-				if isBar {
+				if isBar && item.ID != "bar:terminal" {
 					title.Font(a.settings().FontFamily).FontWeight(520)
 				}
 				// A trailing value prints complete at the row's right edge —
@@ -3044,10 +3056,21 @@ func (a *App) defaultsToActionBar(results []Item) bool {
 // `Results`, so the keyboard, the pointer, `defaultSelection` and the numbers
 // reach them exactly as they did when they were the list's own last rows. Only
 // their place on the panel changed.
+func (a *App) temporaryFooter(results []Item) bool {
+	if !a.modifierHeld || a.output != nil || a.pluginModeActive() {
+		return false
+	}
+	bar := actionBarIndex(results)
+	return bar >= 0 && (strings.TrimSpace(a.Query) == "" || bar == 0 && classifyActionBar(a.Query) == actionShell)
+}
+
 func (a *App) actionBarSplit(c *ui.Context, results []Item) (int, float32) {
 	start := actionBarIndex(results)
 	if start < 0 {
 		return len(results), 0
+	}
+	if a.temporaryFooter(results) {
+		return start, c.Theme().Space(rowUnits)
 	}
 	return start, c.Theme().Space(actionBarUnits * float32(len(results)-start))
 }
@@ -3065,18 +3088,18 @@ func (a *App) actionBarFooter(c *ui.Context, results []Item, start int) {
 	}
 	t := c.Theme()
 	tokens := a.tokens(c)
-	band := t.Space(actionBarUnits * float32(len(results)-start))
+	_, band := a.actionBarSplit(c, results)
 	// The footer's own row block takes the *list's* gutter, not the panel's:
 	// Raycast's footer row is a row of the same column, so its pill starts on
 	// the same 8u the rows above it do (`docs/raycast-design.md` §4.3/§4.6).
 	// It sat on 4u — the panel's own inset — so the held/selected footer's pill
 	// was 4u wider on each side than every row above it and the column read as
 	// two different columns at the seam.
-	footer := ui.Column(c).FillWidth().Shrink(0).Height(band).MinHeight(0).
+	footer := ui.Column(c.Key("launcher.action-footer")).FillWidth().Shrink(0).Height(band).MinHeight(0).
 		Padding(0, t.Space(2))
 	footer.Children(func() {
 		for i := start; i < len(results); i++ {
-			a.row(c, results[i], i)
+			a.row(c.Key(results[i].ID), results[i], i)
 		}
 	})
 	// The footer's own chrome is drawn *over* the band, never as a row of it:
@@ -3169,17 +3192,15 @@ func (a *App) feedbackRow(c *ui.Context) {
 	// 问句答完或过期后它照常出现）。叠成两条要改高度链（`Feedback` 改成计数），
 	// 那是红线，不碰。
 	if a.toast == "" || a.pendingPower != "" {
-		// P11-bb：带子现在有三个句子，优先级是问句 > toast > 按住修饰键的提示。
-		// 前两句照旧（P11-az），第三句只在带子空着时上场。
-		if a.toast == "" && a.pendingPower == "" && a.heldHint() {
-			a.heldHintRow(c)
-		}
 		return
 	}
 	now := c.Now()
 	if a.toast != a.toastShown {
 		a.toastShown = a.toast
 		a.toastUntil = now.Add(feedbackDuration)
+		if !a.toastWarning {
+			c.Announce(a.toast)
+		}
 	}
 	if now.After(a.toastUntil) {
 		a.toast, a.toastWarning, a.toastShown, a.toastUntil = "", false, "", time.Time{}
@@ -3248,32 +3269,14 @@ func (a *App) feedbackRow(c *ui.Context) {
 		// 越出带子的矩形压在列表最后几行的字上（同一帧里 `app-20` 的标题被压住
 		// 54×15u）。同一条带里的 `heldHintRow` 与确认按钮的标签早就有这一行约束，
 		// 这里是把第三种说法补齐：**一条带只有一个句子、一句话只有一行**。
-		ui.Text(c, a.toast).FontSize(t.FontSize).FontWeight(weight).TextColor(tone).Grow(1).SingleLine()
+		// Give the message itself its live role: its text is its accessible
+		// name, so a labelled wrapper need not repeat the same sentence.
+		sentence := ui.Text(c, a.toast).Role(ui.RoleStatus).
+			FontSize(t.FontSize).FontWeight(weight).TextColor(tone).Grow(1).SingleLine()
+		if a.toastWarning {
+			sentence.Role(ui.RoleAlert)
+		}
 	})
-}
-
-// heldHintRow draws the band's third sentence: the chord that opens a terminal
-// session while the app modifier is held, as the keycaps the list itself uses
-// plus the word that says what it does (P11-bb).
-//
-// It sits in the toast's own band and geometry — the list has already reserved
-// that band (`statusBand`), so the row has nothing behind it to cover — but it
-// wears no plane, no keyline and no shadow: a hint about a key the user is
-// holding is not a message, and the amber `--system-icon-surface` would read as
-// one (the user's F3: 不要 floating/overlay 观感，元素要 inline、要贴进布局).
-func (a *App) heldHintRow(c *ui.Context) {
-	t := c.Theme()
-	tokens := a.tokens(c)
-	copy := a.copy()
-	ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(launcherStatusUnits)).
-		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
-		Children(func() {
-			ui.Box(c).Absolute().Top(0).Left(t.Space(3)).Right(t.Space(3)).Height(1).
-				Background(tokens.HairlineSoft)
-			ui.Text(c, copy.HeldTerminalHint).FontSize(tokens.Caption).FontWeight(400).
-				TextColor(tokens.TextSecondary).SingleLine()
-			a.rowKeycap(c, tokens, a.enterBadge())
-		})
 }
 
 // statusBand is the band the docked notice occupies at the list's bottom edge:
@@ -3297,21 +3300,6 @@ func (a *App) statusBand(c *ui.Context) float32 {
 	return c.Theme().Space(launcherStatusUnits)
 }
 
-// heldHint reports whether the docked band owes the held modifier's sentence:
-// while the app modifier is down, `Super+Enter` opens a terminal session, and
-// the band is the one place that says so — on the empty field and on a typed
-// one alike (the user's own line: 「按住 Super 显示进入终端选项要固定底部且
-// 不重复」, F4-3). The list never carries a row of its own for it: a row would
-// take a number, a sort position and the selection, and the band is pinned to
-// the panel's bottom edge instead.
-//
-// It is the *band's* third sentence, ranked below the question and the toast (see
-// feedbackRow): a message that is going somewhere wins over a hint about a key
-// the user is holding.
-func (a *App) heldHint() bool {
-	return a.modifierHeld && a.output == nil && !a.pluginModeActive()
-}
-
 // FeedbackVisible reports whether the docked status row is showing, for the
 // shell's window sizing. It is `feedbackVisible`, the same function the draw
 // reads for `Geometry.Feedback` and for the list's own bottom padding: the
@@ -3319,38 +3307,20 @@ func (a *App) heldHint() bool {
 // copies of that sentence is how they drifted apart (P11-cm).
 func (a *App) FeedbackVisible() bool { return a.feedbackVisible() }
 
-// feedbackVisible is whether the panel owes its docked band this frame: a
-// toast, an unanswered power confirmation, or the held modifier's hint. It is
-// the *one* answer to that question — `View` charges the window with it,
-// `statusBand` takes the band back out of the list's content with it, and
-// `FeedbackVisible` hands it to the shell, which sizes the window with it
-// before any frame has run (P11-cm).
-//
-// The question is "is the band drawn", not "is there a message": the power
-// confirmation is a *question* and outranks the toast (see feedbackRow), but it
-// is the same band, the same 30u, and the same charge — a predicate that left it
-// out made the shell's window a band short exactly while the user was being
-// asked something destructive.
+// feedbackVisible reserves space only for notices and power confirmations.
 func (a *App) feedbackVisible() bool {
-	return a.toast != "" || a.pendingPower != "" || a.heldHint()
+	return a.toast != "" || a.pendingPower != ""
 }
 
-// syncHeldModifier reads the app modifier's state for this frame and moves the
-// selection to (or away from) the held row at the edge where the modifier goes
-// down or up. The row itself is part of Results (see Results), so the window's
-// height and the row's own presence are one decision.
-//
-// The two edges are the reference's own (src/App.tsx R64, the heldBareTerminal
-// effect): the press edge puts the row — the list's last line — in the
-// selection; the release edge resets the selection to the page's own default,
-// which is its first runnable row, unconditionally — the effect's dependency
-// list carries no selection, so an arrow step off the row during the gesture
-// is discarded on release, exactly as the reference's is. There is no delay:
-// the row and the selection move on the same frame the modifier's state lands.
+// syncHeldModifier applies each press/release immediately and searches once.
 func (a *App) syncHeldModifier(c *ui.Context) []Item {
 	down := c.Modifiers()&ui.Cmd == ui.Cmd
-	// The state lands before the edge is handled: the band's own predicate
-	// reads modifierHeld.
+	if down != a.modifierHeld {
+		// The edge also changes shortcut badges throughout the visible list.
+		// Finish those transitions together instead of restarting per-label
+		// timelines on every press/release. The footer action is usable now.
+		c.DisableAnimations()
+	}
 	a.modifierHeld = down
 	// The frame's **one** catalog walk, taken after the state landed so the
 	// list it returns is the list this frame draws. The caller reuses this
@@ -3360,30 +3330,36 @@ func (a *App) syncHeldModifier(c *ui.Context) []Item {
 	results := a.Results()
 	if down != a.heldWasDown {
 		a.heldWasDown = down
-		if down && strings.TrimSpace(a.Query) != "" {
-			// A typed query draws no terminal line of its own (the pinned
-			// band says it instead), so the modifier hands the selection to
-			// the action bar, the old build's `setSelectedActionBar(true)` on
-			// the modifier's keydown. The bar is a row of this list, so it is
-			// selected by its index.
-			if bar := actionBarIndex(results); bar >= 0 {
+		if down {
+			a.modifierReturnID, a.modifierQuery = "", a.Query
+			if a.Selected >= 0 && a.Selected < len(results) {
+				a.modifierReturnID = results[a.Selected].ID
+			}
+			if bar := terminalBarIndex(results); bar >= 0 {
 				a.Selected = bar
 			}
-		} else if !down {
+			a.modifierSelection = a.Selected
+		} else {
 			a.barRowKey = ""
-			if strings.TrimSpace(a.Query) != "" {
-				// The selection the press edge took goes back to the page's
-				// own default — the reference's `firstRunnableResultIndex`.
+			// Only undo our temporary selection. Arrow/pointer choices made
+			// during the hold belong to the user. Restoring must not scroll
+			// the list to its first row.
+			if a.Selected == a.modifierSelection {
 				a.Selected = a.defaultSelection(results)
+				for i, item := range results {
+					if a.Query == a.modifierQuery && item.ID == a.modifierReturnID {
+						a.Selected = i
+						break
+					}
+				}
+				a.chosenRow = a.Selected
 			}
 		}
 	}
 	return results
 }
 
-// openBareTerminal runs the held modifier's own action: a terminal session
-// with nothing to run. It is the band's action, not a row's, so it takes no
-// selection and no index — Super+Enter reaches it directly (see View).
+// openBareTerminal opens the empty-query footer's blank terminal session.
 func (a *App) openBareTerminal() {
 	if a.Actions.OpenTerminal != nil {
 		a.Actions.OpenTerminal()
@@ -3396,26 +3372,14 @@ func listShapeKey(results []Item, query string) string {
 	return strconv.Itoa(len(results)) + "\x00" + query
 }
 
-// holdBarSelection keeps the action bar selected while the modifier is held
-// over a *typed* query, which is the row the modifier's press edge hands the
-// selection to there (see syncHeldModifier: a typed query draws no held row,
-// R64, so the bar is the row that acts on the line).
-//
-// Without it the selection the press edge set was lost on the very next
-// keystroke: the query's own default reset (the `a.Query != a.defaultedQuery`
-// branch in View) lands on the first match, so the bar stayed on screen and
-// unselected for as long as the user kept typing with the key down — the report
-// 「应该有选中样式（当前缺失）」. The reference's effect depends on `query` and
-// the list's length (`main:src/App.tsx:2065-2082`), so it re-runs on exactly
-// those changes and not on an arrow step: the key below is the same shape key
-// the held row uses, so an arrow step off the bar survives until the list
-// itself changes.
+// holdBarSelection reasserts the footer on query changes, while allowing arrow
+// navigation away from it until the result shape changes again.
 func (a *App) holdBarSelection(results []Item) {
-	if !a.modifierHeld || a.output != nil || a.pluginModeActive() || strings.TrimSpace(a.Query) == "" {
+	if !a.modifierHeld || a.output != nil || a.pluginModeActive() {
 		a.barRowKey = ""
 		return
 	}
-	bar := actionBarIndex(results)
+	bar := terminalBarIndex(results)
 	if bar < 0 {
 		a.barRowKey = ""
 		return
@@ -3426,6 +3390,7 @@ func (a *App) holdBarSelection(results []Item) {
 	}
 	a.barRowKey = key
 	a.Selected = bar
+	a.modifierSelection = bar
 }
 
 // scopeMark is the mode that owns the field: its mark and its name. Ok is
@@ -3453,33 +3418,11 @@ func (a *App) scopeMark(copy i18n.Launcher) (*ui.SVG, string, bool) {
 	return nil, "", false
 }
 
-// fieldButtons draws the field row's trailing controls: the two ways in the
-// old build kept beside the field — the sessions page and the settings — each
-// a glyph button whose own label names it for assistive technology.
-// fieldSettingsButton draws one of the field row's trailing icon controls:
-// the reference's `.collapsed-card__settings` (`main:src/styles/launcher.css:
-// 382-419`), which all three of them (sessions, settings, the plugin gear and
-// the pin) share as one control. It is a 28u transparent square with a 9u
-// corner, its mark at rest in `--text-tertiary` (`:397`), and the 8u margin the
-// old row put before it.
-//
-// Two states ride on top of the resting face, and the port had neither:
-//
-//   - `:hover:not(:disabled)` (`:400-404`) lifts the mark one step to
-//     `--text-strong` *and* lights the control's own hover fill with the
-//     resting plane's lens (`--elev-0`); and
-//   - `:active:not(:disabled)` (`:407-411`) sinks the button a hair into the
-//     glass — `transform: scale(0.92)` over `--glass-control-press`, its
-//     shadow gone — which is the press the row's other controls already take.
-//
-// The transition (`:397`, `color var(--dur-2) ease, background var(--dur-2)
-// ease, transform var(--dur-1) ease`) is where the 120ms colour step and the
-// 80ms transform step come from; the framework animates both off one
-// `ElementTransition`, so the colours ride the 120ms step and the press scale
-// is a render-time transform under the same use.
+// fieldSettingsButton gives search toolbar actions a 36-DIP minimum target,
+// with restrained hover and press feedback.
 func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hint string, mark func(mark ui.Color), run func()) {
 	t := c.Theme()
-	e := ui.Row(c).Focusable().Shrink(0).Size(max(36, t.Space(9)), max(36, t.Space(9))).
+	e := ui.Row(c).Focusable().Shrink(0).Size(max(36, t.Space(10)), max(36, t.Space(10))).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 		Label(label).Margin(0, 0, 0, t.Space(2)).
 		Transition(ui.ElementTransition{Duration: theme.ColorStep, Colors: true})
@@ -3493,7 +3436,7 @@ func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hin
 	ink := tokens.TextTertiary
 	switch {
 	case e.Pressed():
-		e = e.Background(tokens.ControlPress).Scale(0.92, 0.92)
+		e = e.Background(tokens.ControlPress).Scale(0.97, 0.97)
 		ink = tokens.TextStrong
 	case e.Hovered():
 		// P13-h · 与 `rowControl` 同一语汇：悬停的 28u 格是 E1 的面（顶受光边 +
@@ -3507,6 +3450,7 @@ func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hin
 	}
 }
 
+// fieldButtons opens sessions and settings from the search toolbar.
 func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 	t := c.Theme()
 	tokens := a.tokens(c)
@@ -3521,7 +3465,7 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 		}
 		a.fieldSettingsButton(c, tokens, label, hint, func(mark ui.Color) {
 			if glyph, ok := Glyph(glyphName); ok {
-				ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
+				ui.Icon(c, glyph).Size(max(18, t.Space(5)), max(18, t.Space(5))).TextColor(mark)
 			}
 		}, run)
 	}
@@ -3552,7 +3496,7 @@ func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
 	}
 	a.fieldSettingsButton(c, tokens, label, hint, func(mark ui.Color) {
 		if glyph, ok := Glyph(glyphName); ok {
-			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
+			ui.Icon(c, glyph).Size(max(18, t.Space(5)), max(18, t.Space(5))).TextColor(mark)
 		}
 	}, func() { a.toggleConfig(id) })
 }
@@ -3567,7 +3511,7 @@ func (a *App) pinButton(c *ui.Context, copy i18n.Launcher) {
 	tokens := a.tokens(c)
 	a.fieldSettingsButton(c, tokens, copy.OutputDetach, copy.OutputDetachHint, func(mark ui.Color) {
 		if glyph, ok := Glyph("pin"); ok {
-			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
+			ui.Icon(c, glyph).Size(max(18, t.Space(5)), max(18, t.Space(5))).TextColor(mark)
 		}
 	}, func() {
 		a.Actions.DetachOutput(OutputView{Entry: a.mode, Args: strings.Split(a.Query, " ")})

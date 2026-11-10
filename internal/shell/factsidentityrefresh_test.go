@@ -105,6 +105,7 @@ func checkFactsIdentityRefresh(t *testing.T, scenario string) {
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 			tt.Frame()
 			tt.Frame()
+			openSettingsToolForTest(t, a, tt)
 			switch scenario {
 			case "runtime-type":
 				manifest.Runtime.Type = "system"

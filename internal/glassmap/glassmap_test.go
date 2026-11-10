@@ -109,7 +109,7 @@ func TestSpecForCarriesTheEffectTable(t *testing.T) {
 // complaint that 47% read three different ways on three materials. Composite is
 // the answer, TintAlpha the paint.
 func TestSpecForSpendsMainOpacityOnTheComposite(t *testing.T) {
-	want := func(opacity float64) float32 { return min(SolidTop, float32(opacity)) }
+	want := func(opacity float64) float32 { return min(SolidTop, max(ReadableFloor, float32(opacity))) }
 	cases := []struct {
 		opacity uint8
 		want    float32
@@ -160,23 +160,23 @@ func TestSpecForSpendsMainOpacityOnTheComposite(t *testing.T) {
 func TestTheOffStopKeepsAReadabilityFloor(t *testing.T) {
 	// The floor's own value, spelled out: a test that compares against the
 	// constant cannot tell a tuned floor from a deleted one.
-	if OffFrameFloor != 0.35 {
-		t.Errorf("the off stop's readability floor = %v, want 0.35", OffFrameFloor)
+	if OffFrameFloor != 0.72 {
+		t.Errorf("the off stop's readability floor = %v, want 0.72", OffFrameFloor)
 	}
 	if got := SpecFor("off", settings.MinWindowOpacity).TintAlpha; got != OffFrameFloor {
 		t.Errorf("off at the slider's bottom = %v, want the floor %v", got, OffFrameFloor)
 	}
-	if got := SpecFor("off", 60).TintAlpha; got != 0.6 {
-		t.Errorf("off at 60%% = %v, want the slider's own 0.6", got)
+	if got := SpecFor("off", 60).TintAlpha; diff(got, 0.72) {
+		t.Errorf("off at 60%% = %v, want the readable target 0.72", got)
 	}
 	if got := SpecFor("off", 100).TintAlpha; got != SolidTop {
 		t.Errorf("off at 100%% = %v, want the solid top %v", got, SolidTop)
 	}
-	// The floor is the `off` stop's alone: a glass stop is readable because its
-	// backdrop is blurred, so it follows the slider all the way down.
+	// Blur does not protect against a solid white desktop, so glass shares
+	// the same readability floor.
 	for _, step := range []string{"frosted", "regular", "liquid"} {
-		if got := SpecFor(step, settings.MinWindowOpacity).Composite(); diff(got, 0.10) {
-			t.Errorf("%s at the slider's bottom = %v, want the slider's own 0.10", step, got)
+		if got := SpecFor(step, settings.MinWindowOpacity).Composite(); diff(got, 0.72) {
+			t.Errorf("%s at the slider's bottom = %v, want the readable target 0.72", step, got)
 		}
 	}
 	// The floor never moves the composite off the slider's own band.
@@ -224,7 +224,7 @@ func TestTheCompensationHoldsOnEveryPlatform(t *testing.T) {
 			veil := MaterialVeil(goos, step)
 			for _, opacity := range []uint8{settings.MinWindowOpacity, 25, 47, 70, settings.MaxWindowOpacity} {
 				spec := SpecForOS(goos, step, opacity)
-				slider := min(SolidTop, float32(opacity)/100)
+				slider := min(SolidTop, max(ReadableFloor, float32(opacity)/100))
 				want := max(veil, slider) // the material's own weight is a floor
 				if got := spec.Composite(); diff(got, want) {
 					t.Errorf("%s/%s at %d%%: composite = %v, want %v", goos, step, opacity, got, want)
@@ -232,21 +232,21 @@ func TestTheCompensationHoldsOnEveryPlatform(t *testing.T) {
 				if spec.TintAlpha < 0 || spec.TintAlpha > SolidTop {
 					t.Errorf("%s/%s at %d%%: fill %v is outside [0, %v]", goos, step, opacity, spec.TintAlpha, SolidTop)
 				}
-				if spec.Material != veil {
-					t.Errorf("%s/%s: Material = %v, want the veil %v", goos, step, spec.Material, veil)
+				wantVeil := veil
+				if opacity == 100 {
+					wantVeil = 0
+				}
+				if spec.Material != wantVeil {
+					t.Errorf("%s/%s: Material = %v, want the veil %v", goos, step, spec.Material, wantVeil)
 				}
 			}
 		}
 	}
-	// A veil past the slider's ask leaves the fill at zero rather than a
-	// negative alpha, and the composite is then the material's own weight.
 	thin := SpecForOS("darwin", "frosted", settings.MinWindowOpacity)
-	if thin.TintAlpha != 0 {
-		t.Errorf("the frosted stop at the slider's bottom painted %v, want no fill under a 0.12 material", thin.TintAlpha)
+	if diff(thin.TintAlpha, 0.68181818) || diff(thin.Composite(), 0.72) {
+		t.Fatalf("frosted readable low end: %+v", thin)
 	}
-	if got, want := thin.Composite(), MaterialVeil("darwin", "frosted"); diff(got, want) {
-		t.Errorf("composite under a heavier material = %v, want the material's own %v", got, want)
-	}
+
 }
 
 // The content pane rides the frame's tint as a single sheet: the pane is only
@@ -279,12 +279,12 @@ func TestContentAndFloatRideTheSlider(t *testing.T) {
 		t.Errorf("contentStep = %v, want the 0.09 recess this build draws", contentStep)
 	}
 	mid := SpecFor("regular", settings.DefaultMainOpacity)
-	if got, want := visible(mid), float32(settings.DefaultMainOpacity)/100+0.09; diff(got, want) {
+	if got, want := visible(mid), float32(0.93); diff(got, want) {
 		t.Errorf("the default slider's visible pane = %v, want the frame + the 0.09 step %v", got, want)
 	}
 	// The bottom end is close to the frame's own alpha, not the near-opaque
 	// double sheet the old code drew.
-	if a := visible(thin); a >= 0.7 {
+	if a := visible(thin); a >= 0.84 {
 		t.Errorf("the low stop's visible pane = %v, want a translucent bottom", a)
 	}
 	// A floating pane is always denser than the frame it floats over, and
@@ -325,7 +325,7 @@ func TestOffKeepsTheFrameTintButNoGlass(t *testing.T) {
 	if !spec.Translucent {
 		t.Error("the off stop must keep the frame's transparency")
 	}
-	if want := min(SolidTop, float32(47)/100); spec.TintAlpha != want {
+	if want := float32(0.72); diff(spec.TintAlpha, want) {
 		t.Errorf("off tint = %v, want the frame's own alpha %v", spec.TintAlpha, want)
 	}
 	fill, translucent := Frame(spec, lightTheme())
@@ -414,8 +414,14 @@ func TestTheTerminalSplitsItsAlphaBetweenFrameAndCanvas(t *testing.T) {
 	for _, goos := range []string{"darwin", "windows", "linux"} {
 		for _, step := range []string{"off", "frosted", "regular", "liquid"} {
 			for _, opacity := range []uint8{settings.DefaultTerminalOpacity, 70, settings.MaxWindowOpacity} {
-				spec := SpecForOS(goos, step, opacity)
+				spec := TerminalSpecForPreferencesOS(goos, step, opacity, false)
 				frame, canvas := spec.TerminalFrameAlpha(), spec.CanvasAlpha()
+				if opacity == 100 {
+					if frame != 1 || canvas != 1 {
+						t.Fatal("solid terminal leaves a translucent frame or canvas")
+					}
+					continue
+				}
 				if frame <= 0 || frame >= spec.TintAlpha {
 					t.Errorf("%s/%s at %d%%: frame = %v, want a share of the frame's %v", goos, step, opacity, frame, spec.TintAlpha)
 				}
@@ -444,16 +450,12 @@ func TestTheTerminalSplitsItsAlphaBetweenFrameAndCanvas(t *testing.T) {
 		t.Errorf("canvas %v is not the larger share of frame %v", spec.CanvasAlpha(), spec.TerminalFrameAlpha())
 	}
 	// The shipped default no longer doubles: 46% shows as 46%, not 71%.
-	if got := spec.Composite(); diff(got, 0.46) {
-		t.Errorf("the terminal's visible alpha = %v, want the slider's 0.46", got)
+	if got := spec.Composite(); diff(got, 0.86) {
+		t.Errorf("the terminal's visible alpha = %v, want the actual opacity 0.86", got)
 	}
-	// A material denser than the slider's ask leaves no fill at all — the
-	// window's material is already the whole of the panel, and a negative alpha
-	// is not a colour — so both layers are 0 rather than one of them negative.
 	thin := SpecForOS("darwin", "frosted", settings.MinWindowOpacity)
-	if thin.TerminalFrameAlpha() != 0 || thin.CanvasAlpha() != 0 {
-		t.Errorf("the terminal at the slider's bottom under a 0.34 material = %v/%v, want 0/0",
-			thin.TerminalFrameAlpha(), thin.CanvasAlpha())
+	if thin.TerminalFrameAlpha() <= 0 || thin.CanvasAlpha() <= 0 {
+		t.Fatal("readability backing missing under native frosted material")
 	}
 	// An opaque spec (no transparency at all) paints both layers solid.
 	opaque := Spec{Translucent: false}

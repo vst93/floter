@@ -27,6 +27,7 @@ func noticeExitDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 func noticeExitPage(t *testing.T, a *App, dark bool) *ui.Tester {
 	t.Helper()
 	a.Page, a.entered = PageIntegrations, true
+	prepareSettingsDetailFixture(a)
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(a.tokens(c).Theme)
 		c.Root().Background(c.Theme().Background)

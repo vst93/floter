@@ -112,7 +112,7 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	// 那一像素发丝画在 `y=599`（窗口最底一行，还压进 12u 圆角的过渡里），而画布
 	// 与抽屉之间 `y=338→339` 只有一条 255→239 的硬阶、没有缝。发丝换到 `top`。
 	strip := ui.Scroll(c).FillWidth().TrackScroll(&a.DrawerScroll).
-		Background(tokens.Control).
+		Background(drawerFill(tokens)).
 		BorderWidth(1, 0, 0, 0).BorderColor(tokens.LensRim).
 		Label(scopy.GroupTerminal)
 	strip.Children(func() {
@@ -153,11 +153,17 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	// 被乘成 0.06（§6.17 / §6.18 同一条反直觉）。面板自己的面又是调色板底色乘
 	// `CanvasAlpha`，所以整条链一起压成不透明才是这块面看上去的颜色。
 	stored := a.settings()
-	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, stored.GlassStep, stored.TerminalOpacity, c.Preferences().HighContrast)
+	spec := glassmap.TerminalSpecForPreferencesOS(runtime.GOOS, stored.GlassStep, stored.TerminalOpacity, c.Preferences().HighContrast)
 	session := a.Current()
 	panel := panelFill(stored.TerminalTheme, session != nil && session.Term != nil, spec, tokens)
 	ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(1.5)).PassThrough().
-		Material(glass.ScrollEdge{Bottom: true, Background: tokens.Control.Over(panel)})
+		Material(glass.ScrollEdge{Bottom: true, Background: drawerFill(tokens).Over(panel)})
+}
+
+// The drawer belongs to the app's appearance even over an opposite terminal
+// palette. Use its neutral background, backed at the floating layer's alpha.
+func drawerFill(tokens theme.Tokens) ui.Color {
+	return tokens.Theme.Background.Alpha(float32(tokens.Float.A) / 255)
 }
 
 // Wider cells leave room for labels, comfortable controls and numeric readouts.
@@ -255,7 +261,7 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 				on := s.CursorBlink
 				switched := false
 				clicked := a.drawerRow(c, cellFloor, scopy.CursorBlink, func() {
-					if ui.Switch(c, &on).Label(scopy.CursorBlink).Changed() {
+					if control.Switch(c, &on).Label(scopy.CursorBlink).Changed() {
 						switched = true
 					}
 				})
@@ -281,7 +287,7 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 				on := s.TerminalSelectCopy
 				switched := false
 				clicked := a.drawerRow(c, cellFloor, scopy.SelectCopy, func() {
-					if ui.Switch(c, &on).Label(scopy.SelectCopy).Changed() {
+					if control.Switch(c, &on).Label(scopy.SelectCopy).Changed() {
 						switched = true
 					}
 				})
@@ -296,7 +302,7 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 				on := s.TerminalPasteSafe
 				switched := false
 				clicked := a.drawerRow(c, cellFloor, scopy.PasteSafe, func() {
-					if ui.Switch(c, &on).Label(scopy.PasteSafe).Changed() {
+					if control.Switch(c, &on).Label(scopy.PasteSafe).Changed() {
 						switched = true
 					}
 				})

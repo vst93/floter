@@ -433,6 +433,16 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 // the glass spec, whose fill is the transparency slider less the veil the
 // window's material already contributes (glassmap.SpecForPreferencesOS).
 func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goos string) Tokens {
+	return forPlatform(s, systemDark, prefs, goos, false)
+}
+
+// ForTerminalPreferences uses the independent canvas opacity, including its
+// lower minimum. Chrome with controls supplies its own stronger backing.
+func ForTerminalPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) Tokens {
+	return forPlatform(s, systemDark, prefs, runtime.GOOS, true)
+}
+
+func forPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goos string, terminal bool) Tokens {
 	s = settings.Normalize(s)
 	appearance := Resolve(s.Theme, systemDark)
 
@@ -460,9 +470,14 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 	// decides the look and every widget the views do not style by hand —
 	// buttons, inputs, switches, focus rings, the scrollbar — inherits it.
 	p := paletteFor(appearance)
+	spec := glassmap.SpecForPreferencesOS(goos, s.GlassStep, s.MainOpacity, prefs.HighContrast)
+	if terminal {
+		spec = glassmap.TerminalSpecForPreferencesOS(goos, s.GlassStep, s.TerminalOpacity, prefs.HighContrast)
+	}
 	if prefs.HighContrast {
 		p = p.contrast(appearance)
 	}
+	p = p.readable(appearance, spec, prefs.HighContrast)
 	t.Background = p.background
 	t.Text = p.text
 	t.TextMuted = p.textMuted
@@ -504,7 +519,6 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 	// 0.62-0.80 band (which the slider barely moved), and an earlier rewrite
 	// then painted the pane at the frame's own alpha, stacking two full tints
 	// into a near-opaque bottom. See glassmap.Spec.ContentAlpha.
-	spec := glassmap.SpecForPreferencesOS(goos, s.GlassStep, s.MainOpacity, prefs.HighContrast)
 	sunken := spec.ContentAlpha()
 	floatAlpha := spec.FloatAlpha()
 	// The panel's sheen is the glass's lit face. The off stop has no glass, so

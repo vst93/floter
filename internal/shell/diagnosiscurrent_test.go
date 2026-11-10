@@ -155,6 +155,7 @@ func (f *diagnosisFixture) frame(t *testing.T, scenario string, dark bool) *ui.T
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	tt.Frame()
+	openSettingsToolForTest(t, f.a, tt)
 	if tag := os.Getenv("FLOTER_P13JN_DUMP"); tag != "" {
 		path := "/tmp/floter-P13-jn-" + scenario + "-" + map[bool]string{false: "light", true: "dark"}[dark] + "-" + tag + ".png"
 		file, err := os.Create(path)

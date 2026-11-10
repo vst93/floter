@@ -35,20 +35,33 @@ type Memo struct {
 
 // memoKey is what the tokens depend on.
 type memoKey struct {
-	version uint64
-	dark    bool
-	prefs   ui.Preferences
+	version  uint64
+	dark     bool
+	prefs    ui.Preferences
+	terminal bool
 }
 
 // Tokens returns the tokens of this frame: those of the last build when
 // nothing the look depends on changed, and `ForPreferences(load(), dark,
 // prefs)` otherwise. load is called only when it builds.
 func (m *Memo) Tokens(version uint64, dark bool, prefs ui.Preferences, load func() settings.Settings) Tokens {
-	key := memoKey{version: version, dark: dark, prefs: prefs}
+	return m.tokens(version, dark, prefs, load, false)
+}
+
+func (m *Memo) TerminalTokens(version uint64, dark bool, prefs ui.Preferences, load func() settings.Settings) Tokens {
+	return m.tokens(version, dark, prefs, load, true)
+}
+
+func (m *Memo) tokens(version uint64, dark bool, prefs ui.Preferences, load func() settings.Settings, terminal bool) Tokens {
+	key := memoKey{version: version, dark: dark, prefs: prefs, terminal: terminal}
 	if m.valid && m.key == key {
 		return m.tok
 	}
-	m.tok = ForPreferences(load(), dark, prefs)
+	if terminal {
+		m.tok = ForTerminalPreferences(load(), dark, prefs)
+	} else {
+		m.tok = ForPreferences(load(), dark, prefs)
+	}
 	m.key, m.valid = key, true
 	m.built++
 	return m.tok

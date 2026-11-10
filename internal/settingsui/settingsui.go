@@ -667,6 +667,10 @@ type UpdateState struct {
 
 // App is the settings surface's state.
 type App struct {
+	sidebarMotion  bool
+	sidebarMarker  ui.Handle
+	integrationNav integrationNavigation
+
 	Store   *settings.Store
 	Actions Actions
 	About   About
@@ -695,7 +699,8 @@ type App struct {
 	// cardRows counts the rows the card being built has drawn, so each row
 	// after the first draws the rule above itself. It is the build's own
 	// cursor, reset by card and never read outside it.
-	cardRows int
+	cardRows    int
+	cardCompact bool
 
 	// cardRowInset, cardTitleFloor and cardLineGap are the row geometry the
 	// card being built wears when it is not the settings default: zero means
@@ -1017,10 +1022,12 @@ type App struct {
 	// Sidebar holds the page list's identity, its choice and its focus.
 	Sidebar ui.ListState
 	// Body keeps the form's scroll offset across frames.
-	Body ui.ScrollState
+	Body          ui.ScrollState
+	bodyScrollbar scrollbarActivity
 	// PluginScroll keeps the plugin configuration sheet's offset, so a long
 	// schema scrolls where the user left it.
-	PluginScroll ui.ScrollState
+	PluginScroll    ui.ScrollState
+	pluginScrollbar scrollbarActivity
 	// sheetPlugin is the plugin id the current `PluginScroll` belongs to.
 	// P13-gu：一个 App 依次画每个插件的浮层，而 `ui.Scroll` 的 key 是常量；
 	// 插件一变就把偏移归零，免得 A 的滚动位置接到 B 身上（§6.163）。
@@ -1269,6 +1276,9 @@ func (a *App) View(c *ui.Context) {
 			a.cancelConfirmations()
 		case a.anySessionArmed():
 			a.disarmSessionClose()
+		case a.Page == PageIntegrations && a.integrationNav.detail != nil:
+			a.flushSettingsWrites()
+			a.closeIntegrationDetail()
 		case a.Actions.Close != nil:
 			a.Actions.Close()
 		}
@@ -1294,13 +1304,8 @@ func (a *App) View(c *ui.Context) {
 		}
 	}
 
-	// The panel is the reference's own: a 56u header band carrying the app's
-	// name and its version, the hairline under it, and below them the two
-	// columns — a 148px sidebar and the content. The header band is the same
-	// one the launcher's field row and every page's header use (R37): it names
-	// `launcher.FieldRowUnits`, so the two surfaces' first band is one height
-	// and switching does not move the window's top edge. The 10u gap and the
-	// 16u side padding are the reference's `.settings-card__header`.
+	// Settings and search share one top band, so switching surfaces keeps
+	// their title, field and window actions aligned.
 	ui.Column(c).Fill().Children(func() {
 		ui.Row(c).FillWidth().Height(t.Space(launcher.FieldRowUnits)).Padding(0, t.Space(4)).
 			Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
@@ -1375,8 +1380,11 @@ func (a *App) View(c *ui.Context) {
 			}
 			ui.Column(c).Width(sidebarWidth).Padding(t.Space(4), t.Space(2.5)).Gap(t.Space(1.5)).
 				Children(func() {
+					// A click may change Page while rows are being built. Keep one
+					// selection marker in this frame in either navigation direction.
+					page := a.Page
 					list := ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
-						a.sidebarRow(c, i)
+						a.sidebarRow(c, i, i == page)
 					}).Grow(1).Label(copy.Title)
 					// The entry-focus mark withholds the list's own ring: the chosen
 					// pill already shows where the keyboard is, and the reference's
@@ -1481,42 +1489,25 @@ func mustGlyph(name string) *ui.SVG {
 }
 
 // sidebarRow uses a regular body label and a neutral selected background.
-func (a *App) sidebarRow(c *ui.Context, i int) {
+func (a *App) sidebarRow(c *ui.Context, i int, selected bool) {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	selected := i == a.Page
 	row := ui.Row(c).FillWidth().MinHeight(max(40, t.Space(10))).
 		Padding(0, t.Space(3)).Gap(t.Space(2.5)).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).
 		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
-	if row.Pressed() {
-		// P13-cn（`docs/liquid-glass.md` §6.57）：侧栏的导航行此前**只有两档**——
-		// 悬停 `RowHover`、选中 `RowSelected`，而按住不放的那一帧与悬停帧**逐像素
-		// 相同**：手指按下去，这一页一声不响（同 P13-q / P13-al / P13-bv / P13-bw /
-		// P13-bx 那一族）。第三档取**行阶梯**的第三格 `RowPressed`（浅 0.08 黑 /
-		// 深 0.11 白，`theme.go:745/871`），不是控制阶梯的按下档：侧栏行
-		// 与启动器的结果行是同一个东西（`RowHover` / `RowSelected` / `RowPressed`
-		// 三个 token 本来就是为「行」这一族定的），按下时两块行是同一句话——
-		// 「沉进玻璃」。
-		//
-		// **不戴 `LitFace`**：启动器的结果行按下那一档也不戴
-		// （`launcher.go` 的 `case rowPressed:` 只换面），两张列表一个说法——
-		// 受光边是「这块面可以站起来」的记号，而按住是**沉下去**。
-		row.Background(tokens.RowPressed)
-	} else if selected {
-		// P8-b 重定基线：旧 `--glass-raised-quiet` + `--elev-0` 透镜 → 合约
-		// §4.3/§6.1 的**中性**选中档 `RowSelected`（0.085/0.06 的白/黑），无镜片。
-		//
-		// Raycast 的侧栏选中和它的结果列表是同一档：一块不透明的抬起面会
-		// 读成第二个材质，而选中档只是「比悬停再深一格」的中性填充，镜片
-		// 属于旧 glass 语言（§1 的低光泽上限）。accent 仍只留在前导图标上
-		// （§5 第 1 条）。
-		row.Background(tokens.RowSelected)
-	} else if row.Hovered() {
-		// The pointer lights the ladder's hover rung, the same neutral family
-		// one step under the chosen page.
-		row.Background(tokens.RowHover)
+	if selected {
+		// Clear the hover wash immediately: the moving marker is the only
+		// selected background, including the frame after a click.
+		row.Transition(ui.ElementTransition{Colors: true, Duration: -1})
+	} else {
+		if row.Pressed() {
+			row.Background(tokens.RowPressed)
+		} else if row.Hovered() {
+			row.Background(tokens.RowHover)
+		}
 	}
+
 	// The reference puts the row's ink on one of three rungs
 	// (`settings.css:137,152-156,166-170`): `--text-muted` at rest,
 	// `--text-primary` under the pointer, and `--text-primary` on the chosen
@@ -1530,6 +1521,19 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		color = t.Text
 	}
 	row.Children(func() {
+		if selected {
+			fill := tokens.RowSelected
+			if row.Pressed() {
+				fill = tokens.RowPressed
+			}
+			duration := 180 * time.Millisecond
+			if !a.sidebarMotion {
+				duration = -1
+			}
+			ui.Box(c.Key("settings.sidebar.selection")).Absolute().Top(0).Bottom(0).Left(0).Right(0).
+				Radius(tokens.RadiusSM).Background(fill).PassThrough().ZIndex(-1).Bind(&a.sidebarMarker).
+				Transition(ui.ElementTransition{Position: true, Duration: duration, Ease: sidebarEase, Match: sidebarSelection{a}})
+		}
 		if glyph, ok := pageGlyph(i); ok {
 			// Keep navigation glyphs at a consistent optical size.
 			icon := ui.Icon(c, glyph).Size(sidebarGlyphSize, sidebarGlyphSize).TextColor(color)
@@ -1544,8 +1548,13 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		// A click is the first interaction, so the entry-focus mark goes.
 		a.sidebarEntryFocus, a.entryFocusArmed = false, false
 		a.selectPage(i)
+		a.sidebarMotion = true
 	}
 }
+
+type sidebarSelection struct{ app *App }
+
+var sidebarEase = ui.CubicBezier(0.23, 1, 0.32, 1)
 
 // sidebarGlyphSize keeps the navigation marks legible at every scale.
 const sidebarGlyphSize float32 = 18
@@ -1576,6 +1585,7 @@ func pageGlyph(page int) (*ui.SVG, bool) {
 // selectPage switches pages and remembers the choice, so the next visit to
 // the settings surface reopens where the user left off.
 func (a *App) selectPage(page int) {
+	a.sidebarMotion = false
 	if page != PageShortcuts {
 		a.StopShortcutRecording()
 	}
@@ -1633,55 +1643,39 @@ func nextPage(page, delta int) int {
 	return ((page+delta)%n + n) % n
 }
 
-// body builds the chosen page: the page's own title and hint, then its
-// sections, scrolling together under a soft scroll edge — the reference's
-// `.settings-page__header` is part of the scrolling content, not a second
-// pinned band (the card header above it is the only one).
+// body uses one scrolling reading surface. Small windows keep their height
+// for controls; the sidebar already names the page, so integrations needs no
+// second title or explanatory banner above its navigation.
 func (a *App) body(c *ui.Context, copy i18n.Settings) {
-	p := a.page(a.Page)
 	t := c.Theme()
-
-	// Content breathes inside the scroll viewport without an opaque edge wash.
-	pageInset := t.Space(6)
-	ui.Column(c).Fill().Children(func() {
-		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
-			Padding(pageInset, 0, pageInset, 0).Children(func() {
-			// The horizontal inset lives on the content column, not on the
-			// scroller, so the scrollbar still hugs the panel's edge
-			// (`.settings-content > *`).
-			ui.Column(c).FillWidth().Padding(0, t.Space(6)).Gap(t.Space(6)).Children(func() {
-				// The write-failure banner sits above the page's own header, so a
-				// refused change is the first thing the user reads.
+	var integrations []Integration
+	if a.Page == PageIntegrations {
+		integrations = a.installedIntegrations()
+		a.syncIntegrationNavigation(integrations)
+	}
+	scrollTheme := *t
+	scrollTheme.ScrollbarWidth = max(3, t.Space(1))
+	ui.Themed(c, &scrollTheme).Background(ui.Transparent).Fill().MinWidth(0).Children(func() {
+		scroll := ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().MinHeight(0).
+			KeepScrollbars(true).ScrollbarInsets(t.Space(2), t.Space(1.5), t.Space(2), 0).
+			Padding(t.Space(4), t.Space(5), t.Space(5))
+		scrollTheme = a.bodyScrollbar.theme(c, scroll, &a.Body)
+		scroll.Children(func() {
+			ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
 				a.saveAlert(c, copy)
-				// A restrained page heading above the smaller supporting copy.
-				ui.Column(c).FillWidth().Gap(t.Space(1.5)).Children(func() {
-					ui.Text(c, p.Title).FontSize(a.tokens(c).Search).FontWeight(600).TextColor(t.Text)
-					if p.Hint != "" {
-						ui.Text(c, p.Hint).FontSize(a.tokens(c).Caption).FontWeight(400).TextColor(t.TextMuted)
-					}
-				})
-				// P13-by · 正文跟标题说同一页。
-				//
-				// 这一页的**标题**早就收敛到「不认识的页号 = 第一页」：`page`（标题与
-				// 提示）的 `default` 臂返回 `PageGeneral`，`PageName`（存进
-				// `last_settings_page` 的那个 id）也把越界值夹回 `pageNames[PageGeneral]`。
-				// 只有正文这一处例外——它的 `default` 臂画的是
-				// `copy.PagePlaceholder`（「此页面将在后续迭代中到来。」）。于是同一个
-				// 越界页号会让页头写着「常规 / 外观、启动方式与窗口行为。」，正文却
-				// 说这一页还不存在：一条永远走不到、而且与它上面那行字互相矛盾的分支。
-				//
-				// 现在三处读同一个夹取（`bodyPage`），那句「还没做完」的话也从
-				// `i18n.Copy` 里退场——它是这个应用里唯一一句对用户承认未完成的话。
-				// The optional save banner changes sibling positions. Give the
-				// page a stable identity so its editors keep focus and local state.
-				pageContext := c.Key("settings.page-content")
+				if a.Page == PageIntegrations {
+					a.integrationToolbar(c.Key("integrations.navigation"), copy)
+				} else {
+					ui.Text(c, a.page(a.Page).Title).FontSize(a.tokens(c).Emphasis).FontWeight(600).TextColor(t.Text)
+				}
+				pageContext := c.Key("settings.page-content").Key(a.settingsScrollKey())
 				switch bodyPage(a.Page) {
 				case PageGeneral:
 					a.general(pageContext, copy)
 				case PageSessions:
 					a.sessions(pageContext, copy)
 				case PageIntegrations:
-					a.integrations(pageContext, copy)
+					a.integrationContent(pageContext, copy, integrations)
 				case PageShortcuts:
 					a.shortcuts(pageContext, copy)
 				case PageAbout:
@@ -1900,68 +1894,6 @@ func sessionMeta(session Session) []rowSegment {
 // integrations lists the installed extensions, each with its state and a
 // switch. An orphan package directory is listed too, with the two operations
 // it can take.
-func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
-	t := c.Theme()
-	a.integrationLead = ""
-	integrations := a.installedIntegrations()
-	a.restoreMissingNoticeFocus(c, integrations)
-	a.pageColumn(c, func() {
-		ui.Text(c, copy.IntegrationsHint).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
-		// The panel's own content is `extensions.css`, written in literal px, so
-		// it does not follow the interface step the way the settings pages' `--u`
-		// metrics do (the page column's own gap above still scales). Everything
-		// drawn inside wears the extension unit.
-		a.extensionMetrics(func() {
-			a.basePluginSection(c, copy)
-			a.localToolSection(c, copy)
-			a.detectedSection(c, copy)
-			a.recommendedRow(c, copy)
-			a.transferRow(c, copy)
-			a.installRow(c, copy)
-			a.installFolderRow(c, copy)
-			// The PATH commands' own switch sits with the integrations, as the old
-			// panel had it: it decides whether the search offers them at all.
-			// Preceding sections may appear or retire without replacing this setting.
-			a.card(c.Key("commands-search"), func() {
-				var search ui.Element
-				a.formFeedbackOutlet(c.Key("commands-search-outlet"), a.integrationLead, func() {
-					search = a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
-						settings.ShowCommandsInSearch(a.settings()),
-						func(on bool) {
-							a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
-						})
-				}, func() bool { return search.FocusVisible() })
-			})
-			if len(integrations) == 0 {
-				// The reference's shared empty region (`ExtensionsPanel.tsx:2462,
-				// 3177-3191`): the installed list's own `Package` mark at 20px, the
-				// state in one line, on the 92u list floor. The reference's
-				// `EmptyState` also carries a first-load spinner and a filtered-query
-				// echo on the hint line; this build's list is in-process and has no
-				// filter, so neither has a source and only the resting arm is drawn.
-				a.emptyState(c, "package", copy.IntegrationsEmpty, "", a.cardSpace(t, 5), 0, false, nil)
-				return
-			}
-			// The report above can appear or disappear without replacing the
-			// installed list or its focused command editors.
-			a.extensionSection(c.Key("installed-integrations"), copy.IntegrationsInstalled, len(integrations), func() {
-				occurrences := make(map[string]int)
-				for _, integration := range integrations {
-					// Refreshes can reorder or insert rows while an answer holds
-					// the keyboard. Its identity follows the target, not the slot.
-					// Retain repeated/empty-ID rows without duplicate node keys.
-					key := struct {
-						ID         string
-						Occurrence int
-					}{integration.ID, occurrences[integration.ID]}
-					occurrences[integration.ID]++
-					a.integrationRow(c.Key(key), copy, integration)
-				}
-			})
-		})
-	})
-}
-
 // basePlugin is one built-in plugin as the Integrations page lists it: its id
 // (the same vocabulary the launcher's gear and the plugin configuration use),
 // what it is called and does, the extra privacy line the clipboard carries,
@@ -2322,71 +2254,12 @@ func (a *App) RegistryInstallRecovery(name, version string) func() {
 	}
 }
 
-// stateMark is an integration's own state, in the reference's language
-// (`.extension-status`): a running integration is accent *text*, a broken one
-// is a warm chip, and anything else is a quiet secondary mark. It is a state,
-// not an action — the row's switch is the action — so no state spends an accent
-// fill. (The running accent *text* is the reference's own reading of a live
-// process and predates §5; it is a label colour, not one of the three accent
-// surfaces, and is recorded in the P8-c list rather than changed here.)
-//
-// The broken chip is the reference's `.extension-status--broken`
-// (`extensions.css:1020-1025`): the warm system plane (`tokens.RaisedWarm`, the
-// amber surface — *not* the warning ink at a low alpha, which tinted the chip
-// with the label's own hue) under a 1px hairline, at the `--ext-radius` corner.
-//
-// P8-b 重定基线：环 `t.Warning` → 合约 §6.1 第 8 条的 `ControlEdge`，字重
-// 620 → 600。预热面（系统语义色）保留：它说的是「这条不工作」，而环是结构，
-// 不是语义——合约下环只有两档（`HairlineSoft` 的结构线与 `ControlEdge` 的
-// 控件边），warning 环那种「彩色描边」属于旧 glass 语言的彩色 rim。
-// P13-cy（`docs/liquid-glass.md` §6.68）：状态字与它收尾的那三个事实**同一个字阶**
-// （`tokens.Caption`）。参考的 `.extension-row__meta` 声明了 `font-size:
-// var(--text-caption)`（`extensions.css:960-970`），而 `.extension-status` 没有声明
-// 字号（`:1007-1015` 只有 padding / line-height / radius）——它**继承** meta 行的
-// caption。本仓把它写成 `t.FontSize-1`（12）而事实是 `tokens.Caption`（11），于是
-// 同一行上最后那个词比前面三个词大一级，行盒也高一级：实测事实 `h=15`、状态字
-// `h=20`，整条 meta 行的高度被收尾那个词决定了，标题行跟着长高 5px。
+// Detail metadata uses the same semantic status as the overview.
 func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settings, lead bool) {
-	t := a.cardTheme(c)
-	tokens := a.tokens(c)
-	text := integration.state(copy)
-	// The reference's `·` rules for the state word (`extensions.css:986-995`, two
-	// `:not()` selectors): a *boxed* state — `--recommended`, `--broken` — keeps
-	// no dot, because a dot inside its keyline would sit in the chip's padding
-	// rather than beside it; every transparent state gets one. The 2px
-	// `margin-left` on `.extension-status` is the half-unit that keeps the word
-	// from hugging the 8px gap it shares with the facts.
-	// P13-cs（§6.62）：dot 的墨是 `TextTertiary` 本身（阶梯第四档）。参考的 `.7` 叠在一条
-	// 不透明的墨上，本仓把它接在半透明的 token 上，于是一次乘法变成两次（实测只
-	// 到档位的 0.55–0.63，且越低的地面上越淡）。
-	leadDot := func() []ui.Span {
-		if !lead {
-			return nil
-		}
-		return []ui.Span{{Text: "· ", Color: tokens.TextTertiary}}
+	if lead {
+		ui.Text(c, "·").FontSize(a.tokens(c).Caption).TextColor(a.tokens(c).TextTertiary)
 	}
-	switch {
-	case integration.Broken:
-		chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusSM).
-			Background(tokens.RaisedWarm).Margin(0, 0, 0, t.Space(0.5))
-		chip.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
-		chip.Children(func() {
-			ui.Text(c, text).FontSize(tokens.Caption).FontWeight(600).TextColor(t.Warning)
-		})
-	case integration.Enabled:
-		// P8-d 重定基线（§5 判据）：「运行中」曾用 `t.Accent`。它说的是「这条
-		// 是活的」——一个持续状态，不是「哪个被选中 / 哪个是开的」。改
-		// `TextStrong`；`default` 分支的 `TextSecondary` 就是另一档，两档之间
-		// 靠明度分层（§5 新补的那句：中性档之间的差异不属本预算，靠明度分层
-		// 是鼓励的做法），所以「运行中 vs 关」仍然分得开，只是不再用色相。
-		// The state word keeps its own ink, so it leads with the dot rather than
-		// carrying the dot in the facts' colour.
-		ui.RichText(c, append(leadDot(), ui.Span{Text: text, Color: tokens.TextStrong})...).
-			FontSize(tokens.Caption).Margin(0, 0, 0, t.Space(0.5))
-	default:
-		ui.RichText(c, append(leadDot(), ui.Span{Text: text, Color: tokens.TextSecondary})...).
-			FontSize(tokens.Caption).Margin(0, 0, 0, t.Space(0.5))
-	}
+	a.integrationStatus(c, copy, integration)
 }
 
 // runtimeUnavailableBadge is the reference's `.extension-status--broken`
@@ -2886,7 +2759,16 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// all in the label column, with the runtime-unavailable chip as the
 		// row's only control. The old port printed the version on a separate
 		// identity row and the freshness dot in the control slot.
-		a.cardRow(c, ui.Center, func() { a.packageChip(c, false, integration.Highlighted) }, a.integrationRowFace(c, integration), func() {
+		a.cardRow(c, ui.Center, func() {
+			if a.integrationNav.detail != nil {
+				if a.extensionIconButton(c.Key("back"), "arrow-left", copy.IntegrationsBack, false).Clicked() {
+					a.flushSettingsWrites()
+					a.closeIntegrationDetail()
+				}
+			} else {
+				a.packageChip(c, false, integration.Highlighted)
+			}
+		}, a.integrationRowFace(c, integration), func() {
 			if !integration.RuntimeAvailable {
 				a.runtimeUnavailableBadge(c, copy, integration)
 			}
@@ -4554,7 +4436,7 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(20.5)).MinHeight(max(36, t.Space(9))).
+	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(18)).MinHeight(max(28, t.Space(8))).
 		Padding(0, t.Space(2.5)).Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 		Background(tokens.Control).Border(1, tokens.ControlEdge).FocusRing(true).
 		// P13-gv（`docs/liquid-glass.md` §6.169）：录制钮的三个 rung 只换面，而它
@@ -4678,7 +4560,7 @@ func (a *App) updateButton(c *ui.Context, label string, disabled bool, run func(
 	tokens := a.tokens(c)
 	t := c.Theme()
 	button := ui.ButtonBase(c).Label(label).
-		MinHeight(max(36, t.Space(9))).Padding(t.Space(1.5), t.Space(3.5)).Radius(tokens.RadiusSM)
+		MinHeight(max(28, t.Space(8))).Padding(t.Space(1), t.Space(3)).Radius(tokens.RadiusSM)
 	// P13-bc：面、边、冠线与按下几何走 accent 主 CTA 的同一处定义
 	// (`accentPrimaryFace`)。这里此前是 `if Hovered() { .Opacity(0.9) }`——淡的是
 	// **整棵子树**（面 + 冠线 + 墨），于是「可以被碰」的那条线在指针落上去的那一刻
@@ -5140,27 +5022,24 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 				if !glassmap.TransparencyAvailable(runtime.GOOS, c.Vibrancy()) {
 					disabled = copy.TransparencyUnavailable
 				}
+				lo, hi := glassmap.OpacityRange(c.Preferences().HighContrast, false)
+				terminalLo, _ := glassmap.OpacityRange(c.Preferences().HighContrast, true)
 				a.slider(c, sliderRow{
 					label: copy.MainOpacity, low: copy.TransparencyScaleLow, high: copy.TransparencyScaleHigh,
-					value: float64(s.MainOpacity), lo: settings.MinWindowOpacity, hi: settings.MaxWindowOpacity,
+					value: max(lo, min(hi, float64(s.MainOpacity))), lo: lo, hi: hi, opacity: true,
 					format:   func(v float64) string { return copy.Percent(clampPercent(v)) },
 					apply:    func(v float64) { a.previewSetting(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) },
 					disabled: disabled,
 				})
 				a.slider(c, sliderRow{
 					label: copy.TerminalOpacity, low: copy.TransparencyScaleLow, high: copy.TransparencyScaleHigh,
-					value: float64(s.TerminalOpacity), lo: settings.MinWindowOpacity, hi: settings.MaxWindowOpacity,
+					value: max(terminalLo, min(hi, float64(s.TerminalOpacity))), lo: terminalLo, hi: hi, opacity: true, terminal: true,
 					format: func(v float64) string { return copy.Percent(clampPercent(v)) },
 					apply: func(v float64) {
 						a.previewSetting(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
 					},
 					disabled: disabled,
 				})
-				// The one readout the group carries: what the window *shows*,
-				// once the glass material's own weight is counted. The slider is
-				// the ask; this is the answer, and it differs where the material
-				// has a floor of its own (glassmap.Spec.Composite).
-				a.effectiveOpacity(c, copy, s)
 			})
 		})
 	})
@@ -5369,6 +5248,8 @@ type sliderRow struct {
 	// disabled and the sentence is printed under it. It is what a window the
 	// system gives no material to shows instead of a knob that moves nothing.
 	disabled string
+	opacity  bool
+	terminal bool
 }
 
 // slider builds one stacked row: the label and its live readout on the title
@@ -5423,14 +5304,51 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 			// words are the track's own scale, so they sit in the row's tightest
 			// seam, not one step away from it.
 			ui.Column(c).FillWidth().Gap(a.rowLineGap()).Children(func() {
-				track := ui.Slider(c, &v, row.lo, row.hi).FillWidth()
+				track := ui.Slider(c, &v, row.lo, row.hi).FillWidth().Label(row.label)
+				if row.opacity {
+					track.Step(1)
+				}
 				if row.disabled != "" {
 					track.Disabled(true)
 				}
 				if track.Changed() {
+					if row.opacity && track.Pressed() {
+						v = glassmap.SnapOpacity(v, c.Preferences().HighContrast, row.terminal)
+					}
 					chosen = true
 				}
-				if row.low != "" || row.high != "" {
+				if row.opacity {
+					ui.Row(c).FillWidth().Justify(ui.SpaceBetween).Children(func() {
+						for i, stop := range glassmap.OpacityStops(c.Preferences().HighContrast, row.terminal) {
+							label := row.format(stop)
+							if i == 0 {
+								label += " · " + row.low
+							}
+							if i == 2 {
+								label += " · " + row.high
+							}
+							ink := tokens.TextSecondary
+							if v == stop {
+								ink = t.Accent
+							}
+							preset := ui.ButtonBase(c).Label(label).MinHeight(28).Padding(2, 5).
+								Radius(tokens.RadiusSM).Disabled(row.disabled != "")
+							if preset.Pressed() {
+								preset.Background(tokens.ControlPress)
+								tokens.LitFace(preset)
+							} else if preset.Hovered() || v == stop {
+								preset.Background(tokens.Control)
+								tokens.LitFace(preset)
+							}
+							preset.Children(func() { ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink) })
+							if preset.Clicked() {
+								v, chosen = stop, true
+								c.DisableAnimations()
+								c.Invalidate()
+							}
+						}
+					})
+				} else if row.low != "" || row.high != "" {
 					// The axis' words are the ladder's caption step, not "body
 					// minus two": at the shipped `small` step that offset was 7.9pt,
 					// the smallest ink on any page, and the two words that say what
@@ -5455,37 +5373,11 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 	})
 	if chosen && row.disabled == "" {
 		row.apply(v)
+		if row.opacity {
+			c.DisableAnimations()
+			c.Invalidate()
+		}
 	}
-}
-
-// effectiveOpacity is the transparency group's one readout line: what the
-// window actually shows once the glass material's own weight is counted
-// (glassmap.Spec.Composite). It is the answer to the two sliders above it — the
-// slider is the ask — and it is the number that made the coupling visible: the
-// same 47% used to show three different ways across the three materials, and a
-// window with no material at all used to show nothing.
-func (a *App) effectiveOpacity(c *ui.Context, copy i18n.Settings, s settings.Settings) {
-	tokens := a.tokens(c)
-	t := c.Theme()
-	inset := a.rowInset(t)
-	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, s.GlassStep, s.MainOpacity, c.Preferences().HighContrast)
-	percent := uint8(math.Round(float64(spec.Composite()) * 100))
-	// P13-ew（§6.118）：这一行是**这一组的答案**，不是又一行——所以上边仍用 `Space(1)`
-	// 紧贴上面那两个滑块。但下边此前也是 `Space(1)`，而卡片里每一行都是 `Space(2.25)`：
-	// 这一行的盒底实测只离卡沿 2.0px，是整张卡唯一压在软边上的东西。下边补齐行边距。
-	// P13-ez（`docs/liquid-glass.md` §6.121）：这一行是这一组的**答案**，而它是全卡唯一
-	// 一个**比它回答的数字还小一档**的东西 —— 滑块自己的实时读数是正文档（盒高 17），
-	// 这句答案此前是 caption 档（盒高 15），与它上面那条**轴词**（「Transparent / Solid」，
-	// 卡里最不要紧的两个词）同级。同一张卡里两个同类数字（「这一组说的是什么数」）不该
-	// 穿两个档，尤其不该让答案比问题小。§6.120 的规矩：一页之内同一角色只有一个字号档，
-	// 层级由**墨**说，不由字号说。墨不动（名字 tertiary、数值 secondary 560），只把字号
-	// 抬回正文档 —— 于是卡只长 2px，卡内其它行一个像素不动。
-	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
-		Padding(t.Space(1), inset, t.Space(2.25), inset).Children(func() {
-		ui.Text(c, copy.EffectiveOpacity).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextTertiary)
-		ui.Text(c, copy.EffectiveOpacityValue(percent)).FontSize(tokens.Body).FontWeight(560).
-			TextColor(tokens.TextSecondary).ContentTransition(ui.ContentTransition{Numeric: true})
-	})
 }
 
 // checkbox builds one self-labeling check box in the form's content column:
@@ -8479,7 +8371,7 @@ func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
 		outputFocusOutlet(c.Key("run-output-toggle-outlet"), func() {
 			ink := tokens.TextTertiary
 			button := ui.ButtonBase(c.Key("run-output-toggle")).Label(copy.RunViewOutput).FillWidth().
-				MinHeight(max(36, t.Space(9))).Gap(t.Space(1)).Padding(0, t.Space(2)).
+				MinHeight(max(28, t.Space(8))).Gap(t.Space(1)).Padding(0, t.Space(2)).
 				AlignItems(ui.Center).Justify(ui.Start).
 				Border(0, ui.Transparent).Radius(tokens.RadiusXS).
 				Background(ui.Transparent).
@@ -8649,6 +8541,9 @@ func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) strin
 // beginEdit fills the local-tool form from what an integration declares and
 // remembers that the form is editing it rather than connecting something new.
 func (a *App) beginEdit(id string, tool CustomTool) {
+	a.integrationNav.tab, a.integrationNav.addMethod = 1, 1
+	a.integrationNav.detail = nil
+	a.Body.Y = 0
 	a.toolOpen = true
 	a.toolFormKey = new(int)
 	a.scriptEditor = nil

@@ -146,6 +146,8 @@ func checkRegistryFieldEdge(t *testing.T, version bool) {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			a, _ := runVisibilityApp(t, dark)
 			a.Actions.InstallFromRegistry = func(string, string) { t.Error("focus dispatched install") }
+			a.integrationNav.detail = nil
+			a.integrationNav.tab, a.integrationNav.addMethod = 1, 2
 			a.installName, a.installVersion = "weather-tool", "^1.0.0"
 			label, name := a.copy().IntegrationsPackageHint, "registry-name"
 			if version {
@@ -168,18 +170,18 @@ func checkRegistryFieldEdge(t *testing.T, version bool) {
 			bounds := func() ui.Rect {
 				r := mustFind(t, tt, label)
 				if version {
-					r.X += r.W + 3.6
-					r.W = 160
+					r = mustFind(t, tt, a.copy().IntegrationsVersionHint)
 				}
 				return r
 			}
 			target := bounds()
 			originalWidth, absoluteY := target.W, target.Y+a.Body.Y
-			wantWidth := float32(292)
+			versionBounds := mustFind(t, tt, a.copy().IntegrationsVersionHint)
+			wantWidth := versionBounds.X - target.X - 4
 			if version {
 				wantWidth = 160
 			}
-			if originalWidth != wantWidth {
+			if absFloat(originalWidth-wantWidth) > 0.5 {
 				t.Fatalf("registry width=%v want=%v", originalWidth, wantWidth)
 			}
 			tt.Key(0, ui.KeyTab)

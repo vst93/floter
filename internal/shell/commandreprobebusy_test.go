@@ -98,6 +98,7 @@ func commandReprobeStarted(t *testing.T, f *diagnosisFixture) {
 
 func commandReprobeClick(t *testing.T, f *diagnosisFixture, tt *ui.Tester) {
 	t.Helper()
+	openSettingsToolForTest(t, f.a, tt)
 	run, target := f.a.Settings.Actions.ReprobeCommands, ""
 	f.a.Settings.Actions.ReprobeCommands = func(id string) { target = id }
 	if err := tt.Click(i18n.For("zh").Settings.IntegrationsReprobe); err != nil {

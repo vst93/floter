@@ -189,7 +189,7 @@ func TestLauncherShowsTheCatalogWithTheFieldFocused(t *testing.T) {
 	recentPage(a, 3) // P11-bk: the empty page's own block is the recents
 	tt := render(t, a)
 
-	for _, want := range []string{"Recent 00", "Recent 01", "Recent 02", "Recently launched", "Search"} {
+	for _, want := range []string{"Recent 00", "Recent 01", "Recent 02", "Search"} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}

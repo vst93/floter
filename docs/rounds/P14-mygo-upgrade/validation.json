@@ -1,0 +1,16 @@
+{
+  "build-darwin": 0,
+  "build-linux": 0,
+  "build-windows": 0,
+  "deeplink-repeat-10": 1,
+  "deeplink-repeat": 1,
+  "gofmt": 0,
+  "instant-motion": 0,
+  "mygo-vet": 0,
+  "package": 0,
+  "race-shortcuts": 0,
+  "test": 1,
+  "vet-darwin": 0,
+  "vet-linux": 0,
+  "vet-windows": 0
+}

@@ -80,7 +80,9 @@ const modeExitMods = ui.Super | ui.Ctrl | ui.Alt
 // field with HandleInput, so it runs while the field has the keyboard and
 // before the editor turns a Backspace into an edit.
 func (a *App) fieldKeys(ev ui.InputEvent) bool {
-	if ev.Kind != ui.InputKeyDown {
+	// mygo 0.8 also delivers physical-only keys, including a modifier pressed
+	// before the second delete chord. Those must not cancel its confirmation.
+	if ev.Kind != ui.InputKeyDown || ev.Key == ui.KeyUnknown {
 		return false
 	}
 	// The user's own bindings come first: a chord the settings page sold the

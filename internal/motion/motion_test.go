@@ -57,3 +57,20 @@ func TestValueRestsUnderReduceMotion(t *testing.T) {
 		})
 	}
 }
+
+func TestValueDoesNotStartALoopWhenAnimationsAreDisabled(t *testing.T) {
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.DisableAnimations()
+		got := Value(c, func() float32 {
+			t.Error("disabled frame started the ambient loop")
+			return 0.5
+		})
+		if got != 0 {
+			t.Errorf("disabled frame value = %v, want rest", got)
+		}
+	}, 200, 100)
+	tt.Frame()
+	if tt.FramePending() {
+		t.Error("disabled loop requested another frame")
+	}
+}

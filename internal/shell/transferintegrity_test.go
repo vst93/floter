@@ -127,7 +127,9 @@ func checkBackupIntegrity(t *testing.T, kind string) {
 					t.Fatal(err)
 				}
 				broken = []byte("{broken manifest")
-				cause = "manifest"
+				// The error itself must name the parser failure; the tools list is
+				// no longer present to supply an unrelated manifest diagnostic.
+				cause = "invalid character"
 			case "empty-script":
 				cause = "empty"
 			case "script-text":
@@ -164,7 +166,7 @@ func checkBackupIntegrity(t *testing.T, kind string) {
 			integrityDump(t, tt, kind, dark)
 			text := strings.Join(tt.Texts(), "\n")
 			if !strings.Contains(text, cause) || (kind != "oversize" && !strings.Contains(text, filepath.Base(source))) {
-				t.Errorf("%s backup hides the damaged source and cause", kind)
+				t.Errorf("%s backup hides the damaged source and cause: %q", kind, tt.Texts())
 			}
 			got, err := os.ReadFile(destination)
 			if err != nil || !bytes.Equal(got, original) {

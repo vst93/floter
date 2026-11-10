@@ -36,6 +36,9 @@ func toolVisibilityDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 func toolVisibilityFrame(t *testing.T, a *App, dark bool, probes ...func(*ui.Context)) *ui.Tester {
 	t.Helper()
 	a.Page = PageIntegrations
+	if a.integrationNav.detail == nil && a.integrationNav.tab == 0 {
+		a.integrationNav.tab, a.integrationNav.addMethod = 1, 1
+	}
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(a.tokens(c).Theme)
 		a.View(c)

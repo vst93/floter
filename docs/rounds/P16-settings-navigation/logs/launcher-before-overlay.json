@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "/Users/v/Code/rust/floter/internal/launcher/search.go": "/tmp/floter-p16-baseline/search-overlay.go",
+    "/Users/v/Code/rust/floter/internal/launcher/launcher.go": "/tmp/floter-p16-baseline/launcher-overlay.go"
+  }
+}

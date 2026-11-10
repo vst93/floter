@@ -51,7 +51,7 @@ func TestTheAboutCardsFourthRowKeepsTheCardsOwnLabelRung(t *testing.T) {
 
 			// The name of a fact is the caption over its value, on every row of
 			// this card — including the one that happens to be pressable.
-			if nameInk > 150 {
+			if nameInk < 100 || nameInk >= 210 {
 				t.Errorf("%s: row %d's name %q resolves %d levels — on this card the name is the "+
 					"caption over its value, not a setting's title (§6.11). The link's emphasis "+
 					"belongs to the link's own ink, not to its label (§6.10)",

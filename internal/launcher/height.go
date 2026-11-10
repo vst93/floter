@@ -71,10 +71,10 @@ func RowCount(results int) int {
 // and the raw count the content needs. The window tracks the content exactly:
 // the reference used to keep a one-row margin (its `resolveLauncherRows`), but
 // R43/R66 retired it ("The window tracks the content exactly now; the
-// smoothness is the resize animation, not a held height") - a one-row margin
+// the height follows the list") - a one-row margin
 // left the window a row too tall every time a row left, which is exactly the
 // held modifier's row arriving and leaving. The walk to the new height is the
-// shell's own spring (see shell.walkLauncherHeight).
+// shell applies once at the end of the frame (see shell.walkLauncherHeight).
 func HoldRows(held, rows int) int {
 	return RowCount(rows)
 }
@@ -353,9 +353,10 @@ func (g Geometry) Height() int {
 		}
 		height = chrome + g.Config.Height(float64(spacing/4), cap)
 	}
-	height = math.Round(height + windowInset(spacing))
+	// The shell border consumes two DIPs; round up so fractional rows fit.
+	height = math.Ceil(height + windowInset(spacing) + 2)
 	if g.Cap > 0 && height > g.Cap {
-		height = math.Round(g.Cap)
+		height = math.Floor(g.Cap)
 	}
 	return int(height)
 }

@@ -93,6 +93,12 @@ func TestCommandDraftReturnsWithRedeclaredEditor(t *testing.T) {
 				if len(saved) != 0 {
 					t.Fatal("redeclaring wrote before the debounce deadline")
 				}
+				if scenario == "removed" {
+					if err := tt.Click(a.copy().IntegrationsManage + " " + in.Name); err != nil {
+						t.Fatal(err)
+					}
+					tt.Frame()
+				}
 				optionExitFocus(t, tt, label)
 				if got := refreshRead(tt); got != want {
 					t.Errorf("redeclared editor lost its pending alias: %q, want %q", got, want)

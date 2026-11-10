@@ -45,6 +45,9 @@ func transferFeedbackFrame(t *testing.T, a *App, name string, dark bool) *ui.Tes
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	tt.Frame()
+	if tt.HasText(a.SettingsCopy().IntegrationsTransfer) {
+		settingsSectionForTest(t, a, tt, a.SettingsCopy().IntegrationsTransfer)
+	}
 	if tag := os.Getenv("FLOTER_P13JD_DUMP"); tag != "" {
 		f, err := os.Create("/tmp/floter-P13-jd-" + name + "-" + appearance + "-" + tag + ".png")
 		if err != nil {

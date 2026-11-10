@@ -31,15 +31,15 @@ func TestThePanelFillFollowsThePalette(t *testing.T) {
 	}{
 		// A named palette paints its own colour, at the canvas's share of the
 		// slider.
-		{"forest", true, 46, ui.RGB(0x0f, 0x1a, 0x14).Alpha(spec.CanvasAlpha())},
+		{"forest", true, settings.DefaultTerminalOpacity, ui.RGB(0x0f, 0x1a, 0x14).Alpha(spec.CanvasAlpha())},
 		// `inherit` and an unknown id paint the window's own background, so an
 		// inherit session looks exactly as it did.
-		{"inherit", true, 46, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
-		{"not-a-palette", true, 46, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
+		{"inherit", true, settings.DefaultTerminalOpacity, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
+		{"not-a-palette", true, settings.DefaultTerminalOpacity, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
 		// The empty page keeps the window's colour even with a light palette
 		// selected: there is no session whose colour it would be, and the page's
 		// own ink has to stay readable on it.
-		{"paper", false, 46, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
+		{"paper", false, settings.DefaultTerminalOpacity, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
 	}
 	for _, tc := range cases {
 		got := panelFill(tc.name, tc.running, glassmap.SpecFor("regular", tc.opacity), dark)
@@ -54,8 +54,8 @@ func TestThePanelFillFollowsThePalette(t *testing.T) {
 	if thin.A >= thick.A {
 		t.Errorf("the panel did not rise with the slider: %d vs %d", thin.A, thick.A)
 	}
-	if thick.A >= 255 {
-		t.Errorf("the panel's top = %d, want the near-solid top rather than paint", thick.A)
+	if thick.A != 255 {
+		t.Errorf("the panel's top = %d, want fully opaque", thick.A)
 	}
 	// A desktop that asked for more contrast lifts the low end.
 	high := panelFill("forest", true, glassmap.SpecForPreferences("regular", settings.MinWindowOpacity, true), dark)

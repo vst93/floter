@@ -93,16 +93,14 @@ type Launcher struct {
 	AliasMatch func(alias string) string
 	// FilesSection heads the block of rows a dropped file's actions make,
 	// FilesMore is the row that reveals the files past the cap (with how many
-	// are behind it), FilesMoreHint its own sentence, and RecentSection the
-	// empty page's most-launched applications.
+	// are behind it), and FilesMoreHint its own sentence.
 	FilesSection  string
 	FilesMore     func(count int) string
 	FilesMoreHint string
 	// FilesEmpty is the files page with nothing on it: the mode is open and
 	// no file has been dropped yet. It is not a failed query — nothing was
 	// asked — so it does not borrow NoResults (P11-bh).
-	FilesEmpty    string
-	RecentSection string
+	FilesEmpty string
 	// Hint is the empty result area's message.
 	Hint string
 	// NoResults is shown when a query matches nothing.
@@ -247,7 +245,8 @@ type Launcher struct {
 	FileFolder   string
 	// BrowserNoProfile is the browser mode's empty state when no browser
 	// profile was found at all.
-	BrowserNoProfile string
+	BrowserNoProfile  string
+	BrowserReadFailed string
 	// BrowserDisabled is the browser mode's own answer when the plugin is
 	// switched off: what happened, and where to turn it back on.
 	BrowserDisabled string
@@ -288,7 +287,18 @@ type Option struct {
 
 // Settings is the settings surface's copy.
 type Settings struct {
-	Title string
+	IntegrationsMine          string
+	IntegrationsAdd           string
+	IntegrationsTransfer      string
+	IntegrationsSearch        string
+	IntegrationsManage        string
+	IntegrationsBack          string
+	IntegrationsNoMatches     string
+	IntegrationsDiscover      string
+	IntegrationsLocal         string
+	IntegrationsPackages      string
+	IntegrationsDiscoverEmpty string
+	Title                     string
 	// Close names the close control for assistive technology, CloseHint the
 	// same control's own line, and Quit/QuitHint the header's way out of the
 	// application.
@@ -1069,6 +1079,10 @@ type Settings struct {
 	BrowserEnabled         string
 	BrowserTarget          string
 	BrowserTargetHint      string
+	BrowserUnavailable     string
+	BrowserReadHint        func(string) string
+	BrowserAccessHint      string
+	BrowserAccessMacHint   string
 	BrowserAuto            string
 	BrowserCustomDir       string
 	BrowserCustomDirHint   string
@@ -1233,6 +1247,8 @@ type Notifications struct {
 
 // Terminal is the terminal surface's copy.
 type Terminal struct {
+	DragWindowHint string
+
 	Title string
 	// Pin names the control that copies the session's text into a window
 	// of its own.

@@ -38,9 +38,13 @@ func barFrame(t *testing.T, a *App, reduceMotion bool) (*ui.Tester, theme.Tokens
 
 // barInkBox returns the region's ink box and mass.
 func barInkBox(tt *ui.Tester, x0, x1, y1 int) (minX, maxX, mass int) {
+	return barInkRegion(tt, x0, x1, 0, y1)
+}
+
+func barInkRegion(tt *ui.Tester, x0, x1, y0, y1 int) (minX, maxX, mass int) {
 	img := tt.Image()
 	minX, maxX, mass = 1<<30, -1, 0
-	for y := 0; y < y1; y++ {
+	for y := y0; y < y1; y++ {
 		for x := x0; x < x1; x++ {
 			i := y*img.Stride + x*4
 			r, g, b := int(img.Pix[i]), int(img.Pix[i+1]), int(img.Pix[i+2])
@@ -105,7 +109,8 @@ func TestTheTerminalBarTitleIsTheReferenceSecondaryBody(t *testing.T) {
 
 	// Skip the status dot: it starts on the bar's 3u inset and is 7u wide, so
 	// the title's own ink starts past 23.
-	minX, maxX, mass := barInkBox(tt, 23, 900, 40)
+	// The drag grip has its own ink above the toolbar's title.
+	minX, maxX, mass := barInkRegion(tt, 23, 900, int(terminalDragHeight), 40)
 	if maxX < 0 {
 		t.Fatalf("the bar drew no title ink: %q", tt.Texts())
 	}

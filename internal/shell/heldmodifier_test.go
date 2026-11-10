@@ -9,17 +9,9 @@ import (
 	"floter/internal/launcher"
 )
 
-// The held app modifier's row, end to end: pressing it puts a bare
-// "open terminal" row at the list's end, preselects it and grows the window;
-// releasing it drops the row and the window recedes.
-//
-// The recede is the report: the row is one result, so the window's row count
-// went up by one on the press and back down by one on the release. The old
-// `HoldRows` kept a one-row margin on the way out, so the window stayed a row
-// too tall - exactly the report 「松手后窗口高度没有回退」. The reference
-// tracks the content exactly (R66: the app's `launcherListUnits(displayedResults)`
-// with no `resolveLauncherRows`), and this build now does too.
-func TestHeldModifierRowGrowsTheWindowAndRecedes(t *testing.T) {
+// A modifier exposes its action immediately inside the existing window.
+// Releasing it removes the action without a resize in either direction.
+func TestHeldModifierUsesExistingWindowBand(t *testing.T) {
 	a := appKeysApp()
 	tt := appKeysRender(t, a)
 
@@ -28,7 +20,7 @@ func TestHeldModifierRowGrowsTheWindowAndRecedes(t *testing.T) {
 		t.Fatal("the launcher did not report a height")
 	}
 
-	// Press: the panel's pinned band says it, the window grows for the band,
+	// Press: the panel's pinned band says it within the same window,
 	// and no row joins the list (P11-bo).
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
@@ -42,8 +34,8 @@ func TestHeldModifierRowGrowsTheWindowAndRecedes(t *testing.T) {
 		t.Errorf("the press edge moved the selection to %d, want the page's own 0", a.Launcher.Selected)
 	}
 	grown := a.launcherTarget
-	if grown <= base {
-		t.Errorf("the window did not grow for the band: %d -> %d", base, grown)
+	if grown != base {
+		t.Errorf("temporary modifier resized the window: %d -> %d", base, grown)
 	}
 
 	// Release: the band is gone and the window is back at its own height.
@@ -95,7 +87,7 @@ func TestTheHeldBandIsTheEmptyPagesLastBand(t *testing.T) {
 	rows := len(a.Launcher.Results())
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	if got := len(a.Launcher.Results()); got != rows {
+	if got := len(a.Launcher.Results()); got != rows+1 {
 		t.Errorf("the modifier added %d row(s) to the empty page: %+v", got-rows, a.Launcher.Results())
 	}
 	if !tt.HasText("Open a terminal session") {
@@ -139,8 +131,8 @@ func TestHeldModifierReleaseRestoresThePageDefault(t *testing.T) {
 	// there is no row to preselect (P11-bo, the user's F4-3 「不占排序」).
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	if a.Launcher.Selected != start {
-		t.Fatalf("the press edge moved the selection to %d, want %d", a.Launcher.Selected, start)
+	if a.Launcher.Selected != len(a.Launcher.Results())-1 {
+		t.Fatalf("footer was not selected: %d", a.Launcher.Selected)
 	}
 	// The user steps with the arrows during the gesture: theirs stays.
 	tt.Key(0, ui.KeyDown)
@@ -152,7 +144,7 @@ func TestHeldModifierReleaseRestoresThePageDefault(t *testing.T) {
 	tt.HoldModifiers(0)
 	tt.Frame()
 	if a.Launcher.Selected != moved {
-		t.Errorf("the release moved the selection to %d, want the user's %d", a.Launcher.Selected, moved)
+		t.Errorf("plain-arrow selection = %d, want %d", a.Launcher.Selected, moved)
 	}
 
 	// A press and release with no step leaves the page's own row alone.
@@ -163,5 +155,24 @@ func TestHeldModifierReleaseRestoresThePageDefault(t *testing.T) {
 	tt.Frame()
 	if want := recentRowIndex(a.Launcher, "Recent 00"); a.Launcher.Selected != want {
 		t.Errorf("the release selection = %d, want the page's own %d", a.Launcher.Selected, want)
+	}
+}
+
+func TestRapidModifierDoesNotRequestNativeResizes(t *testing.T) {
+	a := appKeysAppWithRecents()
+	asks := 0
+	a.setWindowSize = func(w, h int) { asks++ }
+	tt := appKeysRender(t, a)
+	tt.SetSize(720, a.launcherTarget)
+	tt.Frame()
+	asks = 0
+	for i := 0; i < 20; i++ {
+		tt.HoldModifiers(ui.Cmd)
+		tt.Frame()
+		tt.HoldModifiers(0)
+		tt.Frame()
+	}
+	if asks != 0 {
+		t.Fatalf("modifier-only frames requested %d native resizes", asks)
 	}
 }

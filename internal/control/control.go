@@ -85,7 +85,7 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 			}
 			// Keep a usable hit area even at the smallest interface scale.
 			segment := parts.Segment(i).Padding(0, inset).MinHeight(max(36, t.Space(9))).
-				Radius(tokens.RadiusSM).Border(1, ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+				Radius(max(0, tokens.RadiusSM-pad-1)).Border(1, ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Label(label)
 			if segment.Focused() {
 				segment.Bind(focus)
 			}

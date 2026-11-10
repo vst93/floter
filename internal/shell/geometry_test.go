@@ -150,7 +150,7 @@ func TestSettingsHeaderSharesTheLauncherFieldRowBand(t *testing.T) {
 	t.Logf("launcher field: y=%.1f h=%.1f centre=%.1f", field.Y, field.H, fieldCentre)
 	t.Logf("settings title: y=%.1f h=%.1f centre=%.1f", title.Y, title.H, titleCentre)
 	if diff := fieldCentre - titleCentre; diff > 0.6 || diff < -0.6 {
-		t.Errorf("the settings header's centre %.1f does not match the launcher field's %.1f", titleCentre, fieldCentre)
+		t.Errorf("settings title centre %.1f differs from search field %.1f", titleCentre, fieldCentre)
 	}
 }
 

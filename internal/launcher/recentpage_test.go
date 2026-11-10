@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"floter/internal/apps"
+	"floter/internal/drops"
 )
 
 // recentPage fills a launcher with n recent applications and nothing else.
@@ -46,4 +47,15 @@ func resultIndex(a *App, title string) int {
 		}
 	}
 	return -1
+}
+
+// Group-heading tests use the remaining file group; recents are unlabelled.
+func droppedHeadingPage(a *App, n int) {
+	files := make([]drops.File, 0, n)
+	for i := 0; i < n; i++ {
+		files = append(files, drops.File{Name: "Editor", Path: fmt.Sprintf("/fixture/%d", i), Directory: "/fixture"})
+	}
+	a.SetDropped(files)
+	a.EnterFiles()
+	a.dropsExpanded = true
 }

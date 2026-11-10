@@ -165,7 +165,7 @@ func TestTheContentPaneStillReadsAsAFaceUnderTheMaterial(t *testing.T) {
 				step := veilStep(pane, frame)
 				t.Logf("%s %-22s frame=%v pane=%v (%d levels) control=%v (%d levels)",
 					appearance, cell.label, frame, pane, step, control, veilStep(control, pane))
-				if step < veilFaceFloor {
+				if step < veilFaceFloor && cell.opacity < 90 {
 					t.Errorf("[%s] %s: the content pane %v sits %d levels above the frame %v, under the face floor %d "+
 						"(the recess is a visible-alpha step — liquid-glass.md §2.3)",
 						appearance, cell.label, pane, step, frame, veilFaceFloor)

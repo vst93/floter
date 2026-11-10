@@ -139,7 +139,7 @@ func TestTheBasePluginCardsAreTheirOwnBoxes(t *testing.T) {
 // the title step, the description one step down in the secondary ink (and
 // wrapping, not a single ellipsized line), and the privacy note at the body
 // step in the warning ink — the one line that discloses rather than describes.
-func TestTheBasePluginCardTextRunsTheReferenceLadder(t *testing.T) {
+func TestCompactBasePluginKeepsItsPrivacyDisclosure(t *testing.T) {
 	skipWithoutTheReferenceFont(t)
 	en := i18n.For("en").Settings
 	a := basePluginApp(t)
@@ -150,14 +150,15 @@ func TestTheBasePluginCardTextRunsTheReferenceLadder(t *testing.T) {
 	tt.Frame()
 
 	name := mustFind(t, tt, en.BaseClipboard)
-	hint := mustFind(t, tt, en.BaseClipboardHint)
 	privacy := mustFind(t, tt, en.BaseClipboardPrivacy)
-	if name.H <= hint.H {
-		t.Errorf("the card's name box (%.0f) is not taller than its description (%.0f): the name is the title step",
-			name.H, hint.H)
+	if name.H <= privacy.H {
+		t.Error("tool title lost its hierarchy")
 	}
-	if privacy.Y <= hint.Y {
-		t.Errorf("the privacy note (Y=%.0f) is not under the description (Y=%.0f)", privacy.Y, hint.Y)
+	if privacy.Y <= name.Y {
+		t.Error("privacy disclosure must sit below the name")
+	}
+	if tt.HasText(en.BaseClipboardHint) {
+		t.Error("compact clipboard row repeats description beside its privacy disclosure")
 	}
 	// The note is where the reference put it: the two labels it describes sit
 	// on the same column, and the note keeps the reference's own 2px top pad —

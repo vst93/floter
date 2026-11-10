@@ -31,6 +31,7 @@ import (
 // detachedOutput is one open window's state: the content key it belongs to,
 // the command it belongs to, the view it is showing, and its scroll offset.
 type detachedOutput struct {
+	look    themeFrame
 	win     *mygo.Window
 	key     string
 	entry   *extensions.CommandEntry
@@ -238,7 +239,7 @@ func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 	// stock palette instead.
 	surface := launcher.Resolve(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 	tokens := surface.Tokens
-	c.SetTheme(tokens.Theme)
+	detached.look.apply(c, tokens)
 	t := c.Theme()
 	copy := i18n.For(a.Store.Snapshot().Language).Launcher
 	// A detached window is opaque (`.plugin-window`): the near-solid stand-in,

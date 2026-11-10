@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-
-	"floter/internal/apps"
 )
 
 // R21 · The pointer takes the selection over on *entry*, the reference's own
@@ -94,17 +92,12 @@ func TestARestingPointerDoesNotFightTheKeyboard(t *testing.T) {
 // where it was.
 func TestThePointerSkipsRowsTheKeyboardCannotActOn(t *testing.T) {
 	a := testApp()
-	var found []apps.App
-	for i := 0; i < 3; i++ {
-		found = append(found, apps.App{Name: "Recent " + string(rune('A'+i)), Path: "/Applications/R" + string(rune('A'+i)) + ".app"})
-	}
-	a.SetApps(found)
-	a.SetRecent([]string{found[0].Path, found[1].Path, found[2].Path}, true)
+	droppedHeadingPage(a, 3)
 	tt := render(t, a)
 	tt.Frame()
 	// The empty page draws the built-ins, then a "Recent" heading, then the
 	// recents: row 8 is the heading.
-	heading := a.copy().RecentSection
+	heading := a.copy().FilesSection
 	rect, ok := tt.Find(heading)
 	if !ok {
 		t.Fatalf("no recent heading: %q", tt.Texts())

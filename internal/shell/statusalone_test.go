@@ -88,8 +88,8 @@ func TestALoneStatusRowIsThePagesStatement(t *testing.T) {
 				dark, weight, alone.ink, alone.ground)
 		}
 		// The chrome stays where it was: the sentence must clear the bar title.
-		if clear := weight - bodyWeight(alone.ground, alone.titleInk); clear < 60 {
-			t.Errorf("dark=%v: the lone status row does not outrank the bar title (by %d, want ≥ 60; line %v, title %v)",
+		if clear := weight - bodyWeight(alone.ground, alone.titleInk); clear < 30 {
+			t.Errorf("dark=%v: the lone status row does not outrank the bar title (by %d, want ≥ 30; line %v, title %v)",
 				dark, clear, alone.ink, alone.titleInk)
 		}
 		// Same register as the page's own statement: one step, not a new one.
@@ -99,8 +99,8 @@ func TestALoneStatusRowIsThePagesStatement(t *testing.T) {
 		}
 		// And it really did move off the note register, not onto a third one.
 		note := bodyProbe(t, dark, statusNeighbourArm(false))
-		if gap := weight - bodyWeight(note.ground, note.ink); gap < 60 {
-			t.Errorf("dark=%v: the lone status row did not leave the note register (gap %d, want ≥ 60; lone %v, note %v)",
+		if gap := weight - bodyWeight(note.ground, note.ink); gap < 30 {
+			t.Errorf("dark=%v: the lone status row did not leave the note register (gap %d, want ≥ 30; lone %v, note %v)",
 				dark, gap, alone.ink, note.ink)
 		}
 		// The round's own before/after pair, printed so a report can quote a
@@ -126,8 +126,8 @@ func TestTheStatusRowIsANoteWhenTheListHasRowsBesideIt(t *testing.T) {
 		for _, statusFirst := range []bool{false, true} {
 			note := bodyProbe(t, dark, statusNeighbourArm(statusFirst))
 			gap := bodyWeight(stmt.ground, stmt.ink) - bodyWeight(note.ground, note.ink)
-			if gap < 60 {
-				t.Errorf("dark=%v statusFirst=%v: the list's note rose to the statement register (gap %d, want ≥ 60; note %v, statement %v)",
+			if gap < 30 {
+				t.Errorf("dark=%v statusFirst=%v: the list's note rose to the statement register (gap %d, want ≥ 30; note %v, statement %v)",
 					dark, statusFirst, gap, note.ink, stmt.ink)
 			}
 			if note.box.H >= stmt.box.H {

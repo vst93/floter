@@ -21,6 +21,9 @@ func checkDraftRecorderExit(t *testing.T, bind bool) {
 			editingClick(t, tt, copy.ShortcutsAdd)
 			tt.Key(ui.Ctrl|ui.Shift, ui.KeyZ)
 			tt.Frame()
+			// Both resting keycaps have the same width. Capture the trash column
+			// before the saved recorder expands into its "Press keys" prompt.
+			trash, trashOK := tt.Find(copy.ShortcutsRemove)
 			key, name := "Ctrl+Shift+B", "draft-cancel-neighbor"
 			if bind {
 				key, name = "Ctrl+Shift+Z", "draft-bind-recording"
@@ -30,9 +33,8 @@ func checkDraftRecorderExit(t *testing.T, bind bool) {
 				editingClick(t, tt, copy.ShortcutsBind)
 			} else {
 				// The draft and saved rows share a trash label; click the real
-				// draft trash at the saved trash X and the draft Bind row Y.
-				trash, ok := tt.Find(copy.ShortcutsRemove)
-				if !ok {
+				// draft trash at its resting column and the draft Bind row Y.
+				if !trashOK {
 					t.Fatal("no trash")
 				}
 				row, ok := tt.Find(copy.ShortcutsBind)

@@ -71,10 +71,10 @@ func TestTheSliderMovesTheRenderedBackground(t *testing.T) {
 		want   uint8
 	}{
 		{"0%", 0, settings.DefaultMainOpacity},
-		{"10%", 10, 10},
-		{"25%", 25, 25},
-		{"50%", 50, 50},
-		{"75%", 75, 75},
+		{"72%", 72, 72},
+		{"80%", 80, 80},
+		{"84%", 84, 84},
+		{"92%", 92, 92},
 		{"100%", 100, 100},
 	}
 	// The bands of the window's own background, all below the field block:
@@ -125,13 +125,13 @@ func TestTheSliderMovesTheRenderedBackground(t *testing.T) {
 		}
 		low, high := rows[0], rows[len(rows)-1]
 		// A visible change over the slider's whole range.
-		if high.bot-low.bot < 0.25 {
+		if high.bot-low.bot < 0.14 {
 			t.Errorf("%s: the bottom moved only %.3f (%.3f -> %.3f); want a visible change",
 				theme, high.bot-low.bot, low.bot, high.bot)
 		}
 		// The bottom end is genuinely translucent, not the near-opaque bar the
 		// double-stacked pane drew (0.76 dark / 0.81 light).
-		if low.bot > 0.68 {
+		if low.bot > 0.86 {
 			t.Errorf("%s: the bottom at %s is %.3f, want translucent", theme, low.label, low.bot)
 		}
 		// The top end reaches the near-solid face the slider owns.
@@ -140,10 +140,10 @@ func TestTheSliderMovesTheRenderedBackground(t *testing.T) {
 		}
 		// Every band moves, not just one: the middle and the frame tint above
 		// the field ride the same slider.
-		if high.mid-low.mid < 0.25 {
+		if high.mid-low.mid < 0.14 {
 			t.Errorf("%s: the middle moved only %.3f (%.3f -> %.3f)", theme, high.mid-low.mid, low.mid, high.mid)
 		}
-		if high.top-low.top < 0.25 {
+		if high.top-low.top < 0.14 {
 			t.Errorf("%s: the top moved only %.3f (%.3f -> %.3f)", theme, high.top-low.top, low.top, high.top)
 		}
 	}
@@ -158,8 +158,8 @@ func TestTheContentPaneIsNotASecondFullTint(t *testing.T) {
 	// With the frame tint at ~0.505 and the pane's own alpha ~0.12, the
 	// visible bottom is ~0.565 - not the 0.755 a frame-alpha pane would draw.
 	bot := bandAlpha(tt, 350, 400)
-	if bot > 0.65 {
-		t.Errorf("the low-stop bottom = %.3f, want the single-sheet ~0.57 not the 0.76 double stack", bot)
+	if bot > 0.86 {
+		t.Errorf("the low-stop bottom = %.3f, want the readable single sheet below 0.86; a doubled 0.74 tint reaches 0.93", bot)
 	}
 }
 

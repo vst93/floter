@@ -28,6 +28,7 @@ func transferCauseFrame(t *testing.T, a *App, dark bool) *ui.Tester {
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	tt.Frame()
+	settingsSectionForTest(t, a, tt, a.SettingsCopy().IntegrationsTransfer)
 	return tt
 }
 

@@ -34,6 +34,7 @@ func newStoreFor(b *testing.B) *settings.Store {
 func render(t *testing.T, a *App, w, h int) *ui.Tester {
 	t.Helper()
 	skipWithoutTheReferenceFont(t)
+	prepareSettingsDetailFixture(a)
 	tt := ui.NewTester(func(c *ui.Context) {
 		a.View(c)
 	}, w, h)
@@ -55,6 +56,7 @@ func render(t *testing.T, a *App, w, h int) *ui.Tester {
 func renderThemed(t *testing.T, a *App, w, h int) *ui.Tester {
 	t.Helper()
 	skipWithoutTheReferenceFont(t)
+	prepareSettingsDetailFixture(a)
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(a.tokens(c).Theme)
 		a.View(c)
@@ -4602,6 +4604,29 @@ func TestNextPageWraps(t *testing.T) {
 	for _, tc := range cases {
 		if got := nextPage(tc.page, tc.delta); got != tc.want {
 			t.Errorf("nextPage(%d, %d) = %d, want %d", tc.page, tc.delta, got, tc.want)
+		}
+	}
+}
+
+// Existing control regressions render their fixture's editing surface. The
+// navigation tests use a raw Tester and exercise overview -> detail explicitly.
+func prepareSettingsDetailFixture(a *App) {
+	if a.integrationNav.detail != nil || a.integrationNav.tab != 0 {
+		return
+	}
+	items := a.installedIntegrations()
+	if len(items) == 1 {
+		a.integrationNav.detail = &integrationKey{ID: items[0].ID}
+	} else if len(items) == 0 {
+		switch {
+		case a.Actions.ConnectLocalTool != nil:
+			a.integrationNav.tab, a.integrationNav.addMethod = 1, 1
+		case a.Actions.InstallFromRegistry != nil || a.Actions.InstallFromFolder != nil:
+			a.integrationNav.tab, a.integrationNav.addMethod = 1, 2
+		case a.Actions.Detected != nil:
+			a.integrationNav.tab = 1
+		case a.Actions.ImportIntegrations != nil || a.Actions.ExportIntegrations != nil:
+			a.integrationNav.tab = 2
 		}
 	}
 }

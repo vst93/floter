@@ -109,8 +109,10 @@ func uniqueProfiles(profiles []Profile) []Profile {
 	seen := map[string]bool{}
 	out := make([]Profile, 0, len(profiles))
 	for _, profile := range profiles {
-		path := filepath.Dir(profile.HistoryDB)
-		if profile.HistoryDB == "" {
+		path := profile.BaseDir
+		if profile.HistoryDB != "" {
+			path = filepath.Dir(profile.HistoryDB)
+		} else if profile.BookmarksFile != "" {
 			path = filepath.Dir(profile.BookmarksFile)
 		}
 		keys := pathid.Keys(path)

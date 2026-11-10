@@ -30,6 +30,7 @@ func dumpDiagnosisExecution(t *testing.T, tt *ui.Tester, scenario string, dark b
 // its toast in the same Frame that launched the goroutine.
 func dispatchDiagnosisClick(t *testing.T, f *diagnosisFixture, tt *ui.Tester) {
 	t.Helper()
+	openSettingsToolForTest(t, f.a, tt)
 	run := f.a.Settings.Actions.DiagnoseIntegration
 	target := ""
 	f.a.Settings.Actions.DiagnoseIntegration = func(id string) { target = id }

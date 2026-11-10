@@ -28,7 +28,7 @@ import (
 // （P13-bt §6.38 `dataRow`：mono caption / 500 / `TextMuted`，因为这是一串
 // 后端铸造的标识符，和检测到的程序路径同类）。
 
-// editFormFixture opens Integrations → Edit… on an existing generated tool, so
+// editFormFixture opens Integrations → Manage → Edit… on an existing generated tool, so
 // the form draws its read-only ID row above the editable rows.
 func editFormFixture(t *testing.T, dark bool) (*ui.Tester, i18n.Settings) {
 	t.Helper()
@@ -57,6 +57,10 @@ func editFormFixture(t *testing.T, dark bool) (*ui.Tester, i18n.Settings) {
 	tt, _ := renderIn(t, a, 720, 2200, dark)
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.IntegrationsManage + " Ripgrep"); err != nil {
+		t.Fatalf("manage: %v", err)
 	}
 	tt.Frame()
 	if err := tt.Click("Edit\u2026"); err != nil {

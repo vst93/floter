@@ -17,6 +17,7 @@ import (
 // shows, which a later pin replaces. win is the window it is drawn in, so the
 // bar's own close key can reach it (`pinnedBody`).
 type pinned struct {
+	look  themeFrame
 	title string
 	text  string
 	// family is the family the text is drawn in, taken from the settings the pin
@@ -98,7 +99,7 @@ func (a *App) newPinned(title, text string) *pinned {
 func (a *App) pinnedView(c *ui.Context, state *pinned) {
 	surface := launcher.Resolve(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 	tokens := surface.Tokens
-	c.SetTheme(tokens.Theme)
+	state.look.apply(c, tokens)
 	t := c.Theme()
 	c.Root().Background(tokens.Opaque)
 	a.pinnedBody(c, state, tokens, t)

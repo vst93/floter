@@ -9,7 +9,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/ansi"
-	"floter/internal/apps"
 	"floter/internal/drops"
 	"floter/internal/extensions"
 	"floter/internal/plugincfg"
@@ -111,13 +110,12 @@ func TestClipboardEntryKind(t *testing.T) {
 // over and never numbers, and it is charged as its own band.
 func TestSectionHeadings(t *testing.T) {
 	a := testApp()
-	a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})
-	a.SetRecent([]string{"/Applications/Editor.app"}, true)
+	droppedHeadingPage(a, 1)
 	// A taller window: the recents and their heading sit below the built-ins.
 	tt := ui.NewTester(themedView(a),
 		InputWindowWidth, int(WindowHeight("small"))+200)
 	tt.Frame()
-	if !tt.HasText("Recently launched") {
+	if !tt.HasText("Dropped files") {
 		t.Errorf("the recents' heading is missing: %q", tt.Texts())
 	}
 	results := a.Results()
@@ -341,42 +339,27 @@ func TestModeEmptyMessages(t *testing.T) {
 func TestHeldModifierBareTerminalRow(t *testing.T) {
 	a := testApp()
 	recentPage(a, 3)
-	opened := 0
-	a.Actions.OpenTerminal = func() { opened++ }
 	tt := render(t, a)
-	tt.Frame()
-	if tt.HasText(a.copy().HeldTerminalHint) {
-		t.Error("the line shows with the modifier up")
-	}
-	rows := strings.Join(ids(a.Results()), "|")
+	resting := len(a.Results())
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	if got := strings.Join(ids(a.Results()), "|"); got != rows {
-		t.Errorf("the modifier changed the list: %v, want %v", got, rows)
+	results := a.Results()
+	if len(results) != resting+1 || results[len(results)-1].ID != "bar:terminal" {
+		t.Fatalf("missing footer: %v", ids(results))
 	}
-	if !tt.HasText(a.copy().HeldTerminalHint) {
-		t.Fatalf("the band's line is missing while the modifier is held: %q", tt.Texts())
+	if a.Selected != len(results)-1 {
+		t.Fatal("terminal footer not selected")
 	}
-	// The chord the band prints opens it, with no row to select first.
-	tt.Key(ui.Cmd, ui.KeyEnter)
+	a.SetQuery("zzz")
 	tt.Frame()
-	if opened != 1 {
-		t.Errorf("Enter opened %d sessions", opened)
+	results = a.Results()
+	if len(results) != 1 || results[0].ID != "bar:shell" || tt.HasText(a.copy().HeldTerminalHint) {
+		t.Fatalf("typed query did not reuse shell footer: %v", ids(results))
 	}
 	tt.HoldModifiers(0)
 	tt.Frame()
 	if tt.HasText(a.copy().HeldTerminalHint) {
-		t.Errorf("the line survived the release: %q", tt.Texts())
-	}
-	// A typed query keeps the band and still gains no row.
-	tt.Type("zzz")
-	tt.HoldModifiers(ui.Cmd)
-	tt.Frame()
-	if !tt.HasText(a.copy().HeldTerminalHint) {
-		t.Errorf("a typed query dropped the band's line: %q", tt.Texts())
-	}
-	if strings.Contains(strings.Join(ids(a.Results()), "|"), "system-terminal-bare") {
-		t.Fatalf("a typed query kept a held row: %+v", ids(a.Results()))
+		t.Fatal("blank terminal survived release")
 	}
 }
 
@@ -1126,7 +1109,7 @@ func TestHeldModifierRowIsNotScrolledIntoView(t *testing.T) {
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	now, lastNow := a.List.Visible()
-	if now != first || lastNow < a.Selected {
+	if now != first {
 		t.Errorf("the list scrolled for the held row: %d..%d (was %d..%d), selected %d",
 			now, lastNow, first, last, a.Selected)
 	}

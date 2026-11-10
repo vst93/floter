@@ -106,7 +106,7 @@ func TestGeometryChargesTheRowsOwnLineBoxes(t *testing.T) {
 	}
 	// The row's box wins over its own content. chrome 66u + 40u box + the
 	// platform's margin.
-	want := int(roundHalf(66 + 40 + windowInset(4)))
+	want := int(roundHalf(78 + 48 + windowInset(4) + 2))
 	if two != want {
 		t.Errorf("a two-line row is %d, want the 40u box's %d", two, want)
 	}
@@ -122,7 +122,7 @@ func TestGeometryChargesTheRowsOwnLineBoxes(t *testing.T) {
 	}
 	// The heading's own line box is the body one (a caller that has not
 	// measured is given the font's own size, which is the floor of a real box).
-	wantHeading := int(roundHalf(66 + 2.5*4 + 11 + windowInset(4)))
+	wantHeading := int(roundHalf(78 + 2.5*4 + 11 + windowInset(4) + 2))
 	if heading != wantHeading {
 		t.Errorf("a heading is %d, want %d", heading, wantHeading)
 	}
@@ -210,8 +210,8 @@ func TestStatusAndSectionBands(t *testing.T) {
 	// floor), and a section band (26u) shorter still.
 	status := Geometry{Font: font, Spacing: spacing, Rows: []RowInfo{{Status: true}}, Held: 1}.Height()
 	result := Geometry{Font: font, Spacing: spacing, Rows: []RowInfo{{Lines: 1}}, Held: 1}.Height()
-	if status >= result {
-		t.Errorf("a status row (%d) is not shorter than a result row (%d)", status, result)
+	if status != result {
+		t.Errorf("a status row (%d) does not share the result row band (%d)", status, result)
 	}
 	section := Geometry{Font: font, Spacing: spacing, Rows: []RowInfo{{Lines: 1}}, Held: 1, Sections: 1}.Height()
 	if section <= result {

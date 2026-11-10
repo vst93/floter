@@ -63,6 +63,7 @@ var (
 	// (`ExtensionRow.tsx:516-527` opens the folded affordance with a 12px
 	// `ChevronRight`, `:483-497` closes the open block with a 14px
 	// `ChevronDown`).
+	glyphArrowLeft    = ui.MustParseSVG([]byte(glyphSource(`<path d="m12 19-7-7 7-7M5 12h14"/>`)))
 	glyphChevronRight = ui.MustParseSVG([]byte(glyphSource(`<path d="m9 18 6-6-6-6"/>`)))
 	glyphChevronDown  = ui.MustParseSVG([]byte(glyphSource(`<path d="m6 9 6 6 6-6"/>`)))
 	// glyphPin is lucide's Pin, the reference's detach button for external
@@ -216,7 +217,7 @@ func rowGlyph(item Item) (*ui.SVG, bool) {
 	switch item.ID {
 	case "bar:url":
 		return glyphGlobe, true
-	case "bar:shell", "bar:path-cd":
+	case "bar:shell", "bar:path-cd", "bar:terminal":
 		return glyphTerminal, true
 	case "bar:path-open":
 		return glyphFolder, true
@@ -335,6 +336,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphWindow, true
 	case "close":
 		return glyphClose, true
+	case "arrow-left":
+		return glyphArrowLeft, true
 	case "chevron-right":
 		return glyphChevronRight, true
 	case "chevron-down":

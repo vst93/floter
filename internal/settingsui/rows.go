@@ -456,8 +456,8 @@ func (a *App) pageButton(c *ui.Context, label string) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
-		MinHeight(max(36, t.Space(9))).
-		Padding(t.Space(1.5), t.Space(3.5)).
+		MinHeight(max(28, t.Space(8))).
+		Padding(t.Space(1), t.Space(3)).
 		Radius(t.Radius)
 	ink, plane := tokens.TextStrong, tokens.Control
 	if button.Hovered() {
@@ -551,7 +551,7 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
-		MinHeight(max(36, height)).Padding(0, t.Space(3.5)).Radius(tokens.RadiusSM)
+		MinHeight(max(28, height)).Padding(0, t.Space(3)).Radius(tokens.RadiusSM)
 	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
 	if disabled {
 		ink = tokens.Disabled
@@ -609,7 +609,7 @@ func (a *App) extensionPrimaryButton(c *ui.Context, label string, disabled bool)
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
-		MinHeight(max(36, t.Space(9))).Padding(0, t.Space(3.5)).Radius(tokens.RadiusSM)
+		MinHeight(max(28, t.Space(8))).Padding(0, t.Space(3.5)).Radius(tokens.RadiusSM)
 	button.Border(1, tokens.AccentEdgeStrong)
 	button = a.accentPrimaryFace(c, button, disabled)
 	button.Children(func() {
@@ -702,7 +702,7 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).Label(label).
-		Size(max(36, t.Space(9)), max(36, t.Space(9))).
+		Size(max(28, t.Space(8)), max(28, t.Space(8))).
 		Border(1, ui.Transparent).
 		Radius(tokens.RadiusSM).
 		Background(ui.Transparent).
@@ -736,6 +736,7 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 	button.Children(func() {
 		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(4.5), t.Space(4.5)).TextColor(ink)
 	})
+	tokens.Tip(c, button, label)
 	return button
 }
 
@@ -813,7 +814,7 @@ func (a *App) busyActionButton(c *ui.Context, label, key string) ui.Element {
 // user looks into. The inset stack is added to the track the framework draws,
 // so the whole toggle is graded by the glass stop.
 func (a *App) switchControl(c *ui.Context, on *bool) ui.Element {
-	return a.tokens(c).LensInset(ui.Switch(c, on))
+	return a.tokens(c).LensInset(control.Switch(c, on))
 }
 
 // disabledSwitch dulls a switch the way `.settings-switch:disabled` did
@@ -846,7 +847,7 @@ func (a *App) busySwitchControl(c *ui.Context, on *bool, key string) ui.Element 
 	tokens := a.tokens(c)
 	track, ink := t.Border.Mix(t.Text, 0.15), tokens.TextSecondary
 	if *on {
-		track, ink = t.Accent, t.AccentText
+		track, ink = control.SwitchOnFill(t.Dark), ui.RGB(255, 255, 255)
 	}
 	sw := ui.SwitchBase(c, on).Size(t.Space(9), t.Space(5)).Radius(t.Space(2.5)).
 		Center().Background(track)
@@ -1039,7 +1040,7 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 	tokens := a.tokens(c)
 	t := c.Theme()
 	button := ui.ButtonBase(c).Label(label).
-		Size(max(36, t.Space(9)), max(36, t.Space(9))).Border(1, ui.Transparent).
+		Size(max(28, t.Space(8)), max(28, t.Space(8))).Border(1, ui.Transparent).
 		Radius(tokens.RadiusSM).Background(ui.Transparent).Center().
 		// P13-gv（`docs/liquid-glass.md` §6.169）：这一族的**每一枚**小格（30u 的
 		// `extensionIconButton`、28u 的 `paramIconButton`、页头的 `headerButton`、
@@ -1121,7 +1122,7 @@ func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run
 	tokens := a.tokens(c)
 	t := c.Theme()
 	pill := ui.ButtonBase(c).Label(label).
-		MinHeight(max(36, t.Space(9))).Padding(0, t.Space(3)).Radius(tokens.RadiusSM).
+		MinHeight(max(28, t.Space(8))).Padding(0, t.Space(3)).Radius(tokens.RadiusSM).
 		Border(1, t.Warning).Background(tokens.RaisedWarm).
 		AlignItems(ui.Center).Center().Gap(t.Space(1.25)).
 		// P13-gv（§6.169）：同族的暖色面（电源确认带的 execute 键）与它上面那枚
@@ -1516,6 +1517,9 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 	first := a.cardRows == 0
 	a.cardRows++
 	floor := max(t.Space(11), rowFloorPx)
+	if a.cardCompact {
+		floor = max(44, t.Space(12))
+	}
 	if face.Floor > floor {
 		// P13-ea（`docs/liquid-glass.md` §6.96）：行自己的地板。参考的会话行是
 		// `min-height: 56px`（`main:src/styles/settings.css:1237-1244`），比设置
@@ -1549,7 +1553,10 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		// content's own `inset-1` padding add back up to the old inset, so a
 		// plain row's content does not move.
 		// A row becoming first loses its separator, not its input identity.
-		row := ui.Row(c.Key("card-row-body")).FillWidth().AlignItems(ui.Stretch).MinHeight(floor)
+		// Each row owns its selection shape, including middle rows of
+		// a frameless group. Its content already sits inside this boundary.
+		row := ui.Row(c.Key("card-row-body")).FillWidth().AlignItems(ui.Stretch).MinHeight(floor).
+			Radius(tokens.RadiusSM)
 		if face.FaceSet {
 			row = row.Background(face.Face)
 		}
@@ -1564,30 +1571,26 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 			// 是两件事。
 		case row.Pressed():
 			row = row.Background(t.SurfacePressed)
-		case row.Hovered():
-			// The reference's `:hover:not(.extension-row--detected)` lights the
-			// ladder's hover fill. P8-d 重定基线（§5 禁止侧「行 hover/按下」）：
-			// 前导规则条曾经也在此抬到 `t.Accent`——那正是 §5 明写的禁止项。
-			// 行 hover 只抬**面**（`SurfaceHover`），前导条的颜色由行自己的状态
-			// （`face.Bar`）决定，不因指针而变。
-			row = row.Background(t.SurfaceHover)
 		}
 		if face.Lit {
 			// P13-e（`docs/liquid-glass.md` §6.4 第 4-1 行）：E1 = 面 + 顶受光边
 			// `LensRim` + 底对侧 `LensEdge`，**不画投影**。与启动器选中块（§6.1
 			// 第 1-2 行）、侧栏选中页（§6.2 第 2-2 行）、终端空态键帽（§6.3 第 3-8
 			// 行）是同一个 `theme.Tokens.LitFace`——同一个函数、同一对数值，
-			// 所以这个应用里每一块「被选中的面」都是同一个材质。压在 hover/press
+			// 所以这个应用里每一块「被选中的面」都是同一个材质。压在 press
 			// 之后：指针换的是**面**的色号，不是这块面的层高。
 			row = tokens.LitFace(row)
 		}
 		row.Children(func() {
 			rule := ui.Box(c).Width(1).Shrink(0)
 			if bar.A > 0 {
-				rule.Background(bar)
+				rule.Background(bar).MarginY(tokens.RadiusSM)
 			}
 			content := ui.Row(c).Grow(1).MinWidth(0).Gap(t.Space(3)).AlignItems(ui.Stretch).
 				Padding(t.Space(3), inset-1)
+			if a.cardCompact {
+				content.Padding(t.Space(2), inset-1)
+			}
 			if face.WrapControls {
 				content.Wrap().AlignContent(ui.Start)
 			}
@@ -1812,7 +1815,7 @@ func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked fu
 	t := c.Theme()
 	tokens := a.tokens(c)
 	disabled := len(unavailable) > 0 && unavailable[0]
-	row := ui.Row(c).Focusable().AlignItems(ui.Center).MinHeight(max(36, t.Space(9))).
+	row := ui.Row(c).Focusable().AlignItems(ui.Center).MinHeight(max(28, t.Space(8))).
 		Padding(0, t.Space(0.5)).Radius(tokens.RadiusXS)
 	if disabled {
 		row.Disabled(true).Cursor(ui.CursorDefault)

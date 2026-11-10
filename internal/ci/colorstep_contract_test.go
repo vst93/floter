@@ -45,7 +45,7 @@ var colorStepSites = map[string]int{
 	"internal/settingsui/parameditor.go": 1, // the argument editor's stepper
 	"internal/settingsui/pluginsheet.go": 1, // the sheet's action pill (P13-gv)
 	"internal/settingsui/rows.go":        6, // the two action pills, the bare note button, pageButton (P13-ai), the session icon and the kill pill (P13-gv)
-	"internal/settingsui/settingsui.go":  4, // the sidebar's row, the run pill, the shortcut recorder and the run-output toggle (P13-gv)
+	"internal/settingsui/settingsui.go":  5, // four hover transitions, plus immediate hover removal under the moving sidebar marker (P15)
 	"internal/settingsui/uninstall.go":   2, // the dialog's action pill and its component card
 	"internal/shell/detach.go":           1, // the plugin windows' bar keys (P13-gv)
 	"internal/shell/notices.go":          2, // the toast's action chip and its dismiss key (P13-gv)
@@ -81,6 +81,12 @@ func TestEveryColorTransitionRidesOneStep(t *testing.T) {
 					continue
 				}
 				seen[slashed]++
+				// P15: selecting a sidebar row clears its hover wash immediately.
+				// Keeping it for ColorStep would draw a second stationary pill
+				// behind the single moving selection background.
+				if slashed == "internal/settingsui/settingsui.go" && strings.Contains(line, "Duration: -1") {
+					continue
+				}
 				if strings.Contains(line, "time.") {
 					offenders = append(offenders,
 						slashed+":"+itoa(i+1)+": a colour transition with its own duration — the pointer has one step (theme.ColorStep)")

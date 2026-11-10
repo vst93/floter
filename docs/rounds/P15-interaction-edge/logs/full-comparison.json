@@ -1,0 +1,39 @@
+{
+  "first_full_pass": 2040,
+  "first_full_fail": 109,
+  "new_failure_names": [
+    [
+      "floter/internal/ci",
+      "TestEveryColorTransitionRidesOneStep"
+    ],
+    [
+      "floter/internal/extensions",
+      "TestCompleteAndDiagnose"
+    ],
+    [
+      "floter/internal/shell",
+      "TestSettingsGlassFollowsOpacity"
+    ],
+    [
+      "floter/internal/shell",
+      "TestTheFloatingTopEdgeIsThreePartsAndTheySwapRoles"
+    ],
+    [
+      "floter/internal/terminalui",
+      "TestTheBarPaintsItsOwnFaceOverAPalette"
+    ],
+    [
+      "floter/internal/terminalui",
+      "TestTheDrawerKeepsTheBarsBand"
+    ],
+    [
+      "floter/internal/terminalui",
+      "TestTheStatusDotCarriesNoHalo"
+    ],
+    [
+      "floter/internal/terminalui",
+      "TestTheTerminalBarTitleIsTheReferenceSecondaryBody"
+    ]
+  ],
+  "new_failures_followup": "All 8 passed focused reruns after fixes, see followup.log, switch-final.log and verified-ui.log. TestCompleteAndDiagnose timeout passed isolated."
+}

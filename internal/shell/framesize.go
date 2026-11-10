@@ -61,6 +61,7 @@ func (a *App) requestWindowSize(width, height int) {
 	if !a.hasWindow() || width <= 0 || height <= 0 {
 		return
 	}
+	height = a.clampPanelHeight(height)
 	a.lastW, a.lastH = width, height
 	a.frameSize.ask(width, height)
 }
@@ -78,6 +79,7 @@ func (a *App) flushWindowSize() {
 		return
 	}
 	if a.Win != nil {
+		a.fitPanelPosition(height)
 		a.Win.SetSize(width, height)
 	}
 }

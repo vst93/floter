@@ -40,7 +40,7 @@ func configEntryFrame(t *testing.T, dark bool, language string, command, handler
 	return tt, mustFind(t, tt, copy.ConfigSection), mustFind(t, tt, copy.ConfigOpenConfiguration)
 }
 
-func TestTheConfigurationEntryOnlyLiftsWhenItCanOpen(t *testing.T) {
+func TestTheConfigurationEntryOnlyPressesWhenItCanOpen(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		for _, language := range []string{"en", "zh"} {
 			for _, state := range []struct {
@@ -54,7 +54,7 @@ func TestTheConfigurationEntryOnlyLiftsWhenItCanOpen(t *testing.T) {
 				hover := rowInsetFace(tt.Image(), label)
 				// The label column has its own Clicked target. Press the row's
 				// empty leading inset to exercise the row's Pressed arm itself.
-				tt.Press(float32(label.X-10), float32(label.Y+label.H/2))
+				tt.Press(float32(label.X-2), float32(label.Y+label.H/2))
 				tt.Frame()
 				tt.Advance(300 * time.Millisecond)
 				tt.Frame()
@@ -64,8 +64,8 @@ func TestTheConfigurationEntryOnlyLiftsWhenItCanOpen(t *testing.T) {
 					t.Errorf("%s/%s/%s: unavailable row changed face: rest=%v hover=%v pressed=%v",
 						appearanceName(dark), language, state.name, rest, hover, pressed)
 				}
-				if openable && (hover == rest || pressed == rest || hover == pressed) {
-					t.Errorf("%s/%s: available row lost its distinct hover/press faces: %v %v %v",
+				if openable && (hover != rest || pressed == rest) {
+					t.Errorf("%s/%s: available row must stay flat on hover and respond to press: %v %v %v",
 						appearanceName(dark), language, rest, hover, pressed)
 				}
 				copy := i18n.For(language).Settings

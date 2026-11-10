@@ -221,6 +221,19 @@ func TestTheArrivalRestsWhenTheDesktopAsksForLessMotion(t *testing.T) {
 	}
 }
 
+func TestTheArrivalSettlesWhenAnimationsAreDisabled(t *testing.T) {
+	a := appKeysApp()
+	a.arrivalSeen = func() bool { return true }
+	a.startShellEnter()
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.DisableAnimations()
+		if progress := a.shellEnterProgress(c); progress != 1 || a.enterLive {
+			t.Errorf("disabled arrival: progress=%v live=%v", progress, a.enterLive)
+		}
+	}, 200, 100)
+	tt.Frame()
+}
+
 // R161 · The toasts' entrance follows the same preference, for the same reason:
 // the old build's block names `.app-toast` and sets `animation: none`
 // (`main:src/styles/base.css:1316-1321`), and this build drives that travel
@@ -258,6 +271,14 @@ func TestTheToastEntranceRestsUnderReduceMotion(t *testing.T) {
 		}
 		if _, ok := a.toastSeen[toast.ID]; !ok {
 			t.Errorf("the toast's clock was not taken under reduce motion: turning the preference off would animate it late")
+		}
+	}
+	// DisableAnimations can apply to only one frame. A toast already shown at
+	// rest must not jump back to its first step when the next frame animates.
+	resumed := a.toastEntrances(now.Add(time.Millisecond), toasts, false)
+	for _, toast := range toasts {
+		if resumed[toast.ID] != 1 {
+			t.Errorf("settled toast %q restarted its entrance: %v", toast.ID, resumed[toast.ID])
 		}
 	}
 }

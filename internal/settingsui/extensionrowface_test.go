@@ -184,7 +184,7 @@ func TestTheRowLeadingRuleStaysDarkOnHover(t *testing.T) {
 			restRule, restNext)
 	}
 	// The flip: hover must NOT light the slot. The rule slot keeps the row's
-	// own hover plane, so the two pixels agree.
+	// own resting plane, so the two pixels agree.
 	if delta := channelDelta(hoverRule, hoverNext); delta > 6 {
 		t.Errorf("hover lit the leading rule: slot %v vs the plane beside it %v (delta %d); "+
 			"§5 forbids a rule on row hover", hoverRule, hoverNext, delta)
@@ -201,8 +201,8 @@ func TestTheRowLeadingRuleStaysDarkOnHover(t *testing.T) {
 			}
 		}
 	}
-	if channelDelta(hoverNext, restNext) < 4 {
-		t.Errorf("hover did not lift the row's fill: %v → %v", restNext, hoverNext)
+	if hoverNext != restNext {
+		t.Errorf("hover changed the row's fill: %v → %v", restNext, hoverNext)
 	}
 }
 
@@ -286,11 +286,19 @@ func TestTheBrokenRowWearsTheWarmPane(t *testing.T) {
 	tt := integrationPage(t, a, 720, 1400)
 
 	normal := mustFind(t, tt, "Normal Tool")
-	broken := mustFind(t, tt, "Broken Tool")
 
 	// A point inside each row's plane, just left of its title (past the
 	// package chip, which ends 12u before the title).
 	normalPlane := sample(tt, normal.X-2, normal.Y+normal.H/2)
+	if err := tt.Click(a.copy().IntegrationsBack); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(a.copy().IntegrationsManage + " Broken Tool"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	broken := mustFind(t, tt, "Broken Tool")
 	brokenPlane := sample(tt, broken.X-2, broken.Y+broken.H/2)
 	if delta := channelDelta(normalPlane, brokenPlane); delta < 8 {
 		t.Errorf("the broken row's plane %v matches the normal row's %v (delta %d); the reference warms it",

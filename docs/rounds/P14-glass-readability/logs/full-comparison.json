@@ -1,0 +1,52 @@
+{
+  "baseline": {
+    "pass": 2022,
+    "skip": 92,
+    "fail": 107
+  },
+  "full_run": {
+    "pass": 2037,
+    "skip": 96,
+    "fail": 103
+  },
+  "new_failures": [
+    [
+      "floter/internal/ci",
+      "TestEveryPointerStateFaceNamesItsPair"
+    ],
+    [
+      "floter/internal/ci",
+      "TestNoPaddedPaneIsFlat"
+    ]
+  ],
+  "resolved_baseline_failures": [
+    [
+      "floter/internal/launcher",
+      "TestTheActionBarTakesNoNumber"
+    ],
+    [
+      "floter/internal/settingsui",
+      "TestFormActionConfigSaveRing"
+    ],
+    [
+      "floter/internal/shell",
+      "TestShortcutDraftCancelKeepsSavedRecorder"
+    ],
+    [
+      "floter/internal/shell",
+      "TestTheDetachedBarDotIsTheFactRung"
+    ],
+    [
+      "floter/internal/theme",
+      "TestForScalesByTheInterfaceStep"
+    ],
+    [
+      "floter/internal/theme",
+      "TestLadderScalesWithTheStep"
+    ]
+  ],
+  "panics": [
+    "panic: runtime error: index out of range [-240] [recovered, repanicked]",
+    "panic: runtime error: index out of range [-12] [recovered, repanicked]"
+  ]
+}

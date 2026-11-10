@@ -52,13 +52,11 @@ func checkFormActionRing(t *testing.T, name string) {
 				t.Fatalf("cannot focus %s", label)
 			}
 			outputBoundsDump(t, tt, name, dark)
-			r := mustFind(t, tt, label)
-			if name != "config-copy" && name != "config-export" {
-				// actionButton's discoverable word is centered inside its 30u
-				// face; Find returns that word, not the enclosing control.
-				r.Y -= (30 - r.H) / 2
-				r.H = 30
+			button, ok := tt.AccessByRole(ui.RoleButton, label)
+			if !ok {
+				t.Fatalf("missing accessible button %q", label)
 			}
+			r := button.Bounds
 			for side, p := range map[string][2]int{"top": {int(r.X + r.W/2), int(r.Y - 2)}, "bottom": {int(r.X + r.W/2), int(math.Round(float64(r.Y + r.H + 1)))}} {
 				red, _, blue := rgbAt(tt.Image(), p[0], p[1])
 				if blue-red < 20 {

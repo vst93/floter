@@ -95,6 +95,10 @@ type Profile struct {
 	// empty.
 	HistoryDB     string
 	BookmarksFile string
+	// ReadError preserves a discovered browser whose data directory cannot be
+	// listed. It must remain selectable so a permission failure is not reported
+	// as an uninstalled browser. Such entries have no profile file paths.
+	ReadError error
 }
 
 // Key identifies a profile across runs: `browser-id/profile-dir`, the old
@@ -306,7 +310,18 @@ func firefoxRoot(goos, home, appData string) string {
 // chromiumProfiles lists one base directory's profiles, in the browser's own
 // order: `Default` first, then `Profile N` by number, then the rest by name.
 func chromiumProfiles(goos, id, name, base string) []Profile {
-	dirs := chromiumProfileDirs(base)
+	return chromiumProfilesRead(goos, id, name, base, os.ReadDir)
+}
+
+func chromiumProfilesRead(goos, id, name, base string, readDir func(string) ([]os.DirEntry, error)) []Profile {
+	entries, err := readDir(base)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return []Profile{{BrowserID: id, Browser: name, BaseDir: base, ReadError: err}}
+	}
+	dirs := chromiumDirs(base, entries)
 	// Opera and older portable builds keep data directly in their base.
 	if exists(joinFor(goos, base, "Bookmarks")) || exists(joinFor(goos, base, "History")) {
 		dirs = append([]string{"."}, dirs...)
@@ -346,6 +361,10 @@ func chromiumProfileDirs(base string) []string {
 	if err != nil {
 		return nil
 	}
+	return chromiumDirs(base, entries)
+}
+
+func chromiumDirs(base string, entries []os.DirEntry) []string {
 	var out []string
 	for _, entry := range entries {
 		if entry.IsDir() && isProfileDir(base, entry.Name()) {

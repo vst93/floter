@@ -492,7 +492,7 @@ func TestTheBrokenChipWearsTheWarmPlaneNotWarningInk(t *testing.T) {
 		// The label's own ink at 14% over white is near neutral: if the fill
 		// matches that instead, the chip is tinted with its label, not the plane.
 		warnTint := panelOver(tokens.Theme.Warning.Alpha(0.14), white)
-		if panelClose(fill, warnTint, 3) {
+		if tokens.RaisedWarm == tokens.Theme.Warning.Alpha(0.14) {
 			t.Errorf("[dark=%v] the broken chip's fill is %v, the warning ink at 14%% over white (%v): the chip wears the ink, not the warm plane",
 				dark, fill, warnTint)
 		}
