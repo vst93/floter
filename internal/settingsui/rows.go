@@ -879,19 +879,23 @@ func (a *App) segmentedControl(c *ui.Context, index *int, labels ...string) ui.E
 }
 
 // Dynamic parameter choices keep their identity when the manifest reorders them.
+//
+// The pin is restored through `ui.Themed`, not `Context.SetTheme`. SetTheme is
+// not a scoped switch: it also writes the *root's* background
+// (`ui/context.go:349-355`: `c.root.bg = t.Background`), and the shell paints
+// that root `Transparent` so the window's glass reads the desktop through it
+// (`internal/shell/shell.go` `c.Root().Background(ui.Transparent)`). Restoring
+// with SetTheme therefore repainted the whole window with the theme's opaque
+// background — the report 「添加工具中 本地工具页…没有走整体的主题颜色和透明度」,
+// measured as alpha 255 across every pixel where the rest of the app is 207.
+// The bug only showed on a page that reached this function, which is why the
+// settings pages around it looked right.
 func (a *App) segmentedControlKeyed(c *ui.Context, index *int, labels []string, keys ...[]string) ui.Element {
-	saved := c.Theme()
-	if a.cardUnit > 0 {
-		pinned := *saved
-		pinned.Spacing = a.cardUnit
-		c.SetTheme(&pinned)
-	}
-	// The reference's own numbers: a 3px track padding (0.75 unit) and a 2px
-	// gap (0.5 unit), both taken through `cardSpace` so they are the panel's
-	// literal px inside `extensionMetrics` and the settings `--u` outside it.
 	t := a.cardTheme(c)
-	track := control.SegmentedIndex(c, a.tokens(c), index, labels, false, false, a.cardSpace(t, 0.75), a.cardSpace(t, 0.5), keys...)
-	c.SetTheme(saved)
+	var track ui.Element
+	ui.Themed(c, t).Background(ui.Transparent).Children(func() {
+		track = control.SegmentedIndex(c, a.tokens(c), index, labels, false, false, a.cardSpace(t, 0.75), a.cardSpace(t, 0.5), keys...)
+	})
 	return track
 }
 

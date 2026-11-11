@@ -26,12 +26,68 @@ type integrationNavigation struct {
 
 // Navigation is lighter and shorter than a form's segmented value control.
 // Keep native segment keyboard semantics and one Tab stop.
-func (a *App) integrationTabs(c *ui.Context, selected *int, labels ...string) {
+//
+// There are two ranks of navigation on this page — the page's own three tabs
+// (My tools / Add tools / Import & export) and, inside the Add tools tab, the
+// three ways to add (Detected / Local tool / Package) — and they used to be the
+// *same* control drawn twice, one row above the other, so the second read as a
+// repeat of the first rather than as its children (「这里的两层菜单样式和交互太
+// 丑了」). The ranks are now told apart the way a hierarchy is told apart
+// everywhere else in this app: the parent is a row of words on the sheet's own
+// surface with a rule under the chosen one, and only the child wears a plate.
+// The parent is `primary` and the child is not.
+func (a *App) integrationTabs(c *ui.Context, selected *int, primary bool, labels ...string) {
 	tokens := a.tokens(c)
+	t := c.Theme()
 	parts := ui.SegmentedBase(c, selected, len(labels))
-	parts.Track.FillWidth().Gap(4).Children(func() {
+	track := parts.Track.FillWidth().Gap(4)
+	if primary {
+		// The page's own rank: no plate, no track, and a rule under the chosen
+		// word — the tab shape, not the segmented-control shape. The track's own
+		// bottom hairline is the bar the chosen tab's rule sits on, which is what
+		// makes the row read as a tab bar rather than as three floating words.
+		track.Background(ui.Transparent).InsetShadow(0, -1, 0, 0, tokens.HairlineSoft)
+		track.Children(func() {
+			for i, label := range labels {
+				i, label := i, label
+				segment := parts.Segment(i).Grow(1).Basis(0).MinWidth(0).MinHeight(34).
+					Padding(0, 8).Center().Label(label)
+				chosen := i == *selected
+				ink := t.TextMuted
+				if chosen {
+					ink = tokens.TextStrong
+				} else if segment.Hovered() {
+					ink = t.Text
+				}
+				segment.Children(func() {
+					ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(ink).
+						SingleLine().Ellipsis("…")
+				})
+				// The chosen tab's own underline: an inset stroke on the segment's
+				// bottom edge, so it is the segment's last row of pixels and moves
+				// with the word. An absolutely positioned child would be placed in
+				// the segment's *padding* box (this row is `Center()`ed, so the
+				// segment's content box is the word), which put the rule through
+				// the label instead of under it.
+				if chosen {
+					// The rule is the segment's own bottom edge: an inset stroke,
+					// so it is the last rows of pixels the segment paints and it
+					// cannot land through the label. The segment is a third of the
+					// row wide, so the rule is that wide too — the tab bar's own
+					// grammar, where the chosen tab is marked by the rule under
+					// the third of the bar it owns.
+					segment.InsetShadow(0, -2, 0, 0, t.Accent)
+				}
+			}
+		})
+		return
+	}
+	// The child rank keeps the plate: it is the control that actually narrows
+	// the page, and the parent above it no longer competes with it.
+	track.Children(func() {
 		for i, label := range labels {
-			segment := parts.Segment(i).Grow(1).Basis(0).MinWidth(0).MinHeight(30).
+			i, label := i, label
+			segment := parts.Segment(i).Grow(1).Basis(0).MinWidth(0).MinHeight(28).
 				Padding(0, 8).Radius(tokens.RadiusSM).Center().Label(label)
 			if i == *selected {
 				segment.Background(tokens.RowSelected)
@@ -41,7 +97,11 @@ func (a *App) integrationTabs(c *ui.Context, selected *int, labels ...string) {
 				tokens.LitFace(segment)
 			}
 			segment.Children(func() {
-				ui.Text(c, label).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextStrong).SingleLine().Ellipsis("…")
+				ink := tokens.TextSecondary
+				if i == *selected {
+					ink = tokens.TextStrong
+				}
+				ui.Text(c, label).FontSize(tokens.Body).FontWeight(500).TextColor(ink).SingleLine().Ellipsis("…")
 			})
 		}
 	})
@@ -120,7 +180,7 @@ func (a *App) integrationToolbar(c *ui.Context, copy i18n.Settings) {
 		return
 	}
 	tab := n.tab
-	a.integrationTabs(c.Key("tabs"), &tab, copy.IntegrationsMine, copy.IntegrationsAdd, copy.IntegrationsTransfer)
+	a.integrationTabs(c.Key("tabs"), &tab, true, copy.IntegrationsMine, copy.IntegrationsAdd, copy.IntegrationsTransfer)
 	if tab != n.tab {
 		if n.tab == 1 && n.addMethod == 1 {
 			a.toolPageEpoch++
@@ -136,13 +196,20 @@ func (a *App) integrationToolbar(c *ui.Context, copy i18n.Settings) {
 		}
 		a.cancelConfirmations()
 	}
-	if n.tab == 0 {
+	// The second rank rides directly under the first: one block of navigation,
+	// two ranks in it. Spacing them by the page's own gap (Space(4)) made the
+	// child look like the first section of the page rather than the parent's
+	// children, which is the other half of 「两层菜单…太丑了」.
+	switch n.tab {
+	case 0:
 		if a.textInput(c.Key("filter"), &n.query).FillWidth().MinHeight(32).Height(32).Label(copy.IntegrationsSearch).Placeholder(copy.IntegrationsSearch).Changed() {
 			a.Body.Y, n.listY = 0, 0
 		}
-	} else if n.tab == 1 {
+	case 1:
 		method := n.addMethod
-		a.integrationTabs(c.Key("method"), &method, copy.IntegrationsDiscover, copy.IntegrationsLocal, copy.IntegrationsPackages)
+		ui.Box(c).FillWidth().Padding(c.Theme().Space(0.5), 0, 0, 0).Children(func() {
+			a.integrationTabs(c.Key("method"), &method, false, copy.IntegrationsDiscover, copy.IntegrationsLocal, copy.IntegrationsPackages)
+		})
 		if method != n.addMethod {
 			if n.addMethod == 1 {
 				a.toolPageEpoch++
@@ -312,4 +379,30 @@ func (a *App) integrationSummary(c *ui.Context, copy i18n.Settings, item Integra
 	if clicked || manage.Clicked() {
 		a.openIntegrationDetail(key)
 	}
+}
+
+// OpenAddTools, OpenLocalTool and OpenLocalToolForm put the Integrations page
+// into the state a caller wants to render, for a test or a deep link that has
+// no pointer: the Add tools tab, its Local tool sub-tab, and that section's
+// open form. They are the same three writes the tabs and the Add button make,
+// so a frame driven by them is the frame the user reaches.
+func (a *App) OpenAddTools() {
+	n := &a.integrationNav
+	n.detail = nil
+	n.tab, n.addMethod = 1, 0
+	a.Body.Y = 0
+}
+
+// OpenLocalTool is OpenAddTools on the Local tool sub-tab.
+func (a *App) OpenLocalTool() {
+	a.OpenAddTools()
+	a.integrationNav.addMethod = 1
+	a.Body.Y = 0
+}
+
+// OpenLocalToolForm is OpenLocalTool with its form open.
+func (a *App) OpenLocalToolForm() {
+	a.OpenLocalTool()
+	a.toolOpen = true
+	a.toolIssue = false
 }

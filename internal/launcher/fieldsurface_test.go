@@ -75,9 +75,13 @@ func TestTheFieldBandIsThePanelsOwnSurface(t *testing.T) {
 				band, panel)
 		}
 		// The floor is still drawn, and still exactly one pixel: the field's row
-		// less one (`launcher.go`'s `Top(fieldRow - 1)`), in the quiet hairline.
+		// less one (`launcher.go`'s `Top(TopInsetUnits + fieldRow - 1)`), in the
+		// quiet hairline. P19 重定基线：面板自己的 4u 上内边距此前由外壳的
+		// `Padding` 支付（那一圈就是用户报的「四周内边」），现在由面板自己支付，
+		// 于是带子的顶与它的底线一起下移 `TopInsetUnits`，带子的高度与
+		// 窗口的高度链一个数没动。
 		spacing, _, _, _ := designMetrics()
-		floor := int(float64(fieldRowUnits)*spacing) - 1
+		floor := int(float64(TopInsetUnits+fieldRowUnits)*spacing) - 1
 		above, line, below := img.RGBAAt(4, floor-1), img.RGBAAt(4, floor), img.RGBAAt(4, floor+1)
 		if line == above || line == below {
 			t.Errorf("the field block's floor at y=%d is %v, the same as its neighbours (%v / %v): "+

@@ -4711,12 +4711,6 @@ func (a *App) View(c *ui.Context) {
 		} else if a.Surf == SurfaceLauncher {
 			drawCardEdge(card, surface.Tokens, runtime.GOOS, focused, contrast)
 		}
-		// Only settings have an inner gutter. Terminal padding belongs to the
-		// terminal's own appearance setting.
-		padX := t.Space(2.5)
-		if a.Surf != SurfaceSettings {
-			padX = 0
-		}
 		// The terminal has its own transparency control: the old build painted
 		// the terminal's canvas at `--terminal-opacity` over a veil of
 		// `--glass-tint-terminal`, so the panel's fill follows the terminal
@@ -4762,18 +4756,6 @@ func (a *App) View(c *ui.Context) {
 			// 的时候，应用的透明底是失效的」). Its sheen and lens are zero, so the
 			// face is a plain translucent pane.
 			//
-			// The launcher's own insets are the old panel's: 4u above and 2u
-			// below (`.launcher-bottom`), with the field's row and its breath
-			// inside the card — `66 + rows` is the window. The other surfaces
-			// are panels, not a panel that grows a row at a time, but they
-			// share the top inset: the old build pinned the launcher's field
-			// row and the settings pages' header to the same band (R37), and a
-			// band that starts elsewhere is a band that jumps when the surface
-			// changes.
-			padTop, padBottom := t.Space(launcher.TopInsetUnits), t.Space(2.5)
-			if a.Surf == SurfaceLauncher {
-				padBottom = t.Space(launcher.TailUnits)
-			}
 			// The sheen is capped at the alpha the face is *actually* painted
 			// at, which is the frame's own on every surface but the terminal's
 			// (its face carries a share of the terminal slider; see
@@ -4786,7 +4768,6 @@ func (a *App) View(c *ui.Context) {
 			}
 			if a.Surf == SurfaceTerminal {
 				// One uninterrupted canvas, without a glass gutter or lit rim.
-				padTop, padBottom = 0, 0
 				faceTop = a.Terminal.FrameBackground(surface.Tokens)
 				faceTop = ui.RGBA(faceTop.R, faceTop.G, faceTop.B, faceAlpha)
 				faceBottom = faceTop
@@ -4803,7 +4784,16 @@ func (a *App) View(c *ui.Context) {
 					ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).PassThrough().
 						LinearGradient(ui.LinearGradient{From: sheenTop, To: sheenBottom, Angle: 180})
 				}
-				ui.Column(c).Fill().Padding(padTop, padX, padBottom, padX).Children(func() { a.surface(c) })
+				// No gutter and no inset here: the card *is* the window, so
+				// padding this column paints a band of the card's own
+				// translucent face around the surface's darker sheet — a
+				// lighter rim drawn by the app itself, the same shape as the
+				// Windows frame report (「窗口周边外圈还有一圈额外的底色」)
+				// and just as foreign to a desktop app. Each surface insets its
+				// own content and paints its sheet to the card's edge instead:
+				// the settings column's 4u header inset, the launcher panel's
+				// 4u/2u, the terminal's own appearance padding.
+				ui.Column(c).Fill().Children(func() { a.surface(c) })
 			})
 		})
 	})
@@ -5082,6 +5072,7 @@ func (a *App) launcherHeight(s settings.Settings) int {
 		Filter:       a.Launcher.FiltersVisible(),
 		Feedback:     a.Launcher.FeedbackVisible(),
 		Config:       a.Launcher.ConfigSchema(),
+		OutputHeader: a.Launcher.OutputHeaderHeight(),
 		Cap:          cap,
 	}.Height()
 }

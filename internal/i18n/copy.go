@@ -171,6 +171,7 @@ var en = Copy{
 		OutputFailed:             "Exit code %d",
 		OutputLoading:            "Loading more\u2026",
 		OutputEnd:                "No more results",
+		OutputRunning:            "Running\u2026",
 
 		ClipboardFavoriteFailed:  "Could not change the star",
 		ClipboardDeleteFailed:    "Could not delete the entry",
@@ -1037,6 +1038,7 @@ var zh = Copy{
 		OutputFailed:          "退出码 %d",
 		OutputLoading:         "正在加载…",
 		OutputEnd:             "没有更多结果",
+		OutputRunning:         "正在执行…",
 
 		ClipboardFavoriteFailed:  "无法修改收藏",
 		ClipboardDeleteFailed:    "无法删除该条目",

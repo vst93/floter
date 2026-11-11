@@ -1315,8 +1315,14 @@ func (a *App) View(c *ui.Context) {
 	// inside this fill, which is what keeps the two surfaces' first band the
 	// same sheet as well as the same height. The chrome below shadows it
 	// with its own `Control` face (see the sidebar column).
+	// The sheet is the whole card — the shell no longer pads this column, so a
+	// `Background` here reaches the window's rounded edge — and the 4u the
+	// header's band sits below is this column's own padding. It is the same
+	// `launcher.TopInsetUnits` the launcher's field row spends, so the two
+	// surfaces' first band is the same band (R37), not merely the same height.
 	tokens := a.tokens(c)
-	ui.Column(c).Fill().Background(tokens.Sunken).Children(func() {
+	ui.Column(c).Fill().Background(tokens.Sunken).
+		Padding(t.Space(launcher.TopInsetUnits), 0, 0, 0).Children(func() {
 		ui.Row(c).FillWidth().Height(t.Space(launcher.FieldRowUnits)).Padding(0, t.Space(4)).
 			Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, copy.Title).FontSize(a.tokens(c).Emphasis).FontWeight(500).

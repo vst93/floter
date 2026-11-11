@@ -153,6 +153,11 @@ type Launcher struct {
 	// the scroll trigger is the affordance, so it has no word of its own.
 	OutputLoading string
 	OutputEnd     string
+	// OutputRunning is the line the list band shows while a background
+	// command is in flight: the run is the *page*'s business, not a toast, and
+	// the search field above it stays exactly where it is. See
+	// `launcher.App.running`.
+	OutputRunning string
 
 	// The clipboard mode's own feedback lines: the star and the delete.
 	ClipboardFavoriteFailed string

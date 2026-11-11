@@ -339,19 +339,22 @@ func footerIsABlockWithTheWeakRule(t *testing.T, dark bool) {
 	if strong := over(tokens.Hairline, img.RGBAAt(1, top-2)); closeRGB(rule, strong) && tokens.Hairline != tokens.HairlineSoft {
 		t.Errorf("the footer's rule is the strong hairline %v; the contract gives the footer the weak one", strong)
 	}
-	// The legend: `⌘K`'s two plates at the footer's right edge, each the same
-	// keycap the rows draw.
-	labels := keycapLabels(footerActionsBadge())
+	// The footer's own chord, at its right edge, in the same keycap the rows
+	// draw. P20 重定基线：this used to be the `⌘K` legend *beside* the chord —
+	// a chord this build never bound, which the user read as a second way into
+	// the terminal. The legend is gone; the row's real chord (`⌘↩`) is the one
+	// read here.
+	labels := keycapLabels(a.enterBadge())
 	if len(labels) < 2 {
-		t.Fatalf("the footer's legend %q is not a chord: %v", footerActionsBadge(), labels)
+		t.Fatalf("the footer's chord %q is not a chord: %v", a.enterBadge(), labels)
 	}
 	for _, label := range labels {
 		r, ok := tt.Find(label)
 		if !ok {
-			t.Fatalf("the footer's legend is missing the key %q: %q", label, tt.Texts())
+			t.Fatalf("the footer's chord is missing the key %q: %q", label, tt.Texts())
 		}
 		if gap := plateAround(tt, r).H; gap < 17 || gap > 24 {
-			t.Errorf("the legend's key %q is %.1f tall, want the keycap's 20u", label, gap)
+			t.Errorf("the chord's key %q is %.1f tall, want the keycap's 20u", label, gap)
 		}
 	}
 	// And the footer's own block stops on the list's gutter, so the two are one

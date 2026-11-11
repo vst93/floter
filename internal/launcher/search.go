@@ -222,7 +222,14 @@ func (a *App) runCommandWith(entry extensions.CommandEntry, args []string) {
 		if a.Actions.RunCommandCaptured == nil {
 			return
 		}
+		// The run is announced in the list band while it is in flight: the
+		// field above does not move, so the keystroke that started it has an
+		// answer on the frame it lands (see App.running and `runningBand`).
+		// The callback clears it, whether the run answered or failed — a
+		// refused run still shows its output page, with the reason in it.
+		a.running = a.Query
 		a.Actions.RunCommandCaptured(entry, args, func(run extensions.CapturedRun, err error) {
+			a.running = ""
 			a.showOutput(run, err, &entry, args)
 		})
 		return

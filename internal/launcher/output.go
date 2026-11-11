@@ -597,19 +597,134 @@ func (a *App) runStatusParts(copy i18n.Launcher, run extensions.CapturedRun) (ve
 	return verdict, strings.Join(parts, "  ·  ")
 }
 
-// leaveOutput closes the output view.
+// leaveOutput is the page's own way out (Escape): the band goes back to the
+// results and the field keeps what the user typed.
+//
+// The text is theirs, and it is the command line the run came from — the same
+// rule the reference states for leaving a plugin mode (「the user's own words
+// are never thrown away by a dismissal」, `main:src/App.tsx:1151-1161`). Emptying
+// it here made Escape a second, silent edit of the search bar, which is the one
+// thing the user asked not to move (「搜索栏部分应该不动」).
 func (a *App) leaveOutput() {
+	a.closeOutput()
+	a.Selected, a.chosenRow = 0, -1
+}
+
+// closeOutput closes the output view and leaves the field alone.
+//
+// Two callers need it without the query reset: a row's `insert` action (the
+// text it puts in the field comes after the close — see `runOutputRow`), and a
+// keystroke in the field, which is the user asking a new question: the page
+// goes back to its results with what they typed, not to an empty field.
+func (a *App) closeOutput() {
 	if a.output == nil {
 		return
 	}
 	a.output = nil
 	a.outputNumbers = nil
-	a.Query = ""
-	a.Selected, a.chosenRow = 0, -1
+	// The strip is the page's own band: it goes with the page, or the search
+	// list behind it would be charged for a header it does not draw (the shell
+	// reads `OutputHeaderHeight` between frames, so a stale number is a window
+	// too tall).
+	a.outputHeader = 0
 }
 
 // InOutputView reports whether a captured run's output is on screen.
 func (a *App) InOutputView() bool { return a.output != nil }
+
+// runningBand is what the list band shows while a background command is in
+// flight: a turning ring and the one word for it, centred in the band the rows
+// would occupy, under the field row that does not move.
+//
+// It is deliberately *not* a page: the field above keeps its text, its caret
+// and its own face, and the band below is the only thing that changes. That is
+// the shape the user asked for — 「理论上搜索栏部分应该不动或有一个执行的
+// loading 动画，然后变化的是下方列表部分」 — and the one the reference has
+// (`main:src/App.tsx` draws a plugin's output in the `LauncherResults` slot, the
+// field row untouched above it).
+//
+// The ring is `footerSpinner`'s, the same 0.7 s turn and the same ink the
+// pagination row uses: one spinner in this app, not two.
+func (a *App) runningBand(c *ui.Context, edge float32) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	ui.Column(c).FillWidth().Grow(1).Center().
+		Padding(edge, max(20, t.Space(5)), a.statusBand(c), max(20, t.Space(5))).
+		Children(func() {
+			ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+				a.footerSpinner(c, true)
+				ui.Text(c, a.copy().OutputRunning).FontSize(tokens.Caption).
+					TextColor(tokens.TextSecondary).SingleLine()
+			})
+		})
+}
+
+// OutputHeaderHeight is the captured-output page's header band, as the last
+// frame measured it: the shell sizes the window with it between frames, the
+// same way it reads `Font` and `TitleLine` (see `outputHeaderHeight`).
+func (a *App) OutputHeaderHeight() float64 { return a.outputHeader }
+
+// outputHeaderHeight is the band the output page draws above its body: the
+// strip that names the run (its title row and its status line), the breath
+// below it, and the page's own top inset.
+//
+// The window's height is charged from the rows the body draws (see
+// `windowRows` and `Geometry`), and until this number was added the strip was
+// drawn but never paid for: a three-line output was charged 145px against the
+// 170px it draws, so the page opened with its last line cut and a scroll bar
+// the content did not need — the user's 「现在显示的内容并不算很多，但还是触发
+// 了滚动条」. The strip is measured here rather than assumed, because it is
+// text: the title and the status line are the font's own line boxes, exactly
+// as `TitleLine` and `SubtitleLine` are for a row.
+//
+// The numbers are `outputBody`'s own, in the order it draws them, *above* the
+// band the chrome already pays:
+//
+//	Row(title …)        the title's line box (the strip's top padding is the
+//	                    field row and its breath, which `chrome` charges)
+//	RichText(status …)  the status line's line box
+//	Padding(Space(4))   the body's breath under the strip
+//
+// Measured off the frame rather than assumed: with the shipped step the title
+// line is 14.8 and the caption 13.0, and no multiple of the 3.6 spacing unit is
+// either. A run whose strip carries the pin and detach controls is charged the
+// 28u square instead, because the row is `max(line, control)` tall.
+func (a *App) outputHeaderHeight(c *ui.Context, edge float32) float64 {
+	view := a.output
+	if view == nil {
+		return 0
+	}
+	t := c.Theme()
+	tokens := a.tokens(c)
+	// The two line boxes are the registers the strip draws in — the title's and
+	// the caption's — and a caller that has not measured yet (the shell before
+	// the first frame) is given the ladder's own steps, which are the floor of
+	// every real box. They are not offsets off the body size: a line that does
+	// not follow the interface step drifts away from the ladder the moment the
+	// user changes it (the rule `internal/ci/fontladder_contract_test.go` keeps).
+	titleLine := float64(a.TitleLine)
+	if titleLine <= 0 {
+		titleLine = float64(tokens.Title)
+	}
+	captionLine := float64(a.SubtitleLine)
+	if captionLine <= 0 {
+		captionLine = float64(tokens.Caption)
+	}
+	// The caption register the status line is drawn in, as `RichText` lays it:
+	// the same `MeasureText` the rows are measured with.
+	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: tokens.Caption}); height > 0 {
+		captionLine = float64(height)
+	}
+	titleRow := titleLine
+	// The strip's controls are 28u squares and they sit in the title's row, so
+	// a run that offers them is a control taller than its own title line.
+	if (a.Actions.PinText != nil && !view.IsList) || (a.Actions.DetachOutput != nil && view.Entry != nil) {
+		titleRow = max(titleRow, float64(max(36, t.Space(9))))
+	}
+	height := titleRow + captionLine + float64(t.Space(4))
+	a.outputHeader = height
+	return height
+}
 
 // outputBody draws the captured output in place of the result list: the
 // status line pinned under the field, and the text or the rows scrolling under
@@ -1154,6 +1269,12 @@ const (
 // rounded up to whole `ROW_HEIGHT_TWO_LINE` band rows — the old build's
 // `pluginTextMetrics(...).rows`, which is what `pluginViewRows` returned for
 // the text form. An empty string has no lines and takes the floor.
+//
+// It is no longer what the window is *charged* (see `pluginTextBlock`: this
+// build knows the drawn line box and charges that). It survives as the
+// **ceiling** the form still honours — the ten-band height — and as the number
+// the old build's own contract is written in, which is what a reader comparing
+// the two wants to find.
 func pluginTextRows(text string) int {
 	lines := 0
 	if text != "" {
@@ -1163,11 +1284,57 @@ func pluginTextRows(text string) int {
 	return int(math.Ceil(height / pluginTextBandUnits))
 }
 
-// outputRows is the band table for the captured-output view in front of the
-// user. The text form is `pluginTextRows` band rows, each charged the full
-// `ROW_HEIGHT_TWO_LINE` (the block is one body, not rows); the list form is its
-// first `MAX_RESULTS` rows at their own heights (a status note 30u, a result
-// 40u) with a section-title band per block. See
+// pluginTextBlock is the text form's own height in pixels: its lines at the
+// box the view actually lays them in, inside the old build's floor and ceiling.
+//
+// The floor is the old build's three lines (「一个最小高度也要限制」) and the
+// ceiling its ten band rows — but the floor is three lines *as this build draws
+// them*, not as the reference's 24px-per-line arithmetic priced them. That is
+// the whole of the fix: the old build charged a text line 24 units because the
+// browser's line box was not its to know, so a three-line block was charged 72
+// units while it drew 44.5 — the page was a band short and opened scrolled,
+// which is the report 「现在显示的内容并不算很多，但还是触发了滚动条」. Charging
+// the box the view actually lays the lines in removes both the shortfall and
+// the dead air the fixed floor left under a one- or two-line block.
+//
+// The ceiling stays the old build's ten band rows (`pluginTextMaxUnits`): past
+// it the block scrolls inside itself rather than growing the window, which is
+// the rule that keeps a long output from opening a window taller than a screen.
+//
+// The block's own breath is the scroll view's padding, `Space(3)` a side and
+// `Space(4)` at the bottom (`outputBody`'s text arm), so it is charged here
+// rather than guessed.
+func (a *App) pluginTextBlock(text string) float64 {
+	spacing := a.Spacing
+	if spacing <= 0 {
+		spacing = 4
+	}
+	line := a.SubtitleLine
+	if line <= 0 {
+		line = a.Font
+	}
+	if line <= 0 {
+		line = 14
+	}
+	// The scroll view's own vertical padding: `Space(3)` above and `Space(4)`
+	// below (`outputBody`'s text arm draws `Padding(0, Space(3), header, …)`).
+	const textBlockPad = 7
+	// The old build's three-line floor, in the lines this build draws.
+	const textBlockMinLines = 3
+	lines := 0
+	if text != "" {
+		lines = strings.Count(text, "\n") + 1
+	}
+	height := math.Max(float64(textBlockMinLines)*line, float64(lines)*line)
+	ceiling := float64(pluginTextRows(text)) * pluginTextBandUnits * spacing
+	height = math.Min(height, ceiling)
+	return height + textBlockPad*spacing
+}
+
+// outputRows is the row table for the captured-output view in front of the
+// user. The text form is one measured block (`pluginTextBlock`); the list form
+// is its first `MAX_RESULTS` rows at their own heights (a status note 30u, a
+// result 40u) with a section-title band per block. See
 // `main:src/launcher/plugin-mode.ts:647-651` (`pluginViewRows`) and
 // `main:src/App.tsx:2185-2200`.
 func (a *App) outputRows() (rows []RowInfo, held, sections int) {
@@ -1176,12 +1343,10 @@ func (a *App) outputRows() (rows []RowInfo, held, sections int) {
 		return nil, 0, 0
 	}
 	if !view.IsList {
-		n := pluginTextRows(view.Text)
-		rows = make([]RowInfo, n)
-		for i := range rows {
-			rows[i].Band = pluginTextBandUnits
-		}
-		return rows, n, 0
+		// One row, charged its own measured block. `Held` stays 1 so the
+		// window's row arithmetic does not add a band of its own on top: the
+		// block already is the band.
+		return []RowInfo{{Block: a.pluginTextBlock(view.Text)}}, 1, 0
 	}
 	visible := view.Rows
 	if len(visible) > rowBudget {

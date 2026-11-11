@@ -484,6 +484,19 @@ type App struct {
 	// rather than at the first one's offset).
 	output *OutputView
 	Output ui.ScrollState
+	// running is the query whose background command is in flight, or "". The
+	// list band shows a running line while it is set (see `runningBand`), so a
+	// command that takes seconds answers the keystroke that started it instead
+	// of leaving the page looking untouched until its output lands. The field
+	// above is not part of this: it never moves, never empties, and never
+	// changes its face for a run — the run is the band's business (the report
+	// 「理论上搜索栏部分应该不动或有一个执行的 loading 动画，然后变化的是下方
+	// 列表部分」).
+	running string
+	// outputHeader is the band the captured-output page draws above its rows,
+	// as the last frame measured it: the shell sizes the window from it between
+	// frames (see `outputHeaderHeight`).
+	outputHeader float64
 	// footerSpin is when the output footer's paging ring was first drawn: the
 	// start of its turn (P11-bp). It lives on the app rather than in the
 	// element's state because the angle is read while the frame paints
@@ -1321,14 +1334,24 @@ func (a *App) View(c *ui.Context) {
 	// Query changes follow the content count. A temporary modifier footer
 	// takes room inside that count, and the shell still caps to the work area.
 	a.HeldRows = HoldRows(a.HeldRows, held)
+	// The captured-output page draws a strip above the rows it prices — the
+	// run's own command line and its verdict — and that strip is charged here
+	// (see `outputHeaderHeight`). Without it a short output was a window short
+	// and opened scrolled, which is the scroll bar the user reported on content
+	// that fits (「现在显示的内容并不算很多，但还是触发了滚动条」).
+	outputHeader := 0.0
+	if a.output != nil {
+		outputHeader = a.outputHeaderHeight(c, t.Space(fieldRowUnits)+t.Space(breathUnits))
+	}
 	if a.Actions.ResizeTo != nil {
 		geometry := Geometry{
 			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: len(rows),
 			TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
-			Filter:   a.filtersVisible(),
-			Feedback: a.feedbackVisible(),
-			Config:   a.configSchema(),
-			Sections: sections,
+			Filter:       a.filtersVisible(),
+			Feedback:     a.feedbackVisible(),
+			Config:       a.configSchema(),
+			Sections:     sections,
+			OutputHeader: outputHeader,
 		}
 		a.Actions.ResizeTo(geometry.Height())
 	}
@@ -1358,11 +1381,20 @@ func (a *App) View(c *ui.Context) {
 	// the rows sit on a recess rather than on the frame (`.launcher-bottom`).
 	// The field block above is opaque and paints over its top.
 	//
+	// The sheet reaches the card's edge: the shell spends no inset of its own
+	// any more, so the 4u above the field row (`.launcher-bottom`'s top) is
+	// this panel's *content* inset. It is `Padding` here for the flow (the
+	// list and its footer), and the absolute bands below — the field row, the
+	// chips, the floor rule — add the same `TopInsetUnits` to their own `Top`,
+	// because an absolute child is placed in its parent's border box and does
+	// not see the padding. The 2u tail is already inside the action bar's own
+	// band (`actionBarUnits` charges it).
+	//
 	// It is also where the pass reads the pointer and the list's offset from:
 	// both are needed before the first row is built, and both are answers about
 	// *this* panel, so the element that encloses every row is the one asked
 	// (`PointerPosition` is local to the element's box).
-	panel := ui.Box(c).Fill().Background(tk.Sunken)
+	panel := ui.Box(c).Fill().Background(tk.Sunken).Padding(t.Space(TopInsetUnits), 0, 0, 0)
 	panel.Children(func() {
 		a.trackPointer(panel)
 		// R21 · the pointer's selection is an *entry edge*, not a per-frame
@@ -1377,16 +1409,34 @@ func (a *App) View(c *ui.Context) {
 		// a later list rebuild would read as "already entered".
 		a.hoveredRow = a.hoverFrameRow
 		a.hoverFrameRow = -1
-		if a.output != nil {
-			a.outputBody(c, copy, edge)
-			return
-		}
 		// The configuration sheet takes the result list's place: same band,
 		// same card, the mode's own face (the old build's R29 overlay). It
 		// starts below the chips row, which stays — the gear that opened the
 		// sheet is there, and it is the sheet's only close control — and so
 		// does the field, which the sheet's own budget is measured above.
-		if a.configOpen() {
+		if a.running != "" && a.running == a.Query {
+			// A background command is in flight for *this* query: the band that
+			// holds the results says so, and the field above it is untouched —
+			// no page change, no move, no clearing. The run is the band's
+			// business (the report 「理论上搜索栏部分应该不动或有一个执行的
+			// loading 动画，然后变化的是下方列表部分」). Editing the field
+			// abandons the notice (the comparison above), so a new query gets
+			// its list back without waiting for the old run.
+			a.runningBand(c, listEdge)
+		} else if a.output != nil {
+			// The captured output takes the *list's* place, not the page: the
+			// field row above it stays (it is the command line the run came
+			// from, and the user can still read and edit it), and the strip,
+			// the text or the rows and the footer sit in the band the results
+			// would have. That is the reference's own shape — `pluginText`
+			// prints under the field, inside `.launcher-bottom`
+			// (`main:src/App.tsx:3634-3642`), with `PluginTextView` in the slot
+			// `LauncherResults` takes. The port returned from the whole panel
+			// instead, so the page drew no field row and the band it would have
+			// occupied was left blank above the strip (the report 「展示结果上方
+			// 会有一块和输入框同等高度的空白」).
+			a.outputBody(c, copy, listEdge)
+		} else if a.configOpen() {
 			a.configBody(c, listEdge)
 		} else if quietPage {
 			// The empty state is Raycast's quiet page: the sentence in the
@@ -1492,7 +1542,7 @@ func (a *App) View(c *ui.Context) {
 		}
 
 		// The chips row floats under the field, the list scrolling beneath it.
-		a.filtersRow(c, fieldRow+t.Space(1))
+		a.filtersRow(c, t.Space(TopInsetUnits)+fieldRow+t.Space(1))
 
 		// The rows fade into the panel under the field is gone with R31: the
 		// reference deleted the launcher's scroll-edge band and kept only the
@@ -1508,7 +1558,7 @@ func (a *App) View(c *ui.Context) {
 		// the footer bar's own 120ms enter never started, and the selected pill
 		// stayed un-painted on the frame the shell's pins read. The key makes the
 		// row the same element before and after the rule moved.
-		ui.Row(c.Key("launcher.fieldRow")).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
+		ui.Row(c.Key("launcher.fieldRow")).Absolute().Top(t.Space(TopInsetUnits)).Left(0).Right(0).Height(fieldRow).
 			Padding(0, t.Space(4)).
 			AlignItems(ui.Center).Children(func() {
 			// The reference's `.collapsed-card__input-row` is a plain flex row with
@@ -1578,6 +1628,15 @@ func (a *App) View(c *ui.Context) {
 				a.pendingCaret = false
 			}
 			if field.Changed() {
+				// Editing the field is the user asking a *new* question, and a
+				// captured output belongs to the query it was run from: the page
+				// goes back to its results. Without this the field stayed
+				// editable while the band below it kept showing the old run — a
+				// page that looks like the search page and answers none of it
+				// (the report 「这种执行应该还是在搜索页，而不是跳到一个类似搜索
+				// 的页面」). The output is not a page of its own: it is what the
+				// list *shows* for one query, so a new query gets its list back.
+				a.closeOutput()
 				// A fresh query starts on its own default: the action bar for a
 				// dead-key query, the first runnable result otherwise (the
 				// reference's `defaultsToActionBar` / `firstRunnableResultIndex`).
@@ -1697,7 +1756,7 @@ func (a *App) View(c *ui.Context) {
 		// never painted from the day it landed). Same position, later paint: the
 		// line is the block's last pixel, which is what 「这块的下沿」 means, and
 		// the height chain moves by nothing.
-		ui.Box(c).Absolute().Top(fieldRow - 1).Left(0).Right(0).Height(1).PassThrough().
+		ui.Box(c).Absolute().Top(t.Space(TopInsetUnits) + fieldRow - 1).Left(0).Right(0).Height(1).PassThrough().
 			Background(tk.HairlineSoft)
 	})
 
@@ -2791,23 +2850,15 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				a.rowKeycap(c, tokens, item.Shortcut)
 			}
 		}
-		// The footer's own actions legend rides *this row*, not an absolute
-		// overlay: `⌘K` (`docs/raycast-design.md` §4.6). It is the same keycap
-		// chord the hint beside it draws, so the row's flex layout puts the two
-		// side by side and the hint can never be painted under it — which is what
-		// the absolute legend did once both became two-plate chords (the overlap
-		// was visible in the exported frame, not just in arithmetic).
-		//
-		// The chord is **not bound** in this build: the task book keeps the
-		// keyboard model untouched, and P8-b is where the actions surface it will
-		// open arrives. The gap is listed in docs/raycast-design.md.
-		if isBar {
-			// The legend is its own group at the row's tail, one 8u step clear of
-			// the hint beside it: the two chords are different facts (this row
-			// runs on `⌘↩`; `⌘K` opens the actions surface), and with one plate
-			// per key they would otherwise read as a single four-key card.
-			a.rowKeycap(c, tokens, footerActionsBadge()).Margin(0, 0, 0, t.Space(2))
-		}
+		// The footer's actions legend (`⌘K`, `docs/raycast-design.md` §4.6) is
+		// **not** drawn: the chord it names has never been bound in this build —
+		// the reference's actions surface is unbuilt, and the design doc's own
+		// §4.6 entry says so. A keycap that names nothing is a promise the app
+		// does not keep, and on the "run it in a shell" row it read as a second
+		// way into the terminal beside the real one (`⌘↩`), so the user reported
+		// it as 「去掉进入终端的 super+k 快捷键保留一个 super+回车就行了」. The
+		// row keeps its one real chord; the legend returns with the surface it
+		// would open.
 	})
 	if row.Clicked() && !removed {
 		a.Selected = i
@@ -2973,15 +3024,31 @@ func (a *App) runClipboard(results []Item) {
 	}
 }
 
-// runMode leaves the command mode and runs the command with the arguments
-// the user typed.
+// runMode runs the command the mode is feeding, with the arguments the user
+// typed, and **stays in the mode**.
+//
+// The field keeps its text: it *is* the command line, and the run belongs to
+// it — the reference's `runExternalCommand` sets `externalRun` and leaves both
+// `query` and `pluginMode` alone (`main:src/App.tsx:950-966`), so the arguments
+// stay readable and re-runnable while the output is under them. Clearing the
+// field made the search bar change the instant Enter landed, which is the "the
+// bar must not move" half of the report 「搜索栏部分应该不动…然后变化的是下方
+// 列表部分」.
+//
+// Leaving the mode was the *other* half of that move, and it is what the report
+// 「回车之后输入框内应该保持原来的逻辑，而不是自动切回到最初的搜索状态，这样
+// 可以方便用户及时调整输入重新执行」 names: `leaveCommand` dropped the scope
+// marker and handed the arguments back to the ordinary search, so the line the
+// user had just run turned into a query that matched nothing (the `-m` they
+// typed became a search for `-m`), and re-running it meant finding the command
+// row again. The reference never did that: its mode is the thing that owns the
+// field, and a run is an event *inside* it — Enter on a fresh list re-runs the
+// same command with the edited arguments, exactly as the built-ins' modes do
+// (「the command is re-run by editing the arguments and pressing Enter on a
+// fresh (empty) list」, `main:src/App.tsx:1484-1489`). Escape is what leaves.
 func (a *App) runMode() {
 	entry := *a.mode
-	args := a.commandArgs()
-	a.leaveCommand()
-	// A run clears the field, as the old build's own runs did.
-	a.Query = ""
-	a.runCommandWith(entry, args)
+	a.runCommandWith(entry, a.commandArgs())
 }
 
 // move moves the selection by delta, wrapping around the list.
@@ -3117,19 +3184,6 @@ func (a *App) actionBarFooter(c *ui.Context, results []Item, start int) {
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(1).PassThrough().
 			Background(tokens.HairlineSoft)
 	})
-}
-
-// footerActionsBadge is the actions legend's own chord, in the platform's
-// spelling: `⌘K` where the app modifier is Command, `Ctrl+K` where it is
-// Control. It goes through the same `shortcuts.Badge` a real binding does, so
-// the footer's legend and a row's keycap cannot disagree about how this
-// platform writes a chord.
-func footerActionsBadge() string {
-	mod := "Ctrl"
-	if runtime.GOOS == "darwin" {
-		mod = "Cmd"
-	}
-	return shortcuts.Badge(mod+"+K", "K")
 }
 
 // defaultSelection is the row a fresh query starts on: the action bar when

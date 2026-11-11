@@ -199,18 +199,20 @@ func commandRowTabHintPin(t *testing.T, dark bool) {
 			tabPlate.H, barPlate.H)
 	}
 
-	// And there is no second keycap shape: the footer's action legend is a chord
-	// of plates, not one plate spelling the joined string.
-	if tt.HasText(footerActionsBadge()) {
-		t.Errorf("the footer's legend is still one drawn run (%q): %q", footerActionsBadge(), tt.Texts())
-	}
-	kText, ok := tt.Find("K")
-	if !ok {
-		t.Fatalf("the footer's action legend has no second plate: %q", tt.Texts())
-	}
-	if gap := plateAround(tt, kText).H - tabPlate.H; gap > 3 || gap < -3 {
-		t.Errorf("the footer legend's plate is %.1f tall, the row's Tab plate %.1f; one keycap shape only",
-			plateAround(tt, kText).H, tabPlate.H)
+	// And there is no second keycap shape: a row's Tab plate and the footer's
+	// own chord are drawn from the same builder. P20 重定基线：the footer's
+	// `⌘K` legend is gone (it named a chord this build has never bound — see
+	// `row`), so the second plate this pin used to read no longer exists; the
+	// shape contract is asserted on the one chord the footer really has.
+	for _, label := range labels {
+		found, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("the footer's chord is missing the key %q: %q", label, tt.Texts())
+		}
+		if gap := plateAround(tt, found).H - tabPlate.H; gap > 3 || gap < -3 {
+			t.Errorf("the footer chord's plate is %.1f tall, the row's Tab plate %.1f; one keycap shape only",
+				plateAround(tt, found).H, tabPlate.H)
+		}
 	}
 }
 

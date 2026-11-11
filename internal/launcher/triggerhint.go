@@ -166,8 +166,16 @@ func (a *App) triggerHintShown(c *ui.Context, t *ui.Theme, text string) bool {
 // triggerHintText is the nudge's wording, or "" when there is none. It is the
 // ordinary page's alone: a mode that already owns the field has no word to
 // enter with.
+//
+// A captured output is **not** one of those modes. The nudge is a word *about
+// the field* ("␣ <command> enters this command"), and the field is exactly as
+// ordinary while a run's output is shown under it — same text, same caret,
+// same width. Suppressing it there made the field jump 110px wider the moment
+// the run landed, which is the "search bar must not move" half of the report
+// 「搜索栏部分应该不动…然后变化的是下方列表部分」. Only the band below the
+// field belongs to the run.
 func (a *App) triggerHintText() string {
-	if a.pluginModeActive() || a.output != nil {
+	if a.pluginModeActive() {
 		return ""
 	}
 	hint, ok := a.externalTriggerHint(a.Query)

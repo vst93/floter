@@ -128,10 +128,27 @@ type RowInfo struct {
 	// Status marks a note that uses the shared status band.
 	Status bool
 	// Band, when positive, is the row's own band in spacing units, charged
-	// instead of the text-line arithmetic. The captured-output text form uses
-	// it: the block is priced per `ROW_HEIGHT_TWO_LINE` band row, not per text
+	// instead of the text-line arithmetic. The captured-output text form used
+	// it: the block was priced per `ROW_HEIGHT_TWO_LINE` band row, not per text
 	// line (the old build's `pluginViewRows × ROW_HEIGHT_TWO_LINE`).
+	//
+	// It is kept for the *ceiling* the text form still honours, but the block
+	// itself is charged by `Block`: see the note there.
 	Band float64
+	// Block is a row that is one measured block of pixels rather than a line of
+	// text or a band of spacing units — the captured-output text form.
+	//
+	// The old build priced that block in whole 40u band rows because its text
+	// was laid out by the browser at whatever the line box came to. This build
+	// draws the lines itself and knows the box, so it charges the box: a
+	// three-line output is 3 × the body line box plus the block's own breath,
+	// not two 40u bands. That is the difference the user read as 「现在显示的
+	// 内容并不算很多，但还是触发了滚动条」 — the bands were granular enough to
+	// be a whole line short at three, four and five lines, and the page opened
+	// scrolled with a line cut off. The floor (three lines) and the ceiling (the
+	// ten-band height, `pluginTextMaxUnits`) are unchanged; only the number
+	// between them is now the drawn one.
+	Block float64
 }
 
 // Geometry is the measurements one window height is computed from. Every
@@ -183,6 +200,20 @@ type Geometry struct {
 	// rows separately, so its headings are counted here and stand beside the
 	// rows rather than eating one of them.
 	Sections int
+	// OutputHeader is the captured-output page's own header band, in pixels:
+	// the title row, its status line, and the breath under them.
+	//
+	// The band is drawn above the body (`launcher/output.go` `outputBody`: a
+	// strip padded `edge` at the top, then the body's own `Space(4)` breath),
+	// so a window priced from the rows alone is that strip short. That is the
+	// scroll bar the user reported on a short output (「现在显示的内容并不算
+	// 很多，但还是触发了滚动条」): three lines of text were charged 145px
+	// against the 170px they draw, and a two-row list 116px against 154px.
+	//
+	// It is pixels rather than units because it is text: the two line boxes are
+	// the font's own, measured the way `TitleLine` and `SubtitleLine` are, and
+	// no multiple of the spacing step is that number. Zero on every other page.
+	OutputHeader float64
 }
 
 // Height is the window height a geometry asks for: the card's own chrome —
@@ -280,6 +311,12 @@ func (g Geometry) Height() int {
 		drawn = append(drawn, g.Rows[len(g.Rows)-bars+j])
 	}
 	for _, info := range drawn {
+		if info.Block > 0 {
+			// A block that measured itself: charged its own pixels, the way a
+			// row is charged the line boxes the view measured for it.
+			lines += info.Block
+			continue
+		}
 		if info.Band > 0 {
 			// A row that names its own band: the captured-output text form's
 			// `ROW_HEIGHT_TWO_LINE` block row, charged as the old build charged
@@ -342,7 +379,10 @@ func (g Geometry) Height() int {
 		// old build's `LAUNCHER_SECTION_TITLE_UNITS` (26u).
 		sectionBand = float64(g.Sections) * (headingPadding*spacing + bodyLine)
 	}
-	height := chrome + lines + sectionBand + filterBand + feedbackBand
+	// The captured-output page's header band, drawn above the rows it prices
+	// (see Geometry.OutputHeader). Charged here, with the other bands, so a page
+	// whose body exactly fills its rows is exactly the window it needs.
+	height := chrome + lines + sectionBand + filterBand + feedbackBand + g.OutputHeader
 	if g.Config != nil {
 		// The sheet's own content, in the same units: the field's row and the
 		// card's insets are the chrome above, so a schema can never grow the
