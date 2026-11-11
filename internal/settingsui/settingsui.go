@@ -1306,7 +1306,17 @@ func (a *App) View(c *ui.Context) {
 
 	// Settings and search share one top band, so switching surfaces keeps
 	// their title, field and window actions aligned.
-	ui.Column(c).Fill().Children(func() {
+	//
+	// The whole surface rides the launcher's reading panel (`Sunken`, the
+	// same token `internal/launcher` fills its results panel with): every
+	// page but the terminal sits on one material, so switching between
+	// search, a built-in plugin page and the settings does not change how
+	// much desktop shows through nor the tint over it. The header band is
+	// inside this fill, which is what keeps the two surfaces' first band the
+	// same sheet as well as the same height. The chrome below shadows it
+	// with its own `Control` face (see the sidebar column).
+	tokens := a.tokens(c)
+	ui.Column(c).Fill().Background(tokens.Sunken).Children(func() {
 		ui.Row(c).FillWidth().Height(t.Space(launcher.FieldRowUnits)).Padding(0, t.Space(4)).
 			Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, copy.Title).FontSize(a.tokens(c).Emphasis).FontWeight(500).
@@ -1403,7 +1413,9 @@ func (a *App) View(c *ui.Context) {
 			// The sidebar's column separator is the same weak hairline, drawn
 			// vertically (same rule, §6.1).
 			a.hairlineRule(c, true)
-			// No fixed paper colour behind the content or its grouped rows.
+			// The content inherits the page's `Sunken` panel; its grouped rows
+			// stay faces over it, so the body adds no second paper colour of its
+			// own.
 			ui.Column(c).Grow(1).Background(ui.Transparent).Children(func() {
 				a.body(c, copy)
 			})

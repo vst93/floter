@@ -167,26 +167,50 @@ func TestLauncherProportionPreview(t *testing.T) {
 }
 
 // Read the rendered page, including its cards and scroll edges. Changing the
-// opacity setting must reach the content, not just the window's outer margin.
-func TestSettingsGlassFollowsOpacity(t *testing.T) {
+// opacity setting must reach the content, and every non-terminal surface must
+// show the *same* glass: the settings body and the launcher's results panel are
+// one material (`theme.Tokens.Sunken`), so switching between search, a built-in
+// plugin page and the settings does not change how much desktop shows through.
+//
+// P18-t 重定基线：本用例此前钉的是 934b2c94 的决定——设置正文不铺 `Sunken`，
+// 于是它的可见 alpha 就是滑块本身（74/86/98 → 189/215/241），而搜索页与全部内置
+// 插件页共享的 `Sunken` 面板比它厚一档。用户对照两个页面报了「设置界面和搜索界面
+// 透明度还有颜色不一致，除终端页外都要统一」，所以设置页改回 `Sunken`（见
+// `internal/settingsui` 的 `View`）。断言因此从「正文比窗口更透（median ≤ 195）」
+// 改成「正文与启动器面板逐值同一条玻璃」，并把滑块的单调到达留作前置。
+func TestSettingsAndLauncherShareOneGlass(t *testing.T) {
+	band := func(tt *ui.Tester) int {
+		img := tt.Image()
+		var alphas []int
+		for y := 100; y < 550; y += 3 {
+			for x := 190; x < 690; x += 3 {
+				alphas = append(alphas, int(img.RGBAAt(x, y).A))
+			}
+		}
+		sort.Ints(alphas)
+		return alphas[len(alphas)/2]
+	}
 	for _, appearance := range []string{"light", "dark"} {
 		for page := settingsui.PageGeneral; page <= settingsui.PageAbout; page++ {
 			t.Run(fmt.Sprintf("%s/%s", appearance, settingsui.PageName(page)), func(t *testing.T) {
-				var medians []int
+				var settings, launcher []int
 				for _, opacity := range []uint8{74, 86, 98} {
-					tt := redesignFrame(appearance, "en", opacity, SurfaceSettings, page, 720, 580)
-					img := tt.Image()
-					var alphas []int
-					for y := 100; y < 550; y += 3 {
-						for x := 190; x < 690; x += 3 {
-							alphas = append(alphas, int(img.RGBAAt(x, y).A))
-						}
-					}
-					sort.Ints(alphas)
-					medians = append(medians, alphas[len(alphas)/2])
+					settings = append(settings, band(redesignFrame(appearance, "en", opacity, SurfaceSettings, page, 720, 580)))
+					launcher = append(launcher, band(redesignFrame(appearance, "en", opacity, SurfaceLauncher, 0, 720, 580)))
 				}
-				if medians[0] > 195 || medians[1]-medians[0] < 25 || medians[2]-medians[1] < 25 {
-					t.Fatalf("settings content covers the glass: median alpha at 74%%/86%%/98%% = %v", medians)
+				// The slider reaches the content: each stop is visibly denser than
+				// the one under it. At the high end the pane saturates with the
+				// frame, so the band asks for any rise rather than a fixed step.
+				if settings[0] >= settings[1] || settings[1] >= settings[2] {
+					t.Fatalf("the slider does not reach the settings body: median alpha at 74%%/86%%/98%% = %v", settings)
+				}
+				// …and it is the same sheet as the launcher's panel on every stop.
+				for i, opacity := range []uint8{74, 86, 98} {
+					if settings[i] != launcher[i] {
+						t.Errorf("at %d%% the settings body reads alpha=%d and the launcher panel alpha=%d: "+
+							"every non-terminal surface must sit on one material (Sunken)",
+							opacity, settings[i], launcher[i])
+					}
 				}
 			})
 		}

@@ -145,9 +145,16 @@ func alphaAt(img *image.RGBA, x, y int) int {
 func TestTheFloatingTopEdgeIsThreePartsAndTheySwapRoles(t *testing.T) {
 	// P13-gj 重定基线（§6.155）：这五行此前没有字面量 pin（量于 P13-gj，
 	// 真 toast，720×520，默认 47% 框 alpha，straight luma）。
+	//
+	// P18-t 重定基线（§6.2c 的延续）：设置正文回到 `Sunken` 面板之后，toast 脚下的
+	// 「地面」不再是窗口地而是那一层面板，于是同一列的五行各移动一档。旧值 → 新值：
+	// 浅 `{248, 237, 227, 255, 250}` → `{244, 233, 228, 255, 251}`；
+	// 深 `{24, 23, 46, 71, 25}` → `{25, 24, 46, 71, 25}`。**结构一个数没变**：
+	// 影仍然是浅色档的分离者（11 级）且仍强于描边行（−5），深色档仍靠描边（+22），
+	// 冠线仍在两套外观上同号（+4 / +46）。变的只是这块浮层现在压在哪张纸上。
 	want := map[string]floatEdgeArm{
-		"light": {ground: 248, shadow: 237, border: 227, crown: 255, face: 250},
-		"dark":  {ground: 24, shadow: 23, border: 46, crown: 71, face: 25},
+		"light": {ground: 244, shadow: 233, border: 228, crown: 255, face: 251},
+		"dark":  {ground: 25, shadow: 24, border: 46, crown: 71, face: 25},
 	}
 	for _, dark := range []bool{false, true} {
 		name := "light"
@@ -195,8 +202,13 @@ func TestTheFloatingTopEdgeIsThreePartsAndTheySwapRoles(t *testing.T) {
 			// The fill step: the floating pane is not separated from the page by
 			// its own colour on paper. Stated as a range, because that is the
 			// fact this round is about (it is 3 levels, not 30).
-			if step := got.face - got.ground; step < 0 || step > 6 {
-				t.Errorf("light: the float face sits %+d levels against the page (%d vs %d), want 0…+6 — "+
+			//
+			// P18-t：上限从 +6 改到 +8。页面底现在是 `Sunken`（比窗口地厚一档），
+			// 浮层没变，于是「面 vs 地面」这一格多了那一档（实测 +3 → +7）。断言
+			// 要的仍然是「浅色浮层的层级不在面差上」：+7 远小于影的 11 级，也远
+			// 小于深色档那个 +46 的冠线。
+			if step := got.face - got.ground; step < 0 || step > 8 {
+				t.Errorf("light: the float face sits %+d levels against the page (%d vs %d), want 0…+8 — "+
 					"paper expresses elevation through the cast shadow, not through a brighter fill",
 					step, got.face, got.ground)
 			}
