@@ -493,7 +493,22 @@ func (a *App) AdoptPage(from *App) {
 	// operation instead of starting it again.
 	a.Query = from.Query
 	a.Selected, a.chosenRow = from.Selected, from.chosenRow
-	a.pendingCaret = true
+	// The caret stays where it was. `pendingCaret` would put it at the end of
+	// the field on the next frame, which is a visible change to a page the user
+	// only asked to *move* — 「除了形式变化，其他东西应该都不动」. It is set only
+	// when the field's own text is being replaced from outside (a trigger word
+	// being consumed, a mode being entered); a pin moves the window, not the
+	// caret.
+	a.pendingCaret = false
+	// The default-selection marker comes across with the choice it guards, so
+	// the first frame of the pinned page does not re-run `defaultSelection` and
+	// move the highlight off the row the user was on.
+	a.defaultedQuery = from.defaultedQuery
+	// The typed-command history and the line it is showing: ↓ on a pinned page
+	// walks the same history it walked in the panel.
+	a.History = from.History
+	a.historyIndex = from.historyIndex
+	a.draftBeforeHistory = from.draftBeforeHistory
 	// The rows the page was showing, so the pinned window opens on the same
 	// list under the same choice rather than on a re-fetch that could come back
 	// different. The mode's own data comes with it for the same reason.
@@ -502,4 +517,34 @@ func (a *App) AdoptPage(from *App) {
 	a.browserFound = from.browserFound
 	a.Output = from.Output
 	a.output = from.output
+	a.OutputList = from.OutputList
+	a.List = from.List
+	// The armed delete belongs to the row it was armed on. A pinned page starts
+	// with none: a half-finished confirmation is a gesture in the panel, and a
+	// second window must not be able to complete it.
+	a.armedDelete, a.armedDeleteAt, a.armedDeleteAnnounced = "", time.Time{}, false
+}
+
+// PageKey is the identity of the page the launcher is showing: the plugin's own
+// id, or the empty string on the ordinary search page (which is not a page the
+// user can pin).
+//
+// It exists because every plugin page — and the search list itself — is the one
+// `SurfaceLauncher` surface: a window keyed on the surface could not tell two
+// plugin pages apart, so pinning a second one raised the first one's window
+// instead of opening its own.
+func (a *App) PageKey() string {
+	switch {
+	case a.mode != nil:
+		return "command\x00" + a.mode.IntegrationID + "\x00" + a.mode.Command.ID
+	case a.clipboard:
+		return "clipboard"
+	case a.browser:
+		return "browser"
+	case a.calculatorMode:
+		return "calculator"
+	case a.files:
+		return "files"
+	}
+	return ""
 }

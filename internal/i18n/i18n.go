@@ -194,6 +194,8 @@ type Launcher struct {
 	OutputWindowRunning  string
 	OutputWindowFailed   string
 	OutputWindowEmpty    string
+	// DetachLimit says the pin ceiling has been reached, with the number.
+	DetachLimit func(max int) string
 	// DetachedMark is the word a pinned page's own bar wears, so the user can
 	// see at a glance that this page is no longer the panel's. The control that
 	// pins it is the settings page's own pair (`i18n.Settings`), which is the

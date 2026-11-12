@@ -111,6 +111,64 @@ Actions 可以承载这个答案。页面**内部**的阶梯照常工作（取�
 所以分离窗口打开时是面板那一刻的同一份列表、同一个选择，下一次按键接着做，而不是
 重新开始。
 
+## 多页固定与上限（21-11）
+
+用户：「现在好像只能固定一个插件了。这个固定理论上需要支持多个，比如控制到最大 10 个
+或者 20 个…超过上限的时候给到提示。」
+
+**根因**：第一版按 **surface** 去重（`findDetachedSurface(SurfaceLauncher)`）。但所有
+插件页 —— 剪贴板、浏览器、计算器、拖入的文件、扩展命令 —— 都是同一个 `SurfaceLauncher`
+surface，所以第二个插件页被当成「已经固定过」直接 raise，不开新窗口。几何记忆
+（`detachedSurfaceStateKey`）同样只按 surface 分。
+
+**改法**：
+
+| # | 位置 | 改法 |
+| --- | --- | --- |
+| 21-11 | `internal/launcher/fieldkeys.go` `PageKey()` | 页面的**身份**：扩展命令返回 `command\x00<integrationID>\x00<commandID>`，内置插件返回 `clipboard`/`browser`/`calculator`/`files`，搜索页返回 `""`（不可固定） |
+| 21-12 | `detachedSurface.key` | 结构体新增字段；`findDetachedSurface(key)`、`detachedSurfaceStateKey(key)`、`newDetachedSurfaceWindow(surf, key, …)` 全部改按 key |
+| 21-13 | `detachedSurfaces` 容器 | `map[*mygo.Window]*detachedSurface` → `[]*detachedSurface`。窗口是固定的**结果**，不是页面的身份；两页在任何窗口存在之前就固定（无头帧、测试）会以 nil key 撞在一起 |
+| 21-14 | `MaxDetachedSurfaces = 10` + `allowAnotherDetachedSurface()` | 上限十页（与 `launcher.rowBudget` 同额）；超限时 `a.Launcher.WarnFeedback(copy.DetachLimit(10))`，走面板自己的停靠反馈行 |
+| 21-15 | i18n `Launcher.DetachLimit func(max int) string` | en `"Already N pages pinned — close one to pin another"` / zh `"已固定 N 个页面，关掉一个才能再固定"` |
+
+拒绝**要说出来**：用户按了键却什么都没开，没有一句话就只是「键坏了」，不是「到上限了」。
+
+## 标题栏的平台差异（21-16）
+
+用户：「现在 Mac 下有点过高了，导致系统自带的红绿灯栏和标题并没有完全上下居中。这需要
+考虑一下不同平台的不同特性。」
+
+**根因**：`height := max(bar.Height, t.Space(9))`。`Space(9)` 在出货档是 **32.4px**，而
+macOS 的红绿灯条是 **28** —— 行比系统条高 4.4px，控件由窗口服务器按系统高度摆放，于是
+不在行的中心。实测旧代码在 macOS 上报 **36**（`Space(9)` 加上取整），Windows 报 36 而
+系统是 32。
+
+**改法**：`detachedTitleBarHeight(bar ui.TitleBar, t *ui.Theme) float32` —— 高度**只**
+取 `c.TitleBar().Height`，即窗口控件在本平台需要的高度；只有平台没报（无头帧、控件被隐藏）
+时才回退 `max(t.Space(7), t.FontSize+t.Space(2))`，那是「最小可用行」而不是设计数字。
+
+`titleBarStyleFor(goos)`：darwin → `TitleBarHiddenInset`（红绿灯内缩，占**前**角），
+其他 → `TitleBarHidden`（窗口按钮占**后**角）。行自己的内边距用 `c.TitleBar().Left` /
+`.Right` 让开对应一侧，不猜平台。
+
+## 保留交互结果（21-17）
+
+用户：「前面说的切换独立之后要保持之前的交互结果，也就是除了形式变化，其他东西应该都不动，
+现在好像还是没有完全做到。」
+
+`AdoptPage(from)` 此前只搬了模式与查询，页面的**视图状态**没有跟过去。补齐：
+
+| 搬什么 | 为什么 |
+| --- | --- |
+| `pendingCaret = false` | 原来设 `true`，会把光标挪到字段末尾 —— 用户只要求「搬个位置」，光标是可见变化 |
+| `defaultedQuery` | 不搬则首帧重跑 `defaultSelection`，把高亮从用户所在的行走开 |
+| `History` / `historyIndex` / `draftBeforeHistory` | ↓ 在固定页里走同一份历史 |
+| `OutputList` / `List` | 两个列表的选择与滚动状态 |
+| `armedDelete` / `armedDeleteAt` / `armedDeleteAnnounced` **清空** | 半完成的确认手势属于面板，第二个窗口不能替它完成 |
+
+原有的 `Query`、`Selected`、`chosenRow`、`drawn`、`calculatorFound`、`browserFound`、
+`Output`、`output` 保留。
+
 ## 判据
 
 - `internal/shell/detachsurface_test.go`
@@ -132,6 +190,14 @@ Actions 可以承载这个答案。页面**内部**的阶梯照常工作（取�
     报「Backspace on an empty field left the pinned page's mode」）
   - `TestAPinnedPageOpensWhereThePanelWas`：分离窗口的字段与选中行都是面板那一刻
     的值（21-10）
+  - `TestTwoPluginPagesPinAsTwoWindows`：剪贴板页与计算器页各自固定，两个 key 不同
+    （21-11 未修时第二个被当成第一个，只开一个窗口）
+  - `TestPinningTheSamePageTwiceRaisesIt`：同一页固定两次只 raise，不开第二个
+  - `TestThePinCeilingRefusesAndSaysSo`：满十页后再固定不开窗，且面板的反馈行说的是
+    `DetachLimit(10)`，语气是警告（21-14 未修时静默）
+  - `TestTheTitleBarIsAsTallAsTheWindowsControls`：macOS 28 / Windows 32 / Linux 32
+    三个 `TitleBar` 都原样采用；无标题栏的帧回退到正数（21-16 未修时报 36）
+  - `TestAPinnedPageMovesThePageWithoutEditingIt`：光标不被重置，首帧不改字段（21-17）
 
 ## 未做
 

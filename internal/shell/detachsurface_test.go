@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -24,7 +25,7 @@ func newDetachFixture(t *testing.T) *detachFixture {
 	// leaves it behind for the next one, which would then take the "raise the
 	// window already showing this page" branch and never build its own.
 	detachedMu.Lock()
-	detachedSurfaces = map[*mygo.Window]*detachedSurface{}
+	detachedSurfaces = nil
 	detachedMu.Unlock()
 	f := &detachFixture{}
 	f.app = New(Options{
@@ -297,5 +298,182 @@ func TestAPinnedPageOpensWhereThePanelWas(t *testing.T) {
 	}
 	if got := second.launcher.Selected; got != 1 {
 		t.Errorf("the pinned page starts on row %d, want the row the panel was on (1)", got)
+	}
+}
+
+// Two plugin pages pin as two windows.
+//
+// The report was 「现在好像只能固定一个插件了」. Every plugin page — the
+// clipboard, the browser, the calculator, the dropped files, an extension
+// command — is the one `SurfaceLauncher` surface, and the first version keyed a
+// pinned window on its *surface*, so the second plugin page looked like the
+// first one and raised its window instead of opening its own. The key is the
+// page's own identity now (see `launcher.PageKey`).
+func TestTwoPluginPagesPinAsTwoWindows(t *testing.T) {
+	f := newDetachFixture(t)
+	f.app.Surf = SurfaceLauncher
+
+	f.app.Launcher.EnterClipboard()
+	f.app.detachSurface()
+	if len(f.pinned) != 1 {
+		t.Fatalf("pinned surfaces after the first page = %v, want one", f.pinned)
+	}
+
+	f.app.Launcher.EnterCalculator()
+	f.app.detachSurface()
+	if len(f.pinned) != 2 {
+		t.Fatalf("pinned surfaces after the second page = %v, want two — the second plugin "+
+			"page raised the first one's window instead of opening its own", f.pinned)
+	}
+
+	detachedMu.Lock()
+	keys := make([]string, 0, len(detachedSurfaces))
+	for _, state := range detachedSurfaces {
+		keys = append(keys, state.key)
+	}
+	detachedMu.Unlock()
+	if len(keys) != 2 || keys[0] == keys[1] {
+		t.Errorf("the two pinned pages are keyed %v, want two different keys", keys)
+	}
+}
+
+// Pinning the same page twice is a raise, not a second window: two windows for
+// one page are two windows the user cannot tell apart.
+func TestPinningTheSamePageTwiceRaisesIt(t *testing.T) {
+	f := newDetachFixture(t)
+	f.app.Surf = SurfaceLauncher
+	f.app.Launcher.EnterClipboard()
+	f.app.detachSurface()
+	f.app.Launcher.EnterClipboard()
+	f.app.detachSurface()
+	if len(f.pinned) != 1 {
+		t.Errorf("pinning the clipboard page twice opened %d windows, want one", len(f.pinned))
+	}
+}
+
+// The pin ceiling is spoken, not silent.
+//
+// The user asked for a limit and a message with it — 「超过上限的时候给到提示」 —
+// because a key that opens nothing reads as a broken key rather than as a
+// reached limit.
+func TestThePinCeilingRefusesAndSaysSo(t *testing.T) {
+	f := newDetachFixture(t)
+	f.app.Surf = SurfaceLauncher
+
+	// Fill the table without going through the windows: this test is about the
+	// ceiling, not about which page each one shows.
+	detachedMu.Lock()
+	detachedSurfaces = nil
+	for i := 0; i < MaxDetachedSurfaces; i++ {
+		detachedSurfaces = append(detachedSurfaces,
+			&detachedSurface{key: "page-" + strconv.Itoa(i)})
+	}
+	detachedMu.Unlock()
+	if got := f.app.countDetachedSurfaces(); got != MaxDetachedSurfaces {
+		t.Fatalf("the table holds %d pages, want %d", got, MaxDetachedSurfaces)
+	}
+
+	f.app.Launcher.EnterClipboard()
+	f.app.detachSurface()
+
+	if len(f.pinned) != 0 {
+		t.Errorf("the ceiling opened %d more windows, want none", len(f.pinned))
+	}
+	copy := i18n.For(f.app.Store.Snapshot().Language).Launcher
+	if !f.app.Launcher.FeedbackVisible() {
+		t.Error("the refusal is silent: nothing says the ceiling was reached")
+	}
+	want := copy.DetachLimit(MaxDetachedSurfaces)
+	got, warning := f.app.Launcher.FeedbackText()
+	if got != want {
+		t.Errorf("the panel says %q, want %q", got, want)
+	}
+	if !warning {
+		t.Error("the ceiling's sentence is drawn as a note; a refusal is a warning")
+	}
+}
+
+// The pinned page's title bar is as tall as the window's controls, never taller.
+//
+// The report was 「现在 Mac 下有点过高了，导致系统自带的红绿灯栏和标题并没有完全上下
+// 居中」. The window server places the traffic lights at the system height; a row
+// drawn taller leaves them above its centre. The first version took
+// `max(bar.Height, Space(9))`, and `Space(9)` is 32.4px at the shipped step
+// against macOS's 28 — so the row was 4.4px too tall on exactly the platform the
+// user reported.
+func TestTheTitleBarIsAsTallAsTheWindowsControls(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		bar  ui.TitleBar
+	}{
+		{"macOS inset traffic lights", ui.TitleBar{Height: 28, Left: 78}},
+		{"windows", ui.TitleBar{Height: 32, Right: 138}},
+		{"linux", ui.TitleBar{Height: 32, Right: 100}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got float32
+			tt := ui.NewTester(func(c *ui.Context) {
+				got = detachedTitleBarHeight(c.TitleBar(), c.Theme())
+			}, 720, 560)
+			tt.SetTitleBar(tc.bar)
+			tt.Frame()
+			if got != tc.bar.Height {
+				t.Errorf("the title bar is %v tall, want the window's own %v — the controls "+
+					"are placed at the system height and a taller row leaves them off centre",
+					got, tc.bar.Height)
+			}
+		})
+	}
+
+	// A frame with no title bar still gets a usable row rather than a zero-height
+	// one: the fallback is the platform's minimum, not a design number.
+	var fallback float32
+	tt := ui.NewTester(func(c *ui.Context) {
+		fallback = detachedTitleBarHeight(ui.TitleBar{}, c.Theme())
+	}, 720, 560)
+	tt.Frame()
+	if fallback <= 0 {
+		t.Errorf("a frame with no title bar draws a %v-tall row", fallback)
+	}
+}
+
+// A pinned page moves the page; it does not edit it.
+//
+// 「切换独立之后要保持之前的交互结果，也就是除了形式变化，其他东西应该都不动」 — the
+// caret included. The first version set `pendingCaret`, which put the caret at
+// the end of the field on the pinned page's first frame: a visible change to a
+// page the user only asked to move.
+func TestAPinnedPageMovesThePageWithoutEditingIt(t *testing.T) {
+	f := newDetachFixture(t)
+	f.app.Surf = SurfaceLauncher
+	f.app.Launcher.EnterClipboard()
+	f.app.Launcher.SetQuery("note")
+	f.app.Launcher.History = []string{"older", "newest"}
+	f.app.Launcher.Selected = 2
+
+	f.app.detachSurface()
+
+	detachedMu.Lock()
+	var second *detachedSurface
+	for _, state := range detachedSurfaces {
+		second = state
+	}
+	detachedMu.Unlock()
+	if second == nil || second.launcher == nil {
+		t.Fatal("no pinned launcher")
+	}
+	page := second.launcher
+	if page.Query != "note" {
+		t.Errorf("the pinned page's field holds %q, want the needle", page.Query)
+	}
+	if page.Selected != 2 {
+		t.Errorf("the pinned page starts on row %d, want the row the panel was on (2)", page.Selected)
+	}
+	// The caret stays where it was: no pending re-placement on the next frame.
+	tt := ui.NewTester(func(c *ui.Context) { page.View(c) }, 720, 560)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.Frame()
+	if page.Query != "note" {
+		t.Errorf("the first frame changed the pinned page's field to %q", page.Query)
 	}
 }

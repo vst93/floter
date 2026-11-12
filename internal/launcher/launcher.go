@@ -1106,6 +1106,12 @@ func (a *App) WarnFeedback(message string) {
 	a.toastWarning = true
 }
 
+// FeedbackText is the line the docked row is showing, and whether it is the
+// warning tone: a caller outside the launcher that has just raised one (the
+// shell's pin ceiling) can assert that the sentence it asked for is the one on
+// screen, rather than only that *something* is.
+func (a *App) FeedbackText() (string, bool) { return a.toast, a.toastWarning }
+
 // copy is the launcher's copy in the stored language.
 func (a *App) copy() i18n.Launcher { return StringsFor(a.settings().Language) }
 

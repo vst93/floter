@@ -40,9 +40,18 @@ import (
 // remembered per content, and a `tokens.Opaque` root because the pinned window
 // is a solid page rather than a pane over the desktop.
 
-// detachedSurface is one pinned page: which surface it shows, and its window.
+// detachedSurface is one pinned page: which page it shows, and its window.
 type detachedSurface struct {
 	look themeFrame
+	// key is the page's own identity — what makes two pinned pages different.
+	//
+	// It is *not* the surface. The settings and a terminal session are each one
+	// surface, but every plugin page is `SurfaceLauncher`, so keying on the
+	// surface made the second plugin page look like the first one and raise it
+	// instead of opening its own window (the report 「现在好像只能固定一个插件
+	// 了」). The key is the plugin's own id for those, and the surface's name for
+	// the two pages that are one-of-a-kind.
+	key string
 	// surf is the surface the window draws. It is fixed when the window opens:
 	// a pinned page does not follow the panel to another page, which is the
 	// whole point of pinning it.
@@ -61,9 +70,14 @@ type detachedSurface struct {
 
 // detachedSurfaces is every pinned page, guarded because a window's close
 // callback arrives from the platform's own thread.
+//
+// A slice, not a map keyed on the window: the window is the *result* of pinning,
+// not the page's identity, and two pages pinned before either window exists (a
+// headless frame, a test) would collide on a nil key. The page's own key is what
+// tells two entries apart (see `detachedSurface.key`).
 var (
 	detachedMu       sync.Mutex
-	detachedSurfaces = map[*mygo.Window]*detachedSurface{}
+	detachedSurfaces []*detachedSurface
 )
 
 // detachedWindowTitle is what the window manager calls a pinned page:
@@ -97,10 +111,10 @@ func (a *App) detachedWindowTitle(surf Surface, alt *launcher.App) string {
 const detachedTitleSeparator = " \u00b7 "
 
 // detachedSurfaceStateKey is the key a pinned page's geometry is remembered
-// under: one per surface, so pinning the settings and pinning a terminal
-// session open where the user last left each of them.
-func detachedSurfaceStateKey(surf Surface) string {
-	return settings.DetachedStateKeyPrefix + "surface\x00" + surf.Name()
+// under: one per *page*, so pinning the settings, a terminal session and two
+// different plugin pages each open where the user last left them.
+func detachedSurfaceStateKey(key string) string {
+	return settings.DetachedStateKeyPrefix + "surface\x00" + key
 }
 
 // surfaceTitle is what a pinned page calls itself: the surface's own name in
@@ -146,7 +160,7 @@ func (a *App) canDetachSurface() bool {
 // platform inset, because the pinned page wears the *same card* the panel draws
 // (see `viewWindow`) and a card that reads no desktop through it would not be
 // the same card.
-func (a *App) newDetachedSurfaceWindow(surf Surface, title string, state *detachedSurface) *mygo.Window {
+func (a *App) newDetachedSurfaceWindow(surf Surface, key, title string, state *detachedSurface) *mygo.Window {
 	s := a.settings()
 	return mygo.NewWindow(mygo.WindowOptions{
 		Title:       title,
@@ -170,7 +184,7 @@ func (a *App) newDetachedSurfaceWindow(surf Surface, title string, state *detach
 		Vibrancy:      windowVibrancyFor(runtime.GOOS, activeMaterialStep(s, surf)),
 		// Remembered per surface, the same rule the other second windows
 		// follow: a pinned page opens where the user last left it.
-		StateKey: detachedSurfaceStateKey(surf),
+		StateKey: detachedSurfaceStateKey(key),
 		Content: ui.View(func(c *ui.Context) {
 			a.detachedSurfaceView(c, state)
 		}),
@@ -192,26 +206,26 @@ func (a *App) detachSurface() {
 		a.detachLauncherPage()
 		return
 	}
-	if existing := a.findDetachedSurface(surf); existing != nil {
-		if existing.win != nil {
-			existing.win.Show()
-			existing.win.Focus()
-			existing.win.Invalidate()
-		}
+	key := a.detachedPageKey(surf)
+	if existing := a.findDetachedSurface(key); existing != nil {
+		a.raiseDetachedSurface(existing)
 		a.Open(SurfaceLauncher)
 		return
 	}
-	state := &detachedSurface{surf: surf}
+	if !a.allowAnotherDetachedSurface() {
+		return
+	}
+	state := &detachedSurface{key: key, surf: surf}
 	if a.openDetachedSurface != nil {
 		state.win = a.openDetachedSurface(surf)
 	} else {
-		state.win = a.newDetachedSurfaceWindow(surf, a.detachedWindowTitle(surf, nil), state)
+		state.win = a.newDetachedSurfaceWindow(surf, key, a.detachedWindowTitle(surf, nil), state)
 	}
 	if state.win != nil {
 		state.win.OnClosed(func() { a.forgetDetachedSurface(state) })
 	}
 	detachedMu.Lock()
-	detachedSurfaces[state.win] = state
+	detachedSurfaces = append(detachedSurfaces, state)
 	detachedMu.Unlock()
 	// The panel gives the page up: it returns to the search list, which is
 	// what makes the two windows independent.
@@ -228,16 +242,38 @@ const (
 	detachedSurfaceMinHeight = 320
 )
 
-// findDetachedSurface returns the pinned window already showing `surf`, or nil.
-func (a *App) findDetachedSurface(surf Surface) *detachedSurface {
+// findDetachedSurface returns the pinned window already showing the page `key`
+// names, or nil.
+func (a *App) findDetachedSurface(key string) *detachedSurface {
 	detachedMu.Lock()
 	defer detachedMu.Unlock()
 	for _, open := range detachedSurfaces {
-		if open.surf == surf {
+		if open.key == key {
 			return open
 		}
 	}
 	return nil
+}
+
+// countDetachedSurfaces is how many pages are pinned right now.
+func (a *App) countDetachedSurfaces() int {
+	detachedMu.Lock()
+	defer detachedMu.Unlock()
+	return len(detachedSurfaces)
+}
+
+// detachedPageKey is the identity of the page the app is on: the surface's own
+// name for the settings and the terminal, and the plugin's id for a plugin page
+// (which is a `SurfaceLauncher` like every other plugin page and like the search
+// list itself). The empty string means "nothing to pin".
+func (a *App) detachedPageKey(surf Surface) string {
+	if surf != SurfaceLauncher {
+		return surf.Name()
+	}
+	if a.Launcher == nil {
+		return ""
+	}
+	return a.Launcher.PageKey()
 }
 
 // forgetDetachedSurface drops a pinned page whose window is gone. A launcher
@@ -245,7 +281,12 @@ func (a *App) findDetachedSurface(surf Surface) *detachedSurface {
 // holds it.
 func (a *App) forgetDetachedSurface(state *detachedSurface) {
 	detachedMu.Lock()
-	delete(detachedSurfaces, state.win)
+	for i, open := range detachedSurfaces {
+		if open == state {
+			detachedSurfaces = append(detachedSurfaces[:i], detachedSurfaces[i+1:]...)
+			break
+		}
+	}
 	detachedMu.Unlock()
 	if state.launcher != nil {
 		state.launcher = nil
@@ -257,11 +298,8 @@ func (a *App) forgetDetachedSurface(state *detachedSurface) {
 // pinned page on screen across a dismissal.
 func (a *App) closeDetachedSurfaces() {
 	detachedMu.Lock()
-	open := make([]*detachedSurface, 0, len(detachedSurfaces))
-	for _, state := range detachedSurfaces {
-		open = append(open, state)
-	}
-	detachedSurfaces = map[*mygo.Window]*detachedSurface{}
+	open := detachedSurfaces
+	detachedSurfaces = nil
 	detachedMu.Unlock()
 	for _, state := range open {
 		state.closing = true
@@ -322,31 +360,31 @@ func (a *App) detachedSurfaceView(c *ui.Context, state *detachedSurface) {
 // the same catalogs and put into the same mode, and its `ResizeTo` is dropped —
 // that action resizes the panel's window, and a pinned page must not.
 func (a *App) detachLauncherPage() {
-	if existing := a.findDetachedSurface(SurfaceLauncher); existing != nil {
-		if existing.win != nil {
-			existing.win.Show()
-			existing.win.Focus()
-			existing.win.Invalidate()
-		}
+	key := a.detachedPageKey(SurfaceLauncher)
+	if existing := a.findDetachedSurface(key); existing != nil {
+		a.raiseDetachedSurface(existing)
 		a.Open(SurfaceLauncher)
 		a.Launcher.LeavePluginMode()
+		return
+	}
+	if !a.allowAnotherDetachedSurface() {
 		return
 	}
 	second := launcher.New(a.Store, a.detachedLauncherActions())
 	a.seedDetachedLauncher(second)
 	// The pinned page keeps the mode it was showing and refuses to leave it.
 	second.PinPage()
-	state := &detachedSurface{surf: SurfaceLauncher, launcher: second}
+	state := &detachedSurface{key: key, surf: SurfaceLauncher, launcher: second}
 	if a.openDetachedSurface != nil {
 		state.win = a.openDetachedSurface(SurfaceLauncher)
 	} else {
-		state.win = a.newDetachedSurfaceWindow(SurfaceLauncher, a.detachedWindowTitle(SurfaceLauncher, second), state)
+		state.win = a.newDetachedSurfaceWindow(SurfaceLauncher, key, a.detachedWindowTitle(SurfaceLauncher, second), state)
 	}
 	if state.win != nil {
 		state.win.OnClosed(func() { a.forgetDetachedSurface(state) })
 	}
 	detachedMu.Lock()
-	detachedSurfaces[state.win] = state
+	detachedSurfaces = append(detachedSurfaces, state)
 	detachedMu.Unlock()
 	// The panel gives the page up and returns to its own search list.
 	a.Launcher.LeavePluginMode()
@@ -430,11 +468,25 @@ func (a *App) surfaceExit() {
 func (a *App) detachedTitleBar(c *ui.Context, surf Surface, tokens theme.Tokens) {
 	t := c.Theme()
 	bar := c.TitleBar()
-	// The window controls own the leading corner on macOS (the traffic lights)
-	// and the trailing one elsewhere; `c.TitleBar` reports which, so the row
-	// keeps clear of them instead of guessing a platform.
-	height := max(bar.Height, t.Space(9))
+	// The height is the *system's*, never ours.
+	//
+	// `c.TitleBar().Height` is the room the window controls need in this
+	// window on this platform: macOS's inset traffic lights, Windows' and
+	// Linux's own buttons. A taller row of our own would push the controls off
+	// centre — the report 「现在 Mac 下有点过高了，导致系统自带的红绿灯栏和标题并没有
+	// 完全上下居中」 — because the controls are placed by the window server at the
+	// system height while the row would be drawn at ours. The `max` with a
+	// spacing step was exactly that mistake: `Space(9)` is 32.4px at the shipped
+	// step, against macOS's 28.
+	//
+	// A platform that reports no title bar (a bare `TitleBarHidden` with no
+	// controls to clear, or a headless frame) still gets a usable row: the
+	// fallback is the platform's own minimum, not a design number.
+	height := detachedTitleBarHeight(bar, t)
 	row := ui.Row(c).FillWidth().Shrink(0).Height(height).
+		// The controls own the leading corner on macOS (the traffic lights) and
+		// the trailing one elsewhere; `c.TitleBar` reports which, so the row
+		// keeps clear of them instead of guessing a platform.
 		Padding(0, bar.Right+t.Space(3), 0, bar.Left+t.Space(3)).
 		Gap(t.Space(2)).AlignItems(ui.Center).
 		// The bar drags the window, as the system title bar would.
@@ -472,4 +524,59 @@ func titleBarStyleFor(goos string) mygo.TitleBarStyle {
 		return mygo.TitleBarHiddenInset
 	}
 	return mygo.TitleBarHidden
+}
+
+// MaxDetachedSurfaces is how many pages may be pinned at once.
+//
+// Ten, the same budget the launcher's own list uses (`launcher.rowBudget`): a
+// window is a bigger thing than a row, and ten of them is already more than a
+// desktop holds before the user starts losing track of which is which. It is a
+// ceiling, not a target — most sessions will have one or two.
+const MaxDetachedSurfaces = 10
+
+// allowAnotherDetachedSurface reports whether one more page may be pinned, and
+// says so in the panel when it may not.
+//
+// The refusal is spoken rather than silent: the user pressed a key and nothing
+// opened, which without a sentence reads as a broken key rather than as a
+// reached limit. It rides the panel's own docked feedback row (`Feedback`), the
+// same place every other "that did not happen" answer goes.
+func (a *App) allowAnotherDetachedSurface() bool {
+	if a.countDetachedSurfaces() < MaxDetachedSurfaces {
+		return true
+	}
+	if a.Launcher != nil {
+		a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Launcher.DetachLimit(MaxDetachedSurfaces))
+	}
+	return false
+}
+
+// raiseDetachedSurface brings a pinned page's window forward. Pinning a page
+// that is already pinned is a raise, not a second window: the same page twice
+// would be two windows the user cannot tell apart.
+func (a *App) raiseDetachedSurface(state *detachedSurface) {
+	if state.win == nil {
+		return
+	}
+	state.win.Show()
+	state.win.Focus()
+	state.win.Invalidate()
+}
+
+// detachedTitleBarHeight is the pinned page's title bar height: the system's own
+// when the window reports one, and the platform's minimum when it does not.
+//
+// The rule is "never taller than the controls", because the window server
+// places the controls at the system height and a taller row would leave them
+// sitting above its centre. macOS's inset traffic lights want 28 DIP; Windows
+// and Linux want their own bar height (32 on Windows 11). A frame with no title
+// bar at all (a headless one, or a platform whose controls are hidden) gets the
+// minimum the platform would use, so the row is still a row.
+func detachedTitleBarHeight(bar ui.TitleBar, t *ui.Theme) float32 {
+	if bar.Height > 0 {
+		return bar.Height
+	}
+	// No controls to clear: the smallest bar that still reads as one — a
+	// caption line box plus one breathing step on each side.
+	return max(t.Space(7), t.FontSize+t.Space(2))
 }
