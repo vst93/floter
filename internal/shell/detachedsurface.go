@@ -12,6 +12,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/settings"
+	"floter/internal/theme"
 	apptheme "floter/internal/theme"
 )
 
@@ -154,6 +155,13 @@ func (a *App) newDetachedSurfaceWindow(surf Surface, title string, state *detach
 		MinWidth:    detachedSurfaceMinWidth,
 		MinHeight:   detachedSurfaceMinHeight,
 		Transparent: true,
+		// The page draws its own title bar (`detachedTitleBar`), so the system
+		// one is hidden and the window's controls ride over the page instead:
+		// the traffic lights inset on macOS, the window buttons on Linux and
+		// Windows. That is what lets the bar be the card's own material rather
+		// than the OS's grey strip — 「需要优化下现在独立后的系统菜单栏，可以有创意
+		// 点，只要能和现在风格融合好」.
+		TitleBarStyle: titleBarStyleFor(runtime.GOOS),
 		// The panel turns its shadow off everywhere but macOS, where the window
 		// server casts one that follows the card's rounded, transparent content
 		// (`shell.go`, `Start`). A pinned page is the same card, so it keeps the
@@ -293,7 +301,15 @@ func (a *App) detachedSurfaceView(c *ui.Context, state *detachedSurface) {
 	// 「整体样式、布局以及交互应该保持不变」). `viewWindow` is the one function
 	// that draws a window, so the two cannot drift; the only difference it is
 	// told about is `detached`, which is the accent stroke that marks the
-	// window as pinned.
+	// window as pinned and the title bar it draws in place of the system one.
+	//
+	// The flag is set for the length of the build because input is read while
+	// the tree is built: a page's Escape handler runs *during* this call, and it
+	// has to know that the window it is answering in is a pinned one (see
+	// `surfaceExit`). The two Apps are shared with the panel, so there is no
+	// per-window Actions set to carry the answer instead.
+	a.detachedDrawing = true
+	defer func() { a.detachedDrawing = false }()
 	a.viewWindow(c, state.surf, true, state.launcher)
 }
 
@@ -318,6 +334,8 @@ func (a *App) detachLauncherPage() {
 	}
 	second := launcher.New(a.Store, a.detachedLauncherActions())
 	a.seedDetachedLauncher(second)
+	// The pinned page keeps the mode it was showing and refuses to leave it.
+	second.PinPage()
 	state := &detachedSurface{surf: SurfaceLauncher, launcher: second}
 	if a.openDetachedSurface != nil {
 		state.win = a.openDetachedSurface(SurfaceLauncher)
@@ -373,4 +391,85 @@ func (a *App) seedDetachedLauncher(second *launcher.App) {
 	second.Calculator = panel.Calculator
 	second.CopyMode = panel.CopyMode
 	second.AdoptPage(panel)
+}
+
+// surfaceExit is the settings page's way out — Escape, its close key, ⌘W — and
+// it is the one place that knows which window is asking.
+//
+// In the panel it returns to the launcher, which is what it has always done. In
+// a pinned page it does nothing at all: a pinned page has no way back to the
+// search list (「独立出来的窗口不应该能回退到搜索页，不能通过删除、esc 回退，只能
+// 整个退出」), and Escape there is not an exit — the window's own close is. The
+// page's *inner* ladders still work, because they run before this one: an open
+// confirmation is cancelled, a recording is abandoned, an integration's detail
+// closes. Only the last rung, the one that would leave the page, is withheld.
+func (a *App) surfaceExit() {
+	if a.detachedDrawing {
+		return
+	}
+	a.Open(SurfaceLauncher)
+}
+
+// The pinned page's title bar: the one band the panel's window does not have,
+// because the panel has no title bar at all.
+//
+// The user asked for this specifically — 「需要优化下现在独立后的系统菜单栏，可以
+// 有创意点，只要能和现在风格融合好」 — so it is not a system-looking strip: it
+// takes the card's own material (the window is created with a hidden title bar,
+// so the row sits on the same glass the card does), its corner is the card's,
+// and its contents are the app's own vocabulary rather than the OS's.
+//
+// What it says, left to right:
+//
+//	● 已固定   Settings                        (drag anywhere)      ×
+//
+// The accent disc is the same mark the accent stroke carries: this window is a
+// pinned one. The name is the page's own. The trailing cross closes the window,
+// which on a pinned page is the *only* way out (see `surfaceExit`). Everything
+// between them drags the window, which is what a title bar is for.
+func (a *App) detachedTitleBar(c *ui.Context, surf Surface, tokens theme.Tokens) {
+	t := c.Theme()
+	bar := c.TitleBar()
+	// The window controls own the leading corner on macOS (the traffic lights)
+	// and the trailing one elsewhere; `c.TitleBar` reports which, so the row
+	// keeps clear of them instead of guessing a platform.
+	height := max(bar.Height, t.Space(9))
+	row := ui.Row(c).FillWidth().Shrink(0).Height(height).
+		Padding(0, bar.Right+t.Space(3), 0, bar.Left+t.Space(3)).
+		Gap(t.Space(2)).AlignItems(ui.Center).
+		// The bar drags the window, as the system title bar would.
+		DragWindow()
+	// The bar's own floor: one weak hairline, the same rule a block draws
+	// between its rows (`docs/raycast-design.md` §6.1). Without it the bar and
+	// the page read as one undivided surface, and the page's own header (which
+	// starts with the page's title) looks like a second line of the bar.
+	row.InsetShadow(0, -1, 0, 0, tokens.HairlineSoft)
+	row.Children(func() {
+		// The mark: an accent disc, then the word. It is the same sentence the
+		// card's accent stroke says, in words.
+		ui.Box(c).Size(t.Space(1.5), t.Space(1.5)).Shrink(0).Radius(t.Space(0.75)).
+			Background(tokens.AccentEdgeStrong)
+		ui.Text(c, i18n.For(a.Store.Snapshot().Language).Launcher.DetachedMark).
+			FontSize(tokens.Caption).FontWeight(600).
+			TextColor(tokens.TextSecondary).Shrink(0).SingleLine()
+		// A hairline between the mark and the page's name: the two are different
+		// facts (this window is pinned / this is what it shows), and the same
+		// separator the app's other window titles use.
+		ui.Box(c).Width(1).Height(t.Space(2.5)).Shrink(0).
+			Background(tokens.HairlineSoft)
+		ui.Text(c, a.surfaceTitle(surf)).FontSize(tokens.Caption).FontWeight(500).
+			LetterSpacing(tokens.Caption * 0.01).TextColor(t.TextMuted).
+			SingleLine().Ellipsis("\u2026").Grow(1)
+	})
+}
+
+// titleBarStyleFor is the hidden title bar a pinned page draws under: the
+// traffic lights inset on macOS, the plain hidden bar elsewhere (where the
+// window buttons fill the bar's trailing end). One table, so the bar's own
+// padding and the window's chrome cannot disagree.
+func titleBarStyleFor(goos string) mygo.TitleBarStyle {
+	if goos == "darwin" {
+		return mygo.TitleBarHiddenInset
+	}
+	return mygo.TitleBarHidden
 }

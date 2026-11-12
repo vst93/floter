@@ -387,6 +387,11 @@ type App struct {
 	// no display: it is handed the surface and returns the window that stands
 	// in for it (nil is fine — the state is what the test reads).
 	openDetachedSurface func(surf Surface) *mygo.Window
+	// detachedDrawing is true while a pinned page's tree is being built. Input
+	// is read during the build, so a page's own Escape handler runs inside it
+	// and has to know which window it is answering in: the shared Apps give it
+	// no other way to tell (see `surfaceExit`).
+	detachedDrawing bool
 	// writeClipboard puts a payload back on the system clipboard.
 	writeClipboard func(ClipboardPayload)
 	// registerShortcut and unregisterShortcut bind and release global
@@ -829,7 +834,7 @@ func New(opts Options) *App {
 		SearchBrowser: a.searchBrowser,
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
-		Close:        func() { a.Open(SurfaceLauncher) },
+		Close:        a.surfaceExit,
 		Quit:         a.quit,
 		CloseSession: func() { a.Terminal.Close() },
 		// Resuming a session is showing it: the settings page hands the
@@ -4855,7 +4860,19 @@ func (a *App) viewWindow(c *ui.Context, surf Surface, detached bool, alt *launch
 				// own content and paints its sheet to the card's edge instead:
 				// the settings column's 4u header inset, the launcher panel's
 				// 4u/2u, the terminal's own appearance padding.
-				ui.Column(c).Fill().Children(func() { a.surface(c, surf, alt) })
+				// A pinned page draws its own title bar here, inside the card's
+				// own face and above the page: the window is created with a
+				// hidden title bar (`newDetachedSurfaceWindow`), so this row *is*
+				// the window's chrome. Drawing it on the card's material rather
+				// than on the window's transparent backdrop is what keeps the
+				// page one object — the bar and the sheet are the same glass, and
+				// the accent stroke runs around both.
+				ui.Column(c).Fill().Children(func() {
+					if detached {
+						a.detachedTitleBar(c, surf, surface.Tokens)
+					}
+					a.surface(c, surf, alt)
+				})
 			})
 		})
 	})

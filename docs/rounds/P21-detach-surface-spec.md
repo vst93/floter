@@ -56,29 +56,60 @@ C 的代价是「一个 launcher App 不能同时画两页」（mode 是单值�
 
 用户否掉了第一版：「操作太过于割裂了。我希望的是分离之后和原来的浮窗几乎保持一致，
 只有少量的标识来区分是主窗口还是独立窗口，整体的样式、布局以及交互应该保持不变。」
+随后又要求：「需要优化下现在独立后的系统菜单栏，可以有创意点，只要能和现在风格融合好。」
 
 第一版把分离窗口做成了**另一套外观**：`tokens.Opaque` 实心底，加一条自己的 bar
 （`● 已固定 │ Settings ×`）。那条 bar 是面板从来没有的第二层 chrome——它把页面往下
 推、和页面自己的页头竞争，让分离窗口成了「另一个东西」而不是「同一个东西换了位置」。
 
-现在分离窗口**就是面板本身**：
+现在分离窗口**就是面板本身**，另加一条**属于窗口自己的标题栏**：
 
 | | 做法 |
 | --- | --- |
 | 卡片 | `viewWindow(c, surf, detached, alt)`——和面板**同一个函数**画的同一张卡：同样的玻璃、圆角、insets、sheen、`FaceFillAt`、`DrawPanelEdge`/`DrawCardEdge` |
 | 页面 | 卡片下面直接是 `a.Settings.View(c)` / `a.Terminal.View(c)` / 第二个 `launcher.App`，没有中间层 |
-| 描边 | 面板是 `InputStroke`（聚焦时 `InputStrokeActive`），分离窗口是 `AccentEdgeStrong`（dark `rgba(143,183,255,0.68)`、light `rgba(6,74,166,0.68)`）——一行 1px 的差别 |
-| 标题 | 窗口标题是 `已固定 · Settings · floter`（`detachedWindowTitle`），走的是窗口本来就有的 chrome，对页面布局零成本 |
+| 标题栏 | 窗口用 `TitleBarStyle: TitleBarHiddenInset`（macOS）/ `TitleBarHidden`（其他）隐藏系统栏，改由 `detachedTitleBar` 在**卡片自己的面内**、页面之上画一条：`● 已固定 │ 页面名` + 一条 `HairlineSoft` 底线，整条可拖窗。左侧让开系统红绿灯（`c.TitleBar().Left`），右侧让开窗口按钮 |
+| 描边 | 面板是 `InputStroke`（聚焦时 `InputStrokeActive`），分离窗口是 `AccentEdgeStrong`（dark `rgba(143,183,255,0.68)`、light `rgba(6,74,166,0.68)`） |
+| 窗口标题 | `已固定 · 页面名 · floter`（`detachedWindowTitle`） |
+
+**为什么标题栏画在卡片内**：画在卡片外时，它的底是窗口的透明背景（露桌面），于是
+「一条浮在上面的灰条 + 下面一张卡」——正是用户说的割裂。画在卡片的 `face` 之内，bar
+和页面就是同一块玻璃，accent 描边绕两者一圈，读成一个对象。
 
 **为什么是 `AccentEdgeStrong` 而不是 `Theme().Accent`**：后者是**墨**的 accent，
 `internal/theme/readability.go` 里 `p.accent = readableInk(p.accent, toward, 5.5, backs)`
 会把它一路推向外观的极值以凑够 5.5 对比度——深色档最终落在**纯白**。1px 的纯白边框
-读起来是一条生硬的异物边，不是这个应用的强调色（实测 `{255 255 255 255}`，而面板的
-`InputStroke` 是 `{23 23 23 23}`）。`AccentEdgeStrong` 是同一个色相、应用本来就在用的
-强调**边**透明度，实测深 `{103 132 184 184}` / 浅 `{4 50 113 173}`。
+读起来是一条生硬的异物边（实测 `{255 255 255 255}`，而面板的 `InputStroke` 是
+`{23 23 23 23}`）。`AccentEdgeStrong` 是同一个色相、应用本来就在用的强调**边**透明度，
+实测深 `{103 132 184 184}` / 浅 `{4 50 113 173}`。
 
-**除描边外逐像素相同**（720×560，`General` 页）：第 2 行起 panel 与 pinned 都是
-`{22 22 22 207}`（深）/ `{199 199 200 207}`（浅）。
+**除描边与标题栏外逐像素相同**（720×560，`General` 页）。
+
+## 只能整个退出（21-9）
+
+用户：「独立出来的窗口不应该能回退到搜索页，不能通过删除、esc 回退，只能整个退出。」
+
+三条回退路径，全部堵住：
+
+| 路径 | 堵法 |
+| --- | --- |
+| Escape 的模式阶梯 | `launcher.App.pinned` 标志；`leavePluginMode()` 直接 `return false`，Escape 那一支在 `pinned` 时整体 `return`（不清查询、不 Dismiss） |
+| 空字段退格 | 走的是同一个 `leavePluginMode()`（`fieldkeys.go` 的「退格删空即停」），同一个标志 |
+| 设置/终端页的 Close（Escape 的最后一档） | `Close: a.surfaceExit`——`a.detachedDrawing` 为真时什么都不做 |
+
+`detachedDrawing` 是绘制期的标志：输入是在建树时读的，页面的 Escape 处理就跑在这次
+`detachedSurfaceView` 调用**之内**，两个 App 又是与面板共享的，没有 per-window 的
+Actions 可以承载这个答案。页面**内部**的阶梯照常工作（取消确认、放弃录制、关掉集成
+详情），只有「离开这一页」那一档被扣住。
+
+## 保留当前操作结果（21-10）
+
+用户：「独立切换时要保留当前的操作结果，最好就是把插件本体独立出来，不影响接着操作。」
+
+`AdoptPage(from)` 搬的不只是模式，还有**内容**：查询、选中行、已算出的行表
+（`drawn`）、模式自己的数据（`calculatorFound`、`browserFound`）、输出视图与滚动状态。
+所以分离窗口打开时是面板那一刻的同一份列表、同一个选择，下一次按键接着做，而不是
+重新开始。
 
 ## 判据
 
@@ -93,9 +124,14 @@ C 的代价是「一个 launcher App 不能同时画两页」（mode 是单值�
   - `TestTheDetachChordIsRebindable`：默认值是 `DefaultDetachShortcut()`，且
     `SetShortcut` 能改
   - `TestAPinnedPageKeepsThePanelsShapeAndOnlyItsStrokeChanges`：分离窗口里是**完整
-    的设置页**（`General`、`Appearance` 在），页面内**没有**任何 band 承载
-    `DetachedMark`（标记属于窗口标题与卡片描边，不属于页面布局），且
-    `detachedWindowTitle` 以标记开头并含页面名
+    的设置页**（`General`、`Appearance` 在），`DetachedMark` 在整帧里**只出现一次**
+    （窗口标题栏，不是页面布局里的一条 band），且 `detachedWindowTitle` 以标记开头
+    并含页面名
+  - `TestAPinnedPageCannotWalkBackToTheSearchList`：Escape 不离开模式、不改字段；
+    空字段退格不离开模式；`surfaceExit` 在分离窗口绘制期间不动主窗口（21-9 未修时
+    报「Backspace on an empty field left the pinned page's mode」）
+  - `TestAPinnedPageOpensWhereThePanelWas`：分离窗口的字段与选中行都是面板那一刻
+    的值（21-10）
 
 ## 未做
 

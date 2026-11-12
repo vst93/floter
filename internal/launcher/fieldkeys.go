@@ -215,6 +215,15 @@ func (a *App) PluginModeActive() bool { return a.pluginModeActive() }
 // written down twice and drift: the files mode, then the calculator, the
 // browser, the clipboard, and last an extension command's arguments.
 func (a *App) leavePluginMode() bool {
+	// A pinned page has no way back to the search list. It is the plugin the
+	// user detached — 「独立出来的窗口不应该能回退到搜索页，不能通过删除、esc
+	// 回退，只能整个退出」 — so the ladder that would walk it back to the search
+	// list stops here: Escape, an empty field's Backspace and ⌘W all reach this
+	// one function, and all of them now do nothing. The window's own close is
+	// the only exit.
+	if a.pinned {
+		return false
+	}
 	switch {
 	case a.files:
 		a.leaveFiles()
@@ -408,6 +417,11 @@ func (a *App) DisarmDelete() { a.disarmDelete() }
 // shell's own tests) to see the arm the key set.
 func (a *App) ArmedDelete() string { return a.armedDelete }
 
+// PinPage makes this launcher a pinned page: it keeps whatever mode it is in
+// and refuses to leave it (see `leavePluginMode`). The shell's detached window
+// sets it on the second launcher it builds for a detached plugin page.
+func (a *App) PinPage() { a.pinned = true }
+
 // LeavePluginMode returns the launcher to its ordinary search page, from any
 // mode: the panel's own way out when the page it was showing has been pinned
 // into a window of its own (see shell.detachSurface).
@@ -471,7 +485,21 @@ func (a *App) AdoptPage(from *App) {
 		a.files = true
 		a.modeWord = from.modeWord
 	}
+	// The page's *content* comes across too, not just its mode: the needle, the
+	// chosen row, the scroll the user had walked to and the mode's own data. The
+	// user's 「独立切换时要保留当前的操作结果，最好就是把插件本体独立出来，不影响接着
+	// 操作」 is exactly this — the pinned page must open where the panel was, with
+	// the same rows under the same choice, so the next keystroke continues the
+	// operation instead of starting it again.
 	a.Query = from.Query
-	a.Selected, a.chosenRow = 0, -1
+	a.Selected, a.chosenRow = from.Selected, from.chosenRow
 	a.pendingCaret = true
+	// The rows the page was showing, so the pinned window opens on the same
+	// list under the same choice rather than on a re-fetch that could come back
+	// different. The mode's own data comes with it for the same reason.
+	a.drawn = from.drawn
+	a.calculatorFound = from.calculatorFound
+	a.browserFound = from.browserFound
+	a.Output = from.Output
+	a.output = from.output
 }

@@ -401,6 +401,12 @@ type App struct {
 	// index points at whatever row now sits there.
 	defaultedQuery string
 
+	// pinned marks a launcher that is a *pinned page* — the second instance a
+	// detached plugin page runs in (see shell.detachLauncherPage). A pinned page
+	// has no way back to the search list: `leavePluginMode` refuses, so Escape,
+	// an empty field's Backspace and every other route that walks the mode
+	// ladder stop here. Only closing the window leaves it.
+	pinned bool
 	// mode is the extension command being typed: while it is set, the field
 	// holds the command's argv and the list offers its arguments.
 	mode *extensions.CommandEntry
@@ -1867,6 +1873,14 @@ func (a *App) View(c *ui.Context) {
 		// An armed delete is the first thing Escape answers.
 		if a.armedDelete != "" {
 			a.disarmDelete()
+			return
+		}
+		// A pinned page has no way back: not out of the mode, not out of the
+		// needle, not out of the window. `leavePluginMode` already refuses, and
+		// the other two rungs are the ones that would still walk a pinned page
+		// towards the search list — the user's 「不能通过删除、esc 回退，只能整个
+		// 退出」.
+		if a.pinned {
 			return
 		}
 		// The mode ladder is `leavePluginMode`'s, so the two ways out — Escape

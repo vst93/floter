@@ -20,6 +20,12 @@ type detachFixture struct {
 
 func newDetachFixture(t *testing.T) *detachFixture {
 	t.Helper()
+	// `detachedSurfaces` is the process's own table: a test that pins a page
+	// leaves it behind for the next one, which would then take the "raise the
+	// window already showing this page" branch and never build its own.
+	detachedMu.Lock()
+	detachedSurfaces = map[*mygo.Window]*detachedSurface{}
+	detachedMu.Unlock()
 	f := &detachFixture{}
 	f.app = New(Options{
 		Store: settings.NewStore(settings.Default()),
@@ -180,10 +186,19 @@ func TestAPinnedPageKeepsThePanelsShapeAndOnlyItsStrokeChanges(t *testing.T) {
 	if !tt.HasText("General") || !tt.HasText("Appearance") {
 		t.Fatalf("the pinned page is not the settings page: %q", tt.Texts())
 	}
+	// The mark is on the window's own title bar, which a pinned window draws in
+	// place of the system one (`newDetachedSurfaceWindow` hides it). That bar is
+	// the window's chrome, not a band of the page: it sits inside the card's
+	// face, above the page, and the page below it is untouched. What must not
+	// happen is the page *itself* being pushed around by it — so the reading is
+	// that the settings page's own header is still the first thing under the
+	// bar, at the panel's own place.
 	mark := i18n.For(store.Snapshot().Language).Launcher.DetachedMark
-	if tt.HasText(mark) {
-		t.Errorf("the pinned page draws a band of its own (%q); the mark belongs to the "+
-			"window's title and the card's stroke, not to the page's layout", mark)
+	if !tt.HasText(mark) {
+		t.Errorf("the pinned window's title bar does not say it is pinned: %q", tt.Texts())
+	}
+	if got := strings.Count(strings.Join(tt.Texts(), "\x00"), mark); got != 1 {
+		t.Errorf("the pinned page says %q %d times, want once (on the title bar)", mark, got)
 	}
 
 	// The window's title carries the mark, and it is the only place the user
@@ -194,5 +209,93 @@ func TestAPinnedPageKeepsThePanelsShapeAndOnlyItsStrokeChanges(t *testing.T) {
 	}
 	if !strings.Contains(title, i18n.For(store.Snapshot().Language).Settings.Title) {
 		t.Errorf("the pinned window's title is %q, want it to name the page", title)
+	}
+}
+
+// A pinned page has no way back to the search list.
+//
+// The user's rule: 「独立出来的窗口不应该能回退到搜索页，不能通过删除、esc 回退，
+// 只能整个退出」. Three routes would have walked it back, and all three are shut:
+// Escape's mode ladder, an empty field's Backspace (which walks the same
+// ladder), and the page's own close action (which returns to the launcher).
+// The window's close button is the only exit.
+func TestAPinnedPageCannotWalkBackToTheSearchList(t *testing.T) {
+	f := newDetachFixture(t)
+	f.app.Surf = SurfaceLauncher
+	f.app.Launcher.EnterClipboard()
+	f.app.Launcher.SetQuery("note")
+	f.app.detachSurface()
+
+	detachedMu.Lock()
+	var second *detachedSurface
+	for _, state := range detachedSurfaces {
+		second = state
+	}
+	detachedMu.Unlock()
+	if second == nil || second.launcher == nil {
+		t.Fatal("no pinned launcher")
+	}
+	page := second.launcher
+
+	// Escape: the mode ladder refuses, and so does the query clear behind it.
+	tt := ui.NewTester(func(c *ui.Context) { page.View(c) }, 720, 560)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.Frame()
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if !page.PluginModeActive() {
+		t.Error("Escape left the pinned page's mode")
+	}
+	if page.Query != "note" {
+		t.Errorf("Escape changed the pinned page's field to %q", page.Query)
+	}
+
+	// Backspace on an empty field: the same ladder, so the same refusal.
+	page.SetQuery("")
+	tt.Frame()
+	tt.Key(0, ui.KeyBackspace)
+	tt.Frame()
+	if !page.PluginModeActive() {
+		t.Error("Backspace on an empty field left the pinned page's mode")
+	}
+
+	// The page's close action does nothing while the pinned page is drawing.
+	f.app.detachedDrawing = true
+	f.app.surfaceExit()
+	f.app.detachedDrawing = false
+	if f.app.Surf != SurfaceLauncher {
+		t.Errorf("the pinned page's close action moved the panel to %v", f.app.Surf.Name())
+	}
+}
+
+// Pinning a page keeps the operation going: the pinned window opens on the same
+// rows under the same choice.
+//
+// 「独立切换时要保留当前的操作结果，最好就是把插件本体独立出来，不影响接着操作」 —
+// so `AdoptPage` carries the content across, not just the mode.
+func TestAPinnedPageOpensWhereThePanelWas(t *testing.T) {
+	f := newDetachFixture(t)
+	f.app.Surf = SurfaceLauncher
+	f.app.Launcher.EnterClipboard()
+	f.app.Launcher.SetQuery("note")
+	f.app.Launcher.Selected = 1
+	before := f.app.Launcher.Query
+
+	f.app.detachSurface()
+
+	detachedMu.Lock()
+	var second *detachedSurface
+	for _, state := range detachedSurfaces {
+		second = state
+	}
+	detachedMu.Unlock()
+	if second == nil || second.launcher == nil {
+		t.Fatal("no pinned launcher")
+	}
+	if got := second.launcher.Query; got != before {
+		t.Errorf("the pinned page's field holds %q, want the needle it was pinned with (%q)", got, before)
+	}
+	if got := second.launcher.Selected; got != 1 {
+		t.Errorf("the pinned page starts on row %d, want the row the panel was on (1)", got)
 	}
 }
