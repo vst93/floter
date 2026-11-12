@@ -407,3 +407,71 @@ func (a *App) DisarmDelete() { a.disarmDelete() }
 // or the empty string. It exists for a caller outside the launcher (the
 // shell's own tests) to see the arm the key set.
 func (a *App) ArmedDelete() string { return a.armedDelete }
+
+// LeavePluginMode returns the launcher to its ordinary search page, from any
+// mode: the panel's own way out when the page it was showing has been pinned
+// into a window of its own (see shell.detachSurface).
+//
+// It is `leavePluginMode` with the caller's spelling, so the ladder of modes
+// stays in one place: a second copy of that switch here would let a new mode be
+// forgotten in one of the two.
+func (a *App) LeavePluginMode() { a.leavePluginMode() }
+
+// PluginTitle is the name of the page a mode is showing — the plugin's own
+// name, or the command's — and the empty string on the ordinary search page.
+// It is what a pinned page calls itself in its window title.
+func (a *App) PluginTitle() string {
+	switch {
+	case a.mode != nil:
+		if name := a.mode.Command.Name; name != "" {
+			return name
+		}
+		return a.mode.Command.ID
+	case a.clipboard:
+		return a.copy().ScopeClipboard
+	case a.browser:
+		return a.copy().ScopeBrowser
+	case a.calculatorMode:
+		return a.copy().ScopeCalculator
+	case a.files:
+		return a.copy().FilesSection
+	}
+	return ""
+}
+
+// AdoptPage takes the page `from` is showing — its mode, its filter chip and
+// the text in its field — so a second launcher can draw the same page while the
+// first one goes back to the search list.
+//
+// It is a *page*, not a state: the selection, the scroll offset, the armed
+// delete and the query history stay with the instance that owns them. A pinned
+// page starts at its own first row, which is the rule every second window in
+// this app follows (`showOutput` resets its scroller for the same reason).
+func (a *App) AdoptPage(from *App) {
+	if from == nil {
+		return
+	}
+	a.mode, a.modeWord = nil, ""
+	a.clipboard, a.browser, a.calculatorMode, a.files = false, false, false, false
+	switch {
+	case from.mode != nil:
+		entry := *from.mode
+		a.mode = &entry
+		a.modeWord = from.modeWord
+	case from.clipboard:
+		a.clipboard, a.clipboardFilter = true, from.clipboardFilter
+		a.modeWord = from.modeWord
+	case from.browser:
+		a.browser, a.browserFilter = true, from.browserFilter
+		a.modeWord = from.modeWord
+	case from.calculatorMode:
+		a.calculatorMode, a.calculatorFilter = true, from.calculatorFilter
+		a.modeWord = from.modeWord
+	case from.files:
+		a.files = true
+		a.modeWord = from.modeWord
+	}
+	a.Query = from.Query
+	a.Selected, a.chosenRow = 0, -1
+	a.pendingCaret = true
+}

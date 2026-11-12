@@ -23,6 +23,10 @@ const (
 	ShortcutPaste                = "paste"
 	ShortcutOpenSettings         = "open_settings"
 	ShortcutSelectResult         = "select_result"
+	// ShortcutDetachSurface pins the page the app is on into a window of its
+	// own: the launcher's plugin pages, the settings, and a terminal session.
+	// The search page itself has nothing to detach.
+	ShortcutDetachSurface = "detach_surface"
 )
 
 // DefaultSummonShortcut is the key the app registers when the user never
@@ -38,6 +42,7 @@ var ShortcutActions = []string{
 	ShortcutPaste,
 	ShortcutOpenSettings,
 	ShortcutSelectResult,
+	ShortcutDetachSurface,
 }
 
 // defaultShortcuts is the shipped map: the app modifier is Command on macOS
@@ -55,6 +60,10 @@ func defaultShortcuts() map[string]string {
 		ShortcutPaste:                pasteDefault(),
 		ShortcutOpenSettings:         app + "+,",
 		ShortcutSelectResult:         app + "+1",
+		// `⌘D` / `Ctrl+D` — "detach". The reference had no binding for this:
+		// its plugin window was opened by a button in the page's own bar
+		// (`main:src/App.tsx:976-988`), and the user asked for a key here.
+		ShortcutDetachSurface: DefaultDetachShortcut(),
 	}
 }
 
@@ -291,4 +300,16 @@ func SelectResultDigit(s Settings, digit int) string {
 		return binding[:index+1] + key
 	}
 	return key
+}
+
+// DefaultDetachShortcut is the shipped binding for pinning the current page
+// into a window of its own: the app modifier plus `D`, "detach". It is a
+// function rather than a constant because the modifier follows the platform,
+// the same reason `defaultShortcuts` computes its own.
+func DefaultDetachShortcut() string {
+	app := "Ctrl"
+	if runtime.GOOS == "darwin" {
+		app = "Cmd"
+	}
+	return app + "+D"
 }

@@ -187,13 +187,19 @@ type Launcher struct {
 	// the re-run and close controls, and what its body says in each run
 	// state — before a run, while one is in flight, when the host refused the
 	// run, and when the run finished with nothing to show.
-	OutputWindowFallback   string
-	OutputWindowRerun      string
-	OutputWindowClose      string
-	OutputWindowIdle       string
-	OutputWindowRunning    string
-	OutputWindowFailed     string
-	OutputWindowEmpty      string
+	OutputWindowFallback string
+	OutputWindowRerun    string
+	OutputWindowClose    string
+	OutputWindowIdle     string
+	OutputWindowRunning  string
+	OutputWindowFailed   string
+	OutputWindowEmpty    string
+	// DetachedMark is the word a pinned page's own bar wears, so the user can
+	// see at a glance that this page is no longer the panel's. The control that
+	// pins it is the settings page's own pair (`i18n.Settings`), which is the
+	// only page that draws one — the plugin pages and the terminal use the
+	// chord.
+	DetachedMark           string
 	CalculatorDeleted      string
 	CalculatorDeleteFailed string
 	// CalculatorEmpty is the calculator mode's empty state, and the two
@@ -415,6 +421,11 @@ type Settings struct {
 	Palettes     []Option
 	AppIcons     []Option
 
+	// SurfaceDetach pins the page the settings panel is showing into a window
+	// of its own, and SurfaceDetachHint is the sentence its icon-only control
+	// carries. See the launcher's own pair for the plugin pages.
+	SurfaceDetach     string
+	SurfaceDetachHint string
 	// The window behaviour.
 	LaunchAtStartup       string
 	LaunchAtStartupHint   string

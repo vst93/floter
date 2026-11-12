@@ -191,6 +191,7 @@ var en = Copy{
 		OutputWindowRunning:      "Running\u2026",
 		OutputWindowFailed:       "The command could not run",
 		OutputWindowEmpty:        "The command produced no output",
+		DetachedMark:             "Pinned",
 		CalculatorDeleted:        "Calculation deleted",
 		CalculatorDeleteFailed:   "Could not delete the calculation",
 		CalculatorEmpty:          "No calculations yet",
@@ -347,6 +348,8 @@ var en = Copy{
 		Paddings:     optionsFor(valuedomain.Paddings, enPaddingLabels),
 		Palettes:     optionsFor(valuedomain.Palettes, enPaletteLabels),
 
+		SurfaceDetach:               "Pin in a window",
+		SurfaceDetachHint:           "Keep this page on screen in a window of its own",
 		LaunchAtStartup:             "Launch at startup",
 		LaunchAtStartupHint:         "Start floter automatically when you log in.",
 		HideOnBlur:                  "Hide when focus is lost",
@@ -801,6 +804,7 @@ var en = Copy{
 			"paste":                  "Paste",
 			"open_settings":          "Open settings",
 			"select_result":          "Select result 1-9",
+			"detach_surface":         "Pin this page in its own window",
 		},
 
 		ShortcutsCustom:      "Custom shortcuts",
@@ -1058,6 +1062,7 @@ var zh = Copy{
 		OutputWindowRunning:      "正在执行…",
 		OutputWindowFailed:       "命令无法执行",
 		OutputWindowEmpty:        "命令没有输出",
+		DetachedMark:             "已固定",
 		CalculatorDeleted:        "已删除计算记录",
 		CalculatorDeleteFailed:   "无法删除该计算记录",
 		CalculatorEmpty:          "还没有计算记录",
@@ -1209,6 +1214,8 @@ var zh = Copy{
 		Paddings:     optionsFor(valuedomain.Paddings, zhPaddingLabels),
 		Palettes:     optionsFor(valuedomain.Palettes, zhPaletteLabels),
 
+		SurfaceDetach:               "固定到独立窗口",
+		SurfaceDetachHint:           "把这个页面留在独立窗口里，不再跟着面板消失",
 		LaunchAtStartup:             "开机自启动",
 		LaunchAtStartupHint:         "登录系统时自动启动 floter。",
 		HideOnBlur:                  "失去焦点时隐藏",
@@ -1652,6 +1659,7 @@ var zh = Copy{
 			"paste":                  "粘贴",
 			"open_settings":          "打开设置",
 			"select_result":          "选择第 1-9 项结果",
+			"detach_surface":         "把当前页面固定到独立窗口",
 		},
 
 		ShortcutsCustom:      "自定义快捷键",

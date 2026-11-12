@@ -171,6 +171,9 @@ type Options struct {
 	// OpenDetached replaces the detached-output-window implementation; nil
 	// opens the real window, and tests record what would have been opened.
 	OpenDetached func(view launcher.OutputView) *mygo.Window
+	// OpenDetachedSurface replaces the pinned-page window; nil opens the real
+	// one, and tests record which surface would have been pinned.
+	OpenDetachedSurface func(surf Surface) *mygo.Window
 	// WriteClipboard puts a clipboard payload back on the system
 	// clipboard; nil uses the framework's clipboard, and tests record what
 	// would have been written.
@@ -380,6 +383,10 @@ type App struct {
 	pinMu        sync.Mutex
 	openPinned   func(title, text string)
 	openDetached func(view launcher.OutputView) *mygo.Window
+	// openDetachedSurface replaces the pinned-page window in tests, which have
+	// no display: it is handed the surface and returns the window that stands
+	// in for it (nil is fine — the state is what the test reads).
+	openDetachedSurface func(surf Surface) *mygo.Window
 	// writeClipboard puts a payload back on the system clipboard.
 	writeClipboard func(ClipboardPayload)
 	// registerShortcut and unregisterShortcut bind and release global
@@ -638,6 +645,7 @@ func New(opts Options) *App {
 		chooseTool:           opts.ChooseSystemTool,
 		openPinned:           opts.OpenPinned,
 		openDetached:         opts.OpenDetached,
+		openDetachedSurface:  opts.OpenDetachedSurface,
 		writeClipboard:       opts.WriteClipboard,
 		registerShortcut:     opts.RegisterShortcut,
 		unregisterShortcut:   opts.UnregisterShortcut,
@@ -715,6 +723,9 @@ func New(opts Options) *App {
 		// A detached output window outlives the panel by design, but not the
 		// app: quitting closes them with everything else.
 		a.closeDetached()
+		// The same rule for a pinned page: it survives a dismissal and a hide,
+		// never a quit.
+		a.closeDetachedSurfaces()
 		innerQuit()
 	}
 	a.Launcher = launcher.New(opts.Store, launcher.Actions{
@@ -994,7 +1005,10 @@ func New(opts Options) *App {
 		ExportConfiguration:   a.exportConfiguration,
 		CopyConfiguration:     a.copyConfiguration,
 		ClearClipboardHistory: func() { a.clearClipboardHistoryAsks(a.confirmClearClipboard) },
-		OpenPluginConfig:      a.openPluginConfig,
+		// The header's pin: the pointer's door to the detach chord, so the page
+		// can be kept without learning a key.
+		PinSurface:       a.detachSurface,
+		OpenPluginConfig: a.openPluginConfig,
 		SetPluginEnabled: func(id string, enabled bool) {
 			a.changePluginConfig(id, "enabled", enabled)
 		},
@@ -4484,6 +4498,17 @@ func (a *App) appShortcuts(c *ui.Context) {
 	// confirmation" or, failing that, close the panel. Claiming it here would
 	// outrun those listeners — pressing Escape on a removal bar would close the
 	// whole panel instead of cancelling the bar.
+	// The detach chord answers on every page but the search list: the user
+	// asked for 「除了最基础的搜索主页之外，其他的插件页和功能（包括终端页）」
+	// (see `detachSurface`). It is asked before the per-surface table below
+	// because it is the same key on all of them, and it is asked only where the
+	// page *has* something to pin — on the search list the chord is left alone
+	// for whatever else wants it.
+	if mods, key, ok := shortcuts.Parse(settings.Shortcut(snapshot, settings.ShortcutDetachSurface)); ok &&
+		a.canDetachSurface() && c.Shortcut(mods, key) {
+		a.detachSurface()
+		return
+	}
 	switch a.Surf {
 	case SurfaceTerminal:
 		if mods, key, ok := shortcuts.Parse(settings.Shortcut(snapshot, settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {

@@ -296,6 +296,9 @@ type Actions struct {
 	// ClearClipboardHistory drops every clipboard entry that is not a
 	// favourite.
 	ClearClipboardHistory func()
+	// PinSurface puts this page into a window of its own (the shell's
+	// `detachSurface`). Nil hides the header's pin control.
+	PinSurface func()
 	// OpenPluginConfig opens one built-in plugin's declarative configuration
 	// in the launcher — the same sheet the mode's own gear opens. Nil hides
 	// the Configure buttons on the base-plugin rows.
@@ -1379,6 +1382,11 @@ func (a *App) View(c *ui.Context) {
 					run()
 				}
 			}
+			// The pin, before the two ways out: the page stays, the panel
+			// leaves. It is the pointer's door to what the detach chord does
+			// (the user asked for 「点击或者用快捷键触发」), and it sits in the
+			// same 28u square family as the other two header controls.
+			headerButton("pin", copy.SurfaceDetach, copy.SurfaceDetachHint, a.Actions.PinSurface)
 			headerButton("power", copy.Quit, copy.QuitHint, a.Actions.Quit)
 			headerButton("close", copy.Close, copy.CloseHint, a.Actions.Close)
 		})
