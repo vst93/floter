@@ -12,7 +12,6 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/settings"
-	"floter/internal/theme"
 	apptheme "floter/internal/theme"
 )
 
@@ -66,6 +65,36 @@ var (
 	detachedSurfaces = map[*mygo.Window]*detachedSurface{}
 )
 
+// detachedWindowTitle is what the window manager calls a pinned page:
+// `已固定 · Settings · floter`.
+//
+// The mark rides the window's own title bar rather than a band inside the page,
+// which is the whole of the user's correction — 「我希望的是分离之后和原来的浮窗
+// 几乎保持一致，只有少量的标识来区分…整体的样式、布局以及交互应该保持不变」. A
+// band above the page was a second piece of chrome the panel never had: it moved
+// the page down, it competed with the page's own header, and it made the pinned
+// window a different thing to look at rather than the same thing in a different
+// place. The title bar is chrome the window already has, so the mark costs the
+// page nothing.
+func (a *App) detachedWindowTitle(surf Surface, alt *launcher.App) string {
+	mark := i18n.For(a.Store.Snapshot().Language).Launcher.DetachedMark
+	name := strings.TrimSpace(a.surfaceTitle(surf))
+	if alt != nil {
+		// A pinned plugin page is named by the plugin that owns it; the panel's
+		// own launcher has already gone back to its search list and no longer
+		// knows which page it was showing.
+		if title := strings.TrimSpace(alt.PluginTitle()); title != "" {
+			name = title
+		}
+	}
+	return mark + detachedTitleSeparator + name + detachWindowTitleSuffix
+}
+
+// detachedTitleSeparator is the middle dot the app's other window titles use
+// (`detachWindowTitleSuffix`), so a pinned page reads as one more title in the
+// same family rather than a new shape.
+const detachedTitleSeparator = " \u00b7 "
+
 // detachedSurfaceStateKey is the key a pinned page's geometry is remembered
 // under: one per surface, so pinning the settings and pinning a terminal
 // session open where the user last left each of them.
@@ -76,14 +105,19 @@ func detachedSurfaceStateKey(surf Surface) string {
 // surfaceTitle is what a pinned page calls itself: the surface's own name in
 // the user's language.
 func (a *App) surfaceTitle(surf Surface) string {
-	copy := i18n.For(a.Store.Snapshot().Language).Settings
+	copy := i18n.For(a.Store.Snapshot().Language)
 	switch surf {
 	case SurfaceSettings:
-		return copy.Title
+		return copy.Settings.Title
 	case SurfaceTerminal:
-		return copy.PageSessions
+		return copy.Terminal.Title
 	default:
-		return i18n.For(a.Store.Snapshot().Language).Launcher.Label
+		// A pinned plugin page is named by the plugin, and falls back to the
+		// app's own name when the launcher that drew it is already gone.
+		if title := strings.TrimSpace(a.Launcher.PluginTitle()); title != "" {
+			return title
+		}
+		return copy.Launcher.Label
 	}
 }
 
@@ -100,6 +134,39 @@ func (a *App) canDetachSurface() bool {
 	// The launcher surface: only its plugin modes and an open configuration
 	// sheet are pages. The ordinary search list is not.
 	return a.Launcher != nil && (a.Launcher.PluginModeActive() || a.Launcher.ConfigOpen())
+}
+
+// newDetachedSurfaceWindow builds a pinned page's window.
+//
+// It is an ordinary window — not a panel — which is what makes the page outlive
+// the panel: the panel's `HideOnBlur` is bound to `a.Win` alone
+// (`shell.go`, `a.Win.OnBlur`), so a second window never answers it. The glass
+// is the panel's own: the same material, the same transparency, the same
+// platform inset, because the pinned page wears the *same card* the panel draws
+// (see `viewWindow`) and a card that reads no desktop through it would not be
+// the same card.
+func (a *App) newDetachedSurfaceWindow(surf Surface, title string, state *detachedSurface) *mygo.Window {
+	s := a.settings()
+	return mygo.NewWindow(mygo.WindowOptions{
+		Title:       title,
+		Width:       detachedSurfaceWidth,
+		Height:      detachedSurfaceHeight,
+		MinWidth:    detachedSurfaceMinWidth,
+		MinHeight:   detachedSurfaceMinHeight,
+		Transparent: true,
+		// The panel turns its shadow off everywhere but macOS, where the window
+		// server casts one that follows the card's rounded, transparent content
+		// (`shell.go`, `Start`). A pinned page is the same card, so it keeps the
+		// same rule.
+		DisableShadow: runtime.GOOS != "darwin",
+		Vibrancy:      windowVibrancyFor(runtime.GOOS, activeMaterialStep(s, surf)),
+		// Remembered per surface, the same rule the other second windows
+		// follow: a pinned page opens where the user last left it.
+		StateKey: detachedSurfaceStateKey(surf),
+		Content: ui.View(func(c *ui.Context) {
+			a.detachedSurfaceView(c, state)
+		}),
+	})
 }
 
 // detachSurface pins the page the app is on into a window of its own.
@@ -130,19 +197,7 @@ func (a *App) detachSurface() {
 	if a.openDetachedSurface != nil {
 		state.win = a.openDetachedSurface(surf)
 	} else {
-		state.win = mygo.NewWindow(mygo.WindowOptions{
-			Title:     detachWindowTitle(a.surfaceTitle(surf)),
-			Width:     detachedSurfaceWidth,
-			Height:    detachedSurfaceHeight,
-			MinWidth:  detachedSurfaceMinWidth,
-			MinHeight: detachedSurfaceMinHeight,
-			// Remembered per surface, the same rule the other second windows
-			// follow: a pinned page opens where the user last left it.
-			StateKey: detachedSurfaceStateKey(surf),
-			Content: ui.View(func(c *ui.Context) {
-				a.detachedSurfaceView(c, state)
-			}),
-		})
+		state.win = a.newDetachedSurfaceWindow(surf, a.detachedWindowTitle(surf, nil), state)
 	}
 	if state.win != nil {
 		state.win.OnClosed(func() { a.forgetDetachedSurface(state) })
@@ -233,88 +288,13 @@ func (a *App) surfaceTokens(c *ui.Context, surf Surface) launcher.Surface {
 // pinned page wore a second, differently-sized frame around a sheet that
 // already has one.
 func (a *App) detachedSurfaceView(c *ui.Context, state *detachedSurface) {
-	surface := a.surfaceTokens(c, state.surf)
-	tokens := surface.Tokens
-	state.look.apply(c, tokens)
-	t := c.Theme()
-	copy := i18n.For(a.Store.Snapshot().Language).Launcher
-	// A pinned page is opaque: it is a page the user put on screen, not a pane
-	// reading the desktop through it.
-	c.Root().Background(tokens.Opaque)
-
-	ui.Column(c).Fill().Children(func() {
-		a.detachedSurfaceBar(c, state, tokens, t, copy)
-		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-			switch state.surf {
-			case SurfaceSettings:
-				a.Settings.View(c)
-			case SurfaceTerminal:
-				a.Terminal.View(c)
-			default:
-				if state.launcher != nil {
-					state.launcher.View(c)
-				}
-			}
-		})
-	})
-}
-
-// The pinned page's own bar: the page's name, the word that says it is pinned,
-// and the way out.
-//
-// This is the 「特殊的标记」 the user asked for, and it is deliberately the one
-// thing the page did not have before: a band above it that names what the user
-// is looking at and says it is no longer the panel's. The mark itself is an
-// accent dot beside the word — the same accent the app spends on "this is
-// chosen" everywhere else (`docs/raycast-design.md` §5), never a new colour.
-func (a *App) detachedSurfaceBar(c *ui.Context, state *detachedSurface, tokens theme.Tokens, t *ui.Theme, copy i18n.Launcher) {
-	bar := ui.Row(c).FillWidth().Shrink(0).
-		Padding(t.Space(detachedBarPadY), t.Space(detachedBarPadX)).
-		Gap(t.Space(detachedBarGap)).AlignItems(ui.Center)
-	bar.InsetShadow(0, -1, 0, 0, tokens.Hairline)
-	bar.Children(func() {
-		// The mark comes first, at the bar's leading edge, and the page's own
-		// name follows it. The page prints its name again in its own header —
-		// that header is the page's, and this bar is the window's — so the two
-		// are not the same sentence: this one says *this page is pinned*, and
-		// the page's says which page it is.
-		ui.Box(c).Size(t.Space(1.5), t.Space(1.5)).Shrink(0).Radius(t.Space(0.75)).
-			Background(t.Accent)
-		ui.Text(c, copy.DetachedMark).FontSize(tokens.Caption).FontWeight(600).
-			TextColor(tokens.TextSecondary).Shrink(0).SingleLine()
-		ui.Box(c).Width(1).Height(t.Space(2.5)).Shrink(0).Margin(t.Space(1), 0).
-			Background(tokens.Hairline)
-		ui.Text(c, a.surfaceTitle(state.surf)).FontSize(tokens.Caption).FontWeight(500).
-			LetterSpacing(tokens.Caption * 0.01).TextColor(t.TextMuted).Grow(1).
-			SingleLine().Ellipsis("\u2026")
-		// The way out: the same 28u transparent square the other second
-		// windows' bars carry, so the three read as one family.
-		close := ui.Row(c).Focusable().Shrink(0).
-			Size(max(36, t.Space(9)), max(36, t.Space(9))).
-			Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-			Label(copy.OutputWindowClose)
-		plane := ui.Transparent
-		switch {
-		case close.Pressed():
-			plane = tokens.ControlPress
-			close.Scale(pressScaleKey, pressScaleKey)
-		case close.Hovered():
-			plane = tokens.ControlHover
-		}
-		close.Background(plane)
-		if plane.A > 0 {
-			tokens.LitFace(close)
-		}
-		close.Children(func() {
-			ui.Text(c, "\u00d7").FontSize(tokens.Emphasis).TextColor(t.TextMuted)
-		})
-		if close.Clicked() {
-			state.closing = true
-			if state.win != nil {
-				state.win.Close()
-			}
-		}
-	})
+	// The pinned page *is* the panel, drawn in its own window: the same card,
+	// the same glass, the same corner, the same page under them (the user's
+	// 「整体样式、布局以及交互应该保持不变」). `viewWindow` is the one function
+	// that draws a window, so the two cannot drift; the only difference it is
+	// told about is `detached`, which is the accent stroke that marks the
+	// window as pinned.
+	a.viewWindow(c, state.surf, true, state.launcher)
 }
 
 // detachLauncherPage pins the launcher's plugin page (or its open
@@ -342,17 +322,7 @@ func (a *App) detachLauncherPage() {
 	if a.openDetachedSurface != nil {
 		state.win = a.openDetachedSurface(SurfaceLauncher)
 	} else {
-		state.win = mygo.NewWindow(mygo.WindowOptions{
-			Title:     detachWindowTitle(a.detachedLauncherTitle(second)),
-			Width:     detachedSurfaceWidth,
-			Height:    detachedSurfaceHeight,
-			MinWidth:  detachedSurfaceMinWidth,
-			MinHeight: detachedSurfaceMinHeight,
-			StateKey:  detachedSurfaceStateKey(SurfaceLauncher),
-			Content: ui.View(func(c *ui.Context) {
-				a.detachedSurfaceView(c, state)
-			}),
-		})
+		state.win = a.newDetachedSurfaceWindow(SurfaceLauncher, a.detachedWindowTitle(SurfaceLauncher, second), state)
 	}
 	if state.win != nil {
 		state.win.OnClosed(func() { a.forgetDetachedSurface(state) })
@@ -362,14 +332,6 @@ func (a *App) detachLauncherPage() {
 	detachedMu.Unlock()
 	// The panel gives the page up and returns to its own search list.
 	a.Launcher.LeavePluginMode()
-}
-
-// detachedLauncherTitle names a pinned plugin page: the plugin's own name.
-func (a *App) detachedLauncherTitle(second *launcher.App) string {
-	if title := second.PluginTitle(); strings.TrimSpace(title) != "" {
-		return title
-	}
-	return i18n.For(a.Store.Snapshot().Language).Launcher.Label
 }
 
 // detachedLauncherActions is the panel launcher's own action set with the one

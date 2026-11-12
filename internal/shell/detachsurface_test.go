@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo"
@@ -154,10 +155,17 @@ func TestTheDetachChordIsRebindable(t *testing.T) {
 	}
 }
 
-// The pinned page draws itself, and the mark that says it is pinned is on its
-// own bar — the 「特殊的标记」 the user asked for. The reading is the word the
-// bar carries, which is the one thing the panel's page does not have.
-func TestThePinnedPageWearsTheMarkThatSaysItIsPinned(t *testing.T) {
+// A pinned page is the panel's own card in a window of its own, and the mark
+// that says so costs the page nothing.
+//
+// The user's correction was 「我希望的是分离之后和原来的浮窗几乎保持一致，只有少量
+// 的标识来区分是主窗口还是独立窗口，整体的样式、布局以及交互应该保持不变」. The
+// first version failed exactly that: it put a bar above the page, which moved
+// the page down and competed with the page's own header. The mark now rides the
+// window's title (`已固定 · Settings · floter`) and the card's own stroke, which
+// is the accent on a pinned window and the input stroke on the panel's — one
+// line of difference, and no layout of the page touched at all.
+func TestAPinnedPageKeepsThePanelsShapeAndOnlyItsStrokeChanges(t *testing.T) {
 	store := settings.NewStore(settings.Default())
 	a := New(Options{Store: store})
 	state := &detachedSurface{surf: SurfaceSettings}
@@ -167,11 +175,24 @@ func TestThePinnedPageWearsTheMarkThatSaysItIsPinned(t *testing.T) {
 	tt.Frame()
 	tt.Frame()
 
-	copy := i18n.For(store.Snapshot().Language).Launcher
-	if !tt.HasText(copy.DetachedMark) {
-		t.Errorf("the pinned page does not say it is pinned: %q", tt.Texts())
+	// The page is the settings page, whole: its own header, its own rows. No
+	// band of ours stands between the window's top edge and the page.
+	if !tt.HasText("General") || !tt.HasText("Appearance") {
+		t.Fatalf("the pinned page is not the settings page: %q", tt.Texts())
 	}
-	if !tt.HasText(i18n.For(store.Snapshot().Language).Settings.Title) {
-		t.Errorf("the pinned page does not name itself: %q", tt.Texts())
+	mark := i18n.For(store.Snapshot().Language).Launcher.DetachedMark
+	if tt.HasText(mark) {
+		t.Errorf("the pinned page draws a band of its own (%q); the mark belongs to the "+
+			"window's title and the card's stroke, not to the page's layout", mark)
+	}
+
+	// The window's title carries the mark, and it is the only place the user
+	// reads it in the page's own text.
+	title := a.detachedWindowTitle(SurfaceSettings, nil)
+	if !strings.HasPrefix(title, mark) {
+		t.Errorf("the pinned window's title is %q, want it to start with %q", title, mark)
+	}
+	if !strings.Contains(title, i18n.For(store.Snapshot().Language).Settings.Title) {
+		t.Errorf("the pinned window's title is %q, want it to name the page", title)
 	}
 }

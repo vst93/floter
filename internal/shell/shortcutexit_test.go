@@ -36,7 +36,7 @@ func checkShortcutExit(t *testing.T, custom bool, exit string) {
 			tt := ui.NewTester(func(c *ui.Context) {
 				surface := launcher.Resolve(h.app.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 				c.SetTheme(surface.Tokens.Theme)
-				h.app.surface(c)
+				h.app.surface(c, h.app.Surf, nil)
 			}, 960, 1100)
 			tt.SetDark(dark)
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})

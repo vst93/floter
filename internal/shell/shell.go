@@ -4575,10 +4575,21 @@ func (a *App) settings() settings.Settings {
 
 // View builds the window: the transparent root, the inset card, its glass
 // material (or plain face for the `off` stop), and the active surface.
-func (a *App) View(c *ui.Context) {
+// View draws the panel: the window the app lives in.
+func (a *App) View(c *ui.Context) { a.viewWindow(c, a.Surf, false, nil) }
+
+// viewWindow draws one window's card for a surface.
+//
+// `detached` marks a pinned page — the same card, drawn in the window the
+// user pinned it into (see detachedsurface.go). Everything about it is the
+// panel's own: the same glass, the same corner, the same strokes, the same
+// page under them. The one difference is the mark, and it is deliberately
+// small: the user asked for a page that *looks like the panel* with 「少量的
+// 标识来区分是主窗口还是独立窗口」, not a second design.
+func (a *App) viewWindow(c *ui.Context, surf Surface, detached bool, alt *launcher.App) {
 	s := a.settings()
 	var surface launcher.Surface
-	if a.Surf == SurfaceTerminal {
+	if surf == SurfaceTerminal {
 		surface.Tokens = apptheme.ForTerminalPreferences(s, c.Theme().Dark, c.Preferences())
 		surface.Glass = glassmap.TerminalSpecForPreferencesOS(runtime.GOOS, s.GlassStep, s.TerminalOpacity, c.Preferences().HighContrast)
 	} else {
@@ -4589,25 +4600,30 @@ func (a *App) View(c *ui.Context) {
 	// A notice raised while the user was elsewhere (a refused floter:// link)
 	// is shown on the surface they are on, not on the launcher's docked row
 	// they cannot see.
-	a.flushNotices(c)
+	if !detached {
+		a.flushNotices(c)
+		// The notice stack, the toast layer, the app keys and the residency
+		// clock belong to the panel: a pinned page runs its own window and
+		// must not raise the panel's notices or answer its keys twice.
+		a.toastViewport(c)
+		a.appShortcuts(c)
+		a.noteResidency()
+	}
 
 	// The notices paint with the app's own viewport, not the framework's: the
 	// old build's `.app-toast` carried the kind's mark and tone, and the
 	// theme's default paints every toast the same inverted pill (see
 	// toastViewport). It must run after flushNotices, which is what puts this
 	// frame's notice into the stack the viewport reads.
-	a.toastViewport(c)
 
 	// The app's own keys answer on every surface: ⌘W hides whatever the
 	// window is showing (the old build's dismiss table was surface-wide),
 	// and a new command returns to the launcher from the terminal or the
 	// settings as well as from the launcher's own modes.
-	a.appShortcuts(c)
 
 	// The residency clock follows the surface the app is on, so a summon
 	// knows whether the plugin mode (or settings, or terminal) the user left
 	// is still "where they left it".
-	a.noteResidency()
 
 	// Only the card paints; the window's transparent margin shows the
 	// desktop, which the glass reads through.
@@ -4620,10 +4636,27 @@ func (a *App) View(c *ui.Context) {
 	// The card's one edge (base.css's --input-stroke): a plain 1px stroke,
 	// lit one step while the window has the keyboard — the rim the old
 	// build's R72 kept when it deleted the second one.
+	// A pinned page wears the same stroke in the accent. That is the whole of
+	// its mark: the user asked for a page that stays the panel's own shape and
+	// layout, with 「少量的标识来区分是主窗口还是独立窗口」, and a border that is
+	// *this window is pinned* is exactly one line of difference.
+	//
+	// The colour is `AccentEdgeStrong`, not `Theme().Accent`. The latter is the
+	// *ink* accent, and `readable` walks it toward the appearance's extreme until
+	// it clears a 5.5 contrast ratio (`internal/theme/readability.go`:
+	// `p.accent = readableInk(p.accent, toward, 5.5, backs)`) — on the dark
+	// appearance that lands on pure white, which as a 1px border reads as a hard,
+	// foreign rim rather than as this app's accent. `AccentEdgeStrong` is the
+	// same hue at the alpha the app already uses for accent *edges* (0.68 on
+	// dark, 0.68 on light), so the pinned card's rim is the same kind of line the
+	// rest of the interface draws.
 	stroke := surface.Tokens.InputStroke
 	focused := a.cardFocused()
 	if focused {
 		stroke = surface.Tokens.InputStrokeActive
+	}
+	if detached {
+		stroke = surface.Tokens.AccentEdgeStrong
 	}
 	// The reference's window contract is a **720-wide column** (`lib.rs:93`,
 	// `INPUT_WINDOW_WIDTH`; 「the launcher's 720px column is the window
@@ -4653,11 +4686,15 @@ func (a *App) View(c *ui.Context) {
 	// The frame's size requests are collected here and applied by
 	// flushWindowSize once the surface has been built, so at most one
 	// synchronous SetSize happens per frame (see framesize.go).
-	defer a.flushWindowSize()
-	defer a.walkLauncherHeight(c)
-	a.holdContractWidth(windowWidth)
-	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
-	a.logGeometry(windowWidth, cardWidth, material, c.Vibrancy(), left, right)
+	if !detached {
+		defer a.flushWindowSize()
+		defer a.walkLauncherHeight(c)
+		a.holdContractWidth(windowWidth)
+	}
+	cardWidth := CardWidth(surf, windowWidth, left, right)
+	if !detached {
+		a.logGeometry(windowWidth, cardWidth, material, c.Vibrancy(), left, right)
+	}
 	// The panel's arrival: the reference's `shell-enter` (`base.css:1244-1256`),
 	// one eased travel 0→1 driving opacity, scale and the 6px lift together, so
 	// a summon reads as a pane *landing* rather than a window appearing. It runs
@@ -4707,7 +4744,7 @@ func (a *App) View(c *ui.Context) {
 		// disagree with the window it fills; `cardWidth` stays for the
 		// geometry log and the height accounting only.
 		card := ui.Column(c).FillWidth().FillHeight().Radius(radius).Clip()
-		if a.Surf != SurfaceTerminal {
+		if surf != SurfaceTerminal {
 			card.Border(1, stroke)
 		}
 		// The card's own depth where the platform has no window-server shadow:
@@ -4715,7 +4752,7 @@ func (a *App) View(c *ui.Context) {
 		// window gets a native one, and a frameless Windows window's shadow
 		// follows the window's rectangle rather than the card's corners. macOS
 		// draws none — the window server casts it (see the window options).
-		if a.Surf != SurfaceTerminal {
+		if surf != SurfaceTerminal {
 			switch runtime.GOOS {
 			case "linux":
 				card.Shadow(0, t.Space(1), t.Space(4.5), 0, surface.Tokens.ShadowAmbient)
@@ -4731,9 +4768,9 @@ func (a *App) View(c *ui.Context) {
 		}
 		// Settings keep their panel edge; the terminal uses a plain canvas.
 		contrast := c.Preferences().HighContrast
-		if a.Surf == SurfaceSettings {
+		if surf == SurfaceSettings {
 			drawPanelEdge(card, surface.Tokens, runtime.GOOS, false, contrast)
-		} else if a.Surf == SurfaceLauncher {
+		} else if surf == SurfaceLauncher {
 			drawCardEdge(card, surface.Tokens, runtime.GOOS, focused, contrast)
 		}
 		// The terminal has its own transparency control: the old build painted
@@ -4746,7 +4783,7 @@ func (a *App) View(c *ui.Context) {
 		// the rest, so the two composite back to the slider once instead of
 		// squaring it (see glassmap.Spec.TerminalFrameAlpha).
 		faceAlpha := spec.TintAlpha
-		if a.Surf == SurfaceTerminal {
+		if surf == SurfaceTerminal {
 			faceAlpha = spec.TerminalFrameAlpha()
 		}
 		if !material {
@@ -4791,7 +4828,7 @@ func (a *App) View(c *ui.Context) {
 			if focused {
 				sheenTop, sheenBottom = surface.Tokens.SheenAtFocus(faceAlpha)
 			}
-			if a.Surf == SurfaceTerminal {
+			if surf == SurfaceTerminal {
 				// One uninterrupted canvas, without a glass gutter or lit rim.
 				faceTop = a.Terminal.FrameBackground(surface.Tokens)
 				faceTop = ui.RGBA(faceTop.R, faceTop.G, faceTop.B, faceAlpha)
@@ -4805,7 +4842,7 @@ func (a *App) View(c *ui.Context) {
 				// sheen-bottom)`): the lit face that keeps a translucent pane
 				// from reading as a flat wash. The off stop's sheen tokens are
 				// zero, so the same gradient draws nothing there.
-				if a.Surf != SurfaceTerminal {
+				if surf != SurfaceTerminal {
 					ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).PassThrough().
 						LinearGradient(ui.LinearGradient{From: sheenTop, To: sheenBottom, Angle: 180})
 				}
@@ -4818,20 +4855,27 @@ func (a *App) View(c *ui.Context) {
 				// own content and paints its sheet to the card's edge instead:
 				// the settings column's 4u header inset, the launcher panel's
 				// 4u/2u, the terminal's own appearance padding.
-				ui.Column(c).Fill().Children(func() { a.surface(c) })
+				ui.Column(c).Fill().Children(func() { a.surface(c, surf, alt) })
 			})
 		})
 	})
 }
 
 // surface builds the body of the window: the active surface's content.
-func (a *App) surface(c *ui.Context) {
-	switch a.Surf {
+func (a *App) surface(c *ui.Context, surf Surface, alt *launcher.App) {
+	switch surf {
 	case SurfaceSettings:
 		a.Settings.View(c)
 	case SurfaceTerminal:
 		a.Terminal.View(c)
 	default:
+		// A pinned plugin page draws *its own* launcher: the panel's one has
+		// gone back to the search list, and one launcher's mode is a single
+		// value (see shell.detachLauncherPage).
+		if alt != nil {
+			alt.View(c)
+			return
+		}
 		a.Launcher.View(c)
 	}
 }
